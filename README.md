@@ -8,6 +8,7 @@
 > To minimize maintenance, this plugin defers to beads and limits its scope to bug fixes and syncing upstream vendor plugin content. Feature requests and additional customization are generally out of scope.
 >
 > If you want to customize behavior, the plugin surface area is small — forking or copying it locally is encouraged.
+
 ## Installation
 
 Install the beads CLI:
