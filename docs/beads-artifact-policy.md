@@ -1,6 +1,6 @@
 # Beads Artifact Policy
 
-Status: accepted on 2026-07-20. This decision defines product scope only; artifact-policy implementation belongs to `opencode-beads-yui.16`.
+Status: implemented on 2026-07-20 by `opencode-beads-yui.16`.
 
 ## Evidence
 
@@ -28,6 +28,8 @@ Status: accepted on 2026-07-20. This decision defines product scope only; artifa
 
 Shipping a package-local skill alone would add no capability because OpenCode does not search npm package internals. Installation is therefore an explicit companion-CLI operation, never a startup side effect. Before writing, it scans project and global `.opencode`, `.agents`, and `.claude` skill roots and refuses unmanaged, differently managed, or locally modified content. A provenance manifest and hashes establish ownership for safe update and removal; there is no force override.
 
+The project target is `<worktree>/.opencode/skills/beads`; the global target is `<home>/.config/opencode/skills/beads`. The installed ownership record is `.opencode-beads-manifest.json` inside that target. It records owner, package version, upstream tag and commit, adaptation revision, scope, canonical target, and the sorted path and SHA-256 digest of every payload file. The ownership record does not hash itself. Install and update build a complete sibling staging tree, write its ownership record last, and swap it with a sibling backup; removal first renames the validated target to a sibling backup. Recovery copies permit caught deletion failures to restore the old target. Clearly owned stale transaction siblings are refused rather than silently consumed. This protects against ordinary caught filesystem errors but does not claim crash-proof atomicity across multiple renames.
+
 The approved commands and agent use native configuration mutation and explicit names. Their collision policy is separate work owned by `opencode-beads-yui.10`; this decision does not change precedence or merge behavior.
 
 ## `bd prime` boundary
@@ -38,7 +40,18 @@ The full `bd` command surface remains CLI-only. OpenCode receives no generated t
 
 ## Provenance and package implications
 
-The npm package may ship an adapted skill and referenced resources under `dist/init/artifacts/beads/`, with `dist/init/manifest.json` and a companion lifecycle CLI. Upstream plugin manifests, hooks, executables, and unreferenced resources remain excluded.
+The npm package ships the adapted skill and three referenced resources under `dist/init/artifacts/beads/`, with strict checksums and provenance in `dist/init/manifest.json` and the `opencode-beads` companion lifecycle CLI. The manifest pins Beads `v1.0.5` at `6a3f515ced18406c189c55fff789a4925bfaa35c`. It records and validates this reviewed fork mapping:
+
+| Exact upstream source | Adapted package target |
+| --- | --- |
+| `plugins/beads/skills/beads/SKILL.md` | `SKILL.md` |
+| `plugins/beads/skills/beads/resources/DEPENDENCIES.md` | `references/DEPENDENCIES.md` |
+| `plugins/beads/skills/beads/resources/ISSUE_CREATION.md` | `references/ISSUE_CREATION.md` |
+| `plugins/beads/skills/beads/resources/RESUMABILITY.md` | `references/RESUMABILITY.md` |
+
+Each source record includes the reviewed upstream SHA-256, independently of the adapted target checksum. Upstream plugin manifests, hooks, executables, and unreferenced resources remain excluded.
+
+The package CLI is canonical for skill setup and management; every suggested `bunx` invocation is pinned to the plugin package version. `/beads:init` remains DB-only. CLI exits are `0` for success/current, `1` for a non-current `check`, and `2` for usage, refusal, validation, discovery, or operational errors. JSON mode emits one deterministic object on stdout and no stderr on every exit.
 
 Any future artifact added to this policy must have all of the following before implementation:
 

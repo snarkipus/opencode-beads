@@ -29,6 +29,34 @@ Add to your OpenCode config (`~/.config/opencode/opencode.json`):
 
 Restart OpenCode. In a project that does not have a Beads workspace yet, run `/beads:init` or `bd init` before using issue commands.
 
+### Optional skill
+
+Install the companion OpenCode skill for durable Beads guidance in the current worktree:
+
+```bash
+bunx opencode-beads@0.7.0 init
+```
+
+Use `--global` to target `~/.config/opencode/skills/beads`. The same scope flag applies to every lifecycle command:
+
+```bash
+bunx opencode-beads@0.7.0 check [--global]
+bunx opencode-beads@0.7.0 update [--global]
+bunx opencode-beads@0.7.0 remove [--global]
+```
+
+All commands support `--dry-run` and `--json`. Installation is offline from immutable package artifacts, refuses unmanaged or locally modified content and other discovered `beads` skills, and never runs during plugin startup. Updates are assembled in a sibling staging directory and swapped with a validated backup so ordinary filesystem errors restore the prior installation; this is rollback safety, not a claim of crash-proof multi-rename atomicity. The package CLI is the canonical setup lifecycle. `/beads:setup` provides the version-matched commands, while `/beads:init` is DB-only and initializes the Beads database rather than the OpenCode skill.
+
+CLI exit codes are stable:
+
+| Exit | Meaning |
+| --- | --- |
+| `0` | Lifecycle command succeeded, or `check` found the current managed skill. |
+| `1` | `check` found a missing, stale, modified, or conflicting skill. |
+| `2` | Invalid usage, lifecycle refusal, package validation failure, git discovery failure, or operational error. |
+
+With `--json`, every exit writes exactly one JSON object plus a trailing newline to stdout and writes nothing to stderr. The stable `code` and `message` fields classify success, non-current checks, refusals, usage errors, discovery failures, package failures, and other operational failures.
+
 Optionally, pin to a specific version for stability:
 
 ```json
@@ -42,7 +70,7 @@ OpenCode fetches unpinned plugins from npm on each startup; pinned versions are 
 ## Features
 
 - **Context injection** - Loads persistent Beads memories on session start and after compaction without duplicating the full workflow reference
-- **Commands** - Vendored Beads workflows available under the `/beads:*` namespace
+- **Commands** - Vendored Beads workflows plus native `/beads:setup`, available under the `/beads:*` namespace
 - **Task agent** - Autonomous issue completion via `beads-task-agent` subagent
 
 ## Usage
@@ -81,7 +109,7 @@ The OpenCode adapter builds against `@opencode-ai/plugin` and `@opencode-ai/sdk`
 
 Files under `vendor/` are copied from the upstream Beads plugin by [`scripts/sync-beads.sh`](scripts/sync-beads.sh). The current inventory includes the complete upstream command-template directory and task agent, rather than a duplicate of the much larger `bd` CLI. [`vendor/manifest.json`](vendor/manifest.json) records the stable upstream tag and commit, source paths, sorted inventory, byte lengths, and SHA-256 checksums. A deterministic adaptation layer translates known MCP- or Claude-specific instructions to OpenCode's CLI-only model when prompts load; sync fails if provenance, checksums, inventory, or reviewed transformations differ. Do not edit vendored files directly: the next sync replaces them. Adapter behavior lives in `src/`, while general Beads behavior and documentation remain upstream.
 
-The vendor manifest, task agent, and every recorded command file are required package content. Initialization fails with the artifact path and validation reason if required content is missing or malformed. Command frontmatter supports `description`, `argument-hint`, `agent`, `model`, and `subtask`; task-agent frontmatter supports `description`, `mode: subagent`, `model`, `temperature`, `top_p`, `disable`, `color`, and `maxSteps`. Unsupported fields or shapes fail validation so upstream changes receive explicit review. Reinstall the package or rerun the sync script from a source checkout rather than repairing generated files by hand.
+The vendor manifest, task agent, and every recorded command file are required package content. The separately reviewed skill fork records exact upstream source paths and hashes mapped to each adapted output in `dist/init/manifest.json`; these mappings, the output inventory, and output hashes are all strict package inputs. Initialization fails with the artifact path and validation reason if required content is missing or malformed. Command frontmatter supports `description`, `argument-hint`, `agent`, `model`, and `subtask`; task-agent frontmatter supports `description`, `mode: subagent`, `model`, `temperature`, `top_p`, `disable`, `color`, and `maxSteps`. Unsupported fields or shapes fail validation so upstream changes receive explicit review. Reinstall the package or rerun the sync script from a source checkout rather than repairing generated files by hand.
 
 ## Troubleshooting
 

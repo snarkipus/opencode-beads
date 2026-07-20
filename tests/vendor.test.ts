@@ -41,6 +41,7 @@ const expectedCommands = [
   "beads:reopen",
   "beads:restore",
   "beads:search",
+  "beads:setup",
   "beads:show",
   "beads:stats",
   "beads:sync",
@@ -84,6 +85,19 @@ describe("vendor prompt adaptations", () => {
       expect(command.template, name).not.toMatch(unsupportedPattern);
       expect(Object.keys(command).sort(), name).toEqual(["description", "template"]);
     }
+    const packageVersion = JSON.parse(await fs.readFile("package.json", "utf8")).version as string;
+    const setup = commands["beads:setup"]?.template ?? "";
+    for (const invocation of [
+      "init",
+      "init --global",
+      "check",
+      "update",
+      "remove",
+    ]) {
+      expect(setup).toContain(`bunx opencode-beads@${packageVersion} ${invocation}`);
+    }
+    expect(setup).toContain("package CLI is canonical");
+    expect(setup).toContain("`/beads:init` is DB-only");
 
     const agents = (await loadAgent()) ?? {};
     const taskAgent = agents["beads-task-agent"];

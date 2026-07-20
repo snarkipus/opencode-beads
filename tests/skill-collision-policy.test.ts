@@ -28,7 +28,7 @@ describe("skill collision policy", () => {
   test("resolves all project and global discovery roots deterministically", async () => {
     const { project, home } = await createFixture();
 
-    expect(beadsSkillLocations(project, home)).toEqual([
+    expect(beadsSkillLocations(project, project, home)).toEqual([
       { path: join(project, ".opencode/skills/beads"), root: ".opencode", scope: "project" },
       { path: join(project, ".agents/skills/beads"), root: ".agents", scope: "project" },
       { path: join(project, ".claude/skills/beads"), root: ".claude", scope: "project" },
@@ -44,7 +44,7 @@ describe("skill collision policy", () => {
 
   test("classifies absent, managed, modified, differently managed, and unmanaged locations", async () => {
     const { project, home } = await createFixture();
-    const locations = beadsSkillLocations(project, home);
+    const locations = beadsSkillLocations(project, project, home);
     const states: Array<ManagedSkillState | "differently-managed"> = [
       "current",
       "stale",
@@ -63,6 +63,7 @@ describe("skill collision policy", () => {
     await writeFile(join(unmanaged.path, "SKILL.md"), "user content");
 
     const inspections = await inspectBeadsSkillLocations(
+      project,
       project,
       home,
       async (location) => {
@@ -84,7 +85,7 @@ describe("skill collision policy", () => {
 
   test("blocks every occupied non-target and unsafe target without changing files", async () => {
     const { project, home } = await createFixture();
-    const locations = beadsSkillLocations(project, home);
+    const locations = beadsSkillLocations(project, project, home);
     const target = locations[0];
     const other = locations[3];
     if (!target || !other) throw new Error("missing fixture locations");
@@ -94,6 +95,7 @@ describe("skill collision policy", () => {
     await writeFile(join(other.path, "ownership"), "current");
 
     const inspections = await inspectBeadsSkillLocations(
+      project,
       project,
       home,
       async (location) =>
@@ -105,5 +107,24 @@ describe("skill collision policy", () => {
     ]);
     expect(await readFile(join(target.path, "ownership"), "utf8")).toBe("stale");
     expect(await readFile(join(other.path, "ownership"), "utf8")).toBe("current");
+  });
+
+  test("scans each cwd ancestor through the worktree and rejects an outside cwd", async () => {
+    const { project, home } = await createFixture();
+    const cwd = join(project, "packages", "app");
+    await mkdir(cwd, { recursive: true });
+
+    expect(beadsSkillLocations(cwd, project, home).slice(0, 9).map(({ path }) => path)).toEqual([
+      join(cwd, ".opencode/skills/beads"),
+      join(cwd, ".agents/skills/beads"),
+      join(cwd, ".claude/skills/beads"),
+      join(project, "packages/.opencode/skills/beads"),
+      join(project, "packages/.agents/skills/beads"),
+      join(project, "packages/.claude/skills/beads"),
+      join(project, ".opencode/skills/beads"),
+      join(project, ".agents/skills/beads"),
+      join(project, ".claude/skills/beads"),
+    ]);
+    expect(() => beadsSkillLocations(home, project, home)).toThrow("cwd must be within worktree");
   });
 });

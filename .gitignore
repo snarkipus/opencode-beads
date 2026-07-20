@@ -3,7 +3,9 @@ node_modules
 
 # output
 out
-dist
+dist/*
+!dist/init/
+!dist/init/**
 *.tgz
 
 # code coverage

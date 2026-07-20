@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -12,6 +13,36 @@ async function run(command: string[], cwd = projectDir): Promise<void> {
   if (exitCode !== 0) {
     throw new Error(`${command.join(" ")} exited with code ${exitCode}`);
   }
+}
+
+async function capture(
+  command: string[],
+  cwd: string,
+  env?: Record<string, string>
+): Promise<string> {
+  const process = Bun.spawn(command, {
+    cwd,
+    env: { ...Bun.env, ...env },
+    stdout: "pipe",
+    stderr: "inherit",
+  });
+  const output = await new Response(process.stdout).text();
+  const exitCode = await process.exited;
+  if (exitCode !== 0) throw new Error(`${command.join(" ")} exited with code ${exitCode}`);
+  return output;
+}
+
+async function filesBelow(root: string, directory = ""): Promise<string[]> {
+  const files: string[] = [];
+  for (const entry of await fs.readdir(path.join(root, directory), { withFileTypes: true })) {
+    const relativePath = directory ? `${directory}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...(await filesBelow(root, relativePath)));
+    } else {
+      files.push(relativePath);
+    }
+  }
+  return files.sort();
 }
 
 try {
@@ -33,8 +64,12 @@ try {
   const packageDir = path.join(consumerDir, "node_modules", "opencode-beads");
   const manifest = JSON.parse(
     await fs.readFile(path.join(packageDir, "package.json"), "utf-8")
-  ) as { main?: string };
+  ) as { main?: string; bin?: Record<string, string>; version?: string };
   if (!manifest.main) throw new Error("Packed package has no main entry");
+  if (!manifest.version) throw new Error("Packed package has no version");
+  if (manifest.bin?.["opencode-beads"] !== "src/init-cli.ts") {
+    throw new Error("Packed package has no companion CLI bin");
+  }
 
   const entry = path.join(packageDir, manifest.main);
   const loaded = await import(pathToFileURL(entry).href);
@@ -44,6 +79,74 @@ try {
 
   const vendorCommands = await fs.readdir(path.join(packageDir, "vendor", "commands"));
   if (vendorCommands.length === 0) throw new Error("Packed package has no vendor commands");
+
+  const artifactManifest = JSON.parse(
+    await fs.readFile(path.join(packageDir, "dist", "init", "manifest.json"), "utf8")
+  ) as {
+    files: Array<{ path: string; bytes: number; sha256: string }>;
+    sources: Array<{ source: string; sourceSha256: string; target: string }>;
+  };
+  const expectedArtifactPaths = [
+    "SKILL.md",
+    "references/DEPENDENCIES.md",
+    "references/ISSUE_CREATION.md",
+    "references/RESUMABILITY.md",
+  ];
+  const expectedDistInventory = [
+    ...expectedArtifactPaths.map((file) => `init/artifacts/beads/${file}`),
+    "init/manifest.json",
+  ].sort();
+  if (
+    (await filesBelow(path.join(packageDir, "dist"))).join("\0") !==
+    expectedDistInventory.join("\0")
+  ) {
+    throw new Error("Packed package has an unexpected complete dist inventory");
+  }
+  if (
+    artifactManifest.files?.map(({ path: file }) => file).join("\0") !==
+    expectedArtifactPaths.join("\0")
+  ) {
+    throw new Error("Packed package has an unexpected init artifact inventory");
+  }
+  const expectedSources = [
+    [
+      "plugins/beads/skills/beads/SKILL.md",
+      "01555fe65d19be401d820d9dec029cd048fb0791d433b4b575374477d6f1d827",
+      "SKILL.md",
+    ],
+    [
+      "plugins/beads/skills/beads/resources/DEPENDENCIES.md",
+      "9c3327611bfbdc47124736dd0cc928bfeff1c135d4ae79d4ea46cba1900df335",
+      "references/DEPENDENCIES.md",
+    ],
+    [
+      "plugins/beads/skills/beads/resources/ISSUE_CREATION.md",
+      "ff465ed1fb13fbb6c42b42ec15c1bd8fd677c4661237e4fc1675c179f7fca460",
+      "references/ISSUE_CREATION.md",
+    ],
+    [
+      "plugins/beads/skills/beads/resources/RESUMABILITY.md",
+      "8a7db4e967ace1b4f60dc85e3fb2d02f70749a18056fe90c61b2685bb172d7df",
+      "references/RESUMABILITY.md",
+    ],
+  ];
+  const actualSources = artifactManifest.sources.map(({ source, sourceSha256, target }) => [
+    source,
+    sourceSha256,
+    target,
+  ]);
+  if (JSON.stringify(actualSources) !== JSON.stringify(expectedSources)) {
+    throw new Error("Packed package has unexpected reviewed source mappings");
+  }
+  for (const file of artifactManifest.files) {
+    const content = await fs.readFile(
+      path.join(packageDir, "dist", "init", "artifacts", "beads", file.path)
+    );
+    const checksum = createHash("sha256").update(content).digest("hex");
+    if (content.byteLength !== file.bytes || checksum !== file.sha256) {
+      throw new Error(`Packed init artifact failed validation: ${file.path}`);
+    }
+  }
 
   const hooks = await loaded.BeadsPlugin({
     client: {},
@@ -55,8 +158,19 @@ try {
   await hooks.config(config);
   const commands = config.command as Record<string, { template?: string }> | undefined;
   const agents = config.agent as Record<string, { prompt?: string }> | undefined;
-  if (Object.keys(commands ?? {}).length !== 27 || !commands?.["beads:ready"]?.template) {
+  if (Object.keys(commands ?? {}).length !== 28 || !commands?.["beads:ready"]?.template) {
     throw new Error("Packed plugin did not load the complete command inventory");
+  }
+  const setup = commands?.["beads:setup"]?.template;
+  const versionedCli = `bunx opencode-beads@${manifest.version}`;
+  if (
+    !["init", "init --global", "check", "update", "remove"].every((command) =>
+      setup?.includes(`${versionedCli} ${command}`)
+    ) ||
+    !setup?.includes("package CLI is canonical") ||
+    !setup.includes("/beads:init")
+  ) {
+    throw new Error("Packed plugin did not load versioned setup guidance");
   }
   const taskAgentPrompt = agents?.["beads-task-agent"]?.prompt;
   if (!taskAgentPrompt) {
@@ -67,6 +181,33 @@ try {
     taskAgentPrompt.includes("Agent Delegation")
   ) {
     throw new Error("Packed task-agent prompt contains duplicated workflow guidance");
+  }
+
+  await run(["git", "init", "--quiet"], consumerDir);
+  const cli = path.join(consumerDir, "node_modules", ".bin", "opencode-beads");
+  if (((await fs.stat(cli)).mode & 0o111) === 0) {
+    throw new Error("Packed companion CLI is not executable");
+  }
+  const cliHome = path.join(tempDir, "home");
+  await fs.mkdir(cliHome);
+  const firstDryRun = await capture([cli, "init", "--dry-run", "--json"], consumerDir, {
+    HOME: cliHome,
+  });
+  const secondDryRun = await capture([cli, "init", "--dry-run", "--json"], consumerDir, {
+    HOME: cliHome,
+  });
+  if (firstDryRun !== secondDryRun || JSON.parse(firstDryRun).state !== "missing") {
+    throw new Error("Packed CLI dry-run JSON is not deterministic");
+  }
+  const installed = JSON.parse(
+    await capture([cli, "init", "--json"], consumerDir, { HOME: cliHome })
+  );
+  const checked = JSON.parse(await capture([cli, "check", "--json"], consumerDir, { HOME: cliHome }));
+  const removed = JSON.parse(
+    await capture([cli, "remove", "--json"], consumerDir, { HOME: cliHome })
+  );
+  if (!installed.changed || checked.state !== "current" || !removed.changed) {
+    throw new Error("Packed CLI failed the offline lifecycle smoke test");
   }
 
   console.log(`Loaded packed plugin with ${vendorCommands.length} vendor command files`);

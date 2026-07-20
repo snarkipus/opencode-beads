@@ -16,6 +16,15 @@ function getVendorDir(): string {
   return path.join(__dirname, "..", "vendor");
 }
 
+async function getPackageVersion(): Promise<string> {
+  const packagePath = path.join(getVendorDir(), "..", "package.json");
+  const value = JSON.parse(await fs.readFile(packagePath, "utf8")) as { version?: unknown };
+  if (typeof value.version !== "string") {
+    throw new Error("Invalid package artifact package.json: version must be a string");
+  }
+  return value.version;
+}
+
 interface ParsedMarkdown {
   frontmatter: Record<string, string>;
   body: string;
@@ -270,6 +279,13 @@ export async function loadCommands(vendorDirectory = getVendorDir()): Promise<Co
     }
     commands[name] = command;
   }
+
+  const packageVersion = await getPackageVersion();
+  const cli = `bunx opencode-beads@${packageVersion}`;
+  commands["beads:setup"] = {
+    description: "Install or manage the OpenCode Beads skill",
+    template: `The package CLI is canonical for the OpenCode Beads skill lifecycle. Use exact version-matched commands: \`${cli} init\`, \`${cli} init --global\`, \`${cli} check\`, \`${cli} update\`, and \`${cli} remove\`. Add \`--global\` to check, update, or remove for global scope. \`/beads:init\` is DB-only: it initializes a Beads database and does not install the skill.`,
+  };
 
   return commands;
 }

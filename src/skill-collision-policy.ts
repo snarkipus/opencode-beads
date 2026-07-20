@@ -1,5 +1,5 @@
 import { lstat } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 const SKILL_ROOTS = [".opencode", ".agents", ".claude"] as const;
 
@@ -38,15 +38,31 @@ function isMissing(error: unknown): boolean {
 
 /** Resolve every project and global discovery location for a skill named beads. */
 export function beadsSkillLocations(
-  projectDirectory: string,
+  cwd: string,
+  worktree: string,
   homeDirectory: string
 ): SkillLocation[] {
-  return [
-    ...SKILL_ROOTS.map((root) => ({
-      path: resolve(projectDirectory, root, "skills", "beads"),
-      root,
-      scope: "project" as const,
-    })),
+  const canonicalCwd = resolve(cwd);
+  const canonicalWorktree = resolve(worktree);
+  const fromWorktree = relative(canonicalWorktree, canonicalCwd);
+  if (fromWorktree === ".." || fromWorktree.startsWith(`..${sep}`) || isAbsolute(fromWorktree)) {
+    throw new Error(`cwd must be within worktree: ${canonicalCwd}`);
+  }
+
+  const projectDirectories: string[] = [];
+  for (let current = canonicalCwd; ; current = dirname(current)) {
+    projectDirectories.push(current);
+    if (current === canonicalWorktree) break;
+  }
+
+  const locations = [
+    ...projectDirectories.flatMap((directory) =>
+      SKILL_ROOTS.map((root) => ({
+        path: resolve(directory, root, "skills", "beads"),
+        root,
+        scope: "project" as const,
+      }))
+    ),
     ...SKILL_ROOTS.map((root) => ({
       path:
         root === ".opencode"
@@ -56,16 +72,25 @@ export function beadsSkillLocations(
       scope: "global" as const,
     })),
   ];
+  const uniqueLocations: SkillLocation[] = [];
+  const seenPaths = new Set<string>();
+  for (const location of locations) {
+    if (seenPaths.has(location.path)) continue;
+    seenPaths.add(location.path);
+    uniqueLocations.push(location);
+  }
+  return uniqueLocations;
 }
 
 /** Inspect all discovery locations without mutating them. */
 export async function inspectBeadsSkillLocations(
-  projectDirectory: string,
+  cwd: string,
+  worktree: string,
   homeDirectory: string,
   inspectManaged: ManagedSkillInspector
 ): Promise<SkillLocationInspection[]> {
   return Promise.all(
-    beadsSkillLocations(projectDirectory, homeDirectory).map(async (location) => {
+    beadsSkillLocations(cwd, worktree, homeDirectory).map(async (location) => {
       let stats;
       try {
         stats = await lstat(location.path);

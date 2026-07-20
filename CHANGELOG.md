@@ -39,6 +39,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Added plugin contract tests, packed-package smoke coverage, and locked pull-request CI.
 - Added a reproducible vendor provenance manifest with stable-release selection and checksum validation.
+- Added the offline `opencode-beads` companion CLI for checked, collision-safe project or global skill installation, update, and removal.
+- Added the native `/beads:setup` command with version-matched lifecycle guidance.
 
 ## [0.7.0]
 
