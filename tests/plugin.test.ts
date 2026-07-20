@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import {
   createBeadsController,
+  resolveProjectDirectory,
   type AgentInfo,
   type MessageContext,
   type MutablePluginConfig,
@@ -76,6 +77,14 @@ function message(sessionID: string, agent = "build"): MessageContext {
 }
 
 describe("Beads plugin controller", () => {
+  test("resolves project scope without using the process directory", () => {
+    expect(resolveProjectDirectory("/active/project", "/worktree")).toBe("/active/project");
+    expect(resolveProjectDirectory("", "/fallback/worktree")).toBe("/fallback/worktree");
+    expect(() => resolveProjectDirectory("", "")).toThrow(
+      "OpenCode did not provide a project directory or worktree"
+    );
+  });
+
   test("runs bd prime in the project directory and preserves message context", async () => {
     const fixture = createRuntime([" prime context \n"]);
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
@@ -194,6 +203,34 @@ describe("Beads plugin controller", () => {
 
     expect(fixture.primeDirectories).toHaveLength(1);
     expect(fixture.promptCalls).toHaveLength(1);
+  });
+
+  test("isolates concurrent sessions from different OpenCode projects", async () => {
+    const first = createRuntime(["first project context"]);
+    const second = createRuntime(["second project context"]);
+    const [firstController, secondController] = await Promise.all([
+      createBeadsController(first.runtime, "/projects/first"),
+      createBeadsController(second.runtime, "/projects/second"),
+    ]);
+
+    await Promise.all([
+      firstController.onMessage(message("first-session")),
+      secondController.onMessage(message("second-session")),
+    ]);
+
+    expect(first.primeDirectories).toEqual(["/projects/first"]);
+    expect(first.messageDirectories).toEqual(["/projects/first"]);
+    expect(first.agentDirectories).toEqual(["/projects/first"]);
+    expect(first.promptDirectories).toEqual(["/projects/first"]);
+    expect(first.promptCalls[0]?.body.parts[0]?.text).toContain("first project context");
+    expect(first.promptCalls[0]?.body.parts[0]?.text).not.toContain("second project context");
+
+    expect(second.primeDirectories).toEqual(["/projects/second"]);
+    expect(second.messageDirectories).toEqual(["/projects/second"]);
+    expect(second.agentDirectories).toEqual(["/projects/second"]);
+    expect(second.promptDirectories).toEqual(["/projects/second"]);
+    expect(second.promptCalls[0]?.body.parts[0]?.text).toContain("second project context");
+    expect(second.promptCalls[0]?.body.parts[0]?.text).not.toContain("first project context");
   });
 
   test("merges commands and agents with plugin definitions taking precedence", async () => {

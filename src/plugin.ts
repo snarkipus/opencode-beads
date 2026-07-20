@@ -1,9 +1,14 @@
 /** OpenCode adapter for the Beads issue tracker. */
 
 import type { Plugin } from "@opencode-ai/plugin";
-import { createBeadsController, type PluginRuntime } from "./plugin-core";
+import {
+  createBeadsController,
+  resolveProjectDirectory,
+  type PluginRuntime,
+} from "./plugin-core";
 
-export const BeadsPlugin: Plugin = async ({ client, $, directory }) => {
+export const BeadsPlugin: Plugin = async ({ client, $, directory, worktree }) => {
+  const projectDirectory = resolveProjectDirectory(directory, worktree);
   const runtime: PluginRuntime = {
     async getMessages(projectDirectory, sessionID, limit) {
       const response = await client.session.messages({
@@ -31,7 +36,7 @@ export const BeadsPlugin: Plugin = async ({ client, $, directory }) => {
     },
   };
 
-  const controller = await createBeadsController(runtime, directory);
+  const controller = await createBeadsController(runtime, projectDirectory);
 
   return {
     "chat.message": async (_input, output) => {

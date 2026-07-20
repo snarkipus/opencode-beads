@@ -64,6 +64,13 @@ export interface BeadsController {
   configure(config: MutablePluginConfig): void;
 }
 
+/** Resolve OpenCode project scope without falling back to the process directory. */
+export function resolveProjectDirectory(directory: string, worktree: string): string {
+  if (directory.trim()) return directory;
+  if (worktree.trim()) return worktree;
+  throw new Error("OpenCode did not provide a project directory or worktree");
+}
+
 function latestSessionContext(messages: ReadonlyArray<SessionMessage> | undefined) {
   if (!messages) return undefined;
 
