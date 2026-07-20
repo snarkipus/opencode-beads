@@ -9,6 +9,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Config } from "@opencode-ai/sdk";
+import { adaptVendorPrompt } from "./vendor-adaptations";
 
 function getVendorDir(): string {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -93,7 +94,7 @@ const BEADS_CLI_USAGE = `## CLI Usage
 
 Instead, use the \`bash\` tool for all beads operations:
 
-- \`bd init [prefix]\` - Initialize beads
+- \`bd init [--prefix <prefix>]\` - Initialize beads
 - \`bd ready\` - List ready tasks
 - \`bd show <id>\` - Show task details
 - \`bd create "title" -t bug|feature|task -p 0-4\` - Create issue
@@ -154,7 +155,9 @@ export async function loadAgent(): Promise<Config["agent"]> {
   const content = await readVendorFile("agents/task-agent.md");
   if (!content) return {};
 
-  const parsed = parseMarkdownWithFrontmatter(content);
+  const parsed = parseMarkdownWithFrontmatter(
+    adaptVendorPrompt("agents/task-agent.md", content)
+  );
   if (!parsed) return {};
 
   const description =
@@ -179,7 +182,10 @@ export async function loadCommands(): Promise<Config["command"]> {
     const content = await readVendorFile(`commands/${file}`);
     if (!content) continue;
 
-    const parsed = parseMarkdownWithFrontmatter(content);
+    const relativePath = `commands/${file}`;
+    const parsed = parseMarkdownWithFrontmatter(
+      adaptVendorPrompt(relativePath, content)
+    );
     if (!parsed) continue;
 
     const name = `beads:${file.replace(".md", "")}`;

@@ -79,7 +79,7 @@ The OpenCode adapter builds against `@opencode-ai/plugin` and `@opencode-ai/sdk`
 
 ## Vendored Content
 
-Files under `vendor/` are copied from the upstream Beads plugin by [`scripts/sync-beads.sh`](scripts/sync-beads.sh). The current inventory includes the complete upstream command-template directory and task agent, rather than a duplicate of the much larger `bd` CLI. Do not edit these files directly: the next sync replaces the command and agent directories. Adapter behavior lives in `src/`, while general Beads behavior and documentation remain upstream.
+Files under `vendor/` are copied from the upstream Beads plugin by [`scripts/sync-beads.sh`](scripts/sync-beads.sh). The current inventory includes the complete upstream command-template directory and task agent, rather than a duplicate of the much larger `bd` CLI. A deterministic adaptation layer translates known MCP- or Claude-specific instructions to OpenCode's CLI-only model when prompts load; sync fails if upstream wording no longer matches the reviewed transformations. Do not edit vendored files directly: the next sync replaces them. Adapter behavior lives in `src/`, while general Beads behavior and documentation remain upstream.
 
 If vendored files are absent or malformed, the plugin still loads but omits the affected commands or `beads-task-agent`. Reinstall the package or rerun the sync script from a source checkout rather than repairing generated files by hand.
 

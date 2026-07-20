@@ -2,6 +2,8 @@
 
 ## Commands
 - **Typecheck**: `bun run typecheck`
+- **Tests**: `bun test`
+- **Vendor adaptation validation**: `bun run test:vendor`
 - **Vendor sync tests**: `./scripts/test-sync-beads.sh`
 - **Install deps**: `bun install`
 

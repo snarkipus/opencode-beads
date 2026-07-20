@@ -25,6 +25,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ### Fixed
 
+- Adapted upstream MCP-oriented command and task-agent prompts to OpenCode's CLI-only execution model.
 - Made vendor sync dry runs non-mutating and isolated real syncs from the caller's checkout and unrelated files.
 
 ## [0.7.0]

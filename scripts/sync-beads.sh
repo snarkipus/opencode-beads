@@ -56,6 +56,7 @@ fi
 mkdir -p "$CANDIDATE_VENDOR/commands" "$CANDIDATE_VENDOR/agents"
 cp -R "$UPSTREAM_COMMANDS/." "$CANDIDATE_VENDOR/commands/"
 cp "$UPSTREAM_AGENT" "$CANDIDATE_VENDOR/agents/task-agent.md"
+bun "$SCRIPT_DIR/validate-vendor.ts" "$CANDIDATE_VENDOR"
 
 if diff -qr "$PLUGIN_DIR/vendor/commands" "$CANDIDATE_VENDOR/commands" >/dev/null 2>&1 \
   && cmp -s "$PLUGIN_DIR/vendor/agents/task-agent.md" "$CANDIDATE_VENDOR/agents/task-agent.md"; then

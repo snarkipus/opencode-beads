@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SYNC_SCRIPT="$SCRIPT_DIR/sync-beads.sh"
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
@@ -14,9 +15,9 @@ REPO="$TEMP_DIR/repo"
 git init -q "$UPSTREAM"
 git -C "$UPSTREAM" config user.name "Sync Test"
 git -C "$UPSTREAM" config user.email "sync-test@example.com"
-mkdir -p "$UPSTREAM/plugins/beads/skills/beads/commands" "$UPSTREAM/plugins/beads/agents"
-printf '%s\n' 'upstream command' > "$UPSTREAM/plugins/beads/skills/beads/commands/ready.md"
-printf '%s\n' 'upstream agent' > "$UPSTREAM/plugins/beads/agents/task-agent.md"
+mkdir -p "$UPSTREAM/plugins/beads/skills/beads" "$UPSTREAM/plugins/beads/agents"
+cp -R "$PROJECT_DIR/vendor/commands" "$UPSTREAM/plugins/beads/skills/beads/commands"
+cp "$PROJECT_DIR/vendor/agents/task-agent.md" "$UPSTREAM/plugins/beads/agents/task-agent.md"
 git -C "$UPSTREAM" add .
 git -C "$UPSTREAM" commit -qm "fixture"
 git -C "$UPSTREAM" tag v1.2.3
@@ -26,6 +27,8 @@ git clone -q "$ORIGIN" "$REPO"
 git -C "$REPO" config user.name "Sync Test"
 git -C "$REPO" config user.email "sync-test@example.com"
 mkdir -p "$REPO/vendor/commands" "$REPO/vendor/agents"
+cp -R "$PROJECT_DIR/vendor/commands/." "$REPO/vendor/commands/"
+cp "$PROJECT_DIR/vendor/agents/task-agent.md" "$REPO/vendor/agents/task-agent.md"
 printf '%s\n' 'old command' > "$REPO/vendor/commands/ready.md"
 printf '%s\n' 'old agent' > "$REPO/vendor/agents/task-agent.md"
 printf '%s\n' 'keep agent' > "$REPO/vendor/agents/keep.md"
@@ -64,8 +67,8 @@ CURRENT_BRANCH="$(git -C "$REPO" branch --show-current)"
 PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" CREATE_PR=false "$SYNC_SCRIPT" >/dev/null
 [[ "$(git -C "$REPO" branch --show-current)" == "$CURRENT_BRANCH" ]]
 [[ -z "$(git -C "$REPO" status --porcelain=v1)" ]]
-[[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/commands/ready.md')" == "upstream command" ]]
-[[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/agents/task-agent.md')" == "upstream agent" ]]
+[[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/commands/ready.md')" == "$(<"$PROJECT_DIR/vendor/commands/ready.md")" ]]
+[[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/agents/task-agent.md')" == "$(<"$PROJECT_DIR/vendor/agents/task-agent.md")" ]]
 [[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/agents/keep.md')" == "keep agent" ]]
 [[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/README.md')" == "keep vendor file" ]]
 git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:CHANGELOG.md' | grep -q -- '- Synced vendored beads files to v1.2.3'
@@ -92,6 +95,18 @@ if PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" CREATE_PR=false "$SYNC_SCRIP
   exit 1
 fi
 [[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/agents/task-agent.md')" == "conflicting agent" ]]
+[[ "$(git -C "$REPO" branch --show-current)" == "$CURRENT_BRANCH" ]]
+[[ -z "$(git -C "$REPO" status --porcelain=v1)" ]]
+
+printf '\nUse the beads MCP server.\n' >> "$UPSTREAM/plugins/beads/skills/beads/commands/ready.md"
+git -C "$UPSTREAM" add plugins/beads/skills/beads/commands/ready.md
+git -C "$UPSTREAM" commit -qm "invalid fixture"
+git -C "$UPSTREAM" tag v1.2.4
+
+if PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" "$SYNC_SCRIPT" --dry-run >/dev/null 2>&1; then
+  echo "Invalid vendor candidate was not rejected" >&2
+  exit 1
+fi
 [[ "$(git -C "$REPO" branch --show-current)" == "$CURRENT_BRANCH" ]]
 [[ -z "$(git -C "$REPO" status --porcelain=v1)" ]]
 
