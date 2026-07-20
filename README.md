@@ -37,7 +37,7 @@ Install the companion OpenCode skill for durable Beads guidance in the current w
 bunx opencode-beads@0.7.0 init
 ```
 
-Use `--global` to target `~/.config/opencode/skills/beads`. The same scope flag applies to every lifecycle command:
+Use `--global` to target `$XDG_CONFIG_HOME/opencode/skills/beads` when `XDG_CONFIG_HOME` is absolute, otherwise `~/.config/opencode/skills/beads`. The same scope flag applies to every lifecycle command:
 
 ```bash
 bunx opencode-beads@0.7.0 check [--global]
@@ -45,7 +45,7 @@ bunx opencode-beads@0.7.0 update [--global]
 bunx opencode-beads@0.7.0 remove [--global]
 ```
 
-All commands support `--dry-run` and `--json`. Installation is offline from immutable package artifacts, refuses unmanaged or locally modified content and other discovered `beads` skills, and never runs during plugin startup. Updates are assembled in a sibling staging directory and swapped with a validated backup so ordinary filesystem errors restore the prior installation; this is rollback safety, not a claim of crash-proof multi-rename atomicity. The package CLI is the canonical setup lifecycle. `/beads:setup` provides the version-matched commands, while `/beads:init` is DB-only and initializes the Beads database rather than the OpenCode skill.
+All commands support `--dry-run` and `--json`. Installation is offline from immutable package artifacts, refuses unmanaged or locally modified content and other discovered `beads` skills, and never runs during plugin startup. A verified owned target may still be removed when another skill exists, allowing removal to resolve a duplicate installation; stale transaction residue continues to block removal. Updates are assembled in a sibling staging directory and swapped with a validated backup so ordinary filesystem errors restore the prior installation; this is rollback safety, not a claim of crash-proof multi-rename atomicity. The package CLI is the canonical setup lifecycle. `/beads:setup` provides the version-matched commands, while `/beads:init` is DB-only and initializes the Beads database rather than the OpenCode skill.
 
 CLI exit codes are stable:
 

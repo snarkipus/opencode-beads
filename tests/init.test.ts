@@ -114,6 +114,21 @@ describe("managed skill lifecycle", () => {
     expect(collision.collisions).toEqual([join(item.cwd, ".agents/skills/beads")]);
   });
 
+  test("removes a verified-owned target despite unrelated discovery collisions", async () => {
+    const item = await fixture();
+    await item.run("init");
+    const competing = join(item.home, ".config/opencode/skills/beads");
+    await fs.mkdir(competing, { recursive: true });
+    await fs.writeFile(join(competing, "SKILL.md"), "unmanaged competing skill");
+
+    expect(await item.run("update")).toMatchObject({ state: "conflicting", ok: false });
+    const removed = await item.run("remove");
+    expect(removed).toMatchObject({ state: "current", ok: true, changed: true });
+    expect(removed.collisions).toEqual([competing]);
+    expect(await fs.exists(item.target)).toBeFalse();
+    expect(await fs.exists(join(competing, "SKILL.md"))).toBeTrue();
+  });
+
   test("updates stale content and refuses modified, foreign, and unmanaged targets", async () => {
     const stale = await fixture();
     await stale.run("init");
@@ -236,6 +251,13 @@ describe("managed skill lifecycle", () => {
     expect(result.collisions).toEqual([
       join(dirname(item.target), ".beads.opencode-beads-stage-stale"),
     ]);
+
+    await fs.rm(join(dirname(item.target), ".beads.opencode-beads-stage-stale"), {
+      recursive: true,
+    });
+    await item.run("init");
+    await fs.mkdir(join(dirname(item.target), ".beads.opencode-beads-backup-stale"));
+    expect(await item.run("remove")).toMatchObject({ state: "conflicting", ok: false });
   });
 
   test("detects ancestor collisions and cwd outside the worktree", async () => {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { homedir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInitCommand, type InitCommand, type InitScope } from "./init";
 
@@ -70,7 +70,12 @@ async function discoverWorktree(cwd: string): Promise<string> {
 /** Run the companion lifecycle CLI and return its process exit code. */
 export async function runCli(
   args = process.argv.slice(2),
-  environment: { cwd?: string; home?: string; packageRoot?: string } = {}
+  environment: {
+    cwd?: string;
+    home?: string;
+    packageRoot?: string;
+    xdgConfigHome?: string;
+  } = {}
 ): Promise<number> {
   const jsonRequested = args.includes("--json");
   let options: CliOptions;
@@ -96,12 +101,19 @@ export async function runCli(
       );
     }
     const cwd = resolve(environment.cwd ?? process.cwd());
+    const home = resolve(environment.home ?? homedir());
+    const xdgConfigHome = environment.xdgConfigHome ?? process.env.XDG_CONFIG_HOME;
+    const opencodeConfigDirectory =
+      xdgConfigHome && isAbsolute(xdgConfigHome)
+        ? resolve(xdgConfigHome, "opencode")
+        : join(home, ".config", "opencode");
     let result;
     try {
       result = await runInitCommand(options.command, {
         cwd,
         worktree: await discoverWorktree(cwd),
-        home: resolve(environment.home ?? homedir()),
+        home,
+        opencodeConfigDirectory,
         packageRoot,
         packageVersion: packageJson.version,
         scope: options.scope,

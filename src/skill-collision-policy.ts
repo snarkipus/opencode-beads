@@ -40,7 +40,8 @@ function isMissing(error: unknown): boolean {
 export function beadsSkillLocations(
   cwd: string,
   worktree: string,
-  homeDirectory: string
+  homeDirectory: string,
+  opencodeConfigDirectory = join(homeDirectory, ".config", "opencode")
 ): SkillLocation[] {
   const canonicalCwd = resolve(cwd);
   const canonicalWorktree = resolve(worktree);
@@ -66,7 +67,7 @@ export function beadsSkillLocations(
     ...SKILL_ROOTS.map((root) => ({
       path:
         root === ".opencode"
-          ? join(homeDirectory, ".config", "opencode", "skills", "beads")
+          ? join(opencodeConfigDirectory, "skills", "beads")
           : join(homeDirectory, root, "skills", "beads"),
       root,
       scope: "global" as const,
@@ -87,31 +88,34 @@ export async function inspectBeadsSkillLocations(
   cwd: string,
   worktree: string,
   homeDirectory: string,
-  inspectManaged: ManagedSkillInspector
+  inspectManaged: ManagedSkillInspector,
+  opencodeConfigDirectory = join(homeDirectory, ".config", "opencode")
 ): Promise<SkillLocationInspection[]> {
   return Promise.all(
-    beadsSkillLocations(cwd, worktree, homeDirectory).map(async (location) => {
-      let stats;
-      try {
-        stats = await lstat(location.path);
-      } catch (error) {
-        if (isMissing(error)) return { ...location, state: "absent" as const };
-        return { ...location, state: "unmanaged" as const };
-      }
+    beadsSkillLocations(cwd, worktree, homeDirectory, opencodeConfigDirectory).map(
+      async (location) => {
+        let stats;
+        try {
+          stats = await lstat(location.path);
+        } catch (error) {
+          if (isMissing(error)) return { ...location, state: "absent" as const };
+          return { ...location, state: "unmanaged" as const };
+        }
 
-      if (!stats.isDirectory() || stats.isSymbolicLink()) {
-        return { ...location, state: "unmanaged" as const };
-      }
+        if (!stats.isDirectory() || stats.isSymbolicLink()) {
+          return { ...location, state: "unmanaged" as const };
+        }
 
-      const managedState = await inspectManaged(location).catch(() => undefined);
-      let state: SkillLocationState = "unmanaged";
-      if (managedState === "differently-managed") {
-        state = managedState;
-      } else if (managedState) {
-        state = `managed-${managedState}`;
+        const managedState = await inspectManaged(location).catch(() => undefined);
+        let state: SkillLocationState = "unmanaged";
+        if (managedState === "differently-managed") {
+          state = managedState;
+        } else if (managedState) {
+          state = `managed-${managedState}`;
+        }
+        return { ...location, state };
       }
-      return { ...location, state };
-    })
+    )
   );
 }
 

@@ -98,6 +98,7 @@ export interface InitInputs {
   cwd: string;
   worktree: string;
   home: string;
+  opencodeConfigDirectory?: string;
   packageRoot: string;
   packageVersion: string;
   scope?: InitScope;
@@ -413,10 +414,14 @@ async function inspectTarget(
     : { state: "stale", ownership };
 }
 
-function targetFor(inputs: InitInputs, scope: InitScope): string {
+function targetFor(
+  worktree: string,
+  opencodeConfigDirectory: string,
+  scope: InitScope
+): string {
   return scope === "global"
-    ? resolve(inputs.home, ".config", "opencode", "skills", "beads")
-    : resolve(inputs.worktree, ".opencode", "skills", "beads");
+    ? resolve(opencodeConfigDirectory, "skills", "beads")
+    : resolve(worktree, ".opencode", "skills", "beads");
 }
 
 async function assertNoTargetSymlink(target: string, boundary: string): Promise<void> {
@@ -621,12 +626,18 @@ export async function runInitCommand(command: InitCommand, inputs: InitInputs): 
   const cwd = resolve(inputs.cwd);
   const worktree = resolve(inputs.worktree);
   const home = resolve(inputs.home);
-  const target = targetFor({ ...inputs, worktree, home }, scope);
+  const opencodeConfigDirectory = resolve(
+    inputs.opencodeConfigDirectory ?? join(home, ".config", "opencode")
+  );
+  const target = targetFor(worktree, opencodeConfigDirectory, scope);
   // This call validates cwd containment even when no collision locations exist.
-  beadsSkillLocations(cwd, worktree, home);
+  beadsSkillLocations(cwd, worktree, home, opencodeConfigDirectory);
   const { manifest: artifact, contents } = await loadArtifacts(resolve(inputs.packageRoot));
   const expected = expectedOwnership(artifact, inputs.packageVersion, scope, target);
-  await assertNoTargetSymlink(target, scope === "global" ? home : worktree);
+  await assertNoTargetSymlink(
+    target,
+    scope === "global" ? dirname(opencodeConfigDirectory) : worktree
+  );
   const transactions = await staleTransactions(target);
   const targetInspection = await inspectTarget(target, scope, expected);
 
@@ -641,15 +652,16 @@ export async function runInitCommand(command: InitCommand, inputs: InitInputs): 
       if (inspection.state === "current" || inspection.state === "stale" || inspection.state === "modified") return inspection.state;
       if (inspection.state === "conflicting") return "differently-managed";
       return undefined;
-    }
+    },
+    opencodeConfigDirectory
   );
-  const collisions = [
-    ...transactions,
-    ...inspections
-      .filter((inspection) => resolve(inspection.path) !== target && inspection.state !== "absent")
-      .map((inspection) => resolve(inspection.path)),
-  ].sort();
-  const state: InitState = collisions.length > 0 ? "conflicting" : targetInspection.state;
+  const discoveryCollisions = inspections
+    .filter((inspection) => resolve(inspection.path) !== target && inspection.state !== "absent")
+    .map((inspection) => resolve(inspection.path));
+  const collisions = [...transactions, ...discoveryCollisions].sort();
+  const blockedByCollision =
+    transactions.length > 0 || (command !== "remove" && discoveryCollisions.length > 0);
+  const state: InitState = blockedByCollision ? "conflicting" : targetInspection.state;
   const error = refusal(command, state);
   const canMutate = error === undefined;
   const shouldInstall =

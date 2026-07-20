@@ -11,10 +11,20 @@ afterEach(async () => {
   await Promise.all(fixtures.splice(0).map((path) => fs.rm(path, { recursive: true, force: true })));
 });
 
-async function cli(args: string[], cwd: string, home: string, options: { packageRoot?: string; path?: string } = {}) {
+async function cli(
+  args: string[],
+  cwd: string,
+  home: string,
+  options: { packageRoot?: string; path?: string; xdgConfigHome?: string } = {}
+) {
   const child = Bun.spawn([process.execPath, join(options.packageRoot ?? packageRoot, "src/init-cli.ts"), ...args], {
     cwd,
-    env: { ...Bun.env, HOME: home, ...(options.path === undefined ? {} : { PATH: options.path }) },
+    env: {
+      ...Bun.env,
+      HOME: home,
+      XDG_CONFIG_HOME: options.xdgConfigHome ?? "",
+      ...(options.path === undefined ? {} : { PATH: options.path }),
+    },
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -90,5 +100,36 @@ describe("companion CLI", () => {
       code: "PACKAGED_ARTIFACT_INVALID",
       message: "Packaged artifacts failed validation",
     });
+  });
+
+  test("uses an absolute XDG OpenCode config directory and rejects relative values", async () => {
+    const root = await fs.mkdtemp(join(tmpdir(), "opencode-beads-cli-xdg-"));
+    fixtures.push(root);
+    const worktree = join(root, "worktree");
+    const home = join(root, "home");
+    const xdgConfigHome = join(root, "xdg");
+    await Promise.all([fs.mkdir(worktree), fs.mkdir(home), fs.mkdir(xdgConfigHome)]);
+    expect(await Bun.spawn(["git", "init", "--quiet"], { cwd: worktree }).exited).toBe(0);
+
+    const result = await cli(["init", "--global", "--dry-run", "--json"], worktree, home, {
+      xdgConfigHome,
+    });
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout).target).toBe(
+      join(xdgConfigHome, "opencode/skills/beads")
+    );
+    expect(await fs.exists(join(home, ".config/opencode/skills/beads"))).toBeFalse();
+
+    const fallbackTarget = join(home, ".config/opencode/skills/beads");
+    for (const xdgConfigHome of ["relative", ""]) {
+      const fallback = await cli(
+        ["init", "--global", "--dry-run", "--json"],
+        worktree,
+        home,
+        { xdgConfigHome }
+      );
+      expect(fallback.exitCode).toBe(0);
+      expect(JSON.parse(fallback.stdout).target).toBe(fallbackTarget);
+    }
   });
 });

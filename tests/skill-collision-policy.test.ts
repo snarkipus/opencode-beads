@@ -127,4 +127,16 @@ describe("skill collision policy", () => {
     ]);
     expect(() => beadsSkillLocations(home, project, home)).toThrow("cwd must be within worktree");
   });
+
+  test("uses the effective OpenCode config root without moving compatibility roots", async () => {
+    const { project, home } = await createFixture();
+    const config = join(home, "xdg", "opencode");
+    const globals = beadsSkillLocations(project, project, home, config).slice(-3);
+
+    expect(globals.map(({ path }) => path)).toEqual([
+      join(config, "skills/beads"),
+      join(home, ".agents/skills/beads"),
+      join(home, ".claude/skills/beads"),
+    ]);
+  });
 });

@@ -26,6 +26,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ### Fixed
 
+- Allowed verified managed-skill removal to resolve duplicate discovery collisions and honored `XDG_CONFIG_HOME` for OpenCode global skill installation.
 - Made missing or malformed required vendor artifacts fail initialization with path-specific schema errors instead of silently omitting commands or the task agent.
 - Preserved supported OpenCode command and task-agent frontmatter metadata during vendor loading.
 - Adapted upstream MCP-oriented command and task-agent prompts to OpenCode's CLI-only execution model.
