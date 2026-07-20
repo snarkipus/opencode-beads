@@ -1,49 +1,46 @@
-# GitHub Copilot Instructions
+# Beads Issue Tracking
 
-## Issue Tracking with bd
+This project uses [Beads (bd)](https://github.com/gastownhall/beads) for issue tracking.
 
-This project uses **bd (beads)** for issue tracking - a Git-backed tracker designed for AI-supervised coding workflows.
+## Core Rules
 
-**Key Features:**
-- Dependency-aware issue tracking
-- Auto-sync with Git via JSONL
-- AI-optimized CLI with JSON output
-- Built-in daemon for background operations
-- MCP server integration for Claude and other AI assistants
+- Track ALL work in bd (never use markdown TODOs or comment-based task lists)
+- Use `bd ready` to find available work
+- Use `bd create` to track new issues/tasks/bugs
+- Treat commit, push, and Dolt remote sync as policy-controlled handoff actions
+- Run `bd prime` for complete workflow context (SSOT for operational commands)
+- Default to conservative git authority: report status and proposed commands unless the user, orchestrator, or repository profile explicitly authorizes commit/sync/push
 
-**CRITICAL**: Use bd for ALL task tracking. Do NOT create markdown TODO lists.
-
-### Essential Commands
+## Quick Reference
 
 ```bash
-# Find work
-bd ready --json                    # Unblocked issues
-bd stale --days 30 --json          # Forgotten issues
-
-# Create and manage
-bd create "Title" -t bug|feature|task -p 0-4 --json
-bd create "Subtask" --parent <epic-id> --json  # Hierarchical subtask
-bd update <id> --status in_progress --json
-bd close <id> --reason "Done" --json
-
-# Search
-bd list --status open --priority 1 --json
-bd show <id> --json
-
-# Sync (CRITICAL at end of session!)
-bd sync  # Force immediate export/commit/push
+bd prime                              # Load complete workflow context (SSOT)
+bd ready                              # Show issues ready to work (no blockers)
+bd list --status=open                 # List all open issues
+bd create "title" -t task -p 2        # Create new issue
+bd update <id> --claim                # Claim work atomically
+bd close <id>                         # Mark complete
+bd dep add <issue> <depends-on>       # Add dependency
+bd dolt push                          # Sync with remote when authorized
 ```
 
-### Workflow
+## Workflow
 
-1. **Check ready work**: `bd ready --json`
-2. **Claim task**: `bd update <id> --status in_progress`
-3. **Work on it**: Implement, test, document
-4. **Discover new work?** `bd create "Found bug" -p 1 --deps discovered-from:<parent-id> --json`
-5. **Complete**: `bd close <id> --reason "Done" --json`
-6. **Sync**: `bd sync` (flushes changes to git immediately)
+1. Check for ready work: `bd ready`
+2. Claim an issue atomically: `bd update <id> --claim`
+3. Do the work
+4. Mark complete: `bd close <id>`
+5. Handoff: report changed files, validation, issue status, and any proposed commit/sync/push commands
 
-### Priorities
+## Issue Types
+
+- `bug` - Something broken
+- `feature` - New functionality
+- `task` - Work item (tests, docs, refactoring)
+- `epic` - Large feature with subtasks
+- `chore` - Maintenance (dependencies, tooling)
+
+## Priorities
 
 - `0` - Critical (security, data loss, broken builds)
 - `1` - High (major features, important bugs)
@@ -51,28 +48,9 @@ bd sync  # Force immediate export/commit/push
 - `3` - Low (polish, optimization)
 - `4` - Backlog (future ideas)
 
-### Git Workflow
+## Context Loading
 
-- Always commit `.beads/issues.jsonl` with code changes
-- Run `bd sync` at end of work sessions
-- Install git hooks: `bd hooks install` (ensures DB ↔ JSONL consistency)
+Run `bd prime` to get complete workflow documentation in AI-optimized format.
+`bd prime` is the single source of truth for operational commands and session workflow.
 
-### MCP Server (Recommended)
-
-For MCP-compatible clients (Claude Desktop, etc.), install the beads MCP server:
-- Install: `pip install beads-mcp`
-- Functions: `mcp__beads__ready()`, `mcp__beads__create()`, etc.
-
-## CLI Help
-
-Run `bd <command> --help` to see all available flags for any command.
-For example: `bd create --help` shows `--parent`, `--deps`, `--assignee`, etc.
-
-## Important Rules
-
-- ✅ Use bd for ALL task tracking
-- ✅ Always use `--json` flag for programmatic use
-- ✅ Run `bd sync` at end of sessions
-- ✅ Run `bd <cmd> --help` to discover available flags
-- ❌ Do NOT create markdown TODO lists
-- ❌ Do NOT commit `.beads/beads.db` (JSONL only)
+For detailed docs: see AGENTS.md, QUICKSTART.md, or run `bd --help`
