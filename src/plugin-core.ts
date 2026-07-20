@@ -1,47 +1,39 @@
-import type { Config } from "@opencode-ai/sdk";
+import type { Hooks } from "@opencode-ai/plugin";
+import type {
+  Agent,
+  SessionMessagesResponse,
+  SessionPromptData,
+  TextPart,
+  TextPartInput,
+  UserMessage,
+} from "@opencode-ai/sdk";
 import { PrimeTimeoutError } from "./prime";
 import { BEADS_GUIDANCE, loadAgent, loadCommands } from "./vendor";
 
 const BEADS_TASK_AGENT = "beads-task-agent";
 
-export interface ModelContext {
-  providerID: string;
-  modelID: string;
-}
+type ChatMessageInput = Parameters<NonNullable<Hooks["chat.message"]>>[0];
+type SessionMessageResponse = SessionMessagesResponse[number];
+type SessionPromptBody = NonNullable<SessionPromptData["body"]>;
 
-export interface MessageContext {
-  sessionID: string;
-  agent?: string;
-  model?: ModelContext;
-}
+export type ModelContext = NonNullable<ChatMessageInput["model"]>;
+export type MessageContext = Pick<ChatMessageInput, "sessionID" | "agent" | "model">;
 
-export interface SessionMessage {
-  info: {
-    role: string;
-    agent?: string;
-    model?: ModelContext;
-  };
-  parts?: ReadonlyArray<{
-    type: string;
-    text?: string;
-  }>;
-}
+// The controller only needs this projection; the OpenCode adapter validates the full response.
+export type SessionMessage = {
+  info: Pick<SessionMessageResponse["info"], "role"> &
+    Partial<Pick<UserMessage, "agent" | "model">>;
+  parts?: ReadonlyArray<
+    Pick<SessionMessageResponse["parts"][number], "type"> & Partial<Pick<TextPart, "text">>
+  >;
+};
 
-export interface AgentInfo {
-  name: string;
-  mode: string;
-}
+export type AgentInfo = Pick<Agent, "name" | "mode">;
 
-export interface PromptBody {
+export type PromptBody = Omit<SessionPromptBody, "noReply" | "parts"> & {
   noReply: true;
-  model?: ModelContext;
-  agent?: string;
-  parts: Array<{
-    type: "text";
-    text: string;
-    synthetic: true;
-  }>;
-}
+  parts: Array<TextPartInput & { synthetic: true }>;
+};
 
 export interface PluginRuntime {
   getMessages(
@@ -73,10 +65,7 @@ export interface ControllerOptions {
   now?: () => number;
 }
 
-export interface MutablePluginConfig {
-  command?: Config["command"];
-  agent?: Config["agent"];
-}
+export type MutablePluginConfig = Parameters<NonNullable<Hooks["config"]>>[0];
 
 export interface BeadsController {
   onMessage(message: MessageContext): Promise<void>;

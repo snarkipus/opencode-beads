@@ -1,0 +1,33 @@
+# OpenCode SDK and Plugin Contract
+
+Reviewed on 2026-07-20 for the narrow OpenCode boundary used by this package.
+
+## Versions and sources
+
+- Declared dependencies: `@opencode-ai/plugin` and `@opencode-ai/sdk` `^1.0.143`.
+- Installed lockfile packages: plugin `1.0.148` and SDK `1.0.148`.
+- Current stable reviewed from the npm `latest` dist-tag: plugin `1.18.3` and SDK `1.18.3`.
+- Authoritative sources: the installed package declarations; the [official plugin documentation](https://opencode.ai/docs/plugins); the [official SDK documentation](https://opencode.ai/docs/sdk); the `1.18.3` [plugin declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/plugin@1.18.3/dist/index.d.ts), [generated SDK declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/sdk@1.18.3/dist/gen/types.gen.d.ts), and [generated client result declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/sdk@1.18.3/dist/gen/client/types.gen.d.ts); and the upstream [plugin source](https://github.com/anomalyco/opencode/blob/dev/packages/plugin/src/index.ts).
+- API history reviewed: the closed [SDK v2 migration proposal](https://github.com/anomalyco/opencode/pull/7639), which documents flattened v2 requests as a breaking alternative. Stable plugin `1.18.3` still exposes the v1 client with nested request objects.
+
+## Boundary inventory
+
+| Boundary | Supported contract and decision |
+| --- | --- |
+| `PluginInput` | Installed `1.0.148` supplies `client`, `project`, `directory`, `worktree`, and `$`. Stable `1.18.3` additionally supplies `serverUrl` and `experimental_workspace`. The plugin intentionally consumes only `client`, `directory`, and `worktree`; destructuring this common subset is compatible across the reviewed range. |
+| Project scope | `directory` is the active session directory and is preferred. `worktree` is the documented Git worktree and is the only fallback. Empty values fail rather than falling back to `process.cwd()`. Every project-scoped SDK query and `bd` process receives the resolved directory. |
+| Messages | `client.session.messages({ path: { id }, query: { directory, limit } })`; generated `SessionMessagesData` and `SessionMessagesResponse` types are authoritative. Returned arrays are checked before entering controller logic. |
+| Agents | `client.app.agents({ query: { directory } })`; generated `AppAgentsData`, `Agent`, and response types are authoritative. Required `name` and supported `mode` values are checked. |
+| Prompt | `client.session.prompt({ path: { id }, query: { directory }, body })`; the body is derived from `SessionPromptData`, with `noReply: true` and a synthetic `TextPartInput`. This is the documented context-only prompt path. |
+| Diagnostics | `client.app.log({ query: { directory }, body })` uses the generated log request and the official structured logging recommendation. Diagnostic failure remains non-fatal at the controller boundary. |
+| SDK results | Generated clients default to `responseStyle: "fields"` and `throwOnError: false`. Each call therefore checks ordinary `{ error }` results and required `data`; thrown transport/client failures also propagate to existing controller fallback and diagnostic handling. |
+| `chat.message` | The official hook input provides `sessionID`, optional `agent`, and optional model IDs in both reviewed versions. These input fields, not duplicated fields from the output message, drive injection. |
+| `event` | The official discriminated `Event` union includes `session.compacted` with `properties.sessionID`; only that event is consumed. |
+| `config` | The official hook mutates `Config` in place. Beads commands and the task agent are merged into `command` and `agent`; no local SDK-shaped configuration interface is retained. |
+| Shell | The plugin does not use `PluginInput.$`: `bd prime` requires bounded process lifecycle control, so `Bun.spawn(["bd", "prime"], { cwd: projectDirectory, ... })` remains the narrow shell boundary. There is no implicit process cwd. |
+
+## Compatibility decisions
+
+The supported OpenCode line remains `1.x`, with the concrete contract checked against installed `1.0.148` and current stable `1.18.3`. Both expose the nested v1 request shape used here, the same hook fields consumed here, directory query parameters, and field-style SDK results. Additive `PluginInput` and hook fields in `1.18.3` require no fallback.
+
+No SDK v2 facade or feature detection is included. Flattened request parameters belong to a separate breaking API and are not the stable plugin contract reviewed here. The controller keeps only small projections derived from official message, agent, prompt, hook, and config exports so tests can fake behavior without reproducing the SDK client.

@@ -1,6 +1,7 @@
 /** OpenCode adapter for the Beads issue tracker. */
 
-import type { Plugin } from "@opencode-ai/plugin";
+import type { Plugin, PluginInput } from "@opencode-ai/plugin";
+import type { Agent, SessionMessagesResponse } from "@opencode-ai/sdk";
 import {
   createBeadsController,
   resolveProjectDirectory,
@@ -8,28 +9,73 @@ import {
 } from "./plugin-core";
 import { runBdPrime } from "./prime";
 
-export const BeadsPlugin: Plugin = async ({ client, directory, worktree }) => {
-  const projectDirectory = resolveProjectDirectory(directory, worktree);
-  const runtime: PluginRuntime = {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isSessionMessage(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.info) ||
+    (value.info.role !== "user" && value.info.role !== "assistant") ||
+    (value.info.agent !== undefined && typeof value.info.agent !== "string") ||
+    (value.info.model !== undefined &&
+      (!isRecord(value.info.model) ||
+        typeof value.info.model.providerID !== "string" ||
+        typeof value.info.model.modelID !== "string"))
+  ) {
+    return false;
+  }
+  if (!Array.isArray(value.parts)) return false;
+
+  return value.parts.every(
+    (part) =>
+      isRecord(part) &&
+      typeof part.type === "string" &&
+      (part.text === undefined || typeof part.text === "string")
+  );
+}
+
+function isAgent(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    (value.mode === "subagent" || value.mode === "primary" || value.mode === "all")
+  );
+}
+
+/** Adapt the official OpenCode client to the controller's small deterministic boundary. */
+export function createOpenCodeRuntime(client: PluginInput["client"]): PluginRuntime {
+  return {
     async getMessages(projectDirectory, sessionID, limit) {
       const response = await client.session.messages({
         path: { id: sessionID },
         query: { directory: projectDirectory, limit },
       });
-      return response.data;
+      if (response.error !== undefined) throw response.error;
+      if (!Array.isArray(response.data) || !response.data.every(isSessionMessage)) {
+        throw new Error("OpenCode returned malformed session messages");
+      }
+      return response.data satisfies SessionMessagesResponse;
     },
 
     async getAgents(projectDirectory) {
       const response = await client.app.agents({ query: { directory: projectDirectory } });
-      return response.data;
+      if (response.error !== undefined) throw response.error;
+      if (!Array.isArray(response.data) || !response.data.every(isAgent)) {
+        throw new Error("OpenCode returned malformed agents");
+      }
+      return response.data satisfies Agent[];
     },
 
     async prompt(projectDirectory, sessionID, body) {
-      await client.session.prompt({
+      const response = await client.session.prompt({
         path: { id: sessionID },
         query: { directory: projectDirectory },
         body,
       });
+      if (response.error !== undefined) throw response.error;
+      if (response.data === undefined) throw new Error("OpenCode returned no prompt result");
     },
 
     async prime(projectDirectory) {
@@ -37,7 +83,7 @@ export const BeadsPlugin: Plugin = async ({ client, directory, worktree }) => {
     },
 
     async diagnose(diagnostic) {
-      await client.app.log({
+      const response = await client.app.log({
         query: { directory: diagnostic.directory },
         body: {
           service: "opencode-beads",
@@ -46,17 +92,24 @@ export const BeadsPlugin: Plugin = async ({ client, directory, worktree }) => {
           extra: { sessionID: diagnostic.sessionID },
         },
       });
+      if (response.error !== undefined) throw response.error;
+      if (response.data === undefined) throw new Error("OpenCode returned no log result");
     },
   };
+}
+
+export const BeadsPlugin: Plugin = async ({ client, directory, worktree }) => {
+  const projectDirectory = resolveProjectDirectory(directory, worktree);
+  const runtime = createOpenCodeRuntime(client);
 
   const controller = await createBeadsController(runtime, projectDirectory);
 
   return {
-    "chat.message": async (_input, output) => {
+    "chat.message": async (input) => {
       await controller.onMessage({
-        sessionID: output.message.sessionID,
-        model: output.message.model,
-        agent: output.message.agent,
+        sessionID: input.sessionID,
+        model: input.model,
+        agent: input.agent,
       });
     },
 
