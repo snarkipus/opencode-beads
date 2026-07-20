@@ -20,6 +20,7 @@
   "files": ["src", "vendor", "README.md"],
   "scripts": {
     "test": "bun test",
+    "test:package": "bun scripts/test-package.ts",
     "test:vendor": "bun scripts/validate-vendor.ts vendor",
     "typecheck": "tsc --noEmit"
   },

@@ -3,6 +3,7 @@
 ## Commands
 - **Typecheck**: `bun run typecheck`
 - **Tests**: `bun test`
+- **Package smoke test**: `bun run test:package`
 - **Vendor adaptation validation**: `bun run test:vendor`
 - **Vendor sync tests**: `./scripts/test-sync-beads.sh`
 - **Install deps**: `bun install`

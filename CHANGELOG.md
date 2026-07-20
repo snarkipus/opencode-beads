@@ -26,7 +26,12 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 ### Fixed
 
 - Adapted upstream MCP-oriented command and task-agent prompts to OpenCode's CLI-only execution model.
+- Made context injection concurrency-safe, retryable, directory-aware, and consistent with the latest session context.
 - Made vendor sync dry runs non-mutating and isolated real syncs from the caller's checkout and unrelated files.
+
+### Added
+
+- Added plugin contract tests, packed-package smoke coverage, and locked pull-request CI.
 
 ## [0.7.0]
 
