@@ -2,8 +2,8 @@
 
 ## Commands
 - **Typecheck**: `bun run typecheck`
+- **Vendor sync tests**: `./scripts/test-sync-beads.sh`
 - **Install deps**: `bun install`
-- No tests configured
 
 ## Code Style
 - TypeScript strict mode with ESM modules

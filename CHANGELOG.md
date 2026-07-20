@@ -23,6 +23,10 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 - Refreshed adapter documentation for current command names, compatibility, context injection, configuration collisions, vendored content, and troubleshooting.
 - Synced vendored beads files to v1.0.5
 
+### Fixed
+
+- Made vendor sync dry runs non-mutating and isolated real syncs from the caller's checkout and unrelated files.
+
 ## [0.7.0]
 
 ### Changed
