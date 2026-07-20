@@ -119,6 +119,22 @@ describe("OpenCode SDK runtime", () => {
         extra: { sessionID: "s" },
       },
     });
+
+    await runtime.diagnose({
+      code: "config_collision",
+      directory: "/project",
+      surface: "command",
+      names: ["beads:ready", "beads:show"],
+    });
+    expect(fixture.log).toHaveBeenLastCalledWith({
+      query: { directory: "/project" },
+      body: {
+        service: "opencode-beads",
+        level: "warn",
+        message: "config_collision",
+        extra: { surface: "command", names: ["beads:ready", "beads:show"] },
+      },
+    });
   });
 
   test("rejects ordinary SDK error responses", async () => {

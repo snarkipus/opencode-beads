@@ -18,15 +18,15 @@ Status: accepted on 2026-07-20. This decision defines product scope only; artifa
 | --- | --- | --- |
 | `skills/beads/commands/*.md` | Approved after OpenCode adaptation | OpenCode has a native `Config.command` surface. The current adapter namespaces these as `/beads:*`, validates known adaptations, and records exact provenance. |
 | `agents/task-agent.md` | Approved after OpenCode adaptation | OpenCode has a native `Config.agent` surface. The adapter registers one scoped `beads-task-agent` and supplies OpenCode-specific CLI guidance. |
-| `skills/beads/SKILL.md` | Excluded | An npm package path is not discoverable as an OpenCode skill, no stable plugin API registers it, and copying it into user/project configuration would mutate files the plugin does not own. Its workflow overlaps `bd prime` and requires OpenCode-specific frontmatter and instruction review. |
-| `skills/beads/adr/` | Excluded | The ADR is maintainership rationale for the upstream skill, not an independently discoverable OpenCode artifact. Its relevant conclusion, that `bd prime` is canonical, is implemented directly. |
-| `skills/beads/resources/` | Excluded | The 15-file resource tree is reachable only through the excluded skill. It duplicates live CLI/workflow guidance, substantially increases package and review scope, and includes host-specific policy such as TodoWrite guidance that can conflict with managed project instructions. |
+| `skills/beads/SKILL.md` | Approved after OpenCode adaptation for explicit managed installation | Passive npm discovery does not work, so the companion CLI owns deliberate project or global installation, provenance, collision checks, upgrades, and removal. The runtime plugin never writes it during startup. |
+| `skills/beads/adr/` | Approved when referenced by the adapted skill | Keep only reviewed rationale needed by the installed skill; `bd prime` remains the canonical live workflow source. |
+| `skills/beads/resources/` | Approved after OpenCode adaptation | Include only resources referenced by the adapted skill, removing host-specific policy and avoiding duplication of live CLI guidance. |
 | Claude/Codex manifests and hooks | Excluded | `.claude-plugin` and `.codex-plugin` formats and lifecycle hooks are not OpenCode plugin registration formats. This adapter implements its own typed startup/message and compaction behavior. |
 | Beads executable, complete CLI docs, server, or MCP integration | Excluded | The installed `bd` CLI remains the sole execution and data-management boundary. This package invokes it but does not redistribute, emulate, or replace it. |
 
 ## Discovery and collisions
 
-Shipping `vendor/skills/beads/SKILL.md` would add bytes but no capability because OpenCode does not search that package path. Making it discoverable would require copying or linking it into a project/global skill directory. That is rejected because it would create install/uninstall ownership problems, write outside the package cache, bypass normal user control, and collide with a user-managed skill named `beads`. OpenCode requires unique skill names but does not document a package-plugin collision contract that this adapter could enforce deterministically.
+Shipping a package-local skill alone would add no capability because OpenCode does not search npm package internals. Installation is therefore an explicit companion-CLI operation, never a startup side effect. Before writing, it scans project and global `.opencode`, `.agents`, and `.claude` skill roots and refuses unmanaged, differently managed, or locally modified content. A provenance manifest and hashes establish ownership for safe update and removal; there is no force override.
 
 The approved commands and agent use native configuration mutation and explicit names. Their collision policy is separate work owned by `opencode-beads-yui.10`; this decision does not change precedence or merge behavior.
 
@@ -38,7 +38,7 @@ The full `bd` command surface remains CLI-only. OpenCode receives no generated t
 
 ## Provenance and package implications
 
-The npm package should continue shipping only `src`, `vendor`, and `README.md`. Within `vendor`, only approved commands, the task agent, and their manifest belong in the package. `SKILL.md`, `adr/`, `resources/`, upstream plugin manifests, hooks, and executables must remain absent.
+The npm package may ship an adapted skill and referenced resources under `dist/init/artifacts/beads/`, with `dist/init/manifest.json` and a companion lifecycle CLI. Upstream plugin manifests, hooks, executables, and unreferenced resources remain excluded.
 
 Any future artifact added to this policy must have all of the following before implementation:
 
@@ -49,4 +49,4 @@ Any future artifact added to this policy must have all of the following before i
 - deterministic validation, package-content tests, and failure behavior;
 - a documented owner and removal/upgrade path.
 
-Reconsider the skill tree only if OpenCode adds a stable plugin API for package-owned skills or explicitly discovers skills inside npm plugins. Until then, package-local skill files are unsupported inert content and remain excluded.
+Upstream Beads issue [#3145](https://github.com/gastownhall/beads/issues/3145) and OpenCode PR [#35196](https://github.com/anomalyco/opencode/pull/35196) are future convergence points. Both remain open and are not release dependencies; the explicit fork-owned CLI remains canonical until a stable replacement exists.

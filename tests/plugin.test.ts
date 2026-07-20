@@ -358,17 +358,67 @@ describe("Beads plugin controller", () => {
     expect(second.promptCalls[0]?.body.parts[0]?.text).not.toContain("first project context");
   });
 
-  test("merges commands and agents with plugin definitions taking precedence", async () => {
+  test("preserves explicit command and agent definitions and diagnoses collisions", async () => {
     const fixture = createRuntime();
-    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project", {
+      diagnosticIntervalMs: 60_000,
+      now: () => 1_000,
+    });
     const config: MutablePluginConfig = {
       command: { "beads:ready": { description: "local", template: "local" } },
       agent: { "beads-task-agent": { description: "local", mode: "subagent" } },
     };
 
-    controller.configure(config);
+    await controller.configure(config);
+    await controller.configure(config);
 
-    expect(config.command?.["beads:ready"]?.template).not.toBe("local");
-    expect(config.agent?.["beads-task-agent"]?.description).not.toBe("local");
+    expect(config.command?.["beads:ready"]?.template).toBe("local");
+    expect(config.command?.["beads:show"]).toBeDefined();
+    expect(config.agent?.["beads-task-agent"]?.description).toBe("local");
+    expect(fixture.diagnosticCalls).toEqual([
+      {
+        code: "config_collision",
+        directory: "/workspace/project",
+        surface: "command",
+        names: ["beads:ready"],
+      },
+      {
+        code: "config_collision",
+        directory: "/workspace/project",
+        surface: "agent",
+        names: ["beads-task-agent"],
+      },
+    ]);
+  });
+
+  test("does not diagnose non-conflicting configuration", async () => {
+    const fixture = createRuntime();
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+    const config: MutablePluginConfig = {
+      command: { local: { description: "local", template: "local" } },
+      agent: { local: { description: "local", mode: "subagent" } },
+    };
+
+    await controller.configure(config);
+
+    expect(config.command?.local?.template).toBe("local");
+    expect(config.command?.["beads:ready"]).toBeDefined();
+    expect(config.agent?.local?.description).toBe("local");
+    expect(config.agent?.["beads-task-agent"]).toBeDefined();
+    expect(fixture.diagnosticCalls).toEqual([]);
+  });
+
+  test("keeps config collisions non-fatal when diagnostics fail", async () => {
+    const fixture = createRuntime();
+    fixture.runtime.diagnose = mock(async () => {
+      throw new Error("logging unavailable");
+    });
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+    const config: MutablePluginConfig = {
+      command: { "beads:ready": { description: "local", template: "local" } },
+    };
+
+    await expect(controller.configure(config)).resolves.toBeUndefined();
+    expect(config.command?.["beads:ready"]?.template).toBe("local");
   });
 });

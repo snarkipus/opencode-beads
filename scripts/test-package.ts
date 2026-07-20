@@ -45,6 +45,23 @@ try {
   const vendorCommands = await fs.readdir(path.join(packageDir, "vendor", "commands"));
   if (vendorCommands.length === 0) throw new Error("Packed package has no vendor commands");
 
+  const hooks = await loaded.BeadsPlugin({
+    client: {},
+    directory: consumerDir,
+    worktree: consumerDir,
+  });
+  if (typeof hooks.config !== "function") throw new Error("Packed plugin has no config hook");
+  const config: Record<string, unknown> = {};
+  await hooks.config(config);
+  const commands = config.command as Record<string, { template?: string }> | undefined;
+  const agents = config.agent as Record<string, { prompt?: string }> | undefined;
+  if (Object.keys(commands ?? {}).length !== 27 || !commands?.["beads:ready"]?.template) {
+    throw new Error("Packed plugin did not load the complete command inventory");
+  }
+  if (!agents?.["beads-task-agent"]?.prompt) {
+    throw new Error("Packed plugin did not load the task agent");
+  }
+
   console.log(`Loaded packed plugin with ${vendorCommands.length} vendor command files`);
 } finally {
   await fs.rm(tempDir, { recursive: true, force: true });

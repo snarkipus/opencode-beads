@@ -25,6 +25,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ### Fixed
 
+- Made missing or malformed required vendor artifacts fail initialization with path-specific schema errors instead of silently omitting commands or the task agent.
+- Preserved supported OpenCode command and task-agent frontmatter metadata during vendor loading.
 - Adapted upstream MCP-oriented command and task-agent prompts to OpenCode's CLI-only execution model.
 - Made context injection concurrency-safe, retryable, directory-aware, and consistent with the latest session context.
 - Preserved the newest eligible model and agent context when reinjecting after compaction.

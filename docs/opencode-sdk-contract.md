@@ -23,7 +23,7 @@ Reviewed on 2026-07-20 for the narrow OpenCode boundary used by this package.
 | SDK results | Generated clients default to `responseStyle: "fields"` and `throwOnError: false`. Each call therefore checks ordinary `{ error }` results and required `data`; thrown transport/client failures also propagate to existing controller fallback and diagnostic handling. |
 | `chat.message` | The official hook input provides `sessionID`, optional `agent`, and optional model IDs in both reviewed versions. These input fields, not duplicated fields from the output message, drive injection. |
 | `event` | The official discriminated `Event` union includes `session.compacted` with `properties.sessionID`; only that event is consumed. |
-| `config` | The official hook mutates `Config` in place. Beads commands and the task agent are merged into `command` and `agent`; no local SDK-shaped configuration interface is retained. |
+| `config` | The official hook mutates `Config` in place. Beads commands and the task agent are merged into `command` and `agent`, with explicit user definitions taking precedence. Vendor command metadata preserves `description`, `agent`, `model`, and `subtask`; supported task-agent metadata maps directly to `AgentConfig`. |
 | Shell | The plugin does not use `PluginInput.$`: `bd prime` requires bounded process lifecycle control, so `Bun.spawn(["bd", "prime"], { cwd: projectDirectory, ... })` remains the narrow shell boundary. There is no implicit process cwd. |
 
 ## Compatibility decisions

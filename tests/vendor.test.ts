@@ -1,5 +1,7 @@
 import * as fs from "node:fs/promises";
-import { describe, expect, test } from "bun:test";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterEach, describe, expect, test } from "bun:test";
 import { adaptVendorPrompt, adaptedVendorPaths } from "../src/vendor-adaptations";
 import { loadAgent, loadCommands } from "../src/vendor";
 
@@ -48,6 +50,27 @@ const expectedCommands = [
 ];
 
 const unsupportedPattern = /beads mcp|mcp server|via mcp|claude code|\/plugin update beads/i;
+const fixtures: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(fixtures.splice(0).map((fixture) => fs.rm(fixture, { recursive: true })));
+});
+
+async function vendorFixture(files: Record<string, string>): Promise<string> {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-beads-vendor-"));
+  fixtures.push(directory);
+  const paths = Object.keys(files).sort();
+  await fs.writeFile(
+    path.join(directory, "manifest.json"),
+    JSON.stringify({ files: paths.map((file) => ({ path: file })) })
+  );
+  for (const [relativePath, content] of Object.entries(files)) {
+    const target = path.join(directory, relativePath);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, content);
+  }
+  return directory;
+}
 
 describe("vendor prompt adaptations", () => {
   test("maintains an explicit adaptation and command inventory", async () => {
@@ -85,6 +108,86 @@ describe("vendor prompt adaptations", () => {
     );
     expect(() => adaptVendorPrompt("commands/new.md", "Use the mcp server")).toThrow(
       "Unsupported mcp instruction"
+    );
+  });
+
+  test("fails with artifact paths for missing and malformed required commands", async () => {
+    const missing = await vendorFixture({ "commands/missing.md": "" });
+    await fs.rm(path.join(missing, "commands", "missing.md"));
+    await expect(loadCommands(missing)).rejects.toThrow("commands/missing.md: cannot read file");
+
+    const malformed = await vendorFixture({
+      "commands/broken.md": "description: missing delimiters\n\nbody",
+    });
+    await expect(loadCommands(malformed)).rejects.toThrow(
+      "commands/broken.md: missing or malformed frontmatter delimiters"
+    );
+
+    const missingDescription = await vendorFixture({
+      "commands/broken.md": "---\nargument-hint: [id]\n---\nbody",
+    });
+    await expect(loadCommands(missingDescription)).rejects.toThrow(
+      "commands/broken.md: description must be a non-empty string"
+    );
+  });
+
+  test("rejects malformed manifests and unsupported frontmatter", async () => {
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-beads-vendor-"));
+    fixtures.push(directory);
+    await fs.writeFile(path.join(directory, "manifest.json"), "not json");
+    await expect(loadCommands(directory)).rejects.toThrow("manifest.json: invalid JSON");
+
+    const unsupported = await vendorFixture({
+      "commands/custom.md": "---\ndescription: Custom\nunknown: value\n---\nbody",
+    });
+    await expect(loadCommands(unsupported)).rejects.toThrow(
+      "commands/custom.md: unsupported frontmatter field: unknown"
+    );
+  });
+
+  test("preserves supported command metadata and validates scalar types", async () => {
+    const directory = await vendorFixture({
+      "commands/custom.md":
+        "---\ndescription: Custom command\nargument-hint: [id]\nagent: build\nmodel: provider/model\nsubtask: true\n---\nRun it",
+    });
+
+    expect((await loadCommands(directory))?.["beads:custom"]).toEqual({
+      description: "Custom command ([id])",
+      template: "Run it",
+      agent: "build",
+      model: "provider/model",
+      subtask: true,
+    });
+
+    const invalid = await vendorFixture({
+      "commands/custom.md": "---\ndescription: Custom\nsubtask: sometimes\n---\nRun it",
+    });
+    await expect(loadCommands(invalid)).rejects.toThrow(
+      "commands/custom.md: subtask must be true or false"
+    );
+  });
+
+  test("requires and preserves supported task-agent metadata", async () => {
+    const source = await fs.readFile("vendor/agents/task-agent.md", "utf8");
+    const withMetadata = source.replace(
+      "description: Autonomous agent that finds and completes ready tasks",
+      "description: Autonomous agent that finds and completes ready tasks\nmodel: provider/model\ntemperature: 0.2\ndisable: false\ncolor: '#123456'\nmaxSteps: 12"
+    );
+    const directory = await vendorFixture({ "agents/task-agent.md": withMetadata });
+
+    const agent = (await loadAgent(directory))?.["beads-task-agent"];
+    expect(agent).toMatchObject({
+      model: "provider/model",
+      temperature: 0.2,
+      disable: false,
+      color: "#123456",
+      maxSteps: 12,
+      mode: "subagent",
+    });
+
+    const missing = await vendorFixture({ "commands/custom.md": "---\ndescription: X\n---\nX" });
+    await expect(loadAgent(missing)).rejects.toThrow(
+      "manifest.json: missing required file record: agents/task-agent.md"
     );
   });
 });

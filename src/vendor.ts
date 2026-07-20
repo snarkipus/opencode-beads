@@ -8,7 +8,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Config } from "@opencode-ai/sdk";
+import type { AgentConfig, Config } from "@opencode-ai/sdk";
 import { adaptVendorPrompt } from "./vendor-adaptations";
 
 function getVendorDir(): string {
@@ -17,36 +17,60 @@ function getVendorDir(): string {
 }
 
 interface ParsedMarkdown {
-  frontmatter: Record<string, string | undefined>;
+  frontmatter: Record<string, string>;
   body: string;
 }
 
-function parseMarkdownWithFrontmatter(content: string): ParsedMarkdown | null {
+const DOCUMENT_ONLY_COMMANDS = new Set(["commands/prime.md", "commands/template.md"]);
+const COMMAND_FRONTMATTER_FIELDS = new Set([
+  "agent",
+  "argument-hint",
+  "description",
+  "model",
+  "subtask",
+]);
+const AGENT_FRONTMATTER_FIELDS = new Set([
+  "color",
+  "description",
+  "disable",
+  "maxSteps",
+  "mode",
+  "model",
+  "temperature",
+  "top_p",
+]);
+
+function vendorError(relativePath: string, reason: string): Error {
+  return new Error(`Invalid vendor artifact ${relativePath}: ${reason}`);
+}
+
+function parseMarkdownWithFrontmatter(content: string, relativePath: string): ParsedMarkdown {
   const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
   const match = content.match(frontmatterRegex);
 
-  if (!match) {
-    return null;
-  }
+  if (!match) throw vendorError(relativePath, "missing or malformed frontmatter delimiters");
 
   const frontmatterStr = match[1];
   const body = match[2];
 
   if (frontmatterStr === undefined || body === undefined) {
-    return null;
+    throw vendorError(relativePath, "missing frontmatter or body");
   }
 
-  const frontmatter: Record<string, string | undefined> = {};
+  const frontmatter: Record<string, string> = {};
 
   for (const line of frontmatterStr.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
 
     const colonIndex = trimmed.indexOf(":");
-    if (colonIndex === -1) continue;
+    if (colonIndex <= 0) throw vendorError(relativePath, `malformed frontmatter line: ${trimmed}`);
 
     const key = trimmed.slice(0, colonIndex).trim();
     let value = trimmed.slice(colonIndex + 1).trim();
+    if (Object.hasOwn(frontmatter, key)) {
+      throw vendorError(relativePath, `duplicate frontmatter field: ${key}`);
+    }
 
     // Handle quoted strings
     if (
@@ -54,6 +78,8 @@ function parseMarkdownWithFrontmatter(content: string): ParsedMarkdown | null {
       (value.startsWith("'") && value.endsWith("'"))
     ) {
       value = value.slice(1, -1);
+    } else if (value.startsWith('"') || value.startsWith("'")) {
+      throw vendorError(relativePath, `unterminated quoted value for ${key}`);
     }
 
     // Handle empty array syntax like []
@@ -64,25 +90,85 @@ function parseMarkdownWithFrontmatter(content: string): ParsedMarkdown | null {
     frontmatter[key] = value;
   }
 
-  return { frontmatter, body: body.trim() };
+  const trimmedBody = body.trim();
+  if (!trimmedBody) throw vendorError(relativePath, "body must not be empty");
+  return { frontmatter, body: trimmedBody };
 }
 
-async function readVendorFile(relativePath: string): Promise<string | null> {
+async function readVendorFile(vendorDirectory: string, relativePath: string): Promise<string> {
   try {
-    const fullPath = path.join(getVendorDir(), relativePath);
+    const fullPath = path.join(vendorDirectory, relativePath);
     return await fs.readFile(fullPath, "utf-8");
-  } catch {
-    return null;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw vendorError(relativePath, `cannot read file: ${reason}`);
   }
 }
 
-async function listVendorFiles(relativePath: string): Promise<string[]> {
+async function manifestPaths(vendorDirectory: string): Promise<string[]> {
+  const content = await readVendorFile(vendorDirectory, "manifest.json");
+  let manifest: unknown;
   try {
-    const fullPath = path.join(getVendorDir(), relativePath);
-    return await fs.readdir(fullPath);
-  } catch {
-    return [];
+    manifest = JSON.parse(content);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw vendorError("manifest.json", `invalid JSON: ${reason}`);
   }
+
+  if (
+    typeof manifest !== "object" ||
+    manifest === null ||
+    !("files" in manifest) ||
+    !Array.isArray(manifest.files)
+  ) {
+    throw vendorError("manifest.json", "files must be an array");
+  }
+  const paths = manifest.files.map((file, index) => {
+    if (
+      typeof file !== "object" ||
+      file === null ||
+      !("path" in file) ||
+      typeof file.path !== "string"
+    ) {
+      throw vendorError("manifest.json", `files[${index}].path must be a string`);
+    }
+    return file.path;
+  });
+  if (new Set(paths).size !== paths.length) {
+    throw vendorError("manifest.json", "file paths must be unique");
+  }
+  return paths.sort();
+}
+
+function requiredString(
+  frontmatter: Record<string, string>,
+  field: string,
+  relativePath: string
+): string {
+  const value = frontmatter[field];
+  if (!value?.trim()) throw vendorError(relativePath, `${field} must be a non-empty string`);
+  return value;
+}
+
+function parseBoolean(value: string, field: string, relativePath: string): boolean {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw vendorError(relativePath, `${field} must be true or false`);
+}
+
+function parseNumber(value: string, field: string, relativePath: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) throw vendorError(relativePath, `${field} must be a number`);
+  return parsed;
+}
+
+function rejectUnsupportedFields(
+  frontmatter: Record<string, string>,
+  supported: ReadonlySet<string>,
+  relativePath: string
+): void {
+  const unsupported = Object.keys(frontmatter).find((field) => !supported.has(field));
+  if (unsupported) throw vendorError(relativePath, `unsupported frontmatter field: ${unsupported}`);
 }
 
 const BEADS_CLI_USAGE = `## CLI Usage
@@ -151,55 +237,79 @@ ${BEADS_CLI_USAGE}
 **Why delegate?** The agent processes multiple commands internally and returns only a concise summary. Running bd commands directly dumps hundreds of lines of raw JSON into context, wasting tokens and making the conversation harder to follow.
 </beads-guidance>`;
 
-export async function loadAgent(): Promise<Config["agent"]> {
-  const content = await readVendorFile("agents/task-agent.md");
-  if (!content) return {};
+export async function loadAgent(vendorDirectory = getVendorDir()): Promise<Config["agent"]> {
+  const relativePath = "agents/task-agent.md";
+  const paths = await manifestPaths(vendorDirectory);
+  if (!paths.includes(relativePath)) {
+    throw vendorError("manifest.json", `missing required file record: ${relativePath}`);
+  }
+  const content = await readVendorFile(vendorDirectory, relativePath);
+  const parsed = parseMarkdownWithFrontmatter(content, relativePath);
+  const { frontmatter } = parsed;
+  rejectUnsupportedFields(frontmatter, AGENT_FRONTMATTER_FIELDS, relativePath);
+  if (frontmatter.mode !== undefined && frontmatter.mode !== "subagent") {
+    throw vendorError(relativePath, "mode must be subagent when provided");
+  }
 
-  const parsed = parseMarkdownWithFrontmatter(
-    adaptVendorPrompt("agents/task-agent.md", content)
-  );
-  if (!parsed) return {};
-
-  const description =
-    parsed.frontmatter.description ?? "Beads task completion agent";
-
-  return {
-    "beads-task-agent": {
-      description,
-      prompt: BEADS_CLI_USAGE + "\n\n" + BEADS_SUBAGENT_CONTEXT + "\n\n" + parsed.body,
-      mode: "subagent",
-    },
+  const agent: AgentConfig = {
+    description: requiredString(frontmatter, "description", relativePath),
+    prompt:
+      BEADS_CLI_USAGE +
+      "\n\n" +
+      BEADS_SUBAGENT_CONTEXT +
+      "\n\n" +
+      adaptVendorPrompt(relativePath, parsed.body),
+    mode: "subagent",
   };
+  if (frontmatter.model) agent.model = frontmatter.model;
+  if (frontmatter.temperature) {
+    agent.temperature = parseNumber(frontmatter.temperature, "temperature", relativePath);
+  }
+  if (frontmatter.top_p) agent.top_p = parseNumber(frontmatter.top_p, "top_p", relativePath);
+  if (frontmatter.disable) {
+    agent.disable = parseBoolean(frontmatter.disable, "disable", relativePath);
+  }
+  if (frontmatter.color) agent.color = frontmatter.color;
+  if (frontmatter.maxSteps) {
+    agent.maxSteps = parseNumber(frontmatter.maxSteps, "maxSteps", relativePath);
+  }
+
+  return { "beads-task-agent": agent };
 }
 
-export async function loadCommands(): Promise<Config["command"]> {
-  const files = await listVendorFiles("commands");
+export async function loadCommands(vendorDirectory = getVendorDir()): Promise<Config["command"]> {
+  const paths = await manifestPaths(vendorDirectory);
+  const commandPaths = paths.filter((file) => file.startsWith("commands/") && file.endsWith(".md"));
+  if (commandPaths.length === 0) {
+    throw vendorError("manifest.json", "no command Markdown files are recorded");
+  }
   const commands: Config["command"] = {};
 
-  for (const file of files) {
-    if (!file.endsWith(".md")) continue;
-
-    const content = await readVendorFile(`commands/${file}`);
-    if (!content) continue;
-
-    const relativePath = `commands/${file}`;
-    const parsed = parseMarkdownWithFrontmatter(
-      adaptVendorPrompt(relativePath, content)
-    );
-    if (!parsed) continue;
-
+  for (const relativePath of commandPaths) {
+    const content = await readVendorFile(vendorDirectory, relativePath);
+    if (DOCUMENT_ONLY_COMMANDS.has(relativePath)) continue;
+    const parsed = parseMarkdownWithFrontmatter(content, relativePath);
+    const { frontmatter } = parsed;
+    rejectUnsupportedFields(frontmatter, COMMAND_FRONTMATTER_FIELDS, relativePath);
+    const file = path.basename(relativePath);
     const name = `beads:${file.replace(".md", "")}`;
 
-    const argHint = parsed.frontmatter["argument-hint"];
-    const baseDescription = parsed.frontmatter.description ?? name;
+    const argHint = frontmatter["argument-hint"];
+    const baseDescription = requiredString(frontmatter, "description", relativePath);
     const description = argHint
       ? `${baseDescription} (${argHint})`
       : baseDescription;
 
-    commands[name] = {
+    const command: NonNullable<Config["command"]>[string] = {
       description,
-      template: parsed.body,
+      template: adaptVendorPrompt(relativePath, parsed.body),
     };
+    if (frontmatter.agent) command.agent = frontmatter.agent;
+    if (frontmatter.model) command.model = frontmatter.model;
+    if (frontmatter.subtask) {
+      command.subtask = parseBoolean(frontmatter.subtask, "subtask", relativePath);
+    }
+    commands[name] = command;
   }
 
   return commands;

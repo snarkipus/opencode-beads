@@ -49,16 +49,24 @@ export interface PluginRuntime {
 
 export type DiagnosticCode =
   | "agents_lookup_failed"
+  | "config_collision"
   | "messages_lookup_failed"
   | "prime_failed"
   | "prime_timeout"
   | "prompt_failed";
 
-export interface PluginDiagnostic {
-  code: DiagnosticCode;
-  directory: string;
-  sessionID: string;
-}
+export type PluginDiagnostic =
+  | {
+      code: Exclude<DiagnosticCode, "config_collision">;
+      directory: string;
+      sessionID: string;
+    }
+  | {
+      code: "config_collision";
+      directory: string;
+      surface: "agent" | "command";
+      names: string[];
+    };
 
 export interface ControllerOptions {
   diagnosticIntervalMs?: number;
@@ -70,7 +78,7 @@ export type MutablePluginConfig = Parameters<NonNullable<Hooks["config"]>>[0];
 export interface BeadsController {
   onMessage(message: MessageContext): Promise<void>;
   onCompacted(sessionID: string): Promise<void>;
-  configure(config: MutablePluginConfig): void;
+  configure(config: MutablePluginConfig): Promise<void>;
 }
 
 /** Resolve OpenCode project scope without falling back to the process directory. */
@@ -100,21 +108,29 @@ export async function createBeadsController(
   directory: string,
   options: ControllerOptions = {}
 ): Promise<BeadsController> {
-  const [commands, agents] = await Promise.all([loadCommands(), loadAgent()]);
+  const [loadedCommands, loadedAgents] = await Promise.all([loadCommands(), loadAgent()]);
+  const commands = loadedCommands ?? {};
+  const agents = loadedAgents ?? {};
   const injectedSessions = new Set<string>();
   const injectionAttempts = new Map<string, Promise<void>>();
   const diagnosticTimes = new Map<string, number>();
   const diagnosticIntervalMs = options.diagnosticIntervalMs ?? 60_000;
   const now = options.now ?? Date.now;
 
-  async function diagnose(code: DiagnosticCode, sessionID: string): Promise<void> {
-    const key = `${code}:${sessionID}`;
+  async function diagnose(diagnostic: PluginDiagnostic, key: string): Promise<void> {
     const currentTime = now();
     const previousTime = diagnosticTimes.get(key);
     if (previousTime !== undefined && currentTime - previousTime < diagnosticIntervalMs) return;
 
     diagnosticTimes.set(key, currentTime);
-    await runtime.diagnose({ code, directory, sessionID }).catch(() => undefined);
+    await runtime.diagnose(diagnostic).catch(() => undefined);
+  }
+
+  async function diagnoseSession(
+    code: Exclude<DiagnosticCode, "config_collision">,
+    sessionID: string
+  ): Promise<void> {
+    await diagnose({ code, directory, sessionID }, `${code}:${sessionID}`);
   }
 
   async function shouldInject(
@@ -124,7 +140,7 @@ export async function createBeadsController(
     if (!agentName || agentName === BEADS_TASK_AGENT) return true;
 
     const availableAgents = await runtime.getAgents(directory).catch(async () => {
-      await diagnose("agents_lookup_failed", sessionID);
+      await diagnoseSession("agents_lookup_failed", sessionID);
       return undefined;
     });
     const agent = availableAgents?.find((candidate) => candidate.name === agentName);
@@ -140,7 +156,7 @@ export async function createBeadsController(
       primeOutput = await runtime.prime(directory);
     } catch (error) {
       const code = error instanceof PrimeTimeoutError ? "prime_timeout" : "prime_failed";
-      await diagnose(code, sessionID);
+      await diagnoseSession(code, sessionID);
       return false;
     }
     if (!primeOutput.trim()) return false;
@@ -160,7 +176,7 @@ export async function createBeadsController(
       });
       return true;
     } catch {
-      await diagnose("prompt_failed", sessionID);
+      await diagnoseSession("prompt_failed", sessionID);
       return false;
     }
   }
@@ -183,7 +199,7 @@ export async function createBeadsController(
         return;
       }
     } catch {
-      await diagnose("messages_lookup_failed", message.sessionID);
+      await diagnoseSession("messages_lookup_failed", message.sessionID);
       // Message lookup is advisory; injection remains the safe fallback.
     }
 
@@ -212,7 +228,7 @@ export async function createBeadsController(
 
     async onCompacted(sessionID) {
       const messages = await runtime.getMessages(directory, sessionID, 50).catch(async () => {
-        await diagnose("messages_lookup_failed", sessionID);
+        await diagnoseSession("messages_lookup_failed", sessionID);
         return undefined;
       });
       const context = latestSessionContext(messages);
@@ -221,9 +237,34 @@ export async function createBeadsController(
       }
     },
 
-    configure(config) {
-      config.command = { ...config.command, ...commands };
-      config.agent = { ...config.agent, ...agents };
+    async configure(config) {
+      const commandCollisions = Object.keys(config.command ?? {})
+        .filter(
+          (name) =>
+            Object.hasOwn(commands, name) && config.command?.[name] !== commands[name]
+        )
+        .sort();
+      const agentCollisions = Object.keys(config.agent ?? {})
+        .filter(
+          (name) => Object.hasOwn(agents, name) && config.agent?.[name] !== agents[name]
+        )
+        .sort();
+
+      await Promise.all(
+        ([
+          ["command", commandCollisions],
+          ["agent", agentCollisions],
+        ] as const).map(async ([surface, names]) => {
+          if (names.length === 0) return;
+          await diagnose(
+            { code: "config_collision", directory, surface, names },
+            `config_collision:${surface}:${names.join("\0")}`
+          );
+        })
+      );
+
+      config.command = { ...commands, ...config.command };
+      config.agent = { ...agents, ...config.agent };
     },
   };
 }

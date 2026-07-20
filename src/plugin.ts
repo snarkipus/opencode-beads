@@ -83,13 +83,17 @@ export function createOpenCodeRuntime(client: PluginInput["client"]): PluginRunt
     },
 
     async diagnose(diagnostic) {
+      const extra =
+        diagnostic.code === "config_collision"
+          ? { surface: diagnostic.surface, names: diagnostic.names }
+          : { sessionID: diagnostic.sessionID };
       const response = await client.app.log({
         query: { directory: diagnostic.directory },
         body: {
           service: "opencode-beads",
           level: "warn",
           message: diagnostic.code,
-          extra: { sessionID: diagnostic.sessionID },
+          extra,
         },
       });
       if (response.error !== undefined) throw response.error;
@@ -120,7 +124,7 @@ export const BeadsPlugin: Plugin = async ({ client, directory, worktree }) => {
     },
 
     config: async (config) => {
-      controller.configure(config);
+      await controller.configure(config);
     },
   };
 };
