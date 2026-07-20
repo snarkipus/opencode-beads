@@ -71,6 +71,7 @@ export function resolveProjectDirectory(directory: string, worktree: string): st
   throw new Error("OpenCode did not provide a project directory or worktree");
 }
 
+/** Select the newest eligible user context from OpenCode's oldest-first message list. */
 function latestSessionContext(messages: ReadonlyArray<SessionMessage> | undefined) {
   if (!messages) return undefined;
 

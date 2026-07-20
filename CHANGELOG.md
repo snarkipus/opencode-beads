@@ -27,6 +27,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Adapted upstream MCP-oriented command and task-agent prompts to OpenCode's CLI-only execution model.
 - Made context injection concurrency-safe, retryable, directory-aware, and consistent with the latest session context.
+- Preserved the newest eligible model and agent context when reinjecting after compaction.
 - Scoped all shell and OpenCode SDK operations to the active project with explicit worktree fallback.
 - Made vendor sync dry runs non-mutating and isolated real syncs from the caller's checkout and unrelated files.
 

@@ -177,6 +177,56 @@ describe("Beads plugin controller", () => {
     });
   });
 
+  test("uses the latest agent transition when filtering compacted sessions", async () => {
+    const fixture = createRuntime();
+    fixture.setMessages([
+      {
+        info: {
+          role: "user",
+          agent: "build",
+          model: { providerID: "provider", modelID: "model" },
+        },
+      },
+      {
+        info: {
+          role: "user",
+          agent: "explore",
+          model: { providerID: "provider", modelID: "model" },
+        },
+      },
+    ]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onCompacted("compacted-subagent");
+
+    expect(fixture.primeDirectories).toHaveLength(0);
+    expect(fixture.promptCalls).toHaveLength(0);
+  });
+
+  test("ignores newer user messages without model metadata", async () => {
+    const fixture = createRuntime();
+    fixture.setMessages([
+      {
+        info: {
+          role: "user",
+          agent: "build",
+          model: { providerID: "eligible", modelID: "eligible-model" },
+        },
+      },
+      { info: { role: "assistant" } },
+      { info: { role: "user", agent: "explore" } },
+    ]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onCompacted("missing-model");
+
+    expect(fixture.promptCalls[0]?.body.model).toEqual({
+      providerID: "eligible",
+      modelID: "eligible-model",
+    });
+    expect(fixture.promptCalls[0]?.body.agent).toBe("build");
+  });
+
   test("does not duplicate context already present in a session", async () => {
     const fixture = createRuntime();
     fixture.setMessages([
