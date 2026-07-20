@@ -20,6 +20,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ### Changed
 
+- Refreshed adapter documentation for current command names, compatibility, context injection, configuration collisions, vendored content, and troubleshooting.
 - Synced vendored beads files to v1.0.5
 
 ## [0.7.0]
@@ -34,9 +35,6 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 ### Changed
 
 - Synced vendored beads files to v0.60.0
-
-### Changed
-
 - Skip beads context injection for subagents (`explore`, `general`, etc.)
 
 ## [0.5.5]
