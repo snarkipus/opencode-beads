@@ -1,4 +1,5 @@
 import type { Config } from "@opencode-ai/sdk";
+import { PrimeTimeoutError } from "./prime";
 import { BEADS_GUIDANCE, loadAgent, loadCommands } from "./vendor";
 
 const BEADS_TASK_AGENT = "beads-task-agent";
@@ -51,6 +52,25 @@ export interface PluginRuntime {
   getAgents(directory: string): Promise<ReadonlyArray<AgentInfo> | undefined>;
   prompt(directory: string, sessionID: string, body: PromptBody): Promise<void>;
   prime(directory: string): Promise<string>;
+  diagnose(diagnostic: PluginDiagnostic): Promise<void>;
+}
+
+export type DiagnosticCode =
+  | "agents_lookup_failed"
+  | "messages_lookup_failed"
+  | "prime_failed"
+  | "prime_timeout"
+  | "prompt_failed";
+
+export interface PluginDiagnostic {
+  code: DiagnosticCode;
+  directory: string;
+  sessionID: string;
+}
+
+export interface ControllerOptions {
+  diagnosticIntervalMs?: number;
+  now?: () => number;
 }
 
 export interface MutablePluginConfig {
@@ -88,16 +108,36 @@ function latestSessionContext(messages: ReadonlyArray<SessionMessage> | undefine
 /** Create the stateful Beads behavior behind the OpenCode hook adapter. */
 export async function createBeadsController(
   runtime: PluginRuntime,
-  directory: string
+  directory: string,
+  options: ControllerOptions = {}
 ): Promise<BeadsController> {
   const [commands, agents] = await Promise.all([loadCommands(), loadAgent()]);
   const injectedSessions = new Set<string>();
   const injectionAttempts = new Map<string, Promise<void>>();
+  const diagnosticTimes = new Map<string, number>();
+  const diagnosticIntervalMs = options.diagnosticIntervalMs ?? 60_000;
+  const now = options.now ?? Date.now;
 
-  async function shouldInject(agentName: string | undefined): Promise<boolean> {
+  async function diagnose(code: DiagnosticCode, sessionID: string): Promise<void> {
+    const key = `${code}:${sessionID}`;
+    const currentTime = now();
+    const previousTime = diagnosticTimes.get(key);
+    if (previousTime !== undefined && currentTime - previousTime < diagnosticIntervalMs) return;
+
+    diagnosticTimes.set(key, currentTime);
+    await runtime.diagnose({ code, directory, sessionID }).catch(() => undefined);
+  }
+
+  async function shouldInject(
+    agentName: string | undefined,
+    sessionID: string
+  ): Promise<boolean> {
     if (!agentName || agentName === BEADS_TASK_AGENT) return true;
 
-    const availableAgents = await runtime.getAgents(directory).catch(() => undefined);
+    const availableAgents = await runtime.getAgents(directory).catch(async () => {
+      await diagnose("agents_lookup_failed", sessionID);
+      return undefined;
+    });
     const agent = availableAgents?.find((candidate) => candidate.name === agentName);
     return agent ? agent.mode === "primary" || agent.mode === "all" : true;
   }
@@ -106,10 +146,17 @@ export async function createBeadsController(
     sessionID: string,
     context?: { model?: ModelContext; agent?: string }
   ): Promise<boolean> {
+    let primeOutput: string;
     try {
-      const primeOutput = await runtime.prime(directory);
-      if (!primeOutput?.trim()) return false;
+      primeOutput = await runtime.prime(directory);
+    } catch (error) {
+      const code = error instanceof PrimeTimeoutError ? "prime_timeout" : "prime_failed";
+      await diagnose(code, sessionID);
+      return false;
+    }
+    if (!primeOutput.trim()) return false;
 
+    try {
       await runtime.prompt(directory, sessionID, {
         noReply: true,
         model: context?.model,
@@ -124,12 +171,13 @@ export async function createBeadsController(
       });
       return true;
     } catch {
+      await diagnose("prompt_failed", sessionID);
       return false;
     }
   }
 
   async function performInitialInjection(message: MessageContext): Promise<void> {
-    if (!(await shouldInject(message.agent))) {
+    if (!(await shouldInject(message.agent, message.sessionID))) {
       injectedSessions.add(message.sessionID);
       return;
     }
@@ -146,6 +194,7 @@ export async function createBeadsController(
         return;
       }
     } catch {
+      await diagnose("messages_lookup_failed", message.sessionID);
       // Message lookup is advisory; injection remains the safe fallback.
     }
 
@@ -173,10 +222,12 @@ export async function createBeadsController(
     },
 
     async onCompacted(sessionID) {
-      const context = latestSessionContext(
-        await runtime.getMessages(directory, sessionID, 50).catch(() => undefined)
-      );
-      if (await shouldInject(context?.agent)) {
+      const messages = await runtime.getMessages(directory, sessionID, 50).catch(async () => {
+        await diagnose("messages_lookup_failed", sessionID);
+        return undefined;
+      });
+      const context = latestSessionContext(messages);
+      if (await shouldInject(context?.agent, sessionID)) {
         await inject(sessionID, context);
       }
     },

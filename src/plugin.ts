@@ -6,8 +6,9 @@ import {
   resolveProjectDirectory,
   type PluginRuntime,
 } from "./plugin-core";
+import { runBdPrime } from "./prime";
 
-export const BeadsPlugin: Plugin = async ({ client, $, directory, worktree }) => {
+export const BeadsPlugin: Plugin = async ({ client, directory, worktree }) => {
   const projectDirectory = resolveProjectDirectory(directory, worktree);
   const runtime: PluginRuntime = {
     async getMessages(projectDirectory, sessionID, limit) {
@@ -32,7 +33,19 @@ export const BeadsPlugin: Plugin = async ({ client, $, directory, worktree }) =>
     },
 
     async prime(projectDirectory) {
-      return $`bd prime`.cwd(projectDirectory).text();
+      return runBdPrime(projectDirectory);
+    },
+
+    async diagnose(diagnostic) {
+      await client.app.log({
+        query: { directory: diagnostic.directory },
+        body: {
+          service: "opencode-beads",
+          level: "warn",
+          message: diagnostic.code,
+          extra: { sessionID: diagnostic.sessionID },
+        },
+      });
     },
   };
 

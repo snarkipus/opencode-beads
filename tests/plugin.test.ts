@@ -5,10 +5,12 @@ import {
   type AgentInfo,
   type MessageContext,
   type MutablePluginConfig,
+  type PluginDiagnostic,
   type PluginRuntime,
   type PromptBody,
   type SessionMessage,
 } from "../src/plugin-core";
+import { PrimeTimeoutError } from "../src/prime";
 
 function createRuntime(primeResults: Array<string | Error | Promise<string>> = ["context"]) {
   let messages: ReadonlyArray<SessionMessage> = [];
@@ -19,6 +21,7 @@ function createRuntime(primeResults: Array<string | Error | Promise<string>> = [
   ];
   const promptCalls: Array<{ sessionID: string; body: PromptBody }> = [];
   const primeDirectories: string[] = [];
+  const diagnosticCalls: PluginDiagnostic[] = [];
   const messageDirectories: string[] = [];
   const agentDirectories: string[] = [];
   const promptDirectories: string[] = [];
@@ -42,20 +45,26 @@ function createRuntime(primeResults: Array<string | Error | Promise<string>> = [
     if (result instanceof Error) throw result;
     return await result;
   });
+  const diagnose = mock(async (diagnostic: PluginDiagnostic) => {
+    diagnosticCalls.push(diagnostic);
+  });
 
   const runtime: PluginRuntime = {
     getMessages,
     getAgents,
     prompt,
     prime,
+    diagnose,
   };
 
   return {
     runtime,
     getMessages,
     getAgents,
+    prompt,
     promptCalls,
     primeDirectories,
+    diagnosticCalls,
     messageDirectories,
     agentDirectories,
     promptDirectories,
@@ -130,6 +139,13 @@ describe("Beads plugin controller", () => {
 
     expect(retryFixture.primeDirectories).toHaveLength(2);
     expect(retryFixture.promptCalls).toHaveLength(1);
+    expect(retryFixture.diagnosticCalls).toEqual([
+      {
+        code: "prime_failed",
+        directory: "/workspace/project",
+        sessionID: "retry",
+      },
+    ]);
   });
 
   test("filters regular subagents but injects the beads task agent", async () => {
@@ -252,6 +268,65 @@ describe("Beads plugin controller", () => {
     await controller.onMessage(message("fallback", "custom-agent"));
 
     expect(fixture.primeDirectories).toHaveLength(1);
+    expect(fixture.promptCalls).toHaveLength(1);
+    expect(fixture.diagnosticCalls.map((diagnostic) => diagnostic.code)).toEqual([
+      "agents_lookup_failed",
+      "messages_lookup_failed",
+    ]);
+  });
+
+  test("retries prompt failures and rate-limits structured diagnostics", async () => {
+    let currentTime = 1_000;
+    const fixture = createRuntime([
+      new PrimeTimeoutError(10),
+      new PrimeTimeoutError(10),
+      new PrimeTimeoutError(10),
+    ]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project", {
+      diagnosticIntervalMs: 60_000,
+      now: () => currentTime,
+    });
+
+    await controller.onMessage(message("timeout"));
+    await controller.onMessage(message("timeout"));
+    expect(fixture.diagnosticCalls).toEqual([
+      {
+        code: "prime_timeout",
+        directory: "/workspace/project",
+        sessionID: "timeout",
+      },
+    ]);
+
+    currentTime += 60_000;
+    await controller.onMessage(message("timeout"));
+    expect(fixture.diagnosticCalls).toHaveLength(2);
+
+    const promptFixture = createRuntime(["context", "context"]);
+    promptFixture.prompt.mockRejectedValueOnce(new Error("SDK unavailable"));
+    const promptController = await createBeadsController(
+      promptFixture.runtime,
+      "/workspace/project"
+    );
+    await promptController.onMessage(message("prompt-retry"));
+    await promptController.onMessage(message("prompt-retry"));
+
+    expect(promptFixture.primeDirectories).toHaveLength(2);
+    expect(promptFixture.prompt).toHaveBeenCalledTimes(2);
+    expect(promptFixture.promptCalls).toHaveLength(1);
+    expect(promptFixture.diagnosticCalls[0]?.code).toBe("prompt_failed");
+  });
+
+  test("absorbs diagnostic failures while retaining retry behavior", async () => {
+    const fixture = createRuntime([new Error("bd unavailable"), "context"]);
+    fixture.runtime.diagnose = mock(async () => {
+      throw new Error("logging unavailable");
+    });
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onMessage(message("diagnostic-failure"));
+    await controller.onMessage(message("diagnostic-failure"));
+
+    expect(fixture.primeDirectories).toHaveLength(2);
     expect(fixture.promptCalls).toHaveLength(1);
   });
 
