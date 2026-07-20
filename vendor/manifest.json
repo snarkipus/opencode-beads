@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/gastownhall/beads.git",
+  "tag": "v1.0.5",
+  "commit": "6a3f515ced18406c189c55fff789a4925bfaa35c",
+  "sources": [
+    {
+      "source": "plugins/beads/agents/task-agent.md",
+      "target": "agents/task-agent.md"
+    },
+    {
+      "source": "plugins/beads/skills/beads/commands",
+      "target": "commands"
+    }
+  ],
+  "files": [
+    {
+      "path": "agents/task-agent.md",
+      "bytes": 1971,
+      "sha256": "d5dd212e4f6324cf9f979eb8ed96ee094174c3e0cda8e217e55643244a7f4a79"
+    },
+    {
+      "path": "commands/audit.md",
+      "bytes": 955,
+      "sha256": "8a7f942b3b94576f8503cba282c9144953991ab2a76926323ab6ee895d33b9c5"
+    },
+    {
+      "path": "commands/blocked.md",
+      "bytes": 561,
+      "sha256": "14822b644bb93d9f038107aaccf1eb5112e3e0b1cb0b9c013cb6dffbfe570335"
+    },
+    {
+      "path": "commands/close.md",
+      "bytes": 583,
+      "sha256": "413946f6210b743398e1510a9806ac1c51c6d6e994d020e7e122062cc69ffd97"
+    },
+    {
+      "path": "commands/comments.md",
+      "bytes": 965,
+      "sha256": "9680911b297bdf24cb943c5dd7f71812cd60e0f9ef52a57bf1832110e02d5efc"
+    },
+    {
+      "path": "commands/compact.md",
+      "bytes": 1069,
+      "sha256": "22c1ec8b9e4b993ef9239320b3e2f74f9a48585640a808837299c9e91dbee6cf"
+    },
+    {
+      "path": "commands/create.md",
+      "bytes": 649,
+      "sha256": "f70104bd3792e5f005d0d7f2901c2b56da7f0136bf279f6d36e36d89b553bb93"
+    },
+    {
+      "path": "commands/decision.md",
+      "bytes": 2662,
+      "sha256": "d62efc7e0d0bcd3a080e825b315acbf42c024d937382d8b8cf83b47016d4f908"
+    },
+    {
+      "path": "commands/delete.md",
+      "bytes": 959,
+      "sha256": "90424c81aac3d2b12379820aa0b6f5e37a60a0da33474d28c66e0422b8361532"
+    },
+    {
+      "path": "commands/dep.md",
+      "bytes": 3408,
+      "sha256": "2679ab80bfade1f6d4769ecef2575b196592c919cc36912e9fa8f29ab2a7d9f5"
+    },
+    {
+      "path": "commands/epic.md",
+      "bytes": 858,
+      "sha256": "b31ffcfc2a423684f153042a0cb67b2d0472b63da594691b3c2656ed00cf2d6c"
+    },
+    {
+      "path": "commands/export.md",
+      "bytes": 789,
+      "sha256": "dc021e36c11c3ad2724f3097c6f461221d77e5bd26296e6db65b8bd5f5190be0"
+    },
+    {
+      "path": "commands/import.md",
+      "bytes": 401,
+      "sha256": "4f2b270a3f55d5b48f615864c07408bec3b339cd9ccab581e1e3c7c6ecd27e0e"
+    },
+    {
+      "path": "commands/init.md",
+      "bytes": 751,
+      "sha256": "68413502bcb73f25cbf7505e3951967bffb8e125f6647e98018588558171abae"
+    },
+    {
+      "path": "commands/label.md",
+      "bytes": 896,
+      "sha256": "82b702f10b31caf1c538119a5ae70603c88a7534de33bec2662b67a039a45572"
+    },
+    {
+      "path": "commands/list.md",
+      "bytes": 2626,
+      "sha256": "a986fdc0400c5e637f9e2103775f6b0c0297e48f96b0d2d1f8ecd15f14b7c524"
+    },
+    {
+      "path": "commands/prime.md",
+      "bytes": 363,
+      "sha256": "4b0559e792c2ea8ead359954896eca8518cd311303637b2e1c542e65b9d960b8"
+    },
+    {
+      "path": "commands/quickstart.md",
+      "bytes": 469,
+      "sha256": "ee1d55aad65e7f5d293a394517964719b1bff1e4d7c92ccf55e2125608473bee"
+    },
+    {
+      "path": "commands/ready.md",
+      "bytes": 568,
+      "sha256": "48a42cab07b8580b0436bbddf5dd409333ff3b402bb4fee7af39b3aa3b078856"
+    },
+    {
+      "path": "commands/rename-prefix.md",
+      "bytes": 599,
+      "sha256": "0315a4e4c8ddfd3ec6006f30f80de69c25d1cf3cab43d6bfa3d657b551437b60"
+    },
+    {
+      "path": "commands/reopen.md",
+      "bytes": 593,
+      "sha256": "db2927072ffbc3dbde644a123f877e4cb9a46df87c1252ab1256f8fa1f75a41e"
+    },
+    {
+      "path": "commands/restore.md",
+      "bytes": 712,
+      "sha256": "8cda7ebcaa572572cf55e4f1a2b15e028a01f7c373842c941c7f6fabbcecb4d2"
+    },
+    {
+      "path": "commands/search.md",
+      "bytes": 3188,
+      "sha256": "5d07fd4bd26bd90a31f2d0c58b8e1245234f3a897c2d2fe326b5f372ea2a9ecd"
+    },
+    {
+      "path": "commands/show.md",
+      "bytes": 561,
+      "sha256": "e170d3d532954aeea5c20eb2b1ea96625f17069d2cd6f9ff81317c05c13dda80"
+    },
+    {
+      "path": "commands/stats.md",
+      "bytes": 617,
+      "sha256": "f4da8a61fb7922ece1da727f7cfe2e020def6deed7cb2ce807cc6ab6c6d02aca"
+    },
+    {
+      "path": "commands/sync.md",
+      "bytes": 493,
+      "sha256": "7ac9938d0e5ec0514edefc240971b4a0aade61cffca75efefac4011117d53ebb"
+    },
+    {
+      "path": "commands/template.md",
+      "bytes": 6641,
+      "sha256": "dd8865a9556ac67c49e83b7db9ad085e3e1ebf2e187fd6c407a0e116dbfb712b"
+    },
+    {
+      "path": "commands/update.md",
+      "bytes": 868,
+      "sha256": "ff12a4ac6a686a11e2a029aac7070829051662027a868794717b1d3fee255d66"
+    },
+    {
+      "path": "commands/version.md",
+      "bytes": 975,
+      "sha256": "f994ab7afb0aef464fe0e77e7aad522d5f2d1558415d4ba63aede43a7411a075"
+    },
+    {
+      "path": "commands/workflow.md",
+      "bytes": 1987,
+      "sha256": "23ce9fbfe8acf49df1b4ddba8f908f4a3ef724c6d9203358c180d019e683978c"
+    }
+  ]
+}

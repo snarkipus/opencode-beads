@@ -21,6 +21,8 @@ cp "$PROJECT_DIR/vendor/agents/task-agent.md" "$UPSTREAM/plugins/beads/agents/ta
 git -C "$UPSTREAM" add .
 git -C "$UPSTREAM" commit -qm "fixture"
 git -C "$UPSTREAM" tag v1.2.3
+git -C "$UPSTREAM" tag v9.0.0-beta.1
+git -C "$UPSTREAM" tag latest
 
 git init -q --bare "$ORIGIN"
 git clone -q "$ORIGIN" "$REPO"
@@ -67,19 +69,22 @@ CURRENT_BRANCH="$(git -C "$REPO" branch --show-current)"
 PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" CREATE_PR=false "$SYNC_SCRIPT" >/dev/null
 [[ "$(git -C "$REPO" branch --show-current)" == "$CURRENT_BRANCH" ]]
 [[ -z "$(git -C "$REPO" status --porcelain=v1)" ]]
+EXPECTED_TREE="$(git --git-dir="$ORIGIN" rev-parse 'sync-beads/v1.2.3^{tree}')"
 [[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/commands/ready.md')" == "$(<"$PROJECT_DIR/vendor/commands/ready.md")" ]]
 [[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/agents/task-agent.md')" == "$(<"$PROJECT_DIR/vendor/agents/task-agent.md")" ]]
 [[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/agents/keep.md')" == "keep agent" ]]
 [[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/README.md')" == "keep vendor file" ]]
 git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:CHANGELOG.md' | grep -q -- '- Synced vendored beads files to v1.2.3'
+git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/manifest.json' | grep -q -- '"tag": "v1.2.3"'
 
 CHANGED_PATHS="$(git --git-dir="$ORIGIN" diff-tree --no-commit-id --name-only -r 'sync-beads/v1.2.3' | sort)"
-EXPECTED_PATHS="$(printf '%s\n' CHANGELOG.md vendor/agents/task-agent.md vendor/commands/ready.md | sort)"
+EXPECTED_PATHS="$(printf '%s\n' CHANGELOG.md vendor/agents/task-agent.md vendor/commands/ready.md vendor/manifest.json | sort)"
 [[ "$CHANGED_PATHS" == "$EXPECTED_PATHS" ]]
 
 PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" CREATE_PR=false "$SYNC_SCRIPT" >/dev/null
 [[ "$(git -C "$REPO" branch --show-current)" == "$CURRENT_BRANCH" ]]
 [[ -z "$(git -C "$REPO" status --porcelain=v1)" ]]
+[[ "$EXPECTED_TREE" == "$(git --git-dir="$ORIGIN" rev-parse 'sync-beads/v1.2.3^{tree}')" ]]
 
 CONFLICT_REPO="$TEMP_DIR/conflict"
 git clone -q --branch sync-beads/v1.2.3 "$ORIGIN" "$CONFLICT_REPO"
@@ -108,6 +113,15 @@ if PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" "$SYNC_SCRIPT" --dry-run >/d
   exit 1
 fi
 [[ "$(git -C "$REPO" branch --show-current)" == "$CURRENT_BRANCH" ]]
+[[ -z "$(git -C "$REPO" status --porcelain=v1)" ]]
+
+git -C "$UPSTREAM" rm -q plugins/beads/agents/task-agent.md
+git -C "$UPSTREAM" commit -qm "missing source fixture"
+git -C "$UPSTREAM" tag v1.2.5
+if PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" "$SYNC_SCRIPT" --dry-run >/dev/null 2>&1; then
+  echo "Missing upstream source was not rejected" >&2
+  exit 1
+fi
 [[ -z "$(git -C "$REPO" status --porcelain=v1)" ]]
 
 echo "sync-beads safety tests passed"

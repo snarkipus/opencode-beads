@@ -35,6 +35,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 ### Added
 
 - Added plugin contract tests, packed-package smoke coverage, and locked pull-request CI.
+- Added a reproducible vendor provenance manifest with stable-release selection and checksum validation.
 
 ## [0.7.0]
 

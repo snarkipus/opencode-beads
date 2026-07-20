@@ -15,17 +15,6 @@ if [[ -n "$(git -C "$PLUGIN_DIR" status --porcelain --untracked-files=all)" ]]; 
   exit 1
 fi
 
-TAGS="$(git ls-remote --tags --refs --sort=-v:refname "$BEADS_REPO")"
-if [[ -z "$TAGS" ]]; then
-  echo "No upstream Beads tags found" >&2
-  exit 1
-fi
-
-LATEST_TAG_REF="${TAGS%%$'\n'*}"
-BEADS_VERSION="${LATEST_TAG_REF##*/}"
-SAFE_VERSION="${BEADS_VERSION//[^a-zA-Z0-9._-]/-}"
-BRANCH="sync-beads/$SAFE_VERSION"
-
 TEMP_DIR="$(mktemp -d)"
 WORKTREE_DIR="$TEMP_DIR/worktree"
 WORKTREE_ADDED=false
@@ -38,7 +27,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
+TAGS_FILE="$TEMP_DIR/tags"
+git ls-remote --tags "$BEADS_REPO" > "$TAGS_FILE"
+read -r BEADS_VERSION BEADS_COMMIT < <(bun "$SCRIPT_DIR/vendor-provenance.ts" select-release "$TAGS_FILE")
+SAFE_VERSION="${BEADS_VERSION//[^a-zA-Z0-9._-]/-}"
+BRANCH="sync-beads/$SAFE_VERSION"
+
 git -c advice.detachedHead=false clone --depth 1 --branch "$BEADS_VERSION" --quiet "$BEADS_REPO" "$TEMP_DIR/beads"
+CLONED_COMMIT="$(git -C "$TEMP_DIR/beads" rev-parse HEAD)"
+if [[ "$CLONED_COMMIT" != "$BEADS_COMMIT" ]]; then
+  echo "Resolved tag $BEADS_VERSION changed during sync" >&2
+  exit 1
+fi
 
 UPSTREAM_COMMANDS="$TEMP_DIR/beads/plugins/beads/skills/beads/commands"
 UPSTREAM_AGENT="$TEMP_DIR/beads/plugins/beads/agents/task-agent.md"
@@ -56,10 +56,12 @@ fi
 mkdir -p "$CANDIDATE_VENDOR/commands" "$CANDIDATE_VENDOR/agents"
 cp -R "$UPSTREAM_COMMANDS/." "$CANDIDATE_VENDOR/commands/"
 cp "$UPSTREAM_AGENT" "$CANDIDATE_VENDOR/agents/task-agent.md"
-bun "$SCRIPT_DIR/validate-vendor.ts" "$CANDIDATE_VENDOR"
+bun "$SCRIPT_DIR/vendor-provenance.ts" write "$CANDIDATE_VENDOR" "$BEADS_REPO" "$BEADS_VERSION" "$BEADS_COMMIT"
+bun "$SCRIPT_DIR/validate-vendor.ts" "$CANDIDATE_VENDOR" "$BEADS_REPO" "$BEADS_VERSION" "$BEADS_COMMIT"
 
 if diff -qr "$PLUGIN_DIR/vendor/commands" "$CANDIDATE_VENDOR/commands" >/dev/null 2>&1 \
-  && cmp -s "$PLUGIN_DIR/vendor/agents/task-agent.md" "$CANDIDATE_VENDOR/agents/task-agent.md"; then
+  && cmp -s "$PLUGIN_DIR/vendor/agents/task-agent.md" "$CANDIDATE_VENDOR/agents/task-agent.md" \
+  && cmp -s "$PLUGIN_DIR/vendor/manifest.json" "$CANDIDATE_VENDOR/manifest.json"; then
   echo "No changes detected for $BEADS_VERSION"
   exit 0
 fi
@@ -77,6 +79,7 @@ rm -rf "$WORKTREE_DIR/vendor/commands"
 mkdir -p "$WORKTREE_DIR/vendor/agents"
 cp -R "$CANDIDATE_VENDOR/commands" "$WORKTREE_DIR/vendor/commands"
 cp "$CANDIDATE_VENDOR/agents/task-agent.md" "$WORKTREE_DIR/vendor/agents/task-agent.md"
+cp "$CANDIDATE_VENDOR/manifest.json" "$WORKTREE_DIR/vendor/manifest.json"
 
 CHANGELOG="$WORKTREE_DIR/CHANGELOG.md"
 UNRELEASED_SECTION="$(sed -n '/^## \[Unreleased\]$/,/^## \[/p' "$CHANGELOG")"
@@ -93,7 +96,7 @@ else
 - Synced vendored beads files to $BEADS_VERSION" "$CHANGELOG"
 fi
 
-git -C "$WORKTREE_DIR" add CHANGELOG.md vendor/commands vendor/agents/task-agent.md
+git -C "$WORKTREE_DIR" add CHANGELOG.md vendor/commands vendor/agents/task-agent.md vendor/manifest.json
 git -C "$WORKTREE_DIR" commit -m "sync: beads $BEADS_VERSION"
 
 if git -C "$WORKTREE_DIR" ls-remote --exit-code --heads origin "refs/heads/$BRANCH" >/dev/null 2>&1; then

@@ -21,6 +21,7 @@
   "scripts": {
     "test": "bun test",
     "test:package": "bun scripts/test-package.ts",
+    "test:provenance": "bun test tests/provenance.test.ts",
     "test:vendor": "bun scripts/validate-vendor.ts vendor",
     "typecheck": "tsc --noEmit"
   },
