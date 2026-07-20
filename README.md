@@ -41,7 +41,7 @@ OpenCode fetches unpinned plugins from npm on each startup; pinned versions are 
 
 ## Features
 
-- **Context injection** - Automatically runs `bd prime` on session start and after compaction, keeping your agent aware of current issues
+- **Context injection** - Loads persistent Beads memories on session start and after compaction without duplicating the full workflow reference
 - **Commands** - Vendored Beads workflows available under the `/beads:*` namespace
 - **Task agent** - Autonomous issue completion via `beads-task-agent` subagent
 
@@ -49,9 +49,9 @@ OpenCode fetches unpinned plugins from npm on each startup; pinned versions are 
 
 This plugin is a thin OpenCode adapter. For Beads workflows, CLI commands, Dolt operations, migrations, backups, and issue-tracking concepts, use the [upstream documentation](https://github.com/gastownhall/beads) or run `bd prime`.
 
-The plugin injects the output of `bd prime` when a primary-agent session first receives a message and after compaction. Regular task subagents such as `explore` and `general` are deliberately skipped to avoid irrelevant context and side effects. The included `beads-task-agent` always receives Beads context.
+The plugin runs `bd prime --memories-only` when a primary-agent session first receives a message and after compaction. A compact shared layer supplies OpenCode-specific CLI and workflow safety, while `bd <command> --help` remains authoritative for current syntax. Regular task subagents such as `explore` and `general` are deliberately skipped; the included `beads-task-agent` receives memories and shared safety without primary-agent delegation prose.
 
-If `bd` is unavailable, the project is not initialized, or `bd prime` fails or returns no content, context injection is silently skipped. The OpenCode session continues normally. Vendored commands remain visible, but commands that invoke `bd` will report the underlying CLI error.
+Older compatible `bd` versions that reject `--memories-only` fall back once to full `bd prime`; other failures do not trigger a second process. If `bd` is unavailable, the project is not initialized, or prime fails or returns no content, context injection is silently skipped and remains retryable. Vendored commands remain visible, and the task agent retains a minimal role prompt instructing it to run `bd` through `bash`.
 
 ## Commands
 
@@ -63,7 +63,7 @@ Explicit command and agent definitions in your OpenCode configuration take prece
 
 ### beads-task-agent
 
-A subagent for autonomous issue completion. Designed to work through issues independently, updating status and handling dependencies.
+A subagent for autonomous issue completion and concise status summaries. Its configured prompt is role-specific; session injection supplies the shared CLI and lifecycle safety rules once.
 
 ## Compatibility
 
@@ -85,7 +85,7 @@ The vendor manifest, task agent, and every recorded command file are required pa
 
 ## Troubleshooting
 
-- **No Beads context:** Run `bd prime` in the project. Install `bd` if the command is missing, or run `bd init` if the project has no Beads workspace.
+- **No Beads context:** Run `bd prime --memories-only` in the project. Install `bd` if the command is missing, or run `bd init` if the project has no Beads workspace. Older versions may use full `bd prime`.
 - **Vendor artifact initialization error:** Reinstall the package. If using a source checkout, rerun the vendor sync and validation scripts; the error names the missing or malformed manifest, command, or task-agent file.
 - **Unexpected command or agent definition:** Check the OpenCode configuration for a colliding `beads:*` or `beads-task-agent` entry. Your explicit configuration wins on an exact name collision; OpenCode logs a rate-limited warning naming the collision.
 - **A regular subagent has no Beads context:** This is intentional. Delegate Beads work to `beads-task-agent`, or run the required `bd` command explicitly.

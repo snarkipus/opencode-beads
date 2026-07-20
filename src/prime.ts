@@ -8,7 +8,7 @@ export class PrimeTimeoutError extends Error {
 }
 
 export class PrimeProcessError extends Error {
-  constructor(readonly exitCode: number) {
+  constructor(readonly exitCode: number, readonly stderr: string) {
     super(`bd prime exited with code ${exitCode}`);
     this.name = "PrimeProcessError";
   }
@@ -23,12 +23,17 @@ export interface PrimeProcess {
 
 export interface PrimeExecutionOptions {
   timeoutMs?: number;
-  spawn?: (directory: string) => PrimeProcess;
+  spawn?: (directory: string, args: readonly string[]) => PrimeProcess;
   scheduleTimeout?: (callback: () => void, delayMs: number) => () => void;
 }
 
-function spawnPrime(directory: string): PrimeProcess {
-  return Bun.spawn(["bd", "prime"], {
+export interface PrimeResult {
+  mode: "full-compatibility" | "memories-only";
+  output: string;
+}
+
+function spawnPrime(directory: string, args: readonly string[]): PrimeProcess {
+  return Bun.spawn(["bd", "prime", ...args], {
     cwd: directory,
     stdin: "ignore",
     stdout: "pipe",
@@ -41,13 +46,13 @@ function scheduleTimeout(callback: () => void, delayMs: number): () => void {
   return () => clearTimeout(timer);
 }
 
-/** Run bd prime with bounded execution and complete process cleanup. */
-export async function runBdPrime(
+async function runPrimeAttempt(
   directory: string,
+  args: readonly string[],
   options: PrimeExecutionOptions = {}
 ): Promise<string> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_PRIME_TIMEOUT_MS;
-  const process = (options.spawn ?? spawnPrime)(directory);
+  const process = (options.spawn ?? spawnPrime)(directory, args);
   const stdout = new Response(process.stdout).text();
   const stderr = new Response(process.stderr).text();
 
@@ -63,8 +68,8 @@ export async function runBdPrime(
   }, timeoutMs);
 
   const completion = Promise.all([process.exited, stdout, stderr]).then(
-    ([exitCode, output]) => {
-      if (exitCode !== 0) throw new PrimeProcessError(exitCode);
+    ([exitCode, output, errorOutput]) => {
+      if (exitCode !== 0) throw new PrimeProcessError(exitCode, errorOutput);
       return output;
     }
   );
@@ -76,5 +81,31 @@ export async function runBdPrime(
     if (timedOut) {
       await completion.catch(() => undefined);
     }
+  }
+}
+
+function isUnsupportedMemoriesFlag(error: unknown): boolean {
+  return (
+    error instanceof PrimeProcessError &&
+    /(?:unknown flag|flag provided but not defined).*--memories-only/i.test(error.stderr)
+  );
+}
+
+/** Load persistent memories, falling back narrowly for older bd versions. */
+export async function runBdPrime(
+  directory: string,
+  options: PrimeExecutionOptions = {}
+): Promise<PrimeResult> {
+  try {
+    return {
+      mode: "memories-only",
+      output: await runPrimeAttempt(directory, ["--memories-only"], options),
+    };
+  } catch (error) {
+    if (!isUnsupportedMemoriesFlag(error)) throw error;
+    return {
+      mode: "full-compatibility",
+      output: await runPrimeAttempt(directory, [], options),
+    };
   }
 }

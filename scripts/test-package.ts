@@ -58,8 +58,15 @@ try {
   if (Object.keys(commands ?? {}).length !== 27 || !commands?.["beads:ready"]?.template) {
     throw new Error("Packed plugin did not load the complete command inventory");
   }
-  if (!agents?.["beads-task-agent"]?.prompt) {
+  const taskAgentPrompt = agents?.["beads-task-agent"]?.prompt;
+  if (!taskAgentPrompt) {
     throw new Error("Packed plugin did not load the task agent");
+  }
+  if (
+    taskAgentPrompt.length >= 500 ||
+    taskAgentPrompt.includes("Agent Delegation")
+  ) {
+    throw new Error("Packed task-agent prompt contains duplicated workflow guidance");
   }
 
   console.log(`Loaded packed plugin with ${vendorCommands.length} vendor command files`);

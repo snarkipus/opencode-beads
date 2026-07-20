@@ -90,6 +90,9 @@ describe("vendor prompt adaptations", () => {
     expect(taskAgent).toBeDefined();
     expect(taskAgent?.prompt).not.toMatch(unsupportedPattern);
     expect(Object.keys(taskAgent ?? {}).sort()).toEqual(["description", "mode", "prompt"]);
+    expect(taskAgent?.prompt).toContain("concise human-readable results");
+    expect(taskAgent?.prompt).not.toContain("Agent Delegation");
+    expect(taskAgent?.prompt?.length).toBeLessThan(500);
   });
 
   test("rejects missing, duplicated, and uninventoryed source semantics", async () => {

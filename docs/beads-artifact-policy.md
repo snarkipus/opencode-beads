@@ -10,14 +10,14 @@ Status: accepted on 2026-07-20. This decision defines product scope only; artifa
 - OpenCode's [skill documentation](https://opencode.ai/docs/skills) limits automatic discovery to `skills/<name>/SKILL.md` under project or global `.opencode`, `.claude`, and `.agents` configuration trees. It does not scan npm package internals.
 - OpenCode's [plugin documentation](https://opencode.ai/docs/plugins) and reviewed plugin types expose native command, agent, tool, hook, and configuration integration, but no hook or configuration field for registering a package-local skill or resource tree.
 - The upstream [`SKILL.md`](https://github.com/gastownhall/beads/blob/v1.1.0/plugins/beads/skills/beads/SKILL.md) is declared for Claude Code and Codex, uses frontmatter fields OpenCode ignores, targets `bd` 0.60.0, and tells newer clients to use `bd prime` because the skill may be stale.
-- Upstream [ADR-0001](https://github.com/gastownhall/beads/blob/v1.1.0/plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md) makes `bd prime` the canonical AI workflow and CLI reference specifically to avoid duplication, drift, and token overhead.
+- Upstream [ADR-0001](https://github.com/gastownhall/beads/blob/v1.1.0/plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md) makes `bd prime` the canonical dynamic context source. OpenCode uses its memories-only mode plus `bd <command> --help` to avoid duplicating the full workflow and CLI reference.
 
 ## Decision
 
 | Upstream artifact | Policy | Reason |
 | --- | --- | --- |
 | `skills/beads/commands/*.md` | Approved after OpenCode adaptation | OpenCode has a native `Config.command` surface. The current adapter namespaces these as `/beads:*`, validates known adaptations, and records exact provenance. |
-| `agents/task-agent.md` | Approved after OpenCode adaptation | OpenCode has a native `Config.agent` surface. The adapter registers one scoped `beads-task-agent` and supplies OpenCode-specific CLI guidance. |
+| `agents/task-agent.md` | Approved after OpenCode adaptation | OpenCode has a native `Config.agent` surface. The adapter validates the upstream prompt but registers a compact role-specific `beads-task-agent`; shared CLI and lifecycle guidance is injected once per session. |
 | `skills/beads/SKILL.md` | Approved after OpenCode adaptation for explicit managed installation | Passive npm discovery does not work, so the companion CLI owns deliberate project or global installation, provenance, collision checks, upgrades, and removal. The runtime plugin never writes it during startup. |
 | `skills/beads/adr/` | Approved when referenced by the adapted skill | Keep only reviewed rationale needed by the installed skill; `bd prime` remains the canonical live workflow source. |
 | `skills/beads/resources/` | Approved after OpenCode adaptation | Include only resources referenced by the adapted skill, removing host-specific policy and avoiding duplication of live CLI guidance. |
@@ -32,7 +32,7 @@ The approved commands and agent use native configuration mutation and explicit n
 
 ## `bd prime` boundary
 
-The plugin runs the active project's installed `bd prime` at initial context injection and after compaction. That output follows the installed CLI version and is therefore more current than copied skill prose or command reference material. Vendored commands provide optional OpenCode UX, while `bd prime` supplies session rules and `bd <command> --help` supplies live command details. Static artifacts must not restate the complete CLI or create a second source of truth.
+The plugin runs the active project's installed `bd prime --memories-only` at initial context injection and after compaction. Persistent memories provide project-specific context, one compact adapter layer supplies OpenCode host and lifecycle safety, and `bd <command> --help` supplies current syntax. Older CLIs that specifically reject the flag fall back once to full `bd prime`, without appending duplicate workflow guidance. Static artifacts must not restate the complete CLI or task-agent workflow.
 
 The full `bd` command surface remains CLI-only. OpenCode receives no generated tool per subcommand, no embedded database API, and no bundled Beads binary.
 

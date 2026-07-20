@@ -7,8 +7,8 @@ import type {
   TextPartInput,
   UserMessage,
 } from "@opencode-ai/sdk";
-import { PrimeTimeoutError } from "./prime";
-import { BEADS_GUIDANCE, loadAgent, loadCommands } from "./vendor";
+import { PrimeTimeoutError, type PrimeResult } from "./prime";
+import { beadsGuidance, loadAgent, loadCommands } from "./vendor";
 
 const BEADS_TASK_AGENT = "beads-task-agent";
 
@@ -43,7 +43,7 @@ export interface PluginRuntime {
   ): Promise<ReadonlyArray<SessionMessage> | undefined>;
   getAgents(directory: string): Promise<ReadonlyArray<AgentInfo> | undefined>;
   prompt(directory: string, sessionID: string, body: PromptBody): Promise<void>;
-  prime(directory: string): Promise<string>;
+  prime(directory: string): Promise<PrimeResult>;
   diagnose(diagnostic: PluginDiagnostic): Promise<void>;
 }
 
@@ -151,15 +151,18 @@ export async function createBeadsController(
     sessionID: string,
     context?: { model?: ModelContext; agent?: string }
   ): Promise<boolean> {
-    let primeOutput: string;
+    let prime: PrimeResult;
     try {
-      primeOutput = await runtime.prime(directory);
+      prime = await runtime.prime(directory);
     } catch (error) {
       const code = error instanceof PrimeTimeoutError ? "prime_timeout" : "prime_failed";
       await diagnoseSession(code, sessionID);
       return false;
     }
-    if (!primeOutput.trim()) return false;
+    const output = prime.output.trim();
+    if (!output) return false;
+
+    const audience = context?.agent === BEADS_TASK_AGENT ? "task-agent" : "primary";
 
     try {
       await runtime.prompt(directory, sessionID, {
@@ -169,7 +172,7 @@ export async function createBeadsController(
         parts: [
           {
             type: "text",
-            text: `<beads-context>\n${primeOutput.trim()}\n</beads-context>\n\n${BEADS_GUIDANCE}`,
+            text: `<beads-context>\n${output}\n</beads-context>\n\n${beadsGuidance(prime.mode, audience)}`,
             synthetic: true,
           },
         ],

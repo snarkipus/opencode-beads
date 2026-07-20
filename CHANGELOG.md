@@ -20,6 +20,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ### Changed
 
+- Reduced injected context by using `bd prime --memories-only`, one compact shared safety layer, and a role-only task-agent prompt, with a narrow full-prime fallback for older CLIs.
 - Refreshed adapter documentation for current command names, compatibility, context injection, configuration collisions, vendored content, and troubleshooting.
 - Synced vendored beads files to v1.0.5
 

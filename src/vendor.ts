@@ -171,71 +171,33 @@ function rejectUnsupportedFields(
   if (unsupported) throw vendorError(relativePath, `unsupported frontmatter field: ${unsupported}`);
 }
 
-const BEADS_CLI_USAGE = `## CLI Usage
+const BEADS_HOST_GUIDANCE = `## CLI Safety
 
-**IMPORTANT:** There is no \`bd\` tool in this environment. You must use the \`bash\` tool to run the \`bd\` command.
+There is no native \`bd\` or Beads MCP tool in OpenCode. Run \`bd\` through \`bash\`.
+Use \`bd <command> --help\` for current syntax and \`--json\` when structured output improves reliability. Distinguish command failures from output parsing failures.`;
 
-**Do not try to call a tool named \`bd\` directly.** It does not exist.
-**Do not try to call MCP tools (like \`ready\`, \`create\`) directly.** They do not exist.
+const BEADS_WORKFLOW_GUIDANCE = `## Workflow Safety
 
-Instead, use the \`bash\` tool for all beads operations:
+Claim work before changing code. Close only completed work after validation. Record discovered follow-up with a \`discovered-from\` dependency.`;
 
-- \`bd init [--prefix <prefix>]\` - Initialize beads
-- \`bd ready\` - List ready tasks
-- \`bd show <id>\` - Show task details
-- \`bd create "title" -t bug|feature|task -p 0-4\` - Create issue
-- \`bd update <id> --status in_progress\` - Update status
-- \`bd close <id> --reason "message"\` - Close issue
-- \`bd reopen <id>\` - Reopen issue
-- \`bd dep add <from> <to> --type blocks|discovered-from\` - Add dependency
-- \`bd list --status open\` - List issues
-- \`bd blocked\` - Show blocked issues
-- \`bd stats\` - Show statistics
+const BEADS_DELEGATION_GUIDANCE = `## Delegation
 
-If a tool is not listed above, try \`bd <tool> --help\`.
+Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-agent\`; perform only single atomic operations directly.`;
 
-Use the default command output unless \`--json\` would make a task easier or more reliable. If you parse command output, distinguish parsing errors from command failures.`;
+const BEADS_SUBAGENT_CONTEXT = `## Beads Task Agent
 
-const BEADS_SUBAGENT_CONTEXT = `## Subagent Context
+Handle status summaries and autonomous task completion. Use \`bd\` through \`bash\`, report meaningful progress and blockers, and return concise human-readable results rather than raw JSON.`;
 
-You are called as a subagent. Your **final message** is what gets returned to the calling agent - make it count.
-
-**Your purpose:** Handle both status queries AND autonomous task completion.
-
-**For status/overview requests** ("what's next", "show me blocked work"):
-- Run the necessary \`bd\` commands to gather data
-- Process the JSON output internally
-- Return a **concise, human-readable summary** with key information
-- Use tables or lists to organize information clearly
-- Example: "You have 3 ready tasks (2 P0, 1 P1), 5 in-progress, and 8 blocked by Epic X"
-
-**For task completion requests** ("complete ready work", "work on issues"):
-- Find ready work, claim it, execute it, close it
-- Report progress as you work
-- End with a summary of what was accomplished
-
-**Critical:** Do NOT dump raw JSON in your final response. Parse it, summarize it, make it useful.`;
-
-export const BEADS_GUIDANCE = `<beads-guidance>
-${BEADS_CLI_USAGE}
-
-## Agent Delegation
-
-**Default to the agent.** For ANY beads work involving multiple commands or context gathering, use the \`task\` tool with \`subagent_type: "beads-task-agent"\`:
-- Status overviews ("what's next", "what's blocked", "show me progress")
-- Exploring the issue graph (ready + in-progress + blocked queries)
-- Finding and completing ready work
-- Working through multiple issues in sequence
-- Any request that would require 2+ bd commands
-
-**Use CLI directly ONLY for single, atomic operations:**
-- Creating exactly one issue: \`bd create "title" ...\`
-- Closing exactly one issue: \`bd close <id> ...\`
-- Updating one specific field: \`bd update <id> --status ...\`
-- When user explicitly requests a specific command
-
-**Why delegate?** The agent processes multiple commands internally and returns only a concise summary. Running bd commands directly dumps hundreds of lines of raw JSON into context, wasting tokens and making the conversation harder to follow.
-</beads-guidance>`;
+/** Build the single shared guidance layer for one injected audience. */
+export function beadsGuidance(
+  mode: "full-compatibility" | "memories-only",
+  audience: "primary" | "task-agent"
+): string {
+  const sections = [BEADS_HOST_GUIDANCE];
+  if (mode === "memories-only") sections.push(BEADS_WORKFLOW_GUIDANCE);
+  if (audience === "primary") sections.push(BEADS_DELEGATION_GUIDANCE);
+  return `<beads-guidance>\n${sections.join("\n\n")}\n</beads-guidance>`;
+}
 
 export async function loadAgent(vendorDirectory = getVendorDir()): Promise<Config["agent"]> {
   const relativePath = "agents/task-agent.md";
@@ -253,14 +215,11 @@ export async function loadAgent(vendorDirectory = getVendorDir()): Promise<Confi
 
   const agent: AgentConfig = {
     description: requiredString(frontmatter, "description", relativePath),
-    prompt:
-      BEADS_CLI_USAGE +
-      "\n\n" +
-      BEADS_SUBAGENT_CONTEXT +
-      "\n\n" +
-      adaptVendorPrompt(relativePath, parsed.body),
+    prompt: BEADS_SUBAGENT_CONTEXT,
     mode: "subagent",
   };
+  // Keep upstream adaptation validation as a publish-time compatibility gate.
+  adaptVendorPrompt(relativePath, parsed.body);
   if (frontmatter.model) agent.model = frontmatter.model;
   if (frontmatter.temperature) {
     agent.temperature = parseNumber(frontmatter.temperature, "temperature", relativePath);

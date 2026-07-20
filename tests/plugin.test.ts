@@ -10,9 +10,11 @@ import {
   type PromptBody,
   type SessionMessage,
 } from "../src/plugin-core";
-import { PrimeTimeoutError } from "../src/prime";
+import { PrimeTimeoutError, type PrimeResult } from "../src/prime";
 
-function createRuntime(primeResults: Array<string | Error | Promise<string>> = ["context"]) {
+type PrimeFixtureResult = string | Error | Promise<string> | PrimeResult;
+
+function createRuntime(primeResults: PrimeFixtureResult[] = ["context"]) {
   let messages: ReadonlyArray<SessionMessage> = [];
   let agents: ReadonlyArray<AgentInfo> = [
     { name: "build", mode: "primary" },
@@ -43,7 +45,10 @@ function createRuntime(primeResults: Array<string | Error | Promise<string>> = [
     primeDirectories.push(directory);
     const result = primeResults.shift() ?? "context";
     if (result instanceof Error) throw result;
-    return await result;
+    const resolved = await result;
+    return typeof resolved === "string"
+      ? { mode: "memories-only" as const, output: resolved }
+      : resolved;
   });
   const diagnose = mock(async (diagnostic: PluginDiagnostic) => {
     diagnosticCalls.push(diagnostic);
@@ -111,6 +116,8 @@ describe("Beads plugin controller", () => {
     expect(request?.body.parts[0]?.text).toContain(
       "<beads-context>\nprime context\n</beads-context>"
     );
+    expect(request?.body.parts[0]?.text).not.toContain("bd init");
+    expect(request?.body.parts[0]?.text?.length).toBeLessThan(1_500);
   });
 
   test("coalesces concurrent injection and retries after failure", async () => {
@@ -157,6 +164,24 @@ describe("Beads plugin controller", () => {
 
     expect(fixture.primeDirectories).toHaveLength(1);
     expect(fixture.promptCalls).toHaveLength(1);
+    const taskContext = fixture.promptCalls[0]?.body.parts[0]?.text ?? "";
+    expect(taskContext).not.toContain("Delegate multi-command Beads work");
+    expect(taskContext.match(/There is no native `bd`/g)).toHaveLength(1);
+    expect(taskContext.length).toBeLessThan(1_200);
+  });
+
+  test("avoids workflow duplication for full-prime compatibility output", async () => {
+    const fixture = createRuntime([
+      { mode: "full-compatibility", output: "full workflow from legacy bd" },
+    ]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onMessage(message("legacy"));
+
+    const context = fixture.promptCalls[0]?.body.parts[0]?.text ?? "";
+    expect(context).toContain("full workflow from legacy bd");
+    expect(context).toContain("## CLI Safety");
+    expect(context).not.toContain("## Workflow Safety");
   });
 
   test("uses the latest user context when reinjecting after compaction", async () => {
