@@ -197,7 +197,7 @@ Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-a
 
 const BEADS_SUBAGENT_CONTEXT = `## Beads Task Agent
 
-Full \`bd prime\` context is injected at start and after compaction. Use \`bd\` via \`bash\`; rerun prime if context is missing or stale.
+Full \`bd prime\` workflow context is injected at start and after compaction. Use \`bd\` via \`bash\`; rerun prime if context is missing or stale.
 
 For status or graph analysis, never claim, update, close, or modify a bead. Return the analysis and stop.
 

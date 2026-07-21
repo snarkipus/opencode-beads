@@ -108,7 +108,7 @@ describe("vendor prompt adaptations", () => {
     expect(taskAgent).toBeDefined();
     expect(taskAgent?.prompt).not.toMatch(unsupportedPattern);
     expect(Object.keys(taskAgent ?? {}).sort()).toEqual(["description", "mode", "prompt"]);
-    expect(taskAgent?.prompt).toContain("Full `bd prime` context is injected");
+    expect(taskAgent?.prompt).toContain("Full `bd prime` workflow context is injected");
     expect(taskAgent?.prompt).toContain(
       "For status or graph analysis, never claim, update, close, or modify a bead. Return the analysis and stop."
     );
@@ -121,6 +121,12 @@ describe("vendor prompt adaptations", () => {
       "confirm it is open, actionable, and appropriate; then claim"
     );
     expect(taskAgent?.prompt).toContain("`bd update <id> --claim --json`");
+    const showIndex = taskAgent?.prompt?.indexOf("`bd show <id> --json`") ?? -1;
+    const claimIndex =
+      taskAgent?.prompt?.indexOf("`bd update <id> --claim --json`") ?? -1;
+
+    expect(showIndex).toBeGreaterThanOrEqual(0);
+    expect(claimIndex).toBeGreaterThan(showIndex);
     expect(taskAgent?.prompt).toContain(
       "If an assigned bead is closed, blocked, unsuitable, missing, or otherwise not actionable, report and return without mutation or substitution."
     );
