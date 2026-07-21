@@ -62,11 +62,19 @@ describe("release artifact identity", () => {
   test("builds, inspects, and verifies one immutable publication archive", async () => {
     const root = await fs.mkdtemp(join(tmpdir(), "opencode-beads-release-"));
     temporaryDirectories.push(root);
-    const prepared = await prepareReleaseArchive(
-      projectDirectory,
-      `v${packageManifest.version}`,
-      join(root, "out")
-    );
+    const capstoneArchive = process.env.CAPSTONE_ARCHIVE;
+    const capstoneSha256 = process.env.CAPSTONE_SHA256;
+    if ((capstoneArchive === undefined) !== (capstoneSha256 === undefined)) {
+      throw new Error("CAPSTONE_ARCHIVE and CAPSTONE_SHA256 must be provided together");
+    }
+    const prepared =
+      capstoneArchive && capstoneSha256
+        ? await verifyReleaseArchive(projectDirectory, capstoneArchive, capstoneSha256)
+        : await prepareReleaseArchive(
+            projectDirectory,
+            `v${packageManifest.version}`,
+            join(root, "out")
+          );
     const archiveName = `${packageManifest.name.slice(1).replace("/", "-")}-${packageManifest.version}.tgz`;
     expect(prepared.path.endsWith(archiveName)).toBeTrue();
     expect(prepared.sha256).toMatch(/^[a-f0-9]{64}$/);
