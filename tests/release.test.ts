@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   inspectReleaseArchive,
   prepareReleaseArchive,
+  releaseOutputPath,
   validateReleaseMetadata,
   verifyReleaseArchive,
 } from "../scripts/release";
@@ -40,6 +41,12 @@ async function metadataFixture(): Promise<string> {
 }
 
 describe("release artifact identity", () => {
+  test("emits an explicit local archive path for npm", () => {
+    expect(releaseOutputPath("/checkout", "/checkout/release-artifacts/package.tgz")).toBe(
+      "./release-artifacts/package.tgz"
+    );
+  });
+
   test("rejects tag, changelog, and README version mismatches", async () => {
     const tag = await metadataFixture();
     await expect(validateReleaseMetadata(tag, "v1.2.4")).rejects.toThrow(

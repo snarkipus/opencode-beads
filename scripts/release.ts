@@ -24,6 +24,12 @@ export interface ReleaseArchive {
   sha256: string;
 }
 
+/** Format a workflow output as an explicit local path rather than an npm Git shorthand. */
+export function releaseOutputPath(projectDirectory: string, archivePath: string): string {
+  const relative = path.relative(projectDirectory, archivePath);
+  return relative.startsWith(".") ? relative : `./${relative}`;
+}
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -210,12 +216,12 @@ async function main(args: string[]): Promise<void> {
       argument(args, "--tag"),
       argument(args, "--output")
     );
-    const relativeArchive = path.relative(process.cwd(), result.path);
-    console.log(`Validated release archive ${relativeArchive} (${result.sha256})`);
+    const archiveOutput = releaseOutputPath(process.cwd(), result.path);
+    console.log(`Validated release archive ${archiveOutput} (${result.sha256})`);
     if (process.env.GITHUB_OUTPUT) {
       await fs.appendFile(
         process.env.GITHUB_OUTPUT,
-        `archive=${relativeArchive}\nsha256=${result.sha256}\n`
+        `archive=${archiveOutput}\nsha256=${result.sha256}\n`
       );
     }
     return;
