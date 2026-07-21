@@ -24,7 +24,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 - Established the scoped `@snarkipus/opencode-beads` distribution identity, explicit package exports and contents, paired stable OpenCode dependencies, and reproducible Bun/TypeScript automation baselines.
 - Hardened release publication so tag and documentation versions are checked and one inspected archive is attested, uploaded, verified, and published unchanged.
 - Refreshed adapter documentation for current command names, compatibility, context injection, configuration collisions, vendored content, and troubleshooting.
-- Synced vendored beads files to v1.0.5
+- Synced vendored Beads files and managed-skill provenance to v1.1.0
 
 ### Fixed
 

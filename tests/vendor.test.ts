@@ -111,6 +111,22 @@ describe("vendor prompt adaptations", () => {
     expect(taskAgent?.prompt).toContain("concise human-readable results");
     expect(taskAgent?.prompt).toContain("Full `bd prime` workflow context is injected");
     expect(taskAgent?.prompt).toContain("`bd update <id> --claim --json`");
+    expect(taskAgent?.prompt).toContain("Complete exactly one bead per invocation.");
+    expect(taskAgent?.prompt).toContain(
+      "If the caller supplies a bead ID, use it; otherwise select one highest-priority ready bead."
+    );
+    expect(taskAgent?.prompt).toContain(
+      "Record newly discovered work with `discovered-from:<current-id>`"
+    );
+    expect(taskAgent?.prompt).toContain(
+      "add an appropriate parent only when structurally obvious"
+    );
+    expect(taskAgent?.prompt).toContain(
+      "Never claim or implement a discovered bead in the same invocation."
+    );
+    expect(taskAgent?.prompt).toContain(
+      "After closing or blocking the current bead, report and return without checking for more work."
+    );
     expect(taskAgent?.prompt).toContain("`bd --help`");
     expect(taskAgent?.prompt).not.toContain("Agent Delegation");
     expect(taskAgent?.prompt?.length).toBeLessThan(1_000);

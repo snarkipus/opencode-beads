@@ -169,8 +169,8 @@ function parseArtifactManifest(value: unknown): ArtifactManifest {
   }
   if (
     value.upstream.repository !== "https://github.com/gastownhall/beads.git" ||
-    value.upstream.tag !== "v1.0.5" ||
-    value.upstream.commit !== "6a3f515ced18406c189c55fff789a4925bfaa35c" ||
+    value.upstream.tag !== "v1.1.0" ||
+    value.upstream.commit !== "8e4e59d39f3459a43cf21a3236a13eca4dd874f7" ||
     value.adaptationRevision !== 1
   ) {
     throw new Error("packaged manifest provenance is not the reviewed adaptation");

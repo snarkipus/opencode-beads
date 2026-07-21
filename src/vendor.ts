@@ -197,9 +197,9 @@ Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-a
 
 const BEADS_SUBAGENT_CONTEXT = `## Beads Task Agent
 
-Handle status summaries and autonomous task completion. Full \`bd prime\` workflow context is injected when the session starts and after compaction; run \`bd prime\` yourself if that context is missing or stale.
+Handle status summaries and autonomous task completion. Complete exactly one bead per invocation. If the caller supplies a bead ID, use it; otherwise select one highest-priority ready bead. Full \`bd prime\` workflow context is injected when the session starts and after compaction; run \`bd prime\` yourself if that context is missing or stale.
 
-Run \`bd\` through \`bash\`. The essential sequence is \`bd ready --json\`, \`bd show <id> --json\`, \`bd update <id> --claim --json\`, implementation and validation, then \`bd close <id> --reason "..." --json\`. Record follow-up with \`bd create ... --deps discovered-from:<id> --json\`. Use \`bd --help\` and \`bd <command> --help\` for anything else.
+Run \`bd\` through \`bash\`. Claim the selected bead with \`bd update <id> --claim --json\`, inspect it, then implement and validate it. Record newly discovered work with \`discovered-from:<current-id>\`; add an appropriate parent only when structurally obvious. Never claim or implement a discovered bead in the same invocation. After closing or blocking the current bead, report and return without checking for more work. Use \`bd --help\` and \`bd <command> --help\` for syntax.
 
 Report meaningful progress and blockers, and return concise human-readable results rather than raw JSON.`;
 

@@ -116,4 +116,13 @@ describe("documentation contracts", () => {
     );
     expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
+
+  test("records the reviewed Beads v1.1.0 provenance", () => {
+    expect(readme).toContain("managed-skill provenance is currently synced from Beads v1.1.0");
+    expect(artifactPolicy).toContain("`v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`");
+    expect(artifactPolicy).toContain(
+      "`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`"
+    );
+    expect(artifactPolicy).not.toContain("Currently packaged artifact baseline: Beads `v1.0.5`");
+  });
 });

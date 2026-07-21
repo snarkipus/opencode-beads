@@ -4,15 +4,15 @@ Status: implemented on 2026-07-20 by `opencode-beads-yui.16`.
 
 ## Evidence
 
-- Currently packaged artifact baseline: Beads `v1.0.5`, commit `6a3f515ced18406c189c55fff789a4925bfaa35c`, under `plugins/beads/`.
-- Current reviewed artifact baseline: Beads `v1.1.0`, commit `8e4e59d39f3459a43cf21a3236a13eca4dd874f7`. Its skill, ADR, and all 15 resource blobs are unchanged from `v1.0.5`.
+- Currently packaged artifact baseline: Beads `v1.1.0`, commit `8e4e59d39f3459a43cf21a3236a13eca4dd874f7`, under `plugins/beads/`.
+- The adapted skill and its three packaged resource sources are byte-identical between `v1.0.5` and `v1.1.0`; advancing their manifest changes provenance only, so source hashes, output hashes, and adaptation revision remain unchanged.
 - OpenCode baseline: minimum plugin/SDK `1.18.3` and reviewed stable `1.18.4`, as recorded in [the SDK contract](opencode-sdk-contract.md).
 - OpenCode's [skill documentation](https://opencode.ai/docs/skills) limits automatic discovery to `skills/<name>/SKILL.md` under project or global `.opencode`, `.claude`, and `.agents` configuration trees. It does not scan npm package internals.
 - OpenCode's [plugin documentation](https://opencode.ai/docs/plugins) and reviewed plugin types expose native command, agent, tool, hook, and configuration integration, but no hook or configuration field for registering a package-local skill or resource tree.
 - The upstream [`SKILL.md`](https://github.com/gastownhall/beads/blob/v1.1.0/plugins/beads/skills/beads/SKILL.md) is declared for Claude Code and Codex, uses frontmatter fields OpenCode ignores, targets `bd` 0.60.0, and tells newer clients to use `bd prime` because the skill may be stale.
 - Upstream [ADR-0001](https://github.com/gastownhall/beads/blob/v1.1.0/plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md) makes full `bd prime` the canonical dynamic context source.
-- The pinned Beads `v1.0.5` and reviewed `v1.1.0` Claude Code plugin manifests both run full `bd prime` at `SessionStart` and `PreCompact`, while bundling the Beads skill and command templates as static discovery surfaces.
-- The pinned and reviewed Codex plugins combine a Beads skill, managed `AGENTS.md` quick reference, and native hooks. `SessionStart` injects full prime; `PreCompact` uses `--memories-only` only to check context availability; `PostCompact` plus the next `UserPromptSubmit` refreshes full prime.
+- The Beads `v1.0.5` and `v1.1.0` Claude Code plugin manifests both run full `bd prime` at `SessionStart` and `PreCompact`, while bundling the Beads skill and command templates as static discovery surfaces.
+- The Codex hook implementation expresses the target lifecycle: `SessionStart` injects full prime, `PreCompact` uses `--memories-only` only to check context availability, and `PostCompact` plus the next `UserPromptSubmit` refreshes full prime. The `v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`; `v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`. OpenCode follows the lifecycle behavior, not the broken older manifest path.
 
 ## Decision
 
@@ -44,7 +44,7 @@ The full `bd` command surface remains CLI-only. OpenCode receives no generated t
 
 ## Provenance and package implications
 
-The npm package ships the adapted skill and three referenced resources under `dist/init/artifacts/beads/`, with strict checksums and provenance in `dist/init/manifest.json` and the `opencode-beads` companion lifecycle CLI. The manifest pins Beads `v1.0.5` at `6a3f515ced18406c189c55fff789a4925bfaa35c`. It records and validates this reviewed fork mapping:
+The npm package ships the adapted skill and three referenced resources under `dist/init/artifacts/beads/`, with strict checksums and provenance in `dist/init/manifest.json` and the `opencode-beads` companion lifecycle CLI. The manifest pins Beads `v1.1.0` at `8e4e59d39f3459a43cf21a3236a13eca4dd874f7`. It records and validates this reviewed fork mapping:
 
 | Exact upstream source | Adapted package target |
 | --- | --- |

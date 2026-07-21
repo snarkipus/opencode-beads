@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "repository": "https://github.com/gastownhall/beads.git",
-  "tag": "v1.0.5",
-  "commit": "6a3f515ced18406c189c55fff789a4925bfaa35c",
+  "tag": "v1.1.0",
+  "commit": "8e4e59d39f3459a43cf21a3236a13eca4dd874f7",
   "sources": [
     {
       "source": "plugins/beads/agents/task-agent.md",
@@ -41,8 +41,8 @@
     },
     {
       "path": "commands/compact.md",
-      "bytes": 1069,
-      "sha256": "22c1ec8b9e4b993ef9239320b3e2f74f9a48585640a808837299c9e91dbee6cf"
+      "bytes": 1081,
+      "sha256": "0fc6810f4e4da2d521d747c50c73e3a388bf16a94dc47ddf241a52826071d766"
     },
     {
       "path": "commands/create.md",

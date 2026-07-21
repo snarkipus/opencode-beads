@@ -182,6 +182,57 @@ describe("Beads plugin controller", () => {
     expect(taskContext.length).toBeLessThan(1_200);
   });
 
+  test("injects full prime at startup and after compaction for eligible agents", async () => {
+    for (const agent of ["build", "beads-task-agent"]) {
+      const project = `/workspace/${agent}`;
+      const sessionID = `${agent}-lifecycle`;
+      const fixture = createRuntime([`${agent} startup`, `${agent} compacted`]);
+      fixture.setMessages([
+        {
+          info: {
+            role: "user",
+            agent,
+            model: { providerID: "provider", modelID: "model" },
+          },
+        },
+      ]);
+      const controller = await createBeadsController(fixture.runtime, project);
+
+      await controller.onMessage(message(sessionID, agent));
+      await controller.onCompacted(sessionID);
+
+      expect(fixture.primeDirectories, agent).toEqual([project, project]);
+      expect(fixture.promptDirectories, agent).toEqual([project, project]);
+      expect(fixture.promptCalls, agent).toHaveLength(2);
+      expect(fixture.promptCalls[0]?.body.parts[0]?.text, agent).toContain(
+        `${agent} startup`
+      );
+      expect(fixture.promptCalls[1]?.body.parts[0]?.text, agent).toContain(
+        `${agent} compacted`
+      );
+    }
+
+    const excluded = createRuntime(["must not run"]);
+    excluded.setMessages([
+      {
+        info: {
+          role: "user",
+          agent: "explore",
+          model: { providerID: "provider", modelID: "model" },
+        },
+      },
+    ]);
+    const excludedController = await createBeadsController(
+      excluded.runtime,
+      "/workspace/excluded"
+    );
+    await excludedController.onMessage(message("excluded", "explore"));
+    await excludedController.onCompacted("excluded");
+
+    expect(excluded.primeDirectories).toHaveLength(0);
+    expect(excluded.promptCalls).toHaveLength(0);
+  });
+
   test("does not append a second workflow to full-prime output", async () => {
     const fixture = createRuntime(["full workflow from bd"]);
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");

@@ -106,7 +106,7 @@ This configuration precedence is separate from skill-file collision safety. User
 
 ### beads-task-agent
 
-A subagent for autonomous issue completion and concise status summaries. Its configured prompt is role-specific; session injection supplies the shared CLI and lifecycle safety rules once.
+A subagent for autonomous issue completion and concise status summaries. It processes exactly one caller-selected or highest-priority ready bead per invocation, records discovered work without consuming it, then returns after closing or blocking the selected bead. Its configured prompt is role-specific; session injection supplies the shared CLI and lifecycle safety rules once.
 
 ## Compatibility
 
@@ -118,7 +118,7 @@ The compatibility ranges and validated baselines for this release are:
 | `bd` CLI | 1.0.5 through 1.x | 1.1.0 |
 | Bun | >=1.3.14 | 1.3.14 |
 
-The OpenCode adapter builds against the exact paired `@opencode-ai/plugin` and `@opencode-ai/sdk` `1.18.4` releases and declares compatible optional peers from `1.18.3` through the stable `1.x` line. Both imports are type-only; the package does not install a second OpenCode runtime. The command and agent content is currently synced from Beads v1.0.5. Newer compatible releases may work but are not guaranteed until validated; when diagnosing a regression, reproduce it with the baselines above.
+The OpenCode adapter builds against the exact paired `@opencode-ai/plugin` and `@opencode-ai/sdk` `1.18.4` releases and declares compatible optional peers from `1.18.3` through the stable `1.x` line. Both imports are type-only; the package does not install a second OpenCode runtime. The command, agent, and managed-skill provenance is currently synced from Beads v1.1.0. Newer compatible releases may work but are not guaranteed until validated; when diagnosing a regression, reproduce it with the baselines above.
 
 ## Vendored Content
 
