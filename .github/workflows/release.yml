@@ -38,19 +38,23 @@ jobs:
       - name: Test packed package
         run: bun run test:package
 
-      - name: Build package
-        run: bun pm pack
+      - name: Validate and build release archive
+        id: package
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: bun scripts/release.ts prepare --tag "$RELEASE_TAG" --output release-artifacts
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: "./*.tgz"
+          subject-path: ${{ steps.package.outputs.archive }}
 
       - name: Upload release assets to GitHub
         env:
+          ARCHIVE: ${{ steps.package.outputs.archive }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload ${{ github.event.release.tag_name }} ./*.tgz
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" "$ARCHIVE"
 
       # npm still needed for trusted publishing, see:
       # https://github.com/oven-sh/bun/issues/15601
@@ -61,4 +65,9 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Publish to npm
-        run: npm publish
+        env:
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+          ARCHIVE_SHA256: ${{ steps.package.outputs.sha256 }}
+        run: |
+          bun scripts/release.ts verify --archive "$ARCHIVE" --sha256 "$ARCHIVE_SHA256"
+          npm publish "$ARCHIVE" --access public

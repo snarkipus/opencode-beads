@@ -13,6 +13,9 @@
   "bugs": {
     "url": "https://github.com/snarkipus/opencode-beads/issues"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "opencode",
     "plugin",
@@ -42,6 +45,7 @@
     "test": "bun test",
     "test:package": "bun scripts/test-package.ts",
     "test:provenance": "bun test tests/provenance.test.ts",
+    "test:release": "bun test tests/release.test.ts",
     "test:vendor": "bun scripts/validate-vendor.ts vendor",
     "typecheck": "tsc --noEmit"
   },
