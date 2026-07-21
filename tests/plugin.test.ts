@@ -10,9 +10,9 @@ import {
   type PromptBody,
   type SessionMessage,
 } from "../src/plugin-core";
-import { PrimeTimeoutError, type PrimeResult } from "../src/prime";
+import { PrimeTimeoutError } from "../src/prime";
 
-type PrimeFixtureResult = string | Error | Promise<string> | PrimeResult;
+type PrimeFixtureResult = string | Error | Promise<string>;
 
 function createRuntime(primeResults: PrimeFixtureResult[] = ["context"]) {
   let messages: ReadonlyArray<SessionMessage> = [];
@@ -45,10 +45,7 @@ function createRuntime(primeResults: PrimeFixtureResult[] = ["context"]) {
     primeDirectories.push(directory);
     const result = primeResults.shift() ?? "context";
     if (result instanceof Error) throw result;
-    const resolved = await result;
-    return typeof resolved === "string"
-      ? { mode: "memories-only" as const, output: resolved }
-      : resolved;
+    return result;
   });
   const diagnose = mock(async (diagnostic: PluginDiagnostic) => {
     diagnosticCalls.push(diagnostic);
@@ -116,6 +113,9 @@ describe("Beads plugin controller", () => {
     expect(request?.body.parts[0]?.text).toContain(
       "<beads-context>\nprime context\n</beads-context>"
     );
+    expect(request?.body.parts[0]?.text).toContain(
+      "Treat the injected `bd prime` output as the canonical workflow reference."
+    );
     expect(request?.body.parts[0]?.text).not.toContain("bd init");
     expect(request?.body.parts[0]?.text?.length).toBeLessThan(1_500);
   });
@@ -155,6 +155,18 @@ describe("Beads plugin controller", () => {
     ]);
   });
 
+  test("retries when full prime returns empty output", async () => {
+    const fixture = createRuntime([" \n", "full workflow"]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onMessage(message("empty"));
+    expect(fixture.promptCalls).toHaveLength(0);
+
+    await controller.onMessage(message("empty"));
+    expect(fixture.primeDirectories).toHaveLength(2);
+    expect(fixture.promptCalls[0]?.body.parts[0]?.text).toContain("full workflow");
+  });
+
   test("filters regular subagents but injects the beads task agent", async () => {
     const fixture = createRuntime();
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
@@ -170,16 +182,14 @@ describe("Beads plugin controller", () => {
     expect(taskContext.length).toBeLessThan(1_200);
   });
 
-  test("avoids workflow duplication for full-prime compatibility output", async () => {
-    const fixture = createRuntime([
-      { mode: "full-compatibility", output: "full workflow from legacy bd" },
-    ]);
+  test("does not append a second workflow to full-prime output", async () => {
+    const fixture = createRuntime(["full workflow from bd"]);
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
 
-    await controller.onMessage(message("legacy"));
+    await controller.onMessage(message("full"));
 
     const context = fixture.promptCalls[0]?.body.parts[0]?.text ?? "";
-    expect(context).toContain("full workflow from legacy bd");
+    expect(context).toContain("full workflow from bd");
     expect(context).toContain("## CLI Safety");
     expect(context).not.toContain("## Workflow Safety");
   });

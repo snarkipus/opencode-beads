@@ -316,10 +316,12 @@ try {
     throw new Error("Packed plugin did not load the task agent");
   }
   if (
-    taskAgentPrompt.length >= 500 ||
-    taskAgentPrompt.includes("Agent Delegation")
+    taskAgentPrompt.length >= 1_000 ||
+    taskAgentPrompt.includes("Agent Delegation") ||
+    !taskAgentPrompt.includes("Full `bd prime` workflow context is injected") ||
+    !taskAgentPrompt.includes("bd update <id> --claim --json")
   ) {
-    throw new Error("Packed task-agent prompt contains duplicated workflow guidance");
+    throw new Error("Packed task-agent prompt lacks the bounded workflow fallback");
   }
   if (await fs.exists(projectSkill)) throw new Error("Packed config hook wrote skill files");
 

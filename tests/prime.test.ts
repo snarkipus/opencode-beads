@@ -33,8 +33,8 @@ describe("runBdPrime", () => {
       },
     });
 
-    expect(result).toEqual({ mode: "memories-only", output: "prime output" });
-    expect(spawn).toHaveBeenCalledWith("/project", ["--memories-only"]);
+    expect(result).toBe("prime output");
+    expect(spawn).toHaveBeenCalledWith("/project", []);
     expect(cancelled).toBeTrue();
   });
 
@@ -44,19 +44,7 @@ describe("runBdPrime", () => {
     ).rejects.toBeInstanceOf(PrimeProcessError);
   });
 
-  test("falls back only when memories-only is unsupported", async () => {
-    const spawn = mock((_directory: string, args: readonly string[]) =>
-      args.length
-        ? completedProcess(1, "", "unknown flag: --memories-only")
-        : completedProcess(0, "full context")
-    );
-
-    await expect(runBdPrime("/project", { spawn })).resolves.toEqual({
-      mode: "full-compatibility",
-      output: "full context",
-    });
-    expect(spawn.mock.calls.map((call) => call[1])).toEqual([["--memories-only"], []]);
-
+  test("does not hide full-prime failures behind another invocation", async () => {
     const genericFailure = mock((_directory: string, _args: readonly string[]) =>
       completedProcess(1, "", "database unavailable")
     );
@@ -64,6 +52,7 @@ describe("runBdPrime", () => {
       PrimeProcessError
     );
     expect(genericFailure).toHaveBeenCalledTimes(1);
+    expect(genericFailure).toHaveBeenCalledWith("/project", []);
   });
 
   test("kills and awaits a process after timeout", async () => {

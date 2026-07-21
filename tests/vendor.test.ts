@@ -109,8 +109,11 @@ describe("vendor prompt adaptations", () => {
     expect(taskAgent?.prompt).not.toMatch(unsupportedPattern);
     expect(Object.keys(taskAgent ?? {}).sort()).toEqual(["description", "mode", "prompt"]);
     expect(taskAgent?.prompt).toContain("concise human-readable results");
+    expect(taskAgent?.prompt).toContain("Full `bd prime` workflow context is injected");
+    expect(taskAgent?.prompt).toContain("`bd update <id> --claim --json`");
+    expect(taskAgent?.prompt).toContain("`bd --help`");
     expect(taskAgent?.prompt).not.toContain("Agent Delegation");
-    expect(taskAgent?.prompt?.length).toBeLessThan(500);
+    expect(taskAgent?.prompt?.length).toBeLessThan(1_000);
   });
 
   test("rejects missing, duplicated, and uninventoryed source semantics", async () => {

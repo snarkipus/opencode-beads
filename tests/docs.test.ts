@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 const readme = await fs.readFile("README.md", "utf8");
 const changelog = await fs.readFile("CHANGELOG.md", "utf8");
 const sdkContract = await fs.readFile("docs/opencode-sdk-contract.md", "utf8");
+const artifactPolicy = await fs.readFile("docs/beads-artifact-policy.md", "utf8");
 const packageManifest = JSON.parse(await fs.readFile("package.json", "utf8")) as {
   name: string;
   version: string;
@@ -102,5 +103,17 @@ describe("documentation contracts", () => {
   test("keeps the compatibility record on the supported OpenCode baseline", () => {
     expect(sdkContract).not.toContain("1.0.148");
     expect(sdkContract).toContain("Minimum `1.18.3` and current stable `1.18.4`");
+  });
+
+  test("documents upstream-aligned full-prime context boundaries", () => {
+    expect(readme).toContain("runs full `bd prime`");
+    expect(readme).not.toContain("runs `bd prime --memories-only`");
+    expect(readme).toContain("bounded standalone quick reference");
+    expect(sdkContract).toContain('Bun.spawn(["bd", "prime"]');
+    expect(artifactPolicy).toContain("Claude Code plugin manifests both run full `bd prime`");
+    expect(artifactPolicy).toContain(
+      "`PreCompact` uses `--memories-only` only to check context availability"
+    );
+    expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
 });

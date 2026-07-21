@@ -25,7 +25,7 @@ Reviewed on 2026-07-20 for the narrow OpenCode boundary used by this package.
 | `chat.message` | The official hook input provides `sessionID`, optional `agent`, and optional model IDs in both reviewed versions. These input fields, not duplicated fields from the output message, drive injection. |
 | `event` | The official discriminated `Event` union includes `session.compacted` with `properties.sessionID`; only that event is consumed. |
 | `config` | The official hook mutates `Config` in place. Beads commands and the task agent are merged into `command` and `agent`, with explicit user definitions taking precedence. Vendor command metadata preserves `description`, `agent`, `model`, and `subtask`; supported task-agent metadata maps directly to `AgentConfig`. |
-| Shell | The plugin does not use `PluginInput.$`: bounded process lifecycle control uses `Bun.spawn(["bd", "prime", "--memories-only"], { cwd: projectDirectory, ... })`. Only stderr that specifically reports the unsupported flag triggers one `Bun.spawn(["bd", "prime"], ...)` compatibility fallback. Both attempts retain timeout and cleanup guarantees; there is no implicit process cwd. |
+| Shell | The plugin does not use `PluginInput.$`: bounded process lifecycle control uses `Bun.spawn(["bd", "prime"], { cwd: projectDirectory, ... })`. Full prime is the canonical live workflow source, matching upstream Claude Code and Codex startup behavior. The one attempt retains timeout and cleanup guarantees; there is no implicit process cwd. |
 
 ## Compatibility decisions
 

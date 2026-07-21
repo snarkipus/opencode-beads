@@ -80,7 +80,7 @@ With `--json`, every exit writes exactly one JSON object plus a trailing newline
 
 ## Features
 
-- **Context injection** - Loads persistent Beads memories on session start and after compaction without duplicating the full workflow reference
+- **Context injection** - Loads the canonical Beads workflow and persistent memories on session start and after compaction
 - **Commands** - Vendored Beads workflows plus native `/beads:setup`, available under the `/beads:*` namespace
 - **Task agent** - Autonomous issue completion via `beads-task-agent` subagent
 
@@ -90,9 +90,9 @@ This plugin is a thin OpenCode adapter. For Beads workflows, CLI commands, Dolt 
 
 ### Context behavior
 
-The plugin runs `bd prime --memories-only` when a primary-agent session first receives a message and after compaction. A compact shared layer supplies OpenCode-specific CLI and workflow safety, while `bd <command> --help` remains authoritative for current syntax. Regular task subagents such as `explore` and `general` are deliberately skipped; the included `beads-task-agent` receives memories and shared safety without primary-agent delegation prose.
+The plugin runs full `bd prime` when a primary-agent session first receives a message and after compaction, matching the canonical workflow pattern used by the upstream Claude Code and Codex integrations. The prime output supplies the current workflow, command guidance, and persistent memories; a compact shared layer adds only OpenCode-specific CLI safety and primary-agent delegation. Regular task subagents such as `explore` and `general` are deliberately skipped, while the included `beads-task-agent` remains explicitly eligible.
 
-Older compatible `bd` versions that reject `--memories-only` fall back once to full `bd prime`; other failures do not trigger a second process. If `bd` is unavailable, the project is not initialized, or prime fails or returns no content, context injection is silently skipped and remains retryable. Vendored commands remain visible, the runtime does not initialize Beads or write startup files, and the task agent retains a minimal role prompt instructing it to run `bd` through `bash`.
+If `bd` is unavailable, the project is not initialized, or prime fails or returns no content, context injection is silently skipped and remains retryable. Vendored commands remain visible, the runtime does not initialize Beads or write startup files, and the task agent retains a bounded standalone quick reference for `ready`, `show`, atomic claim, discovered follow-up, and close. That fallback tells the agent to run `bd prime` when injected context is missing or stale; it does not duplicate the full live workflow.
 
 ## Commands
 
@@ -128,7 +128,7 @@ The vendor manifest, task agent, and every recorded command file are required pa
 
 ## Troubleshooting
 
-- **No Beads context:** Run `bd prime --memories-only` in the project. Install `bd` if the command is missing, or run `bd init` if the project has no Beads workspace. Older versions may use full `bd prime`.
+- **No Beads context:** Run `bd prime` in the project. Install `bd` if the command is missing, or run `bd init` if the project has no Beads workspace.
 - **Managed skill is missing:** Run `bunx @snarkipus/opencode-beads@0.7.0 init [--global]`. Use the same scope for later lifecycle commands.
 - **Managed skill is stale:** Run `bunx @snarkipus/opencode-beads@0.7.0 update [--global]`. The command proceeds only if every old managed hash still matches.
 - **Managed skill is modified:** Preserve or revert local edits before retrying. To discard an installation deliberately, move the entire target out of every OpenCode discovery root, then run `init`; no force mode exists.

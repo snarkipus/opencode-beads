@@ -27,11 +27,6 @@ export interface PrimeExecutionOptions {
   scheduleTimeout?: (callback: () => void, delayMs: number) => () => void;
 }
 
-export interface PrimeResult {
-  mode: "full-compatibility" | "memories-only";
-  output: string;
-}
-
 function spawnPrime(directory: string, args: readonly string[]): PrimeProcess {
   return Bun.spawn(["bd", "prime", ...args], {
     cwd: directory,
@@ -84,28 +79,10 @@ async function runPrimeAttempt(
   }
 }
 
-function isUnsupportedMemoriesFlag(error: unknown): boolean {
-  return (
-    error instanceof PrimeProcessError &&
-    /(?:unknown flag|flag provided but not defined).*--memories-only/i.test(error.stderr)
-  );
-}
-
-/** Load persistent memories, falling back narrowly for older bd versions. */
+/** Load the canonical Beads workflow and persistent project memories. */
 export async function runBdPrime(
   directory: string,
   options: PrimeExecutionOptions = {}
-): Promise<PrimeResult> {
-  try {
-    return {
-      mode: "memories-only",
-      output: await runPrimeAttempt(directory, ["--memories-only"], options),
-    };
-  } catch (error) {
-    if (!isUnsupportedMemoriesFlag(error)) throw error;
-    return {
-      mode: "full-compatibility",
-      output: await runPrimeAttempt(directory, [], options),
-    };
-  }
+): Promise<string> {
+  return runPrimeAttempt(directory, [], options);
 }

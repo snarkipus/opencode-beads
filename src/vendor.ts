@@ -189,11 +189,7 @@ function rejectUnsupportedFields(
 const BEADS_HOST_GUIDANCE = `## CLI Safety
 
 There is no native \`bd\` or Beads MCP tool in OpenCode. Run \`bd\` through \`bash\`.
-Use \`bd <command> --help\` for current syntax and \`--json\` when structured output improves reliability. Distinguish command failures from output parsing failures.`;
-
-const BEADS_WORKFLOW_GUIDANCE = `## Workflow Safety
-
-Claim work before changing code. Close only completed work after validation. Record discovered follow-up with a \`discovered-from\` dependency.`;
+Treat the injected \`bd prime\` output as the canonical workflow reference. Use \`bd --help\` to discover commands, \`bd <command> --help\` for current syntax, and \`--json\` when structured output improves reliability. Distinguish command failures from output parsing failures.`;
 
 const BEADS_DELEGATION_GUIDANCE = `## Delegation
 
@@ -201,15 +197,17 @@ Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-a
 
 const BEADS_SUBAGENT_CONTEXT = `## Beads Task Agent
 
-Handle status summaries and autonomous task completion. Use \`bd\` through \`bash\`, report meaningful progress and blockers, and return concise human-readable results rather than raw JSON.`;
+Handle status summaries and autonomous task completion. Full \`bd prime\` workflow context is injected when the session starts and after compaction; run \`bd prime\` yourself if that context is missing or stale.
+
+Run \`bd\` through \`bash\`. The essential sequence is \`bd ready --json\`, \`bd show <id> --json\`, \`bd update <id> --claim --json\`, implementation and validation, then \`bd close <id> --reason "..." --json\`. Record follow-up with \`bd create ... --deps discovered-from:<id> --json\`. Use \`bd --help\` and \`bd <command> --help\` for anything else.
+
+Report meaningful progress and blockers, and return concise human-readable results rather than raw JSON.`;
 
 /** Build the single shared guidance layer for one injected audience. */
 export function beadsGuidance(
-  mode: "full-compatibility" | "memories-only",
   audience: "primary" | "task-agent"
 ): string {
   const sections = [BEADS_HOST_GUIDANCE];
-  if (mode === "memories-only") sections.push(BEADS_WORKFLOW_GUIDANCE);
   if (audience === "primary") sections.push(BEADS_DELEGATION_GUIDANCE);
   return `<beads-guidance>\n${sections.join("\n\n")}\n</beads-guidance>`;
 }
