@@ -6,6 +6,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-beads-package-"));
+const archiveArgument = process.argv.indexOf("--archive");
+const providedArchive =
+  archiveArgument >= 0 && process.argv[archiveArgument + 1]
+    ? path.resolve(process.argv[archiveArgument + 1] as string)
+    : undefined;
+const checksumArgument = process.argv.indexOf("--sha256");
+const expectedArchiveChecksum =
+  checksumArgument >= 0 ? process.argv[checksumArgument + 1] : undefined;
 const sourceManifest = JSON.parse(
   await fs.readFile(path.join(projectDir, "package.json"), "utf8")
 ) as {
@@ -50,6 +58,25 @@ async function capture(
   return output;
 }
 
+async function captureResult(
+  command: string[],
+  cwd: string,
+  env?: Record<string, string>
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  const process = Bun.spawn(command, {
+    cwd,
+    env: { ...Bun.env, ...env },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(process.stdout).text(),
+    new Response(process.stderr).text(),
+    process.exited,
+  ]);
+  return { stdout, stderr, exitCode };
+}
+
 async function filesBelow(root: string, directory = ""): Promise<string[]> {
   const files: string[] = [];
   for (const entry of await fs.readdir(path.join(root, directory), { withFileTypes: true })) {
@@ -64,15 +91,28 @@ async function filesBelow(root: string, directory = ""): Promise<string[]> {
 }
 
 try {
-  await run(["bun", "pm", "pack", "--destination", tempDir, "--quiet"]);
-  const archives = (await fs.readdir(tempDir)).filter((file) => file.endsWith(".tgz"));
-  if (archives.length !== 1) throw new Error("Expected exactly one package archive");
-  const archiveName = archives[0];
-  if (!archiveName) throw new Error("Package archive is missing");
-  const archive = path.join(tempDir, archiveName);
+  let archive: string;
+  let archiveName: string;
+  if (providedArchive) {
+    archive = providedArchive;
+    archiveName = path.basename(providedArchive);
+    if (!(await fs.stat(archive)).isFile()) throw new Error("Provided package archive is not a file");
+  } else {
+    await run(["bun", "pm", "pack", "--destination", tempDir, "--quiet"]);
+    const archives = (await fs.readdir(tempDir)).filter((file) => file.endsWith(".tgz"));
+    if (archives.length !== 1) throw new Error("Expected exactly one package archive");
+    archiveName = archives[0] ?? "";
+    if (!archiveName) throw new Error("Package archive is missing");
+    archive = path.join(tempDir, archiveName);
+  }
   const archiveChecksum = createHash("sha256")
     .update(await fs.readFile(archive))
     .digest("hex");
+  if (expectedArchiveChecksum && archiveChecksum !== expectedArchiveChecksum) {
+    throw new Error(
+      `Provided archive checksum differs: expected ${expectedArchiveChecksum}, got ${archiveChecksum}`
+    );
+  }
 
   const consumerDir = path.join(tempDir, "consumer");
   await fs.mkdir(consumerDir);
@@ -166,6 +206,7 @@ try {
   const artifactManifest = JSON.parse(
     await fs.readFile(path.join(packageDir, "dist", "init", "manifest.json"), "utf8")
   ) as {
+    upstream: { repository: string; tag: string; commit: string };
     files: Array<{ path: string; bytes: number; sha256: string }>;
     sources: Array<{ source: string; sourceSha256: string; target: string }>;
   };
@@ -230,13 +271,28 @@ try {
       throw new Error(`Packed init artifact failed validation: ${file.path}`);
     }
   }
+  const vendorManifest = JSON.parse(
+    await fs.readFile(path.join(packageDir, "vendor", "manifest.json"), "utf8")
+  ) as { repository: string; tag: string; commit: string };
+  if (
+    JSON.stringify(artifactManifest.upstream) !==
+    JSON.stringify({
+      repository: vendorManifest.repository,
+      tag: vendorManifest.tag,
+      commit: vendorManifest.commit,
+    })
+  ) {
+    throw new Error("Packed runtime and skill provenance disagree");
+  }
 
+  const projectSkill = path.join(consumerDir, ".opencode", "skills", "beads");
   const hooks = await loaded.BeadsPlugin({
     client: {},
     directory: consumerDir,
     worktree: consumerDir,
   });
   if (typeof hooks.config !== "function") throw new Error("Packed plugin has no config hook");
+  if (await fs.exists(projectSkill)) throw new Error("Packed plugin wrote skill files during startup");
   const config: Record<string, unknown> = {};
   await hooks.config(config);
   const commands = config.command as Record<string, { template?: string }> | undefined;
@@ -265,6 +321,7 @@ try {
   ) {
     throw new Error("Packed task-agent prompt contains duplicated workflow guidance");
   }
+  if (await fs.exists(projectSkill)) throw new Error("Packed config hook wrote skill files");
 
   await run(["git", "init", "--quiet"], consumerDir);
   const cli = path.join(consumerDir, "node_modules", ".bin", "opencode-beads");
@@ -273,6 +330,16 @@ try {
   }
   const cliHome = path.join(tempDir, "home");
   await fs.mkdir(cliHome);
+  const cliEnvironment: Record<string, string> = { HOME: cliHome };
+  const cliJson = async (args: string[], expectedExitCode = 0) => {
+    const result = await captureResult([cli, ...args, "--json"], consumerDir, cliEnvironment);
+    if (result.exitCode !== expectedExitCode || result.stderr !== "") {
+      throw new Error(
+        `${args.join(" ")} returned ${result.exitCode}: ${result.stderr || result.stdout}`
+      );
+    }
+    return JSON.parse(result.stdout) as Record<string, unknown>;
+  };
   const firstDryRun = await capture([cli, "init", "--dry-run", "--json"], consumerDir, {
     HOME: cliHome,
   });
@@ -286,11 +353,101 @@ try {
     await capture([cli, "init", "--json"], consumerDir, { HOME: cliHome })
   );
   const checked = JSON.parse(await capture([cli, "check", "--json"], consumerDir, { HOME: cliHome }));
-  const removed = JSON.parse(
-    await capture([cli, "remove", "--json"], consumerDir, { HOME: cliHome })
-  );
-  if (!installed.changed || checked.state !== "current" || !removed.changed) {
-    throw new Error("Packed CLI failed the offline lifecycle smoke test");
+  if (!installed.changed || checked.state !== "current") {
+    throw new Error("Packed CLI failed project installation");
+  }
+
+  const ownershipPath = path.join(projectSkill, ".opencode-beads-manifest.json");
+  const ownership = JSON.parse(await fs.readFile(ownershipPath, "utf8")) as {
+    packageVersion: string;
+    upstream: { tag: string; commit: string };
+    files: Array<{ path: string; sha256: string }>;
+  };
+  if (
+    ownership.packageVersion !== manifest.version ||
+    ownership.upstream.tag !== artifactManifest.upstream.tag ||
+    ownership.upstream.commit !== artifactManifest.upstream.commit ||
+    JSON.stringify(ownership.files) !==
+      JSON.stringify(artifactManifest.files.map(({ path: file, sha256 }) => ({ path: file, sha256 })))
+  ) {
+    throw new Error("Installed ownership manifest disagrees with package provenance");
+  }
+
+  ownership.packageVersion = "999.0.0";
+  await fs.writeFile(ownershipPath, `${JSON.stringify(ownership, null, 2)}\n`);
+  if ((await cliJson(["check"], 1)).state !== "stale") {
+    throw new Error("Packed CLI did not detect differing managed metadata as stale");
+  }
+  const updated = await cliJson(["update"]);
+  if (!updated.changed || (await cliJson(["check"])).state !== "current") {
+    throw new Error("Packed CLI failed safe managed update");
+  }
+
+  const skillPath = path.join(projectSkill, "SKILL.md");
+  const originalSkill = await fs.readFile(skillPath);
+  await fs.appendFile(skillPath, "\nmodified\n");
+  if ((await cliJson(["check"], 1)).state !== "modified") {
+    throw new Error("Packed CLI did not detect a modified payload");
+  }
+  const refusedModified = await cliJson(["update"], 2);
+  if (refusedModified.code !== "LIFECYCLE_REFUSED") {
+    throw new Error("Packed CLI did not refuse modified managed content");
+  }
+  await fs.writeFile(skillPath, originalSkill);
+
+  const unmanaged = path.join(consumerDir, ".agents", "skills", "beads");
+  await fs.mkdir(unmanaged, { recursive: true });
+  await fs.writeFile(path.join(unmanaged, "SKILL.md"), "unmanaged\n");
+  if ((await cliJson(["init"], 2)).state !== "conflicting") {
+    throw new Error("Packed CLI did not refuse unmanaged collision content");
+  }
+  await fs.rm(unmanaged, { recursive: true });
+
+  const differentlyManaged = path.join(cliHome, ".claude", "skills", "beads");
+  await fs.mkdir(differentlyManaged, { recursive: true });
+  await fs.writeFile(path.join(differentlyManaged, ".opencode-beads-manifest.json"), "{}\n");
+  if ((await cliJson(["update"], 2)).state !== "conflicting") {
+    throw new Error("Packed CLI did not refuse differently managed collision content");
+  }
+  await fs.rm(differentlyManaged, { recursive: true });
+
+  const removed = await cliJson(["remove"]);
+  if (!removed.changed || (await fs.exists(projectSkill))) {
+    throw new Error("Packed CLI failed safe project removal");
+  }
+
+  const xdgConfigHome = path.join(tempDir, "xdg");
+  await fs.mkdir(xdgConfigHome);
+  cliEnvironment.XDG_CONFIG_HOME = xdgConfigHome;
+  const firstGlobalDryRun = await cliJson(["init", "--global", "--dry-run"]);
+  const secondGlobalDryRun = await cliJson(["init", "--global", "--dry-run"]);
+  if (JSON.stringify(firstGlobalDryRun) !== JSON.stringify(secondGlobalDryRun)) {
+    throw new Error("Packed global dry-run JSON is not deterministic");
+  }
+  const globalInstalled = await cliJson(["init", "--global"]);
+  const globalTarget = path.join(xdgConfigHome, "opencode", "skills", "beads");
+  if (!globalInstalled.changed || !(await fs.exists(globalTarget))) {
+    throw new Error("Packed CLI failed global installation");
+  }
+  const globalOwnershipPath = path.join(globalTarget, ".opencode-beads-manifest.json");
+  const globalOwnership = JSON.parse(await fs.readFile(globalOwnershipPath, "utf8"));
+  globalOwnership.packageVersion = "999.0.0";
+  await fs.writeFile(globalOwnershipPath, `${JSON.stringify(globalOwnership, null, 2)}\n`);
+  if ((await cliJson(["check", "--global"], 1)).state !== "stale") {
+    throw new Error("Packed CLI did not detect stale global installation");
+  }
+  if (!(await cliJson(["update", "--global"])).changed) {
+    throw new Error("Packed CLI failed global update");
+  }
+  if (!(await cliJson(["remove", "--global"])).changed || (await fs.exists(globalTarget))) {
+    throw new Error("Packed CLI failed safe global removal");
+  }
+
+  const finalArchiveChecksum = createHash("sha256")
+    .update(await fs.readFile(archive))
+    .digest("hex");
+  if (finalArchiveChecksum !== archiveChecksum) {
+    throw new Error("Package archive changed during consumer and lifecycle validation");
   }
 
   console.log(
