@@ -50,6 +50,18 @@ describe("documentation contracts", () => {
     }
   });
 
+  test("documents stale and current lifecycle semantics exactly", () => {
+    expect(readme).toContain(
+      "The target is recognized and unmodified, but its managed package or provenance metadata differs from the running package."
+    );
+    expect(readme).not.toContain("managed package or provenance metadata is older");
+    expect(readme).toContain("`init` and `update` are no-ops for current targets.");
+    expect(readme).toContain(
+      "`remove` deletes only a recognized, unmodified current or stale target."
+    );
+    expect(readme).not.toContain("Current targets are no-ops.");
+  });
+
   test("keeps changelog headings unique and current links fork-owned", () => {
     const headings = changelog
       .split("\n")

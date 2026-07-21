@@ -58,11 +58,11 @@ Lifecycle states are:
 | --- | --- |
 | `missing` | The selected target does not exist. |
 | `current` | The ownership manifest, package metadata, inventory, and file hashes match. |
-| `stale` | The target is recognized and unmodified, but its managed package or provenance metadata is older. |
+| `stale` | The target is recognized and unmodified, but its managed package or provenance metadata differs from the running package. |
 | `modified` | The target has a recognized manifest, but a managed file, hash, symlink, or inventory differs. |
 | `conflicting` | The target is unmanaged or differently managed, another discovered Beads skill blocks the operation, or stale transaction residue exists. |
 
-`init` installs a missing target or safely refreshes a recognized stale target. `update` changes only a recognized stale target whose old managed hashes still match. `remove` deletes only a recognized, unmodified current or stale target. Current targets are no-ops. Modified and conflicting targets are never overwritten or removed, and there is no force option.
+`init` installs a missing target or safely refreshes a recognized stale target. `update` changes only a recognized stale target whose old managed hashes still match. `init` and `update` are no-ops for current targets. `remove` deletes only a recognized, unmodified current or stale target. Modified and conflicting targets are never overwritten or removed, and there is no force option.
 
 Before `init` or `update`, discovery checks `.opencode/skills/beads`, `.agents/skills/beads`, and `.claude/skills/beads` from the current directory through the Git worktree root, plus their global equivalents. Unrelated discovered skills block writes. `remove` may remove the selected verified-owned target despite an unrelated skill elsewhere, but stale transaction residue still blocks it.
 
