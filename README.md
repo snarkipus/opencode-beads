@@ -106,7 +106,7 @@ This configuration precedence is separate from skill-file collision safety. User
 
 ### beads-task-agent
 
-A subagent for autonomous issue completion and concise status summaries. It processes exactly one caller-selected or highest-priority ready bead per invocation, records discovered work without consuming it, then returns after closing or blocking the selected bead. Its configured prompt is role-specific; session injection supplies the shared CLI and lifecycle safety rules once.
+A subagent for read-only status and graph analysis or one-bead task completion. Analysis requests never mutate beads; completion requests inspect and process one caller-selected or highest-priority ready bead, quarantine work created during that invocation, and return after closing or blocking the selected bead. Its configured prompt is role-specific; session injection supplies the shared CLI and lifecycle safety rules once.
 
 ## Compatibility
 

@@ -197,11 +197,13 @@ Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-a
 
 const BEADS_SUBAGENT_CONTEXT = `## Beads Task Agent
 
-Handle status summaries and autonomous task completion. Complete exactly one bead per invocation. If the caller supplies a bead ID, use it; otherwise select one highest-priority ready bead. Full \`bd prime\` workflow context is injected when the session starts and after compaction; run \`bd prime\` yourself if that context is missing or stale.
+Full \`bd prime\` context is injected at start and after compaction. Use \`bd\` via \`bash\`; rerun prime if context is missing or stale.
 
-Run \`bd\` through \`bash\`. Claim the selected bead with \`bd update <id> --claim --json\`, inspect it, then implement and validate it. Record newly discovered work with \`discovered-from:<current-id>\`; add an appropriate parent only when structurally obvious. Never claim or implement a discovered bead in the same invocation. After closing or blocking the current bead, report and return without checking for more work. Use \`bd --help\` and \`bd <command> --help\` for syntax.
+For status or graph analysis, never claim, update, close, or modify a bead. Return the analysis and stop.
 
-Report meaningful progress and blockers, and return concise human-readable results rather than raw JSON.`;
+For completion, process exactly one bead. Use a caller-supplied ID; otherwise choose one highest-priority ready bead. First run \`bd show <id> --json\`; confirm it is open, actionable, and appropriate; then claim with \`bd update <id> --claim --json\`. If an assigned bead is closed, blocked, unsuitable, missing, or otherwise not actionable, report and return without mutation or substitution.
+
+Implement and validate it. Create discoveries with \`discovered-from:<current-id>\` and a parent only when structurally obvious. Never claim or implement work created this invocation; it may be eligible later. Close or block the current bead, report discoveries, and return without seeking more work. Return concise results, not raw JSON.`;
 
 /** Build the single shared guidance layer for one injected audience. */
 export function beadsGuidance(

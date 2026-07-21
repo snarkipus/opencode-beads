@@ -108,26 +108,33 @@ describe("vendor prompt adaptations", () => {
     expect(taskAgent).toBeDefined();
     expect(taskAgent?.prompt).not.toMatch(unsupportedPattern);
     expect(Object.keys(taskAgent ?? {}).sort()).toEqual(["description", "mode", "prompt"]);
-    expect(taskAgent?.prompt).toContain("concise human-readable results");
-    expect(taskAgent?.prompt).toContain("Full `bd prime` workflow context is injected");
+    expect(taskAgent?.prompt).toContain("Full `bd prime` context is injected");
+    expect(taskAgent?.prompt).toContain(
+      "For status or graph analysis, never claim, update, close, or modify a bead. Return the analysis and stop."
+    );
+    expect(taskAgent?.prompt).toContain("For completion, process exactly one bead.");
+    expect(taskAgent?.prompt).toContain(
+      "Use a caller-supplied ID; otherwise choose one highest-priority ready bead."
+    );
+    expect(taskAgent?.prompt).toContain("`bd show <id> --json`");
+    expect(taskAgent?.prompt).toContain(
+      "confirm it is open, actionable, and appropriate; then claim"
+    );
     expect(taskAgent?.prompt).toContain("`bd update <id> --claim --json`");
-    expect(taskAgent?.prompt).toContain("Complete exactly one bead per invocation.");
     expect(taskAgent?.prompt).toContain(
-      "If the caller supplies a bead ID, use it; otherwise select one highest-priority ready bead."
+      "If an assigned bead is closed, blocked, unsuitable, missing, or otherwise not actionable, report and return without mutation or substitution."
     );
     expect(taskAgent?.prompt).toContain(
-      "Record newly discovered work with `discovered-from:<current-id>`"
+      "Create discoveries with `discovered-from:<current-id>`"
+    );
+    expect(taskAgent?.prompt).toContain("a parent only when structurally obvious");
+    expect(taskAgent?.prompt).toContain(
+      "Never claim or implement work created this invocation; it may be eligible later."
     );
     expect(taskAgent?.prompt).toContain(
-      "add an appropriate parent only when structurally obvious"
+      "Close or block the current bead, report discoveries, and return without seeking more work."
     );
-    expect(taskAgent?.prompt).toContain(
-      "Never claim or implement a discovered bead in the same invocation."
-    );
-    expect(taskAgent?.prompt).toContain(
-      "After closing or blocking the current bead, report and return without checking for more work."
-    );
-    expect(taskAgent?.prompt).toContain("`bd --help`");
+    expect(taskAgent?.prompt).toContain("concise results, not raw JSON");
     expect(taskAgent?.prompt).not.toContain("Agent Delegation");
     expect(taskAgent?.prompt?.length).toBeLessThan(1_000);
   });
