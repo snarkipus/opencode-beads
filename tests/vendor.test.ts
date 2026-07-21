@@ -85,7 +85,11 @@ describe("vendor prompt adaptations", () => {
       expect(command.template, name).not.toMatch(unsupportedPattern);
       expect(Object.keys(command).sort(), name).toEqual(["description", "template"]);
     }
-    const packageVersion = JSON.parse(await fs.readFile("package.json", "utf8")).version as string;
+    const packageManifest = JSON.parse(await fs.readFile("package.json", "utf8")) as {
+      name: string;
+      version: string;
+    };
+    const packageIdentity = `${packageManifest.name}@${packageManifest.version}`;
     const setup = commands["beads:setup"]?.template ?? "";
     for (const invocation of [
       "init",
@@ -94,7 +98,7 @@ describe("vendor prompt adaptations", () => {
       "update",
       "remove",
     ]) {
-      expect(setup).toContain(`bunx opencode-beads@${packageVersion} ${invocation}`);
+      expect(setup).toContain(`bunx ${packageIdentity} ${invocation}`);
     }
     expect(setup).toContain("package CLI is canonical");
     expect(setup).toContain("`/beads:init` is DB-only");

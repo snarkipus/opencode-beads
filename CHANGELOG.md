@@ -21,6 +21,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 ### Changed
 
 - Reduced injected context by using `bd prime --memories-only`, one compact shared safety layer, and a role-only task-agent prompt, with a narrow full-prime fallback for older CLIs.
+- Established the scoped `@snarkipus/opencode-beads` distribution identity, explicit package exports and contents, paired stable OpenCode dependencies, and reproducible Bun/TypeScript automation baselines.
 - Refreshed adapter documentation for current command names, compatibility, context injection, configuration collisions, vendored content, and troubleshooting.
 - Synced vendored beads files to v1.0.5
 

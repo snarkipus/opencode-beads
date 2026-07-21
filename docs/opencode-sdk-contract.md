@@ -4,11 +4,12 @@ Reviewed on 2026-07-20 for the narrow OpenCode boundary used by this package.
 
 ## Versions and sources
 
-- Declared dependencies: `@opencode-ai/plugin` and `@opencode-ai/sdk` `^1.0.143`.
-- Installed lockfile packages: plugin `1.0.148` and SDK `1.0.148`.
-- Current stable reviewed from the npm `latest` dist-tag: plugin `1.18.3` and SDK `1.18.3`.
-- Authoritative sources: the installed package declarations; the [official plugin documentation](https://opencode.ai/docs/plugins); the [official SDK documentation](https://opencode.ai/docs/sdk); the `1.18.3` [plugin declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/plugin@1.18.3/dist/index.d.ts), [generated SDK declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/sdk@1.18.3/dist/gen/types.gen.d.ts), and [generated client result declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/sdk@1.18.3/dist/gen/client/types.gen.d.ts); and the upstream [plugin source](https://github.com/anomalyco/opencode/blob/dev/packages/plugin/src/index.ts).
-- API history reviewed: the closed [SDK v2 migration proposal](https://github.com/anomalyco/opencode/pull/7639), which documents flattened v2 requests as a breaking alternative. Stable plugin `1.18.3` still exposes the v1 client with nested request objects.
+- Declared optional peer range: `@opencode-ai/plugin` and `@opencode-ai/sdk` `>=1.18.3 <2`; both imports are type-only, so consumers use the OpenCode host's compatible runtime rather than installing a duplicate.
+- Installed development dependencies: plugin `1.18.4` and SDK `1.18.4` as an exact compatible pair.
+- Minimum supported and separately validated pair: plugin `1.18.3` and SDK `1.18.3`.
+- Current stable reviewed from the npm `latest` dist-tag: plugin `1.18.4` and SDK `1.18.4`. The npm package diff from `1.18.3` changes no plugin or SDK declarations; the plugin updates its exact SDK dependency and optional OpenTUI peer minimums.
+- Authoritative sources: the installed package declarations; the [official plugin documentation](https://opencode.ai/docs/plugins); the [official SDK documentation](https://opencode.ai/docs/sdk); the `1.18.4` [plugin declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/plugin@1.18.4/dist/index.d.ts), [generated SDK declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/sdk@1.18.4/dist/gen/types.gen.d.ts), and [generated client result declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/sdk@1.18.4/dist/gen/client/types.gen.d.ts); and the upstream [plugin source](https://github.com/anomalyco/opencode/blob/dev/packages/plugin/src/index.ts). The same declarations were diffed against minimum `1.18.3`.
+- API history reviewed: the closed [SDK v2 migration proposal](https://github.com/anomalyco/opencode/pull/7639), which documents flattened v2 requests as a breaking alternative. Stable plugin `1.18.4` still exposes the v1 client with nested request objects.
 
 ## Boundary inventory
 
@@ -28,6 +29,6 @@ Reviewed on 2026-07-20 for the narrow OpenCode boundary used by this package.
 
 ## Compatibility decisions
 
-The supported OpenCode line remains `1.x`, with the concrete contract checked against installed `1.0.148` and current stable `1.18.3`. Both expose the nested v1 request shape used here, the same hook fields consumed here, directory query parameters, and field-style SDK results. Additive `PluginInput` and hook fields in `1.18.3` require no fallback.
+The supported OpenCode line begins at `1.18.3`, with the concrete contract checked against that minimum and current stable `1.18.4`. Both expose the nested v1 request shape used here, the same hook fields consumed here, directory query parameters, and field-style SDK results. Their relevant declarations are identical, so no compatibility fallback is needed.
 
 No SDK v2 facade or feature detection is included. Flattened request parameters belong to a separate breaking API and are not the stable plugin contract reviewed here. The controller keeps only small projections derived from official message, agent, prompt, hook, and config exports so tests can fake behavior without reproducing the SDK client.

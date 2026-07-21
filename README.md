@@ -23,7 +23,7 @@ Add to your OpenCode config (`~/.config/opencode/opencode.json`):
 
 ```json
 {
-  "plugin": ["opencode-beads"]
+  "plugin": ["@snarkipus/opencode-beads"]
 }
 ```
 
@@ -34,15 +34,15 @@ Restart OpenCode. In a project that does not have a Beads workspace yet, run `/b
 Install the companion OpenCode skill for durable Beads guidance in the current worktree:
 
 ```bash
-bunx opencode-beads@0.7.0 init
+bunx @snarkipus/opencode-beads@0.7.0 init
 ```
 
 Use `--global` to target `$XDG_CONFIG_HOME/opencode/skills/beads` when `XDG_CONFIG_HOME` is absolute, otherwise `~/.config/opencode/skills/beads`. The same scope flag applies to every lifecycle command:
 
 ```bash
-bunx opencode-beads@0.7.0 check [--global]
-bunx opencode-beads@0.7.0 update [--global]
-bunx opencode-beads@0.7.0 remove [--global]
+bunx @snarkipus/opencode-beads@0.7.0 check [--global]
+bunx @snarkipus/opencode-beads@0.7.0 update [--global]
+bunx @snarkipus/opencode-beads@0.7.0 remove [--global]
 ```
 
 All commands support `--dry-run` and `--json`. Installation is offline from immutable package artifacts, refuses unmanaged or locally modified content and other discovered `beads` skills, and never runs during plugin startup. A verified owned target may still be removed when another skill exists, allowing removal to resolve a duplicate installation; stale transaction residue continues to block removal. Updates are assembled in a sibling staging directory and swapped with a validated backup so ordinary filesystem errors restore the prior installation; this is rollback safety, not a claim of crash-proof multi-rename atomicity. The package CLI is the canonical setup lifecycle. `/beads:setup` provides the version-matched commands, while `/beads:init` is DB-only and initializes the Beads database rather than the OpenCode skill.
@@ -61,7 +61,7 @@ Optionally, pin to a specific version for stability:
 
 ```json
 {
-  "plugin": ["opencode-beads@0.7.0"]
+  "plugin": ["@snarkipus/opencode-beads@0.7.0"]
 }
 ```
 
@@ -99,11 +99,11 @@ The compatibility ranges and validated baselines for this release are:
 
 | Component | Expected range | Validated baseline |
 | --- | --- | --- |
-| OpenCode | 1.x | 1.18.3 |
+| OpenCode | 1.18.3 through 1.x | 1.18.4 |
 | `bd` CLI | 1.0.5 through 1.x | 1.1.0 |
-| Bun | >=1.0.0 | 1.3.14 |
+| Bun | >=1.3.14 | 1.3.14 |
 
-The OpenCode adapter builds against `@opencode-ai/plugin` and `@opencode-ai/sdk` `^1.0.143`. The command and agent content is currently synced from Beads v1.0.5. Newer compatible releases may work but are not guaranteed until validated; when diagnosing a regression, reproduce it with the baselines above.
+The OpenCode adapter builds against the exact paired `@opencode-ai/plugin` and `@opencode-ai/sdk` `1.18.4` releases and declares compatible optional peers from `1.18.3` through the stable `1.x` line. Both imports are type-only; the package does not install a second OpenCode runtime. The command and agent content is currently synced from Beads v1.0.5. Newer compatible releases may work but are not guaranteed until validated; when diagnosing a regression, reproduce it with the baselines above.
 
 ## Vendored Content
 

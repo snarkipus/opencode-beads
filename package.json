@@ -1,13 +1,17 @@
 {
-  "name": "opencode-beads",
+  "name": "@snarkipus/opencode-beads",
   "version": "0.7.0",
   "type": "module",
   "description": "A plugin for OpenCode that provides integration with the beads issue tracker.",
-  "author": "Josh Thomas <josh@joshthomas.dev>",
+  "author": "Matt Jackson",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/joshuadavidthomas/opencode-beads"
+    "url": "git+https://github.com/snarkipus/opencode-beads.git"
+  },
+  "homepage": "https://github.com/snarkipus/opencode-beads#readme",
+  "bugs": {
+    "url": "https://github.com/snarkipus/opencode-beads/issues"
   },
   "keywords": [
     "opencode",
@@ -16,8 +20,21 @@
     "agent",
     "ai"
   ],
-  "main": "src/plugin.ts",
-  "files": ["src", "vendor", "dist", "README.md"],
+  "main": "./src/plugin.ts",
+  "types": "./src/plugin.ts",
+  "exports": {
+    ".": {
+      "types": "./src/plugin.ts",
+      "import": "./src/plugin.ts"
+    }
+  },
+  "files": [
+    "src",
+    "vendor",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "bin": {
     "opencode-beads": "src/init-cli.ts"
   },
@@ -28,17 +45,27 @@
     "test:vendor": "bun scripts/validate-vendor.ts vendor",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@opencode-ai/plugin": "^1.0.143",
-    "@opencode-ai/sdk": "^1.0.143",
-    "zod": "^4.1.13"
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.18.3 <2",
+    "@opencode-ai/sdk": ">=1.18.3 <2"
+  },
+  "peerDependenciesMeta": {
+    "@opencode-ai/plugin": {
+      "optional": true
+    },
+    "@opencode-ai/sdk": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@opencode-ai/plugin": "1.18.4",
+    "@opencode-ai/sdk": "1.18.4",
+    "@types/bun": "1.3.4",
     "@types/node": "^22.0.0",
-    "typescript": "~5.9.3"
+    "typescript": "5.9.3"
   },
+  "packageManager": "bun@1.3.14",
   "engines": {
-    "bun": ">=1.0.0"
+    "bun": ">=1.3.14"
   }
 }

@@ -6,6 +6,24 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-beads-package-"));
+const sourceManifest = JSON.parse(
+  await fs.readFile(path.join(projectDir, "package.json"), "utf8")
+) as {
+  name: string;
+  version: string;
+  type: string;
+  main: string;
+  types: string;
+  exports: Record<string, unknown>;
+  files: string[];
+  bin: Record<string, string>;
+  dependencies?: Record<string, string>;
+  peerDependencies: Record<string, string>;
+  peerDependenciesMeta: Record<string, { optional?: boolean }>;
+  repository: { type: string; url: string };
+  homepage: string;
+  bugs: { url: string };
+};
 
 async function run(command: string[], cwd = projectDir): Promise<void> {
   const process = Bun.spawn(command, { cwd, stdout: "ignore", stderr: "inherit" });
@@ -52,26 +70,91 @@ try {
   const archiveName = archives[0];
   if (!archiveName) throw new Error("Package archive is missing");
   const archive = path.join(tempDir, archiveName);
+  const archiveChecksum = createHash("sha256")
+    .update(await fs.readFile(archive))
+    .digest("hex");
 
   const consumerDir = path.join(tempDir, "consumer");
   await fs.mkdir(consumerDir);
   await fs.writeFile(
     path.join(consumerDir, "package.json"),
-    JSON.stringify({ private: true, dependencies: { "opencode-beads": archive } })
+    JSON.stringify({ private: true, dependencies: { [sourceManifest.name]: archive } })
   );
   await run(["bun", "install", "--ignore-scripts"], consumerDir);
 
-  const packageDir = path.join(consumerDir, "node_modules", "opencode-beads");
+  const packageDir = path.join(consumerDir, "node_modules", ...sourceManifest.name.split("/"));
   const manifest = JSON.parse(
     await fs.readFile(path.join(packageDir, "package.json"), "utf-8")
-  ) as { main?: string; bin?: Record<string, string>; version?: string };
-  if (!manifest.main) throw new Error("Packed package has no main entry");
-  if (!manifest.version) throw new Error("Packed package has no version");
-  if (manifest.bin?.["opencode-beads"] !== "src/init-cli.ts") {
-    throw new Error("Packed package has no companion CLI bin");
+  ) as typeof sourceManifest;
+  if (
+    manifest.name !== "@snarkipus/opencode-beads" ||
+    manifest.version !== "0.7.0" ||
+    manifest.type !== "module"
+  ) {
+    throw new Error("Packed package has an unexpected name or version");
+  }
+  if (
+    manifest.main !== "./src/plugin.ts" ||
+    manifest.types !== "./src/plugin.ts" ||
+    JSON.stringify(manifest.exports) !==
+      JSON.stringify({
+        ".": { types: "./src/plugin.ts", import: "./src/plugin.ts" },
+      })
+  ) {
+    throw new Error("Packed package has an unexpected root export contract");
+  }
+  if (
+    JSON.stringify(manifest.files) !==
+    JSON.stringify(["src", "vendor", "dist", "README.md", "LICENSE"])
+  ) {
+    throw new Error("Packed package has an unexpected files contract");
+  }
+  if (JSON.stringify(manifest.bin) !== JSON.stringify({ "opencode-beads": "src/init-cli.ts" })) {
+    throw new Error("Packed package has an unexpected companion CLI bin contract");
+  }
+  const opencodeRange = ">=1.18.3 <2";
+  if (
+    manifest.dependencies !== undefined ||
+    JSON.stringify(manifest.peerDependencies) !==
+      JSON.stringify({
+        "@opencode-ai/plugin": opencodeRange,
+        "@opencode-ai/sdk": opencodeRange,
+      }) ||
+    !manifest.peerDependenciesMeta["@opencode-ai/plugin"]?.optional ||
+    !manifest.peerDependenciesMeta["@opencode-ai/sdk"]?.optional
+  ) {
+    throw new Error("Packed package has an unexpected OpenCode dependency contract");
+  }
+  if (
+    manifest.repository.url !== "git+https://github.com/snarkipus/opencode-beads.git" ||
+    manifest.homepage !== "https://github.com/snarkipus/opencode-beads#readme" ||
+    manifest.bugs.url !== "https://github.com/snarkipus/opencode-beads/issues"
+  ) {
+    throw new Error("Packed package has unexpected fork ownership metadata");
   }
 
-  const entry = path.join(packageDir, manifest.main);
+  const expectedPackedFiles = ["LICENSE", "README.md", "package.json"];
+  for (const directory of ["dist", "src", "vendor"]) {
+    expectedPackedFiles.push(
+      ...(await filesBelow(path.join(projectDir, directory))).map((file) => `${directory}/${file}`)
+    );
+  }
+  const packedFiles = await filesBelow(packageDir);
+  if (packedFiles.join("\0") !== expectedPackedFiles.sort().join("\0")) {
+    throw new Error(
+      `Packed package inventory differs:\nexpected ${expectedPackedFiles.sort().join("\n")}\nactual ${packedFiles.join("\n")}`
+    );
+  }
+  for (const excluded of ["CHANGELOG.md", "bun.lock", "tsconfig.json", "tests", "scripts", ".github"]) {
+    if (packedFiles.some((file) => file === excluded || file.startsWith(`${excluded}/`))) {
+      throw new Error(`Packed package unexpectedly includes ${excluded}`);
+    }
+  }
+
+  const entry = Bun.resolveSync(sourceManifest.name, consumerDir);
+  if (entry !== path.join(packageDir, manifest.main)) {
+    throw new Error("Packed package root export did not resolve to the plugin entry point");
+  }
   const loaded = await import(pathToFileURL(entry).href);
   if (typeof loaded.BeadsPlugin !== "function") {
     throw new Error("Packed package does not export BeadsPlugin");
@@ -162,7 +245,7 @@ try {
     throw new Error("Packed plugin did not load the complete command inventory");
   }
   const setup = commands?.["beads:setup"]?.template;
-  const versionedCli = `bunx opencode-beads@${manifest.version}`;
+  const versionedCli = `bunx ${manifest.name}@${manifest.version}`;
   if (
     !["init", "init --global", "check", "update", "remove"].every((command) =>
       setup?.includes(`${versionedCli} ${command}`)
@@ -210,7 +293,9 @@ try {
     throw new Error("Packed CLI failed the offline lifecycle smoke test");
   }
 
-  console.log(`Loaded packed plugin with ${vendorCommands.length} vendor command files`);
+  console.log(
+    `Validated ${archiveName} (${archiveChecksum}); loaded packed plugin with ${vendorCommands.length} vendor command files`
+  );
 } finally {
   await fs.rm(tempDir, { recursive: true, force: true });
 }

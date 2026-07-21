@@ -1,5 +1,31 @@
 version: 2
 updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      timezone: America/Chicago
+    open-pull-requests-limit: 5
+    labels:
+      - 🤖 dependabot
+    groups:
+      opencode:
+        patterns:
+          - "@opencode-ai/plugin"
+          - "@opencode-ai/sdk"
+        update-types:
+          - minor
+          - patch
+      typescript-tooling:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
