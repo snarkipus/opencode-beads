@@ -43,6 +43,7 @@
   },
   "scripts": {
     "test": "bun test",
+    "test:docs": "bun test tests/docs.test.ts",
     "test:package": "bun scripts/test-package.ts",
     "test:provenance": "bun test tests/provenance.test.ts",
     "test:release": "bun test tests/release.test.ts",

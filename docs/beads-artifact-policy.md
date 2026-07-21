@@ -6,7 +6,7 @@ Status: implemented on 2026-07-20 by `opencode-beads-yui.16`.
 
 - Currently packaged artifact baseline: Beads `v1.0.5`, commit `6a3f515ced18406c189c55fff789a4925bfaa35c`, under `plugins/beads/`.
 - Current reviewed artifact baseline: Beads `v1.1.0`, commit `8e4e59d39f3459a43cf21a3236a13eca4dd874f7`. Its skill, ADR, and all 15 resource blobs are unchanged from `v1.0.5`.
-- OpenCode baseline: installed plugin/SDK `1.0.148` and reviewed stable `1.18.3`, as recorded in [the SDK contract](opencode-sdk-contract.md).
+- OpenCode baseline: minimum plugin/SDK `1.18.3` and reviewed stable `1.18.4`, as recorded in [the SDK contract](opencode-sdk-contract.md).
 - OpenCode's [skill documentation](https://opencode.ai/docs/skills) limits automatic discovery to `skills/<name>/SKILL.md` under project or global `.opencode`, `.claude`, and `.agents` configuration trees. It does not scan npm package internals.
 - OpenCode's [plugin documentation](https://opencode.ai/docs/plugins) and reviewed plugin types expose native command, agent, tool, hook, and configuration integration, but no hook or configuration field for registering a package-local skill or resource tree.
 - The upstream [`SKILL.md`](https://github.com/gastownhall/beads/blob/v1.1.0/plugins/beads/skills/beads/SKILL.md) is declared for Claude Code and Codex, uses frontmatter fields OpenCode ignores, targets `bd` 0.60.0, and tells newer clients to use `bd prime` because the skill may be stale.

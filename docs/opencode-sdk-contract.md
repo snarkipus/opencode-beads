@@ -15,7 +15,7 @@ Reviewed on 2026-07-20 for the narrow OpenCode boundary used by this package.
 
 | Boundary | Supported contract and decision |
 | --- | --- |
-| `PluginInput` | Installed `1.0.148` supplies `client`, `project`, `directory`, `worktree`, and `$`. Stable `1.18.3` additionally supplies `serverUrl` and `experimental_workspace`. The plugin intentionally consumes only `client`, `directory`, and `worktree`; destructuring this common subset is compatible across the reviewed range. |
+| `PluginInput` | Minimum `1.18.3` and current stable `1.18.4` supply `client`, `project`, `directory`, `worktree`, `serverUrl`, `experimental_workspace`, and `$`. The plugin intentionally consumes only `client`, `directory`, and `worktree`; their declarations are identical across the supported range. |
 | Project scope | `directory` is the active session directory and is preferred. `worktree` is the documented Git worktree and is the only fallback. Empty values fail rather than falling back to `process.cwd()`. Every project-scoped SDK query and `bd` process receives the resolved directory. |
 | Messages | `client.session.messages({ path: { id }, query: { directory, limit } })`; generated `SessionMessagesData` and `SessionMessagesResponse` types are authoritative. Returned arrays are checked before entering controller logic. |
 | Agents | `client.app.agents({ query: { directory } })`; generated `AppAgentsData`, `Agent`, and response types are authoritative. Required `name` and supported `mode` values are checked. |

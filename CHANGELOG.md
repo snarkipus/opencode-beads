@@ -13,7 +13,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 ### Removed - for now removed features
 ### Fixed - for any bug fixes
 ### Security - in case of vulnerabilities
-[${version}]: https://github.com/joshuadavidthomas/opencode-beads/releases/tag/v${version}
+[${version}]: https://github.com/snarkipus/opencode-beads/releases/tag/v${version}
 -->
 
 ## [Unreleased]
@@ -187,7 +187,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/joshuadavidthomas/opencode-beads/compare/v0.7.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.7.0...HEAD
+<!-- Published releases through 0.7.0 retain links to the original upstream history. -->
 [0.1.0]: https://github.com/joshuadavidthomas/opencode-beads/releases/tag/v0.1.0
 [0.1.1]: https://github.com/joshuadavidthomas/opencode-beads/releases/tag/v0.1.1
 [0.1.2]: https://github.com/joshuadavidthomas/opencode-beads/releases/tag/v0.1.2
