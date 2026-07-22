@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "owner": "opencode-beads",
+  "packageVersion": "0.7.0",
+  "upstream": {
+    "tag": "v1.1.0",
+    "commit": "8e4e59d39f3459a43cf21a3236a13eca4dd874f7"
+  },
+  "adaptationRevision": 1,
+  "scope": "project",
+  "target": "/home/snarkipus/Projects/typescript/opencode-beads/.opencode/skills/beads",
+  "files": [
+    {
+      "path": "SKILL.md",
+      "sha256": "55a99d3f7bbfdd8dbf71097905086260455d7e14c7d133304b6645b930d16df3"
+    },
+    {
+      "path": "references/DEPENDENCIES.md",
+      "sha256": "4befbc8d17df863d3f8af7af934f7c503e66af2e3893d9fadd8c7ef156271e77"
+    },
+    {
+      "path": "references/ISSUE_CREATION.md",
+      "sha256": "5f7e2c73a2d206478c469a8777071a99c8a83f0a2970da3e8af56b2bcfcabb75"
+    },
+    {
+      "path": "references/RESUMABILITY.md",
+      "sha256": "782053cb6c091d3a87c1e4dc6b0cf3777bd1321b8a92ad38fe6351116b6fa363"
+    }
+  ]
+}
