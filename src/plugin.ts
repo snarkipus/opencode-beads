@@ -1,7 +1,7 @@
 /** OpenCode adapter for the Beads issue tracker. */
 
 import type { Plugin, PluginInput } from "@opencode-ai/plugin";
-import type { Agent, SessionMessagesResponse } from "@opencode-ai/sdk";
+import type { Agent, Part, SessionMessagesResponse } from "@opencode-ai/sdk";
 import {
   createBeadsController,
   resolveProjectDirectory,
@@ -41,6 +41,16 @@ function isAgent(value: unknown): boolean {
     isRecord(value) &&
     typeof value.name === "string" &&
     (value.mode === "subagent" || value.mode === "primary" || value.mode === "all")
+  );
+}
+
+/** Prevent the synthetic no-reply prompt from recursively triggering its own injection. */
+function isBeadsContextInjection(parts: ReadonlyArray<Part>): boolean {
+  return parts.some(
+    (part) =>
+      part.type === "text" &&
+      part.synthetic === true &&
+      part.text.includes("<beads-context>")
   );
 }
 
@@ -109,7 +119,9 @@ export const BeadsPlugin: Plugin = async ({ client, directory, worktree }) => {
   const controller = await createBeadsController(runtime, projectDirectory);
 
   return {
-    "chat.message": async (input) => {
+    "chat.message": async (input, output) => {
+      if (isBeadsContextInjection(output.parts)) return;
+
       await controller.onMessage({
         sessionID: input.sessionID,
         model: input.model,

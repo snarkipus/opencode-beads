@@ -80,6 +80,35 @@ describe("OpenCode SDK runtime", () => {
     });
   });
 
+  test("ignores its own synthetic context message instead of re-entering injection", async () => {
+    const fixture = createClient();
+    const hooks = await BeadsPlugin({
+      client: fixture.client,
+      directory: "/project",
+      worktree: "/worktree",
+    } as PluginInput);
+    const onMessage = hooks["chat.message"];
+    if (!onMessage) throw new Error("chat.message hook missing");
+
+    await onMessage(
+      { sessionID: "session", agent: "build" },
+      {
+        message: { sessionID: "session" },
+        parts: [
+          {
+            type: "text",
+            text: "<beads-context>canonical workflow</beads-context>",
+            synthetic: true,
+          },
+        ],
+      } as never
+    );
+
+    expect(fixture.agents).not.toHaveBeenCalled();
+    expect(fixture.messages).not.toHaveBeenCalled();
+    expect(fixture.prompt).not.toHaveBeenCalled();
+  });
+
   test("uses official nested requests and propagates project scope", async () => {
     const fixture = createClient({
       messages: { data: validMessages },
