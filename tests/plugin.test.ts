@@ -22,6 +22,7 @@ function createRuntime(primeResults: PrimeFixtureResult[] = ["context"]) {
     { name: "beads-task-agent", mode: "subagent" },
   ];
   const promptCalls: Array<{ sessionID: string; body: PromptBody }> = [];
+  const initialContexts: string[] = [];
   const primeDirectories: string[] = [];
   const diagnosticCalls: PluginDiagnostic[] = [];
   const messageDirectories: string[] = [];
@@ -40,6 +41,9 @@ function createRuntime(primeResults: PrimeFixtureResult[] = ["context"]) {
   const prompt = mock(async (directory: string, sessionID: string, body: PromptBody) => {
     promptDirectories.push(directory);
     promptCalls.push({ sessionID, body });
+  });
+  const deliver = mock(async (context: string) => {
+    initialContexts.push(context);
   });
   const prime = mock(async (directory: string) => {
     primeDirectories.push(directory);
@@ -65,6 +69,8 @@ function createRuntime(primeResults: PrimeFixtureResult[] = ["context"]) {
     getAgents,
     prompt,
     promptCalls,
+    deliver,
+    initialContexts,
     primeDirectories,
     diagnosticCalls,
     messageDirectories,
@@ -100,24 +106,20 @@ describe("Beads plugin controller", () => {
     const fixture = createRuntime([" prime context \n"]);
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
 
-    await controller.onMessage(message("session"));
+    await controller.onMessage(message("session"), fixture.deliver);
 
     expect(fixture.primeDirectories).toEqual(["/workspace/project"]);
     expect(fixture.messageDirectories).toEqual(["/workspace/project"]);
     expect(fixture.agentDirectories).toEqual(["/workspace/project"]);
-    expect(fixture.promptDirectories).toEqual(["/workspace/project"]);
-    expect(fixture.promptCalls).toHaveLength(1);
-    const request = fixture.promptCalls[0];
-    expect(request?.body.model).toEqual({ providerID: "provider", modelID: "model" });
-    expect(request?.body.agent).toBe("build");
-    expect(request?.body.parts[0]?.text).toContain(
-      "<beads-context>\nprime context\n</beads-context>"
-    );
-    expect(request?.body.parts[0]?.text).toContain(
+    expect(fixture.promptDirectories).toEqual([]);
+    expect(fixture.promptCalls).toHaveLength(0);
+    const context = fixture.initialContexts[0];
+    expect(context).toContain("<beads-context>\nprime context\n</beads-context>");
+    expect(context).toContain(
       "Treat the injected `bd prime` output as the canonical workflow reference."
     );
-    expect(request?.body.parts[0]?.text).not.toContain("bd init");
-    expect(request?.body.parts[0]?.text?.length).toBeLessThan(1_500);
+    expect(context).not.toContain("bd init");
+    expect(context?.length).toBeLessThan(1_500);
   });
 
   test("coalesces concurrent injection and retries after failure", async () => {
@@ -128,24 +130,24 @@ describe("Beads plugin controller", () => {
     const fixture = createRuntime([pendingPrime]);
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
 
-    const first = controller.onMessage(message("same"));
-    const second = controller.onMessage(message("same"));
+    const first = controller.onMessage(message("same"), fixture.deliver);
+    const second = controller.onMessage(message("same"), fixture.deliver);
     resolvePrime("context");
     await Promise.all([first, second]);
 
     expect(fixture.primeDirectories).toHaveLength(1);
-    expect(fixture.promptCalls).toHaveLength(1);
+    expect(fixture.initialContexts).toHaveLength(1);
 
     const retryFixture = createRuntime([new Error("bd unavailable"), "context"]);
     const retryController = await createBeadsController(
       retryFixture.runtime,
       "/workspace/project"
     );
-    await retryController.onMessage(message("retry"));
-    await retryController.onMessage(message("retry"));
+    await retryController.onMessage(message("retry"), retryFixture.deliver);
+    await retryController.onMessage(message("retry"), retryFixture.deliver);
 
     expect(retryFixture.primeDirectories).toHaveLength(2);
-    expect(retryFixture.promptCalls).toHaveLength(1);
+    expect(retryFixture.initialContexts).toHaveLength(1);
     expect(retryFixture.diagnosticCalls).toEqual([
       {
         code: "prime_failed",
@@ -159,24 +161,24 @@ describe("Beads plugin controller", () => {
     const fixture = createRuntime([" \n", "full workflow"]);
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
 
-    await controller.onMessage(message("empty"));
-    expect(fixture.promptCalls).toHaveLength(0);
+    await controller.onMessage(message("empty"), fixture.deliver);
+    expect(fixture.initialContexts).toHaveLength(0);
 
-    await controller.onMessage(message("empty"));
+    await controller.onMessage(message("empty"), fixture.deliver);
     expect(fixture.primeDirectories).toHaveLength(2);
-    expect(fixture.promptCalls[0]?.body.parts[0]?.text).toContain("full workflow");
+    expect(fixture.initialContexts[0]).toContain("full workflow");
   });
 
   test("filters regular subagents but injects the beads task agent", async () => {
     const fixture = createRuntime();
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
 
-    await controller.onMessage(message("explore", "explore"));
-    await controller.onMessage(message("beads", "beads-task-agent"));
+    await controller.onMessage(message("explore", "explore"), fixture.deliver);
+    await controller.onMessage(message("beads", "beads-task-agent"), fixture.deliver);
 
     expect(fixture.primeDirectories).toHaveLength(1);
-    expect(fixture.promptCalls).toHaveLength(1);
-    const taskContext = fixture.promptCalls[0]?.body.parts[0]?.text ?? "";
+    expect(fixture.initialContexts).toHaveLength(1);
+    const taskContext = fixture.initialContexts[0] ?? "";
     expect(taskContext).not.toContain("Delegate multi-command Beads work");
     expect(taskContext.match(/There is no native `bd`/g)).toHaveLength(1);
     expect(taskContext.length).toBeLessThan(1_200);
@@ -198,16 +200,15 @@ describe("Beads plugin controller", () => {
       ]);
       const controller = await createBeadsController(fixture.runtime, project);
 
-      await controller.onMessage(message(sessionID, agent));
+      await controller.onMessage(message(sessionID, agent), fixture.deliver);
       await controller.onCompacted(sessionID);
 
       expect(fixture.primeDirectories, agent).toEqual([project, project]);
-      expect(fixture.promptDirectories, agent).toEqual([project, project]);
-      expect(fixture.promptCalls, agent).toHaveLength(2);
+      expect(fixture.promptDirectories, agent).toEqual([project]);
+      expect(fixture.initialContexts, agent).toHaveLength(1);
+      expect(fixture.promptCalls, agent).toHaveLength(1);
+      expect(fixture.initialContexts[0], agent).toContain(`${agent} startup`);
       expect(fixture.promptCalls[0]?.body.parts[0]?.text, agent).toContain(
-        `${agent} startup`
-      );
-      expect(fixture.promptCalls[1]?.body.parts[0]?.text, agent).toContain(
         `${agent} compacted`
       );
     }
@@ -226,7 +227,7 @@ describe("Beads plugin controller", () => {
       excluded.runtime,
       "/workspace/excluded"
     );
-    await excludedController.onMessage(message("excluded", "explore"));
+    await excludedController.onMessage(message("excluded", "explore"), excluded.deliver);
     await excludedController.onCompacted("excluded");
 
     expect(excluded.primeDirectories).toHaveLength(0);
@@ -237,9 +238,9 @@ describe("Beads plugin controller", () => {
     const fixture = createRuntime(["full workflow from bd"]);
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
 
-    await controller.onMessage(message("full"));
+    await controller.onMessage(message("full"), fixture.deliver);
 
-    const context = fixture.promptCalls[0]?.body.parts[0]?.text ?? "";
+    const context = fixture.initialContexts[0] ?? "";
     expect(context).toContain("full workflow from bd");
     expect(context).toContain("## CLI Safety");
     expect(context).not.toContain("## Workflow Safety");
@@ -339,10 +340,28 @@ describe("Beads plugin controller", () => {
     ]);
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
 
-    await controller.onMessage(message("existing"));
+    await controller.onMessage(message("existing"), fixture.deliver);
 
     expect(fixture.primeDirectories).toHaveLength(0);
     expect(fixture.promptCalls).toHaveLength(0);
+  });
+
+  test("does not duplicate direct system context after plugin reload", async () => {
+    const fixture = createRuntime();
+    fixture.setMessages([
+      {
+        info: {
+          role: "user",
+          system: "<beads-context>already injected</beads-context>",
+        },
+      },
+    ]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onMessage(message("existing-system"), fixture.deliver);
+
+    expect(fixture.primeDirectories).toHaveLength(0);
+    expect(fixture.initialContexts).toHaveLength(0);
   });
 
   test("falls back to injection when SDK discovery calls fail", async () => {
@@ -351,17 +370,17 @@ describe("Beads plugin controller", () => {
     fixture.getAgents.mockRejectedValueOnce(new Error("agents unavailable"));
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
 
-    await controller.onMessage(message("fallback", "custom-agent"));
+    await controller.onMessage(message("fallback", "custom-agent"), fixture.deliver);
 
     expect(fixture.primeDirectories).toHaveLength(1);
-    expect(fixture.promptCalls).toHaveLength(1);
+    expect(fixture.initialContexts).toHaveLength(1);
     expect(fixture.diagnosticCalls.map((diagnostic) => diagnostic.code)).toEqual([
       "agents_lookup_failed",
       "messages_lookup_failed",
     ]);
   });
 
-  test("retries prompt failures and rate-limits structured diagnostics", async () => {
+  test("retries delivery failures and rate-limits structured diagnostics", async () => {
     let currentTime = 1_000;
     const fixture = createRuntime([
       new PrimeTimeoutError(10),
@@ -373,8 +392,8 @@ describe("Beads plugin controller", () => {
       now: () => currentTime,
     });
 
-    await controller.onMessage(message("timeout"));
-    await controller.onMessage(message("timeout"));
+    await controller.onMessage(message("timeout"), fixture.deliver);
+    await controller.onMessage(message("timeout"), fixture.deliver);
     expect(fixture.diagnosticCalls).toEqual([
       {
         code: "prime_timeout",
@@ -384,21 +403,22 @@ describe("Beads plugin controller", () => {
     ]);
 
     currentTime += 60_000;
-    await controller.onMessage(message("timeout"));
+    await controller.onMessage(message("timeout"), fixture.deliver);
     expect(fixture.diagnosticCalls).toHaveLength(2);
 
     const promptFixture = createRuntime(["context", "context"]);
-    promptFixture.prompt.mockRejectedValueOnce(new Error("SDK unavailable"));
+    promptFixture.deliver.mockRejectedValueOnce(new Error("delivery unavailable"));
     const promptController = await createBeadsController(
       promptFixture.runtime,
       "/workspace/project"
     );
-    await promptController.onMessage(message("prompt-retry"));
-    await promptController.onMessage(message("prompt-retry"));
+    await promptController.onMessage(message("prompt-retry"), promptFixture.deliver);
+    await promptController.onMessage(message("prompt-retry"), promptFixture.deliver);
 
     expect(promptFixture.primeDirectories).toHaveLength(2);
-    expect(promptFixture.prompt).toHaveBeenCalledTimes(2);
-    expect(promptFixture.promptCalls).toHaveLength(1);
+    expect(promptFixture.deliver).toHaveBeenCalledTimes(2);
+    expect(promptFixture.initialContexts).toHaveLength(1);
+    expect(promptFixture.prompt).not.toHaveBeenCalled();
     expect(promptFixture.diagnosticCalls[0]?.code).toBe("prompt_failed");
   });
 
@@ -409,11 +429,11 @@ describe("Beads plugin controller", () => {
     });
     const controller = await createBeadsController(fixture.runtime, "/workspace/project");
 
-    await controller.onMessage(message("diagnostic-failure"));
-    await controller.onMessage(message("diagnostic-failure"));
+    await controller.onMessage(message("diagnostic-failure"), fixture.deliver);
+    await controller.onMessage(message("diagnostic-failure"), fixture.deliver);
 
     expect(fixture.primeDirectories).toHaveLength(2);
-    expect(fixture.promptCalls).toHaveLength(1);
+    expect(fixture.initialContexts).toHaveLength(1);
   });
 
   test("isolates concurrent sessions from different OpenCode projects", async () => {
@@ -425,23 +445,23 @@ describe("Beads plugin controller", () => {
     ]);
 
     await Promise.all([
-      firstController.onMessage(message("first-session")),
-      secondController.onMessage(message("second-session")),
+      firstController.onMessage(message("first-session"), first.deliver),
+      secondController.onMessage(message("second-session"), second.deliver),
     ]);
 
     expect(first.primeDirectories).toEqual(["/projects/first"]);
     expect(first.messageDirectories).toEqual(["/projects/first"]);
     expect(first.agentDirectories).toEqual(["/projects/first"]);
-    expect(first.promptDirectories).toEqual(["/projects/first"]);
-    expect(first.promptCalls[0]?.body.parts[0]?.text).toContain("first project context");
-    expect(first.promptCalls[0]?.body.parts[0]?.text).not.toContain("second project context");
+    expect(first.promptDirectories).toEqual([]);
+    expect(first.initialContexts[0]).toContain("first project context");
+    expect(first.initialContexts[0]).not.toContain("second project context");
 
     expect(second.primeDirectories).toEqual(["/projects/second"]);
     expect(second.messageDirectories).toEqual(["/projects/second"]);
     expect(second.agentDirectories).toEqual(["/projects/second"]);
-    expect(second.promptDirectories).toEqual(["/projects/second"]);
-    expect(second.promptCalls[0]?.body.parts[0]?.text).toContain("second project context");
-    expect(second.promptCalls[0]?.body.parts[0]?.text).not.toContain("first project context");
+    expect(second.promptDirectories).toEqual([]);
+    expect(second.initialContexts[0]).toContain("second project context");
+    expect(second.initialContexts[0]).not.toContain("first project context");
   });
 
   test("preserves explicit command and agent definitions and diagnoses collisions", async () => {

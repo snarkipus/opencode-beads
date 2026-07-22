@@ -19,6 +19,7 @@ function isSessionMessage(value: unknown): boolean {
     !isRecord(value.info) ||
     (value.info.role !== "user" && value.info.role !== "assistant") ||
     (value.info.agent !== undefined && typeof value.info.agent !== "string") ||
+    (value.info.system !== undefined && typeof value.info.system !== "string") ||
     (value.info.model !== undefined &&
       (!isRecord(value.info.model) ||
         typeof value.info.model.providerID !== "string" ||
@@ -122,11 +123,18 @@ export const BeadsPlugin: Plugin = async ({ client, directory, worktree }) => {
     "chat.message": async (input, output) => {
       if (isBeadsContextInjection(output.parts)) return;
 
-      await controller.onMessage({
-        sessionID: input.sessionID,
-        model: input.model,
-        agent: input.agent,
-      });
+      await controller.onMessage(
+        {
+          sessionID: input.sessionID,
+          model: input.model,
+          agent: input.agent,
+        },
+        (context) => {
+          output.message.system = output.message.system
+            ? `${output.message.system}\n\n${context}`
+            : context;
+        }
+      );
     },
 
     event: async ({ event }) => {

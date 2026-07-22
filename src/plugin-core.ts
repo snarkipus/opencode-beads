@@ -18,11 +18,12 @@ type SessionPromptBody = NonNullable<SessionPromptData["body"]>;
 
 export type ModelContext = NonNullable<ChatMessageInput["model"]>;
 export type MessageContext = Pick<ChatMessageInput, "sessionID" | "agent" | "model">;
+export type ContextSink = (context: string) => void | Promise<void>;
 
 // The controller only needs this projection; the OpenCode adapter validates the full response.
 export type SessionMessage = {
   info: Pick<SessionMessageResponse["info"], "role"> &
-    Partial<Pick<UserMessage, "agent" | "model">>;
+    Partial<Pick<UserMessage, "agent" | "model" | "system">>;
   parts?: ReadonlyArray<
     Pick<SessionMessageResponse["parts"][number], "type"> & Partial<Pick<TextPart, "text">>
   >;
@@ -76,7 +77,7 @@ export interface ControllerOptions {
 export type MutablePluginConfig = Parameters<NonNullable<Hooks["config"]>>[0];
 
 export interface BeadsController {
-  onMessage(message: MessageContext): Promise<void>;
+  onMessage(message: MessageContext, sink: ContextSink): Promise<void>;
   onCompacted(sessionID: string): Promise<void>;
   configure(config: MutablePluginConfig): Promise<void>;
 }
@@ -147,21 +148,30 @@ export async function createBeadsController(
     return agent ? agent.mode === "primary" || agent.mode === "all" : true;
   }
 
-  async function inject(
+  async function renderContext(
     sessionID: string,
     context?: { model?: ModelContext; agent?: string }
-  ): Promise<boolean> {
+  ): Promise<string | undefined> {
     let output: string;
     try {
       output = (await runtime.prime(directory)).trim();
     } catch (error) {
       const code = error instanceof PrimeTimeoutError ? "prime_timeout" : "prime_failed";
       await diagnoseSession(code, sessionID);
-      return false;
+      return undefined;
     }
-    if (!output) return false;
+    if (!output) return undefined;
 
     const audience = context?.agent === BEADS_TASK_AGENT ? "task-agent" : "primary";
+    return `<beads-context>\n${output}\n</beads-context>\n\n${beadsGuidance(audience)}`;
+  }
+
+  async function injectPrompt(
+    sessionID: string,
+    context?: { model?: ModelContext; agent?: string }
+  ): Promise<boolean> {
+    const rendered = await renderContext(sessionID, context);
+    if (!rendered) return false;
 
     try {
       await runtime.prompt(directory, sessionID, {
@@ -171,7 +181,7 @@ export async function createBeadsController(
         parts: [
           {
             type: "text",
-            text: `<beads-context>\n${output}\n</beads-context>\n\n${beadsGuidance(audience)}`,
+            text: rendered,
             synthetic: true,
           },
         ],
@@ -183,7 +193,7 @@ export async function createBeadsController(
     }
   }
 
-  async function performInitialInjection(message: MessageContext): Promise<void> {
+  async function performInitialInjection(message: MessageContext, sink: ContextSink): Promise<void> {
     if (!(await shouldInject(message.agent, message.sessionID))) {
       injectedSessions.add(message.sessionID);
       return;
@@ -191,10 +201,12 @@ export async function createBeadsController(
 
     try {
       const existing = await runtime.getMessages(directory, message.sessionID);
-      const hasBeadsContext = existing?.some((item) =>
-        item.parts?.some(
-          (part) => part.type === "text" && part.text?.includes("<beads-context>")
-        )
+      const hasBeadsContext = existing?.some(
+        (item) =>
+          item.info.system?.includes("<beads-context>") ||
+          item.parts?.some(
+            (part) => part.type === "text" && part.text?.includes("<beads-context>")
+          )
       );
       if (hasBeadsContext) {
         injectedSessions.add(message.sessionID);
@@ -205,19 +217,25 @@ export async function createBeadsController(
       // Message lookup is advisory; injection remains the safe fallback.
     }
 
-    if (await inject(message.sessionID, message)) {
+    const rendered = await renderContext(message.sessionID, message);
+    if (!rendered) return;
+
+    try {
+      await sink(rendered);
       injectedSessions.add(message.sessionID);
+    } catch {
+      await diagnoseSession("prompt_failed", message.sessionID);
     }
   }
 
   return {
-    async onMessage(message) {
+    async onMessage(message, sink) {
       if (injectedSessions.has(message.sessionID)) return;
 
       const pending = injectionAttempts.get(message.sessionID);
       if (pending) return pending;
 
-      const attempt = performInitialInjection(message);
+      const attempt = performInitialInjection(message, sink);
       injectionAttempts.set(message.sessionID, attempt);
       try {
         await attempt;
@@ -235,7 +253,7 @@ export async function createBeadsController(
       });
       const context = latestSessionContext(messages);
       if (await shouldInject(context?.agent, sessionID)) {
-        await inject(sessionID, context);
+        await injectPrompt(sessionID, context);
       }
     },
 
