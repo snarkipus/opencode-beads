@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   inspectReleaseArchive,
@@ -97,12 +97,49 @@ describe("release artifact identity", () => {
       verifyReleaseArchive(projectDirectory, changed, prepared.sha256)
     ).rejects.toThrow("Release archive digest changed");
 
-    const dryPublish = Bun.spawn(
-      ["npm", "publish", prepared.path, "--dry-run", "--ignore-scripts"],
-      { cwd: projectDirectory, stdout: "ignore", stderr: "pipe" }
+    const npmRehearsalDirectory = join(root, "npm-pack-rehearsal");
+    await fs.mkdir(npmRehearsalDirectory);
+    const npmPack = Bun.spawn(
+      ["npm", "pack", prepared.path, "--dry-run", "--json", "--ignore-scripts"],
+      { cwd: npmRehearsalDirectory, stdout: "pipe", stderr: "pipe" }
     );
-    const dryPublishError = await new Response(dryPublish.stderr).text();
-    expect(await dryPublish.exited, dryPublishError).toBe(0);
+    const [npmPackOutput, npmPackError, npmPackExit] = await Promise.all([
+      new Response(npmPack.stdout).text(),
+      new Response(npmPack.stderr).text(),
+      npmPack.exited,
+    ]);
+    expect(npmPackExit, npmPackError).toBe(0);
+    const npmReports = JSON.parse(npmPackOutput) as Array<{
+      id: string;
+      name: string;
+      version: string;
+      filename: string;
+      entryCount: number;
+      files: Array<{ path: string }>;
+    }>;
+    expect(npmReports).toHaveLength(1);
+    const npmReport = npmReports[0];
+    expect(npmReport?.id).toBe(`${packageManifest.name}@${packageManifest.version}`);
+    expect(npmReport?.name).toBe(packageManifest.name);
+    expect(npmReport?.version).toBe(packageManifest.version);
+    expect(npmReport?.filename).toBe(basename(prepared.path));
+
+    const tar = Bun.spawn(["tar", "-tzf", prepared.path], {
+      cwd: projectDirectory,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [tarOutput, tarError, tarExit] = await Promise.all([
+      new Response(tar.stdout).text(),
+      new Response(tar.stderr).text(),
+      tar.exited,
+    ]);
+    expect(tarExit, tarError).toBe(0);
+    const archiveEntryCount = tarOutput
+      .split("\n")
+      .filter((entry) => entry.startsWith("package/") && !entry.endsWith("/")).length;
+    expect(npmReport?.entryCount).toBe(archiveEntryCount);
+    expect(npmReport?.files).toHaveLength(archiveEntryCount);
   });
 
   test("rejects malformed archive inventory", async () => {
