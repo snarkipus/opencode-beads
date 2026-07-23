@@ -18,12 +18,15 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.8.0]
+
 ### Changed
 
 - Aligned OpenCode context injection with upstream Claude Code and Codex by using full `bd prime` at session start and after compaction, plus a bounded task-agent command and recovery fallback.
 - Established the scoped `@snarkipus/opencode-beads` distribution identity, explicit package exports and contents, paired stable OpenCode dependencies, and reproducible Bun/TypeScript automation baselines.
 - Hardened release publication so tag and documentation versions are checked and one inspected archive is attested, uploaded, verified, and published unchanged.
 - Refreshed adapter documentation for current command names, compatibility, context injection, configuration collisions, vendored content, and troubleshooting.
+- Reframed the README around the maintained adapter's actual product surface and recorded upstream project and author provenance in README and package metadata.
 - Synced vendored Beads files and managed-skill provenance to v1.1.0
 
 ### Fixed
@@ -187,7 +190,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.7.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0
 <!-- Published releases through 0.7.0 retain links to the original upstream history. -->
 [0.1.0]: https://github.com/joshuadavidthomas/opencode-beads/releases/tag/v0.1.0
 [0.1.1]: https://github.com/joshuadavidthomas/opencode-beads/releases/tag/v0.1.1

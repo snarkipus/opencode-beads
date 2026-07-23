@@ -1,9 +1,15 @@
 {
   "name": "@snarkipus/opencode-beads",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "type": "module",
-  "description": "A plugin for OpenCode that provides integration with the beads issue tracker.",
+  "description": "A maintained OpenCode integration for the Beads issue tracker, including context injection, vendored workflows, a task agent, and managed skill lifecycle tooling.",
   "author": "Matt Jackson",
+  "contributors": [
+    {
+      "name": "Josh Thomas",
+      "url": "https://github.com/joshuadavidthomas"
+    }
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",

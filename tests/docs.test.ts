@@ -9,13 +9,13 @@ const artifactPolicy = await fs.readFile("docs/beads-artifact-policy.md", "utf8"
 const packageManifest = JSON.parse(await fs.readFile("package.json", "utf8")) as {
   name: string;
   version: string;
+  contributors?: Array<{ name?: string; url?: string }>;
 };
 const packageIdentity = `${packageManifest.name}@${packageManifest.version}`;
 
 describe("documentation contracts", () => {
   test("uses current package, command, and upstream identities", () => {
     expect(readme).not.toMatch(/\/bd-[a-z]/);
-    expect(readme).not.toContain("github.com/joshuadavidthomas");
     expect(readme).not.toContain("github.com/steveyegge");
     expect(readme).toContain("https://github.com/gastownhall/beads");
     expect(readme).toContain(`"plugin": ["${packageIdentity}"]`);
@@ -27,6 +27,24 @@ describe("documentation contracts", () => {
     ].map((match) => match[1]);
     expect(documentedVersions.length).toBeGreaterThan(0);
     expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version]));
+  });
+
+  test("presents and credits the first maintained fork release", () => {
+    expect(packageManifest.version).toBe("0.8.0");
+    expect(readme).not.toContain("This plugin is intentionally small in scope");
+    expect(readme).not.toContain("limits its scope to bug fixes");
+    expect(readme).toContain("maintained fork");
+    expect(readme).toContain("managed companion skill lifecycle");
+    expect(readme).toContain("https://github.com/joshuadavidthomas/opencode-beads");
+    expect(readme).toContain("Josh Thomas");
+    expect(packageManifest.contributors).toContainEqual({
+      name: "Josh Thomas",
+      url: "https://github.com/joshuadavidthomas",
+    });
+    expect(changelog).toContain("## [0.8.0]");
+    expect(changelog).toContain(
+      "[0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0"
+    );
   });
 
   test("documents the complete managed lifecycle contract", () => {
