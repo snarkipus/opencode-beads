@@ -130,6 +130,9 @@ describe("release artifact identity", () => {
     );
     expect(workflow.match(/steps\.package\.outputs\.archive/g)).toHaveLength(3);
     expect(workflow).toContain("ARCHIVE: ${{ steps.package.outputs.archive }}");
+    expect(workflow).toContain('node-version: "24"');
+    expect(workflow).toContain('registry-url: "https://registry.npmjs.org"');
+    expect(workflow).toContain("package-manager-cache: false");
     expect(workflow).toContain("npm install --global npm@11.10.1");
     expect(workflow).toContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}");
     expect(workflow).toContain('npm publish "$ARCHIVE" --access public');
