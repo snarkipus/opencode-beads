@@ -2,12 +2,9 @@
 
 [Beads](https://github.com/gastownhall/beads) issue tracker integration for [OpenCode](https://opencode.ai).
 
-> [!NOTE]
-> This plugin is intentionally small in scope. The [beads](https://github.com/gastownhall/beads) project is moving quickly and is a moving target; any additional layers on top of it add churn.
->
-> To minimize maintenance, this plugin defers to beads and limits its scope to bug fixes and syncing upstream vendor plugin content. Feature requests and additional customization are generally out of scope.
->
-> If you want to customize behavior, the plugin surface area is small; forking or copying it locally is encouraged.
+This maintained fork provides the OpenCode-facing product layer around Beads: full `bd prime` context injection, vendored workflows, an autonomous task agent, project-scoped runtime integration, and an explicit managed companion skill lifecycle. It is deliberately an adapter rather than a second issue tracker: the `bd` CLI remains authoritative for issues, Dolt synchronization, migrations, and general Beads behavior.
+
+The project originated as [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads) and continues under the MIT license. This fork is maintained by Matt Jackson and tracks reviewed upstream Beads releases while adapting their plugin artifacts to OpenCode's CLI-only execution model.
 
 ## Installation
 
@@ -23,7 +20,7 @@ Add the version-pinned plugin to your OpenCode config (`~/.config/opencode/openc
 
 ```json
 {
-  "plugin": ["@snarkipus/opencode-beads@0.7.0"]
+  "plugin": ["@snarkipus/opencode-beads@0.8.0"]
 }
 ```
 
@@ -36,7 +33,7 @@ In a project without a Beads database, run `/beads:init` or `bd init` before usi
 Install the companion OpenCode skill for durable Beads guidance in the current Git worktree:
 
 ```bash
-bunx @snarkipus/opencode-beads@0.7.0 init
+bunx @snarkipus/opencode-beads@0.8.0 init
 ```
 
 The project target is `<worktree>/.opencode/skills/beads`, even when the command runs from a nested directory. Use `init --global` for `$XDG_CONFIG_HOME/opencode/skills/beads` when `XDG_CONFIG_HOME` is absolute, otherwise `~/.config/opencode/skills/beads`.
@@ -44,10 +41,10 @@ The project target is `<worktree>/.opencode/skills/beads`, even when the command
 The package CLI is the canonical lifecycle because OpenCode does not guarantee that plugin npm bins are on `PATH`:
 
 ```bash
-bunx @snarkipus/opencode-beads@0.7.0 init [--global]
-bunx @snarkipus/opencode-beads@0.7.0 check [--global]
-bunx @snarkipus/opencode-beads@0.7.0 update [--global]
-bunx @snarkipus/opencode-beads@0.7.0 remove [--global]
+bunx @snarkipus/opencode-beads@0.8.0 init [--global]
+bunx @snarkipus/opencode-beads@0.8.0 check [--global]
+bunx @snarkipus/opencode-beads@0.8.0 update [--global]
+bunx @snarkipus/opencode-beads@0.8.0 remove [--global]
 ```
 
 Every command supports `--dry-run` for an exact non-mutating plan and `--json` for one deterministic result object. Add `--global` to select the global scope. `/beads:setup` prints commands for the running package version; it does not write files. `/beads:init` remains DB-only.
@@ -129,8 +126,8 @@ The vendor manifest, task agent, and every recorded command file are required pa
 ## Troubleshooting
 
 - **No Beads context:** Run `bd prime` in the project. Install `bd` if the command is missing, or run `bd init` if the project has no Beads workspace.
-- **Managed skill is missing:** Run `bunx @snarkipus/opencode-beads@0.7.0 init [--global]`. Use the same scope for later lifecycle commands.
-- **Managed skill is stale:** Run `bunx @snarkipus/opencode-beads@0.7.0 update [--global]`. The command proceeds only if every old managed hash still matches.
+- **Managed skill is missing:** Run `bunx @snarkipus/opencode-beads@0.8.0 init [--global]`. Use the same scope for later lifecycle commands.
+- **Managed skill is stale:** Run `bunx @snarkipus/opencode-beads@0.8.0 update [--global]`. The command proceeds only if every old managed hash still matches.
 - **Managed skill is modified:** Preserve or revert local edits before retrying. To discard an installation deliberately, move the entire target out of every OpenCode discovery root, then run `init`; no force mode exists.
 - **Managed skill is conflicting:** Run `check --json` with the intended scope and inspect `target` and `collisions`. Move or remove unmanaged or differently managed Beads skills deliberately, then retry. Do not treat another discovery root as the selected target.
 - **Stale transaction residue:** Preserve and inspect sibling `.beads.opencode-beads-stage-*`, `-backup-*`, or `-recovery-*` directories before manual recovery. The CLI refuses to guess which residue is authoritative.

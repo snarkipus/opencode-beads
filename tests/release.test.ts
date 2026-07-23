@@ -130,6 +130,8 @@ describe("release artifact identity", () => {
     );
     expect(workflow.match(/steps\.package\.outputs\.archive/g)).toHaveLength(3);
     expect(workflow).toContain("ARCHIVE: ${{ steps.package.outputs.archive }}");
+    expect(workflow).toContain("npm install --global npm@11.10.1");
+    expect(workflow).toContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}");
     expect(workflow).toContain('npm publish "$ARCHIVE" --access public');
     expect(workflow).not.toMatch(/npm publish\s*(?:\n|$)/);
   });

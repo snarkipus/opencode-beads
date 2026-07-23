@@ -128,7 +128,7 @@ try {
   ) as typeof sourceManifest;
   if (
     manifest.name !== "@snarkipus/opencode-beads" ||
-    manifest.version !== "0.7.0" ||
+    manifest.version !== sourceManifest.version ||
     manifest.type !== "module"
   ) {
     throw new Error("Packed package has an unexpected name or version");
