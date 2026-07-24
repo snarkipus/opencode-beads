@@ -16,21 +16,6 @@ function getVendorDir(): string {
   return path.join(__dirname, "..", "vendor");
 }
 
-async function getPackageIdentity(): Promise<string> {
-  const packagePath = path.join(getVendorDir(), "..", "package.json");
-  const value = JSON.parse(await fs.readFile(packagePath, "utf8")) as {
-    name?: unknown;
-    version?: unknown;
-  };
-  if (typeof value.name !== "string") {
-    throw new Error("Invalid package artifact package.json: name must be a string");
-  }
-  if (typeof value.version !== "string") {
-    throw new Error("Invalid package artifact package.json: version must be a string");
-  }
-  return `${value.name}@${value.version}`;
-}
-
 interface ParsedMarkdown {
   frontmatter: Record<string, string>;
   body: string;
@@ -189,7 +174,9 @@ function rejectUnsupportedFields(
 const BEADS_HOST_GUIDANCE = `## CLI Safety
 
 There is no native \`bd\` or Beads MCP tool in OpenCode. Run \`bd\` through \`bash\`.
-Treat the injected \`bd prime\` output as the canonical workflow reference. Use \`bd --help\` to discover commands, \`bd <command> --help\` for current syntax, and \`--json\` when structured output improves reliability. Distinguish command failures from output parsing failures.`;
+Treat the injected \`bd prime\` output as the canonical workflow reference. Use \`bd --help\` to discover commands, \`bd <command> --help\` for current syntax, and \`--json\` when structured output improves reliability. Distinguish command failures from output parsing failures.
+
+Run relevant validation before closing an issue. Do not commit, push, or run Dolt synchronization automatically; do so only when current instructions or repository policy explicitly require it.`;
 
 const BEADS_DELEGATION_GUIDANCE = `## Delegation
 
@@ -285,13 +272,6 @@ export async function loadCommands(vendorDirectory = getVendorDir()): Promise<Co
     }
     commands[name] = command;
   }
-
-  const packageIdentity = await getPackageIdentity();
-  const cli = `bunx ${packageIdentity}`;
-  commands["beads:setup"] = {
-    description: "Install or manage the OpenCode Beads skill",
-    template: `The package CLI is canonical for the OpenCode Beads skill lifecycle. Use exact version-matched commands: \`${cli} init\`, \`${cli} init --global\`, \`${cli} check\`, \`${cli} update\`, and \`${cli} remove\`. Add \`--global\` to check, update, or remove for global scope. \`/beads:init\` is DB-only: it initializes a Beads database and does not install the skill.`,
-  };
 
   return commands;
 }

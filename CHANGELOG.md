@@ -18,6 +18,17 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.9.0]
+
+### Changed
+
+- Made `bd init` the only per-project initialization path; its automatic Codex project integration creates the canonical shared skill at `.agents/skills/beads` for OpenCode discovery.
+- Preserved compact OpenCode-specific runtime guidance for validation before closure and conservative commit, push, and Dolt synchronization behavior without duplicating `bd prime`.
+
+### Removed
+
+- Removed the companion `opencode-beads` init/check/update/remove CLI, package bin, fork-managed skill payload and collision lifecycle, and `/beads:setup`.
+
 ## [0.8.0]
 
 ### Changed
@@ -190,7 +201,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.8.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.0
 [0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0
 <!-- Published releases through 0.7.0 retain links to the original upstream history. -->
 [0.1.0]: https://github.com/joshuadavidthomas/opencode-beads/releases/tag/v0.1.0

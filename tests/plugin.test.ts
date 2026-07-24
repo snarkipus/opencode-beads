@@ -118,8 +118,12 @@ describe("Beads plugin controller", () => {
     expect(context).toContain(
       "Treat the injected `bd prime` output as the canonical workflow reference."
     );
+    expect(context).toContain("Run relevant validation before closing an issue.");
+    expect(context).toContain(
+      "Do not commit, push, or run Dolt synchronization automatically"
+    );
     expect(context).not.toContain("bd init");
-    expect(context?.length).toBeLessThan(1_500);
+    expect(context?.length).toBeLessThan(1_800);
   });
 
   test("coalesces concurrent injection and retries after failure", async () => {
@@ -181,7 +185,8 @@ describe("Beads plugin controller", () => {
     const taskContext = fixture.initialContexts[0] ?? "";
     expect(taskContext).not.toContain("Delegate multi-command Beads work");
     expect(taskContext.match(/There is no native `bd`/g)).toHaveLength(1);
-    expect(taskContext.length).toBeLessThan(1_200);
+    expect(taskContext).toContain("Run relevant validation before closing an issue.");
+    expect(taskContext.length).toBeLessThan(1_500);
   });
 
   test("injects full prime at startup and after compaction for eligible agents", async () => {

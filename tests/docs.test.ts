@@ -26,15 +26,16 @@ describe("documentation contracts", () => {
       ),
     ].map((match) => match[1]);
     expect(documentedVersions.length).toBeGreaterThan(0);
-    expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version]));
+    expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version, "0.8.0"]));
+    expect(readme.match(/bunx @snarkipus\/opencode-beads@0\.8\.0 remove/g)).toHaveLength(1);
   });
 
-  test("presents and credits the first maintained fork release", () => {
-    expect(packageManifest.version).toBe("0.8.0");
+  test("presents the 0.9.0 contract and credits the original project", () => {
+    expect(packageManifest.version).toBe("0.9.0");
     expect(readme).not.toContain("This plugin is intentionally small in scope");
     expect(readme).not.toContain("limits its scope to bug fixes");
     expect(readme).toContain("maintained fork");
-    expect(readme).toContain("managed companion skill lifecycle");
+    expect(readme).not.toContain("managed companion skill lifecycle");
     expect(readme).toContain("https://github.com/joshuadavidthomas/opencode-beads");
     expect(readme).toContain("Josh Thomas");
     expect(packageManifest.contributors).toContainEqual({
@@ -42,43 +43,29 @@ describe("documentation contracts", () => {
       url: "https://github.com/joshuadavidthomas",
     });
     expect(changelog).toContain("## [0.8.0]");
+    expect(changelog).toContain("## [0.9.0]");
     expect(changelog).toContain(
       "[0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0"
     );
   });
 
-  test("documents the complete managed lifecycle contract", () => {
-    for (const command of ["init", "check", "update", "remove"]) {
-      expect(readme).toContain(`bunx ${packageIdentity} ${command} [--global]`);
-    }
-    for (const state of ["missing", "current", "stale", "modified", "conflicting"]) {
-      expect(readme).toContain(`| \`${state}\` |`);
-    }
+  test("documents canonical per-project initialization and the pinned upgrade path", () => {
     for (const required of [
-      "--dry-run",
-      "--json",
-      "<worktree>/.opencode/skills/beads",
-      "$XDG_CONFIG_HOME/opencode/skills/beads",
-      "passive npm discovery is unsupported",
-      "Plugin startup is read-only",
-      "there is no force option",
-      "`/beads:init` remains DB-only",
-      "package CLI is the canonical lifecycle",
+      "Install the `bd` CLI once on the host",
+      "git init",
+      "bd init",
+      "automatic Codex project integration creates the canonical shared skill",
+      "`.agents/skills/beads`",
+      "bunx @snarkipus/opencode-beads@0.8.0 remove",
+      "Do not substitute 0.9.0 in the removal command",
     ]) {
       expect(readme).toContain(required);
     }
-  });
-
-  test("documents stale and current lifecycle semantics exactly", () => {
-    expect(readme).toContain(
-      "The target is recognized and unmodified, but its managed package or provenance metadata differs from the running package."
+    expect(artifactPolicy).toContain("not by `bd setup opencode`");
+    expect(readme).not.toContain("/beads:setup");
+    expect(artifactPolicy).toContain(
+      "The canonical `.agents/skills/beads` is created by `bd init`'s automatic Codex project integration"
     );
-    expect(readme).not.toContain("managed package or provenance metadata is older");
-    expect(readme).toContain("`init` and `update` are no-ops for current targets.");
-    expect(readme).toContain(
-      "`remove` deletes only a recognized, unmodified current or stale target."
-    );
-    expect(readme).not.toContain("Current targets are no-ops.");
   });
 
   test("keeps changelog headings unique and current links fork-owned", () => {
@@ -135,12 +122,19 @@ describe("documentation contracts", () => {
     expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
 
-  test("records the reviewed Beads v1.1.0 provenance", () => {
-    expect(readme).toContain("managed-skill provenance is currently synced from Beads v1.1.0");
+  test("records the reviewed Beads v1.1.0 runtime provenance", () => {
+    expect(readme).toContain("Command and agent provenance is currently synced from Beads v1.1.0");
     expect(artifactPolicy).toContain("`v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`");
     expect(artifactPolicy).toContain(
       "`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`"
     );
     expect(artifactPolicy).not.toContain("Currently packaged artifact baseline: Beads `v1.0.5`");
+  });
+
+  test("retains compact OpenCode-specific runtime policy", () => {
+    expect(readme).toContain("validate before closure");
+    expect(artifactPolicy).toContain("prohibits automatic commit, push, or Dolt synchronization");
+    expect(artifactPolicy).not.toContain("companion lifecycle CLI");
+    expect(artifactPolicy).not.toContain("fork-owned CLI");
   });
 });

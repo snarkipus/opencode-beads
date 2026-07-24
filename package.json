@@ -1,8 +1,8 @@
 {
   "name": "@snarkipus/opencode-beads",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
-  "description": "A maintained OpenCode integration for the Beads issue tracker, including context injection, vendored workflows, a task agent, and managed skill lifecycle tooling.",
+  "description": "A maintained OpenCode integration for the Beads issue tracker, including context injection, vendored workflows, and a task agent.",
   "author": "Matt Jackson",
   "contributors": [
     {
@@ -40,13 +40,9 @@
   "files": [
     "src",
     "vendor",
-    "dist",
     "README.md",
     "LICENSE"
   ],
-  "bin": {
-    "opencode-beads": "src/init-cli.ts"
-  },
   "scripts": {
     "test": "bun test",
     "test:docs": "bun test tests/docs.test.ts",

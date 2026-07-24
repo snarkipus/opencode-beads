@@ -10,7 +10,6 @@ interface PackageManifest {
   types?: unknown;
   exports?: unknown;
   files?: unknown;
-  bin?: unknown;
   peerDependencies?: unknown;
   peerDependenciesMeta?: unknown;
   repository?: unknown;
@@ -100,11 +99,19 @@ export async function validateReleaseMetadata(
   }
 
   const readme = await fs.readFile(path.join(projectDirectory, "README.md"), "utf8");
+  const legacyRemoval = `bunx ${identity.name}@0.8.0 remove`;
+  const legacyRemovalLine = new RegExp(
+    `^[\\t ]*${escapeRegex(legacyRemoval)}[\\t ]*\\r?$`,
+    "gm"
+  );
+  const releaseReferences = readme.replace(legacyRemovalLine, "");
   const referencePattern = new RegExp(
     `${escapeRegex(identity.name)}@(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)`,
     "g"
   );
-  const documentedVersions = [...readme.matchAll(referencePattern)].map((match) => match[1]);
+  const documentedVersions = [...releaseReferences.matchAll(referencePattern)].map(
+    (match) => match[1]
+  );
   if (documentedVersions.length === 0) {
     throw new Error(`README.md has no versioned ${identity.name} installation example`);
   }
@@ -119,7 +126,7 @@ export async function validateReleaseMetadata(
 
 async function expectedArchiveInventory(projectDirectory: string): Promise<string[]> {
   const expected = ["LICENSE", "README.md", "package.json"];
-  for (const directory of ["dist", "src", "vendor"]) {
+  for (const directory of ["src", "vendor"]) {
     expected.push(
       ...(await filesBelow(path.join(projectDirectory, directory))).map(
         (file) => `${directory}/${file}`

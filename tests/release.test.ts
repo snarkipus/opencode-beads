@@ -66,6 +66,32 @@ describe("release artifact identity", () => {
     );
   });
 
+  test("allows only the pinned 0.8.0 removal command as a legacy README reference", async () => {
+    const directory = await metadataFixture();
+    await fs.writeFile(
+      join(directory, "README.md"),
+      "install @scope/package@1.2.3\nbunx @scope/package@0.8.0 remove\n"
+    );
+    await expect(validateReleaseMetadata(directory, "v1.2.3")).resolves.toEqual({
+      name: "@scope/package",
+      version: "1.2.3",
+    });
+
+    await fs.appendFile(join(directory, "README.md"), "bunx @scope/package@0.8.0 update\n");
+    await expect(validateReleaseMetadata(directory, "v1.2.3")).rejects.toThrow(
+      "references @scope/package@0.8.0"
+    );
+
+    const modifiedRemoval = await metadataFixture();
+    await fs.appendFile(
+      join(modifiedRemoval, "README.md"),
+      "bunx @scope/package@0.8.0 remove --global\n"
+    );
+    await expect(validateReleaseMetadata(modifiedRemoval, "v1.2.3")).rejects.toThrow(
+      "references @scope/package@0.8.0"
+    );
+  });
+
   test("builds, inspects, and verifies one immutable publication archive", async () => {
     const root = await fs.mkdtemp(join(tmpdir(), "opencode-beads-release-"));
     temporaryDirectories.push(root);
