@@ -18,6 +18,13 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.9.1]
+
+### Fixed
+
+- Corrected the 0.8.0 migration guidance for already-initialized repositories that are missing the canonical `.agents/skills/beads` tree. The documented bounded copy procedure avoids installing unrelated Codex hooks and generated instructions.
+- Migrated the repository's dogfood configuration from the retired fork-managed `.opencode/skills/beads` tree to the canonical upstream `.agents/skills/beads` tree and pinned the repository to the published scoped package.
+
 ## [0.9.0]
 
 ### Changed
@@ -201,7 +208,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.9.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.1
 [0.9.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.0
 [0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0
 <!-- Published releases through 0.7.0 retain links to the original upstream history. -->

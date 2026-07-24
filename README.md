@@ -20,7 +20,7 @@ Add the version-pinned plugin to your OpenCode config (`~/.config/opencode/openc
 
 ```json
 {
-  "plugin": ["@snarkipus/opencode-beads@0.9.0"]
+  "plugin": ["@snarkipus/opencode-beads@0.9.1"]
 }
 ```
 
@@ -37,13 +37,13 @@ Skip `git init` when the project is already a Git worktree. `bd init` performs t
 
 ### Upgrading from 0.8.0
 
-Version 0.8.0 installed a fork-managed skill under `.opencode/skills/beads`. Remove that old managed skill with the version-pinned 0.8.0 CLI before changing the plugin pin to 0.9.0:
+Version 0.8.0 installed a fork-managed skill under `.opencode/skills/beads`. Remove that old managed skill with the version-pinned 0.8.0 CLI before changing the plugin pin to 0.9.1:
 
 ```bash
 bunx @snarkipus/opencode-beads@0.8.0 remove
 ```
 
-If the old skill was installed globally, append `--global` to that exact command. Do not substitute 0.9.0 in the removal command: the companion CLI no longer exists in 0.9.0.
+If the old skill was installed globally, append `--global` to that exact command. Do not substitute 0.9.1 in the removal command: the companion CLI no longer exists in 0.9.1.
 
 For a repository that has not been initialized with Beads, run `bd init`; it creates the canonical shared skill as part of normal initialization. For an already-initialized repository that is missing the skill, upstream currently has no skill-only setup command. Do not run `bd setup codex` as a substitute because it also installs Codex hooks and generated instructions. Instead, initialize a temporary Git repository with the same `bd` version and copy only its canonical skill directory into the target repository:
 

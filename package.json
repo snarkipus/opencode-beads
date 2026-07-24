@@ -1,6 +1,6 @@
 {
   "name": "@snarkipus/opencode-beads",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "type": "module",
   "description": "A maintained OpenCode integration for the Beads issue tracker, including context injection, vendored workflows, and a task agent.",
   "author": "Matt Jackson",

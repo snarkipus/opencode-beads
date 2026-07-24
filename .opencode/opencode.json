@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "plugin": [
-    "@snarkipus/opencode-beads@0.9.0"
+    "@snarkipus/opencode-beads@0.9.1"
   ]
 }

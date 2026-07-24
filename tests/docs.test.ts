@@ -30,8 +30,8 @@ describe("documentation contracts", () => {
     expect(readme.match(/bunx @snarkipus\/opencode-beads@0\.8\.0 remove/g)).toHaveLength(1);
   });
 
-  test("presents the 0.9.0 contract and credits the original project", () => {
-    expect(packageManifest.version).toBe("0.9.0");
+  test("presents the 0.9.1 contract and credits the original project", () => {
+    expect(packageManifest.version).toBe("0.9.1");
     expect(readme).not.toContain("This plugin is intentionally small in scope");
     expect(readme).not.toContain("limits its scope to bug fixes");
     expect(readme).toContain("maintained fork");
@@ -44,6 +44,7 @@ describe("documentation contracts", () => {
     });
     expect(changelog).toContain("## [0.8.0]");
     expect(changelog).toContain("## [0.9.0]");
+    expect(changelog).toContain("## [0.9.1]");
     expect(changelog).toContain(
       "[0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0"
     );
@@ -57,7 +58,7 @@ describe("documentation contracts", () => {
       "automatic Codex project integration creates the canonical shared skill",
       "`.agents/skills/beads`",
       "bunx @snarkipus/opencode-beads@0.8.0 remove",
-      "Do not substitute 0.9.0 in the removal command",
+      "Do not substitute 0.9.1 in the removal command",
       "upstream currently has no skill-only setup command",
       "copy only its canonical skill directory",
       "This bounded migration copies only `.agents/skills/beads`",
