@@ -58,9 +58,14 @@ describe("documentation contracts", () => {
       "`.agents/skills/beads`",
       "bunx @snarkipus/opencode-beads@0.8.0 remove",
       "Do not substitute 0.9.0 in the removal command",
+      "upstream currently has no skill-only setup command",
+      "copy only its canonical skill directory",
+      "This bounded migration copies only `.agents/skills/beads`",
     ]) {
       expect(readme).toContain(required);
     }
+    expect(readme).toContain("Do not run `bd setup codex` as a substitute");
+    expect(readme).toContain("it does not copy `.codex` artifacts or generated instruction files");
     expect(artifactPolicy).toContain("not by `bd setup opencode`");
     expect(readme).not.toContain("/beads:setup");
     expect(artifactPolicy).toContain(

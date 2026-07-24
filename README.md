@@ -43,7 +43,20 @@ Version 0.8.0 installed a fork-managed skill under `.opencode/skills/beads`. Rem
 bunx @snarkipus/opencode-beads@0.8.0 remove
 ```
 
-If the old skill was installed globally, append `--global` to that exact command. After removal, run `bd init` in each project that has not yet received the canonical shared skill. Do not substitute 0.9.0 in the removal command: the companion CLI no longer exists in 0.9.0.
+If the old skill was installed globally, append `--global` to that exact command. Do not substitute 0.9.0 in the removal command: the companion CLI no longer exists in 0.9.0.
+
+For a repository that has not been initialized with Beads, run `bd init`; it creates the canonical shared skill as part of normal initialization. For an already-initialized repository that is missing the skill, upstream currently has no skill-only setup command. Do not run `bd setup codex` as a substitute because it also installs Codex hooks and generated instructions. Instead, initialize a temporary Git repository with the same `bd` version and copy only its canonical skill directory into the target repository:
+
+```bash
+scratch="$(mktemp -d)"
+git -C "$scratch" init
+(cd "$scratch" && bd init)
+mkdir -p .agents/skills
+cp -R "$scratch/.agents/skills/beads" .agents/skills/beads
+rm -rf "$scratch"
+```
+
+This bounded migration copies only `.agents/skills/beads`; it does not copy `.codex` artifacts or generated instruction files.
 
 ## Features
 
@@ -94,8 +107,8 @@ The vendor manifest, task agent, and every recorded command file are required pa
 ## Troubleshooting
 
 - **No Beads context:** Run `bd prime` in the project. Install `bd` if the command is missing, or run `bd init` if the project has no Beads workspace.
-- **Canonical skill is missing:** Confirm the project is a Git worktree, then run `bd init`. The automatic Codex project integration creates `.agents/skills/beads`.
-- **Upgrading from 0.8.0:** Run the exact version-pinned removal command in the upgrade section before updating the plugin pin, then use `bd init` for canonical per-project setup.
+- **Canonical skill is missing:** For a repository without a Beads workspace, run `bd init`. For an already-initialized repository, use the bounded manual-copy migration above; upstream currently has no skill-only setup command, and `bd setup codex` installs additional Codex integration artifacts.
+- **Upgrading from 0.8.0:** Run the exact version-pinned removal command in the upgrade section before updating the plugin pin, then use the appropriate fresh-initialization or existing-workspace path above.
 - **Vendor artifact initialization error:** Reinstall the package. If using a source checkout, rerun the vendor sync and validation scripts; the error names the missing or malformed manifest, command, or task-agent file.
 - **Unexpected command or agent definition:** Check the OpenCode configuration for a colliding `beads:*` or `beads-task-agent` entry. Your explicit configuration wins on an exact name collision; OpenCode logs a rate-limited warning naming the collision.
 - **A regular subagent has no Beads context:** This is intentional. Delegate Beads work to `beads-task-agent`, or run the required `bd` command explicitly.
