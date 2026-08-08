@@ -4,6 +4,7 @@ import type { Plugin, PluginInput } from "@opencode-ai/plugin";
 import type { Agent, Part, SessionMessagesResponse } from "@opencode-ai/sdk";
 import {
   createBeadsController,
+  isBeadsContextEnvelope,
   resolveProjectDirectory,
   type PluginRuntime,
 } from "./plugin-core";
@@ -33,7 +34,8 @@ function isSessionMessage(value: unknown): boolean {
     (part) =>
       isRecord(part) &&
       typeof part.type === "string" &&
-      (part.text === undefined || typeof part.text === "string")
+      (part.text === undefined || typeof part.text === "string") &&
+      (part.synthetic === undefined || typeof part.synthetic === "boolean")
   );
 }
 
@@ -51,7 +53,7 @@ function isBeadsContextInjection(parts: ReadonlyArray<Part>): boolean {
     (part) =>
       part.type === "text" &&
       part.synthetic === true &&
-      part.text.includes("<beads-context>")
+      isBeadsContextEnvelope(part.text)
   );
 }
 

@@ -56,7 +56,13 @@ describe("OpenCode SDK runtime", () => {
         data: [
           {
             info: { role: "user" },
-            parts: [{ type: "text", text: "<beads-context>present</beads-context>" }],
+            parts: [
+              {
+                type: "text",
+                text: "<beads-context>\npresent\n</beads-context>",
+                synthetic: true,
+              },
+            ],
           },
         ],
       },
@@ -97,7 +103,7 @@ describe("OpenCode SDK runtime", () => {
         parts: [
           {
             type: "text",
-            text: "<beads-context>canonical workflow</beads-context>",
+            text: "<beads-context>\ncanonical workflow\n</beads-context>",
             synthetic: true,
           },
         ],
@@ -107,6 +113,42 @@ describe("OpenCode SDK runtime", () => {
     expect(fixture.agents).not.toHaveBeenCalled();
     expect(fixture.messages).not.toHaveBeenCalled();
     expect(fixture.prompt).not.toHaveBeenCalled();
+  });
+
+  test("does not trust ordinary hook text containing the context marker", async () => {
+    const fixture = createClient({
+      messages: {
+        data: [
+          {
+            info: { role: "user" },
+            parts: [
+              {
+                type: "text",
+                text: "<beads-context>\npersisted\n</beads-context>",
+                synthetic: true,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const hooks = await BeadsPlugin({
+      client: fixture.client,
+      directory: "/project",
+      worktree: "/worktree",
+    } as PluginInput);
+    const onMessage = hooks["chat.message"];
+    if (!onMessage) throw new Error("chat.message hook missing");
+
+    await onMessage(
+      { sessionID: "session", agent: "build" },
+      {
+        message: { sessionID: "session" },
+        parts: [{ type: "text", text: "user asked about <beads-context> markup" }],
+      } as never
+    );
+
+    expect(fixture.messages).toHaveBeenCalledTimes(1);
   });
 
   test("uses official nested requests and propagates project scope", async () => {

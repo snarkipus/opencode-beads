@@ -25,7 +25,8 @@ export type SessionMessage = {
   info: Pick<SessionMessageResponse["info"], "role"> &
     Partial<Pick<UserMessage, "agent" | "model" | "system">>;
   parts?: ReadonlyArray<
-    Pick<SessionMessageResponse["parts"][number], "type"> & Partial<Pick<TextPart, "text">>
+    Pick<SessionMessageResponse["parts"][number], "type"> &
+      Partial<Pick<TextPart, "text" | "synthetic">>
   >;
 };
 
@@ -82,6 +83,18 @@ export interface BeadsController {
   configure(config: MutablePluginConfig): Promise<void>;
 }
 
+type InjectionAudience = "primary" | "task-agent";
+
+/** Recognize only the complete envelope emitted by this plugin. */
+export function isBeadsContextEnvelope(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.startsWith("<beads-context>\n") && trimmed.includes("\n</beads-context>");
+}
+
+function injectionAudience(agentName: string | undefined): InjectionAudience {
+  return agentName === BEADS_TASK_AGENT ? "task-agent" : "primary";
+}
+
 /** Resolve OpenCode project scope without falling back to the process directory. */
 export function resolveProjectDirectory(directory: string, worktree: string): string {
   if (directory.trim()) return directory;
@@ -112,7 +125,7 @@ export async function createBeadsController(
   const [loadedCommands, loadedAgents] = await Promise.all([loadCommands(), loadAgent()]);
   const commands = loadedCommands ?? {};
   const agents = loadedAgents ?? {};
-  const injectedSessions = new Set<string>();
+  const injectedAudiences = new Map<string, Set<InjectionAudience>>();
   const injectionAttempts = new Map<string, Promise<void>>();
   const diagnosticTimes = new Map<string, number>();
   const diagnosticIntervalMs = options.diagnosticIntervalMs ?? 60_000;
@@ -162,8 +175,14 @@ export async function createBeadsController(
     }
     if (!output) return undefined;
 
-    const audience = context?.agent === BEADS_TASK_AGENT ? "task-agent" : "primary";
+    const audience = injectionAudience(context?.agent);
     return `<beads-context>\n${output}\n</beads-context>\n\n${beadsGuidance(audience)}`;
+  }
+
+  function markInjected(sessionID: string, audience: InjectionAudience): void {
+    const audiences = injectedAudiences.get(sessionID) ?? new Set<InjectionAudience>();
+    audiences.add(audience);
+    injectedAudiences.set(sessionID, audiences);
   }
 
   async function injectPrompt(
@@ -194,27 +213,35 @@ export async function createBeadsController(
   }
 
   async function performInitialInjection(message: MessageContext, sink: ContextSink): Promise<void> {
-    if (!(await shouldInject(message.agent, message.sessionID))) {
-      injectedSessions.add(message.sessionID);
-      return;
-    }
+    if (!(await shouldInject(message.agent, message.sessionID))) return;
 
-    try {
-      const existing = await runtime.getMessages(directory, message.sessionID);
-      const hasBeadsContext = existing?.some(
-        (item) =>
-          item.info.system?.includes("<beads-context>") ||
-          item.parts?.some(
-            (part) => part.type === "text" && part.text?.includes("<beads-context>")
-          )
-      );
-      if (hasBeadsContext) {
-        injectedSessions.add(message.sessionID);
-        return;
+    const audience = injectionAudience(message.agent);
+    const knownAudiences = injectedAudiences.get(message.sessionID);
+    if (knownAudiences?.has(audience)) return;
+
+    // On plugin reload there is no local audience state, so consult persisted envelopes.
+    if (!knownAudiences) {
+      try {
+        const existing = await runtime.getMessages(directory, message.sessionID);
+        const hasBeadsContext = existing?.some(
+          (item) =>
+            (item.info.system !== undefined && isBeadsContextEnvelope(item.info.system)) ||
+            item.parts?.some(
+              (part) =>
+                part.type === "text" &&
+                part.synthetic === true &&
+                part.text !== undefined &&
+                isBeadsContextEnvelope(part.text)
+            )
+        );
+        if (hasBeadsContext) {
+          markInjected(message.sessionID, audience);
+          return;
+        }
+      } catch {
+        await diagnoseSession("messages_lookup_failed", message.sessionID);
+        // Message lookup is advisory; injection remains the safe fallback.
       }
-    } catch {
-      await diagnoseSession("messages_lookup_failed", message.sessionID);
-      // Message lookup is advisory; injection remains the safe fallback.
     }
 
     const rendered = await renderContext(message.sessionID, message);
@@ -222,7 +249,7 @@ export async function createBeadsController(
 
     try {
       await sink(rendered);
-      injectedSessions.add(message.sessionID);
+      markInjected(message.sessionID, audience);
     } catch {
       await diagnoseSession("prompt_failed", message.sessionID);
     }
@@ -230,18 +257,20 @@ export async function createBeadsController(
 
   return {
     async onMessage(message, sink) {
-      if (injectedSessions.has(message.sessionID)) return;
+      const audience = injectionAudience(message.agent);
+      if (injectedAudiences.get(message.sessionID)?.has(audience)) return;
 
-      const pending = injectionAttempts.get(message.sessionID);
+      const attemptKey = `${message.sessionID}\0${audience}`;
+      const pending = injectionAttempts.get(attemptKey);
       if (pending) return pending;
 
       const attempt = performInitialInjection(message, sink);
-      injectionAttempts.set(message.sessionID, attempt);
+      injectionAttempts.set(attemptKey, attempt);
       try {
         await attempt;
       } finally {
-        if (injectionAttempts.get(message.sessionID) === attempt) {
-          injectionAttempts.delete(message.sessionID);
+        if (injectionAttempts.get(attemptKey) === attempt) {
+          injectionAttempts.delete(attemptKey);
         }
       }
     },

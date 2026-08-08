@@ -189,6 +189,31 @@ describe("Beads plugin controller", () => {
     expect(taskContext.length).toBeLessThan(1_500);
   });
 
+  test("injects primary context after an excluded subagent in the same session", async () => {
+    const fixture = createRuntime();
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onMessage(message("transition", "explore"), fixture.deliver);
+    await controller.onMessage(message("transition", "build"), fixture.deliver);
+
+    expect(fixture.primeDirectories).toEqual(["/workspace/project"]);
+    expect(fixture.initialContexts).toHaveLength(1);
+    expect(fixture.initialContexts[0]).toContain("Delegate multi-command Beads work");
+  });
+
+  test("injects task-agent policy after primary context in the same session", async () => {
+    const fixture = createRuntime(["primary context", "task context"]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onMessage(message("transition", "build"), fixture.deliver);
+    await controller.onMessage(message("transition", "beads-task-agent"), fixture.deliver);
+
+    expect(fixture.initialContexts).toHaveLength(2);
+    expect(fixture.initialContexts[0]).toContain("Delegate multi-command Beads work");
+    expect(fixture.initialContexts[1]).toContain("task context");
+    expect(fixture.initialContexts[1]).not.toContain("Delegate multi-command Beads work");
+  });
+
   test("injects full prime at startup and after compaction for eligible agents", async () => {
     for (const agent of ["build", "beads-task-agent"]) {
       const project = `/workspace/${agent}`;
@@ -335,7 +360,7 @@ describe("Beads plugin controller", () => {
     expect(fixture.promptCalls[0]?.body.agent).toBe("build");
   });
 
-  test("does not duplicate context already present in a session", async () => {
+  test("does not treat ordinary user marker text as an injected context envelope", async () => {
     const fixture = createRuntime();
     fixture.setMessages([
       {
@@ -347,8 +372,30 @@ describe("Beads plugin controller", () => {
 
     await controller.onMessage(message("existing"), fixture.deliver);
 
+    expect(fixture.primeDirectories).toHaveLength(1);
+    expect(fixture.initialContexts).toHaveLength(1);
+  });
+
+  test("does not duplicate a persisted synthetic context envelope", async () => {
+    const fixture = createRuntime();
+    fixture.setMessages([
+      {
+        info: { role: "user" },
+        parts: [
+          {
+            type: "text",
+            text: "<beads-context>\ncanonical workflow\n</beads-context>",
+            synthetic: true,
+          },
+        ],
+      },
+    ]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onMessage(message("existing-synthetic"), fixture.deliver);
+
     expect(fixture.primeDirectories).toHaveLength(0);
-    expect(fixture.promptCalls).toHaveLength(0);
+    expect(fixture.initialContexts).toHaveLength(0);
   });
 
   test("does not duplicate direct system context after plugin reload", async () => {
@@ -357,7 +404,7 @@ describe("Beads plugin controller", () => {
       {
         info: {
           role: "user",
-          system: "<beads-context>already injected</beads-context>",
+          system: "<beads-context>\nalready injected\n</beads-context>",
         },
       },
     ]);
