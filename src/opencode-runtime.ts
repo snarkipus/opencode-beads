@@ -16,6 +16,7 @@ export class OpenCodeTimeoutError extends Error {
 export interface OpenCodeRuntimeOptions {
   requestTimeoutMs?: number;
   diagnosticTimeoutMs?: number;
+  prime?: PluginRuntime["prime"];
 }
 
 async function withDeadline<T>(
@@ -128,7 +129,7 @@ export function createOpenCodeRuntime(
     },
 
     async prime(projectDirectory) {
-      return runBdPrime(projectDirectory);
+      return (options.prime ?? runBdPrime)(projectDirectory);
     },
 
     async diagnose(diagnostic) {

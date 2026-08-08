@@ -114,7 +114,9 @@ describe("Beads plugin controller", () => {
     expect(fixture.promptDirectories).toEqual([]);
     expect(fixture.promptCalls).toHaveLength(0);
     const context = fixture.initialContexts[0];
-    expect(context).toContain("<beads-context>\nprime context\n</beads-context>");
+    expect(context).toContain(
+      '<beads-context audience="primary">\nprime context\n</beads-context>'
+    );
     expect(context).toContain(
       "Treat the injected `bd prime` output as the canonical workflow reference."
     );
@@ -419,7 +421,7 @@ describe("Beads plugin controller", () => {
         parts: [
           {
             type: "text",
-            text: "<beads-context>\ncanonical workflow\n</beads-context>",
+            text: '<beads-context audience="primary">\ncanonical workflow\n</beads-context>',
             synthetic: true,
           },
         ],
@@ -439,7 +441,7 @@ describe("Beads plugin controller", () => {
       {
         info: {
           role: "user",
-          system: "<beads-context>\nalready injected\n</beads-context>",
+          system: '<beads-context audience="primary">\nalready injected\n</beads-context>',
         },
       },
     ]);
@@ -449,6 +451,51 @@ describe("Beads plugin controller", () => {
 
     expect(fixture.primeDirectories).toHaveLength(0);
     expect(fixture.initialContexts).toHaveLength(0);
+  });
+
+  test("injects task-agent context after a persisted primary envelope", async () => {
+    const fixture = createRuntime(["task context"]);
+    fixture.setMessages([
+      {
+        info: {
+          role: "user",
+          system: '<beads-context audience="primary">\nexisting\n</beads-context>',
+        },
+      },
+    ]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onMessage(
+      message("reloaded-primary-to-task", "beads-task-agent"),
+      fixture.deliver
+    );
+
+    expect(fixture.primeDirectories).toHaveLength(1);
+    expect(fixture.initialContexts).toHaveLength(1);
+    expect(fixture.initialContexts[0]).toContain('audience="task-agent"');
+  });
+
+  test("injects primary context after a persisted task-agent envelope", async () => {
+    const fixture = createRuntime(["primary context"]);
+    fixture.setMessages([
+      {
+        info: { role: "user" },
+        parts: [
+          {
+            type: "text",
+            text: '<beads-context audience="task-agent">\nexisting\n</beads-context>',
+            synthetic: true,
+          },
+        ],
+      },
+    ]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onMessage(message("reloaded-task-to-primary"), fixture.deliver);
+
+    expect(fixture.primeDirectories).toHaveLength(1);
+    expect(fixture.initialContexts).toHaveLength(1);
+    expect(fixture.initialContexts[0]).toContain('audience="primary"');
   });
 
   test("falls back to injection when SDK discovery calls fail", async () => {

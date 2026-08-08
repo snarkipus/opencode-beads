@@ -33,7 +33,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ### Security
 
-- Pinned GitHub Actions to immutable commits, disabled persisted checkout credentials and publication Bun caching, authenticated sync Git explicitly, added Zizmor CI, and configured seven-day Dependabot cooldowns.
+- Pinned GitHub Actions to immutable commits, disabled persisted checkout credentials and publication Bun caching, authenticated sync Git explicitly, added Zizmor CI with a high-severity blocking threshold, and configured seven-day Dependabot cooldowns. Pedantic scans still report non-blocking advisory findings.
 
 ## [0.9.1]
 

@@ -7,6 +7,7 @@ import type {
   SessionPromptData,
 } from "@opencode-ai/sdk";
 import { createOpenCodeRuntime, OpenCodeTimeoutError } from "../src/opencode-runtime";
+import { createBeadsHooks } from "../src/plugin-hooks";
 import * as pluginModule from "../src/plugin";
 import { BeadsPlugin } from "../src/plugin";
 
@@ -66,7 +67,7 @@ describe("OpenCode SDK runtime", () => {
             parts: [
               {
                 type: "text",
-                text: "<beads-context>\npresent\n</beads-context>",
+                text: '<beads-context audience="primary">\npresent\n</beads-context>',
                 synthetic: true,
               },
             ],
@@ -132,7 +133,7 @@ describe("OpenCode SDK runtime", () => {
             parts: [
               {
                 type: "text",
-                text: "<beads-context>\npersisted\n</beads-context>",
+                text: '<beads-context audience="primary">\npersisted\n</beads-context>',
                 synthetic: true,
               },
             ],
@@ -165,11 +166,12 @@ describe("OpenCode SDK runtime", () => {
       messages: { data: validMessages },
       agents: { data: validAgents },
     });
-    const hooks = await BeadsPlugin({
-      client: fixture.client,
-      directory,
-      worktree: directory,
-    } as PluginInput);
+    const prime = mock(async (projectDirectory: string) => {
+      expect(projectDirectory).toBe(directory);
+      return "hermetic prime context";
+    });
+    const runtime = createOpenCodeRuntime(fixture.client, { prime });
+    const hooks = await createBeadsHooks(runtime, directory);
     const onEvent = hooks.event;
     const onMessage = hooks["chat.message"];
     if (!onEvent || !onMessage) throw new Error("required hooks missing");
@@ -178,16 +180,20 @@ describe("OpenCode SDK runtime", () => {
       event: { type: "session.compacted", properties: { sessionID: "compacted" } },
     } as never);
 
+    expect(prime).toHaveBeenCalledTimes(1);
     expect(fixture.prompt).toHaveBeenCalledTimes(1);
     const nestedParts = fixture.prompt.mock.calls[0]?.[0].body?.parts;
     expect(nestedParts?.[0]).toMatchObject({ type: "text", synthetic: true });
     if (nestedParts?.[0]?.type !== "text") throw new Error("nested context text missing");
-    expect(nestedParts[0].text).toContain("<beads-context>");
+    expect(nestedParts[0].text).toContain(
+      '<beads-context audience="primary">\nhermetic prime context\n</beads-context>'
+    );
 
     await onMessage(
       { sessionID: "compacted", agent: "build" },
       { message: { sessionID: "compacted" }, parts: nestedParts } as never
     );
+    expect(prime).toHaveBeenCalledTimes(1);
     expect(fixture.prompt).toHaveBeenCalledTimes(1);
     expect(fixture.messages).toHaveBeenCalledTimes(1);
   });
@@ -197,7 +203,10 @@ describe("OpenCode SDK runtime", () => {
       messages: {
         data: [
           {
-            info: { role: "user", system: "<beads-context>\nexisting\n</beads-context>" },
+            info: {
+              role: "user",
+              system: '<beads-context audience="primary">\nexisting\n</beads-context>',
+            },
             parts: [],
           },
         ],

@@ -85,11 +85,17 @@ export interface BeadsController {
 }
 
 type InjectionAudience = "primary" | "task-agent";
+const BEADS_CONTEXT_HEADER = /^<beads-context(?: audience="(primary|task-agent)")?>\n/;
 
 /** Recognize only the complete envelope emitted by this plugin. */
 export function isBeadsContextEnvelope(text: string): boolean {
   const trimmed = text.trim();
-  return trimmed.startsWith("<beads-context>\n") && trimmed.includes("\n</beads-context>");
+  return BEADS_CONTEXT_HEADER.test(trimmed) && trimmed.includes("\n</beads-context>");
+}
+
+function beadsContextAudience(text: string): InjectionAudience | undefined {
+  const audience = text.trim().match(BEADS_CONTEXT_HEADER)?.[1];
+  return audience === "primary" || audience === "task-agent" ? audience : undefined;
 }
 
 function injectionAudience(agentName: string | undefined): InjectionAudience {
@@ -179,7 +185,7 @@ export async function createBeadsController(
     if (!output) return undefined;
 
     const audience = injectionAudience(context?.agent);
-    return `<beads-context>\n${output}\n</beads-context>\n\n${beadsGuidance(audience)}`;
+    return `<beads-context audience="${audience}">\n${output}\n</beads-context>\n\n${beadsGuidance(audience)}`;
   }
 
   function markInjected(sessionID: string, audience: InjectionAudience): void {
@@ -232,13 +238,14 @@ export async function createBeadsController(
         const existing = await runtime.getMessages(directory, message.sessionID);
         const hasBeadsContext = existing?.some(
           (item) =>
-            (item.info.system !== undefined && isBeadsContextEnvelope(item.info.system)) ||
+            (item.info.system !== undefined &&
+              beadsContextAudience(item.info.system) === audience) ||
             item.parts?.some(
               (part) =>
                 part.type === "text" &&
                 part.synthetic === true &&
                 part.text !== undefined &&
-                isBeadsContextEnvelope(part.text)
+                beadsContextAudience(part.text) === audience
             )
         );
         if (hasBeadsContext) {
