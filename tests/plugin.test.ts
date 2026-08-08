@@ -214,6 +214,41 @@ describe("Beads plugin controller", () => {
     expect(fixture.initialContexts[1]).not.toContain("Delegate multi-command Beads work");
   });
 
+  test("retires per-session state when OpenCode deletes a session", async () => {
+    const fixture = createRuntime(["first context", "reused session context"]);
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    await controller.onMessage(message("deleted"), fixture.deliver);
+    controller.onSessionDeleted("deleted");
+    await controller.onMessage(message("deleted"), fixture.deliver);
+
+    expect(fixture.primeDirectories).toHaveLength(2);
+    expect(fixture.initialContexts[1]).toContain("reused session context");
+  });
+
+  test("does not restore deleted state when an in-flight delivery completes", async () => {
+    let releaseDelivery: () => void = () => {};
+    const fixture = createRuntime(["first context", "second context"]);
+    fixture.deliver.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseDelivery = resolve;
+        })
+    );
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    const pending = controller.onMessage(message("deleted-in-flight"), fixture.deliver);
+    await Bun.sleep(0);
+    controller.onSessionDeleted("deleted-in-flight");
+    releaseDelivery();
+    await pending;
+    await controller.onMessage(message("deleted-in-flight"), fixture.deliver);
+
+    expect(fixture.primeDirectories).toHaveLength(2);
+    expect(fixture.initialContexts).toHaveLength(1);
+    expect(fixture.initialContexts[0]).toContain("second context");
+  });
+
   test("injects full prime at startup and after compaction for eligible agents", async () => {
     for (const agent of ["build", "beads-task-agent"]) {
       const project = `/workspace/${agent}`;

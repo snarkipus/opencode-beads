@@ -80,6 +80,7 @@ export type MutablePluginConfig = Parameters<NonNullable<Hooks["config"]>>[0];
 export interface BeadsController {
   onMessage(message: MessageContext, sink: ContextSink): Promise<void>;
   onCompacted(sessionID: string): Promise<void>;
+  onSessionDeleted(sessionID: string): void;
   configure(config: MutablePluginConfig): Promise<void>;
 }
 
@@ -126,7 +127,7 @@ export async function createBeadsController(
   const commands = loadedCommands ?? {};
   const agents = loadedAgents ?? {};
   const injectedAudiences = new Map<string, Set<InjectionAudience>>();
-  const injectionAttempts = new Map<string, Promise<void>>();
+  const injectionAttempts = new Map<string, { promise: Promise<void>; cancelled: boolean }>();
   const diagnosticTimes = new Map<string, number>();
   const diagnosticIntervalMs = options.diagnosticIntervalMs ?? 60_000;
   const now = options.now ?? Date.now;
@@ -214,7 +215,11 @@ export async function createBeadsController(
     }
   }
 
-  async function performInitialInjection(message: MessageContext, sink: ContextSink): Promise<void> {
+  async function performInitialInjection(
+    message: MessageContext,
+    sink: ContextSink,
+    isActive: () => boolean
+  ): Promise<void> {
     if (!(await shouldInject(message.agent, message.sessionID))) return;
 
     const audience = injectionAudience(message.agent);
@@ -237,7 +242,7 @@ export async function createBeadsController(
             )
         );
         if (hasBeadsContext) {
-          markInjected(message.sessionID, audience);
+          if (isActive()) markInjected(message.sessionID, audience);
           return;
         }
       } catch {
@@ -251,7 +256,7 @@ export async function createBeadsController(
 
     try {
       await sink(rendered);
-      markInjected(message.sessionID, audience);
+      if (isActive()) markInjected(message.sessionID, audience);
     } catch {
       await diagnoseSession("prompt_failed", message.sessionID);
     }
@@ -264,12 +269,13 @@ export async function createBeadsController(
 
       const attemptKey = `${message.sessionID}\0${audience}`;
       const pending = injectionAttempts.get(attemptKey);
-      if (pending) return pending;
+      if (pending) return pending.promise;
 
-      const attempt = performInitialInjection(message, sink);
+      const attempt = { promise: Promise.resolve(), cancelled: false };
+      attempt.promise = performInitialInjection(message, sink, () => !attempt.cancelled);
       injectionAttempts.set(attemptKey, attempt);
       try {
-        await attempt;
+        await attempt.promise;
       } finally {
         if (injectionAttempts.get(attemptKey) === attempt) {
           injectionAttempts.delete(attemptKey);
@@ -285,6 +291,19 @@ export async function createBeadsController(
       const context = latestSessionContext(messages);
       if (await shouldInject(context?.agent, sessionID)) {
         await injectPrompt(sessionID, context);
+      }
+    },
+
+    onSessionDeleted(sessionID) {
+      injectedAudiences.delete(sessionID);
+      for (const [key, attempt] of injectionAttempts) {
+        if (key.startsWith(`${sessionID}\0`)) {
+          attempt.cancelled = true;
+          injectionAttempts.delete(key);
+        }
+      }
+      for (const key of diagnosticTimes.keys()) {
+        if (key.endsWith(`:${sessionID}`)) diagnosticTimes.delete(key);
       }
     },
 

@@ -92,11 +92,11 @@ The compatibility ranges and validated baselines for this release are:
 
 | Component | Expected range | Validated baseline |
 | --- | --- | --- |
-| OpenCode | 1.18.3 through 1.x | 1.18.4 |
+| OpenCode | 1.18.3 through 1.x | 1.18.15 |
 | `bd` CLI | 1.0.5 through 1.x | 1.1.0 |
 | Bun | >=1.3.14 | 1.3.14 |
 
-The OpenCode adapter builds against the exact paired `@opencode-ai/plugin` and `@opencode-ai/sdk` `1.18.4` releases and declares compatible optional peers from `1.18.3` through the stable `1.x` line. Both imports are type-only; the package does not install a second OpenCode runtime. Command and agent provenance is currently synced from Beads v1.1.0. Newer compatible releases may work but are not guaranteed until validated; when diagnosing a regression, reproduce it with the baselines above.
+The OpenCode adapter builds against the exact paired `@opencode-ai/plugin` and `@opencode-ai/sdk` `1.18.15` releases and declares compatible optional peers from `1.18.3` through the stable `1.x` line. Both imports are type-only; the package does not install a second OpenCode runtime. Command and agent provenance is currently synced from Beads v1.1.2. Newer compatible releases may work but are not guaranteed until validated; when diagnosing a regression, reproduce it with the baselines above.
 
 ## Vendored Content
 

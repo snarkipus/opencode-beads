@@ -6,7 +6,9 @@ import type {
   SessionMessagesData,
   SessionPromptData,
 } from "@opencode-ai/sdk";
-import { BeadsPlugin, createOpenCodeRuntime, OpenCodeTimeoutError } from "../src/plugin";
+import { createOpenCodeRuntime, OpenCodeTimeoutError } from "../src/opencode-runtime";
+import * as pluginModule from "../src/plugin";
+import { BeadsPlugin } from "../src/plugin";
 
 type Responses = {
   messages?: unknown;
@@ -50,6 +52,11 @@ const validMessages = [
 const validAgents = [{ name: "build", mode: "primary" }] as const;
 
 describe("OpenCode SDK runtime", () => {
+  test("exports only the OpenCode plugin function from the package entry", () => {
+    expect(Object.keys(pluginModule)).toEqual(["BeadsPlugin"]);
+    expect(Object.values(pluginModule).every((value) => typeof value === "function")).toBeTrue();
+  });
+
   test("uses the official chat.message input context", async () => {
     const fixture = createClient({
       messages: {
@@ -150,6 +157,75 @@ describe("OpenCode SDK runtime", () => {
     );
 
     expect(fixture.messages).toHaveBeenCalledTimes(1);
+  });
+
+  test("reinjects after compaction without recursively handling its nested prompt", async () => {
+    const directory = process.cwd();
+    const fixture = createClient({
+      messages: { data: validMessages },
+      agents: { data: validAgents },
+    });
+    const hooks = await BeadsPlugin({
+      client: fixture.client,
+      directory,
+      worktree: directory,
+    } as PluginInput);
+    const onEvent = hooks.event;
+    const onMessage = hooks["chat.message"];
+    if (!onEvent || !onMessage) throw new Error("required hooks missing");
+
+    await onEvent({
+      event: { type: "session.compacted", properties: { sessionID: "compacted" } },
+    } as never);
+
+    expect(fixture.prompt).toHaveBeenCalledTimes(1);
+    const nestedParts = fixture.prompt.mock.calls[0]?.[0].body?.parts;
+    expect(nestedParts?.[0]).toMatchObject({ type: "text", synthetic: true });
+    if (nestedParts?.[0]?.type !== "text") throw new Error("nested context text missing");
+    expect(nestedParts[0].text).toContain("<beads-context>");
+
+    await onMessage(
+      { sessionID: "compacted", agent: "build" },
+      { message: { sessionID: "compacted" }, parts: nestedParts } as never
+    );
+    expect(fixture.prompt).toHaveBeenCalledTimes(1);
+    expect(fixture.messages).toHaveBeenCalledTimes(1);
+  });
+
+  test("retires controller state on the official session.deleted event", async () => {
+    const fixture = createClient({
+      messages: {
+        data: [
+          {
+            info: { role: "user", system: "<beads-context>\nexisting\n</beads-context>" },
+            parts: [],
+          },
+        ],
+      },
+      agents: { data: validAgents },
+    });
+    const hooks = await BeadsPlugin({
+      client: fixture.client,
+      directory: "/project",
+      worktree: "/worktree",
+    } as PluginInput);
+    const onEvent = hooks.event;
+    const onMessage = hooks["chat.message"];
+    if (!onEvent || !onMessage) throw new Error("required hooks missing");
+
+    await onMessage(
+      { sessionID: "deleted", agent: "build" },
+      { message: { sessionID: "deleted" }, parts: [] } as never
+    );
+    await onEvent({
+      event: { type: "session.deleted", properties: { info: { id: "deleted" } } },
+    } as never);
+    await onMessage(
+      { sessionID: "deleted", agent: "build" },
+      { message: { sessionID: "deleted" }, parts: [] } as never
+    );
+
+    expect(fixture.messages).toHaveBeenCalledTimes(2);
   });
 
   test("uses official nested requests and propagates project scope", async () => {

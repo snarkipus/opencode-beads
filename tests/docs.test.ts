@@ -113,7 +113,8 @@ describe("documentation contracts", () => {
 
   test("keeps the compatibility record on the supported OpenCode baseline", () => {
     expect(sdkContract).not.toContain("1.0.148");
-    expect(sdkContract).toContain("Minimum `1.18.3` and current stable `1.18.4`");
+    expect(sdkContract).toContain("Minimum `1.18.3` and current stable `1.18.15`");
+    expect(sdkContract).toContain("`bunx opencode-ai@1.18.15 agent list` discovered `beads-task-agent`");
   });
 
   test("documents upstream-aligned full-prime context boundaries", () => {
@@ -128,8 +129,8 @@ describe("documentation contracts", () => {
     expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
 
-  test("records the reviewed Beads v1.1.0 runtime provenance", () => {
-    expect(readme).toContain("Command and agent provenance is currently synced from Beads v1.1.0");
+  test("records the reviewed Beads v1.1.2 runtime provenance", () => {
+    expect(readme).toContain("Command and agent provenance is currently synced from Beads v1.1.2");
     expect(artifactPolicy).toContain("`v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`");
     expect(artifactPolicy).toContain(
       "`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`"
