@@ -18,9 +18,22 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.9.2]
+
 ### Changed
 
-- Synced vendored beads files to v1.1.2
+- Qualified the plugin against the paired OpenCode plugin/SDK and CLI 1.18.15 baseline, including the official `session.deleted` lifecycle event.
+- Synced vendored Beads files and provenance to v1.1.2.
+
+### Fixed
+
+- Corrected excluded-subagent to primary and primary to `beads-task-agent` context transitions, and require trustworthy system or synthetic envelopes before suppressing injection.
+- Bounded `bd prime` process-group termination, post-kill stream draining, OpenCode SDK requests, nested prompts, and diagnostics.
+- Added integration regressions for post-compaction reinjection, nested prompt non-recursion, session-state retirement, and package-entry loading.
+
+### Security
+
+- Pinned GitHub Actions to immutable commits, disabled persisted checkout credentials and publication Bun caching, authenticated sync Git explicitly, added Zizmor CI, and configured seven-day Dependabot cooldowns.
 
 ## [0.9.1]
 
@@ -212,7 +225,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.9.1...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.2
 [0.9.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.1
 [0.9.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.0
 [0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0

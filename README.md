@@ -20,7 +20,7 @@ Add the version-pinned plugin to your OpenCode config (`~/.config/opencode/openc
 
 ```json
 {
-  "plugin": ["@snarkipus/opencode-beads@0.9.1"]
+  "plugin": ["@snarkipus/opencode-beads@0.9.2"]
 }
 ```
 
@@ -37,13 +37,13 @@ Skip `git init` when the project is already a Git worktree. `bd init` performs t
 
 ### Upgrading from 0.8.0
 
-Version 0.8.0 installed a fork-managed skill under `.opencode/skills/beads`. Remove that old managed skill with the version-pinned 0.8.0 CLI before changing the plugin pin to 0.9.1:
+Version 0.8.0 installed a fork-managed skill under `.opencode/skills/beads`. Remove that old managed skill with the version-pinned 0.8.0 CLI before changing the plugin pin to 0.9.2:
 
 ```bash
 bunx @snarkipus/opencode-beads@0.8.0 remove
 ```
 
-If the old skill was installed globally, append `--global` to that exact command. Do not substitute 0.9.1 in the removal command: the companion CLI no longer exists in 0.9.1.
+If the old skill was installed globally, append `--global` to that exact command. Do not substitute 0.9.2 in the removal command: the companion CLI no longer exists in 0.9.2.
 
 For a repository that has not been initialized with Beads, run `bd init`; it creates the canonical shared skill as part of normal initialization. For an already-initialized repository that is missing the skill, upstream currently has no skill-only setup command. Do not run `bd setup codex` as a substitute because it also installs Codex hooks and generated instructions. Instead, initialize a temporary Git repository with the same `bd` version and copy only its canonical skill directory into the target repository:
 
@@ -93,7 +93,7 @@ The compatibility ranges and validated baselines for this release are:
 | Component | Expected range | Validated baseline |
 | --- | --- | --- |
 | OpenCode | 1.18.3 through 1.x | 1.18.15 |
-| `bd` CLI | 1.0.5 through 1.x | 1.1.0 |
+| `bd` CLI | 1.0.5 through 1.x | 1.1.2 |
 | Bun | >=1.3.14 | 1.3.14 |
 
 The OpenCode adapter builds against the exact paired `@opencode-ai/plugin` and `@opencode-ai/sdk` `1.18.15` releases and declares compatible optional peers from `1.18.3` through the stable `1.x` line. Both imports are type-only; the package does not install a second OpenCode runtime. Command and agent provenance is currently synced from Beads v1.1.2. Newer compatible releases may work but are not guaranteed until validated; when diagnosing a regression, reproduce it with the baselines above.

@@ -4,12 +4,12 @@ Status: revised for the 0.9.0 contract by `opencode-beads-98l`; the 0.8.0 compan
 
 ## Evidence
 
-- Currently packaged artifact baseline: Beads `v1.1.0`, commit `8e4e59d39f3459a43cf21a3236a13eca4dd874f7`, under `plugins/beads/`.
-- OpenCode baseline: minimum plugin/SDK `1.18.3` and reviewed stable `1.18.4`, as recorded in [the SDK contract](opencode-sdk-contract.md).
+- Currently packaged artifact baseline: Beads `v1.1.2`, commit `20e493e569c922d1253bdeff068c5e56c94957fb`, under `plugins/beads/`.
+- OpenCode baseline: minimum plugin/SDK `1.18.3` and reviewed stable `1.18.15`, as recorded in [the SDK contract](opencode-sdk-contract.md).
 - OpenCode's [skill documentation](https://opencode.ai/docs/skills) limits automatic discovery to `skills/<name>/SKILL.md` under project or global `.opencode`, `.claude`, and `.agents` configuration trees. It does not scan npm package internals.
 - OpenCode's [plugin documentation](https://opencode.ai/docs/plugins) and reviewed plugin types expose native command, agent, tool, hook, and configuration integration, but no hook or configuration field for registering a package-local skill or resource tree.
-- The upstream [`SKILL.md`](https://github.com/gastownhall/beads/blob/v1.1.0/plugins/beads/skills/beads/SKILL.md) is declared for Claude Code and Codex, uses frontmatter fields OpenCode ignores, targets `bd` 0.60.0, and tells newer clients to use `bd prime` because the skill may be stale.
-- Upstream [ADR-0001](https://github.com/gastownhall/beads/blob/v1.1.0/plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md) makes full `bd prime` the canonical dynamic context source.
+- The upstream [`SKILL.md`](https://github.com/gastownhall/beads/blob/v1.1.2/plugins/beads/skills/beads/SKILL.md) is declared for Claude Code and Codex, uses frontmatter fields OpenCode ignores, targets `bd` 0.60.0, and tells newer clients to use `bd prime` because the skill may be stale.
+- Upstream [ADR-0001](https://github.com/gastownhall/beads/blob/v1.1.2/plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md) makes full `bd prime` the canonical dynamic context source.
 - The Beads `v1.0.5` and `v1.1.0` Claude Code plugin manifests both run full `bd prime` at `SessionStart` and `PreCompact`, while bundling the Beads skill and command templates as static discovery surfaces.
 - The Codex hook implementation expresses the target lifecycle: `SessionStart` injects full prime, `PreCompact` uses `--memories-only` only to check context availability, and `PostCompact` plus the next `UserPromptSubmit` refreshes full prime. The `v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`; `v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`. OpenCode follows the lifecycle behavior, not the broken older manifest path.
 
@@ -41,7 +41,7 @@ The full `bd` command surface remains CLI-only. OpenCode receives no generated t
 
 ## Provenance and package implications
 
-The npm package ships only the runtime adapter source and the reviewed command and task-agent artifacts under `vendor/`. `vendor/manifest.json` pins Beads `v1.1.0` at `8e4e59d39f3459a43cf21a3236a13eca4dd874f7` and records exact source paths, sorted inventory, byte lengths, and SHA-256 checksums. Strict package tests reject a companion bin, `dist/init` content, missing runtime artifacts, or unexpected files.
+The npm package ships only the runtime adapter source and the reviewed command and task-agent artifacts under `vendor/`. `vendor/manifest.json` pins Beads `v1.1.2` at `20e493e569c922d1253bdeff068c5e56c94957fb` and records exact source paths, sorted inventory, byte lengths, and SHA-256 checksums. Strict package tests reject a companion bin, `dist/init` content, missing runtime artifacts, or unexpected files.
 
 Any future artifact added to this policy must have all of the following before implementation:
 
