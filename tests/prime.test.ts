@@ -12,6 +12,7 @@ function stream(content: string): ReadableStream<Uint8Array> {
 
 function completedProcess(exitCode: number, output = "context", error = "failure"): PrimeProcess {
   return {
+    pid: 1,
     stdout: stream(output),
     stderr: stream(exitCode === 0 ? "" : error),
     exited: Promise.resolve(exitCode),
@@ -55,7 +56,7 @@ describe("runBdPrime", () => {
     expect(genericFailure).toHaveBeenCalledWith("/project", []);
   });
 
-  test("kills and awaits a process after timeout", async () => {
+  test("bounds stream draining after timeout", async () => {
     let triggerTimeout: () => void = () => {};
     let resolveExit: (exitCode: number) => void = () => {};
     let closeStdout: () => void = () => {};
@@ -68,15 +69,19 @@ describe("runBdPrime", () => {
       },
     });
     const kill = mock((_signal?: NodeJS.Signals) => resolveExit(137));
+    const killTree = mock((_signal?: NodeJS.Signals) => resolveExit(137));
     const process: PrimeProcess = {
+      pid: 1,
       stdout,
       stderr: stream(""),
       exited: exit,
       kill,
+      killTree,
     };
 
     const result = runBdPrime("/project", {
       timeoutMs: 25,
+      drainTimeoutMs: 5,
       spawn: () => process,
       scheduleTimeout: (callback) => {
         triggerTimeout = callback;
@@ -94,10 +99,10 @@ describe("runBdPrime", () => {
     );
     triggerTimeout();
 
-    await Promise.resolve();
-    expect(settled).toBeFalse();
-    closeStdout();
     await expect(result).rejects.toBeInstanceOf(PrimeTimeoutError);
-    expect(kill).toHaveBeenCalledWith("SIGKILL");
+    expect(killTree).toHaveBeenCalledWith("SIGKILL");
+    expect(kill).not.toHaveBeenCalled();
+    expect(settled).toBeTrue();
+    closeStdout();
   });
 });
