@@ -137,7 +137,9 @@ export async function createBeadsController(
     if (previousTime !== undefined && currentTime - previousTime < diagnosticIntervalMs) return;
 
     diagnosticTimes.set(key, currentTime);
-    await runtime.diagnose(diagnostic).catch(() => undefined);
+    void Promise.resolve()
+      .then(() => runtime.diagnose(diagnostic))
+      .catch(() => undefined);
   }
 
   async function diagnoseSession(

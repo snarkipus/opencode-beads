@@ -6,7 +6,7 @@ import type {
   SessionMessagesData,
   SessionPromptData,
 } from "@opencode-ai/sdk";
-import { BeadsPlugin, createOpenCodeRuntime } from "../src/plugin";
+import { BeadsPlugin, createOpenCodeRuntime, OpenCodeTimeoutError } from "../src/plugin";
 
 type Responses = {
   messages?: unknown;
@@ -83,6 +83,7 @@ describe("OpenCode SDK runtime", () => {
     expect(fixture.messages).toHaveBeenCalledWith({
       path: { id: "input-session" },
       query: { directory: "/project", limit: undefined },
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -174,12 +175,17 @@ describe("OpenCode SDK runtime", () => {
     expect(fixture.messages).toHaveBeenCalledWith({
       path: { id: "session" },
       query: { directory: "/project", limit: 50 },
+      signal: expect.any(AbortSignal),
     });
-    expect(fixture.agents).toHaveBeenCalledWith({ query: { directory: "/project" } });
+    expect(fixture.agents).toHaveBeenCalledWith({
+      query: { directory: "/project" },
+      signal: expect.any(AbortSignal),
+    });
     expect(fixture.prompt).toHaveBeenCalledWith({
       path: { id: "session" },
       query: { directory: "/project" },
       body,
+      signal: expect.any(AbortSignal),
     });
     expect(fixture.log).toHaveBeenCalledWith({
       query: { directory: "/project" },
@@ -189,6 +195,7 @@ describe("OpenCode SDK runtime", () => {
         message: "prompt_failed",
         extra: { sessionID: "s" },
       },
+      signal: expect.any(AbortSignal),
     });
 
     await runtime.diagnose({
@@ -205,7 +212,45 @@ describe("OpenCode SDK runtime", () => {
         message: "config_collision",
         extra: { surface: "command", names: ["beads:ready", "beads:show"] },
       },
+      signal: expect.any(AbortSignal),
     });
+  });
+
+  test("aborts and bounds SDK reads, prompts, and diagnostics", async () => {
+    const fixture = createClient();
+    const pending = new Promise<never>(() => {});
+    fixture.messages.mockImplementation(() => pending);
+    fixture.agents.mockImplementation(() => pending);
+    fixture.prompt.mockImplementation(() => pending);
+    fixture.log.mockImplementation(() => pending);
+    const runtime = createOpenCodeRuntime(fixture.client, {
+      requestTimeoutMs: 5,
+      diagnosticTimeoutMs: 5,
+    });
+    const body = {
+      noReply: true as const,
+      parts: [{ type: "text" as const, text: "context", synthetic: true as const }],
+    };
+
+    await expect(runtime.getMessages("/project", "session")).rejects.toBeInstanceOf(
+      OpenCodeTimeoutError
+    );
+    await expect(runtime.getAgents("/project")).rejects.toBeInstanceOf(OpenCodeTimeoutError);
+    await expect(runtime.prompt("/project", "session", body)).rejects.toBeInstanceOf(
+      OpenCodeTimeoutError
+    );
+    await expect(
+      runtime.diagnose({ code: "prompt_failed", directory: "/project", sessionID: "session" })
+    ).rejects.toBeInstanceOf(OpenCodeTimeoutError);
+
+    for (const request of [
+      fixture.messages.mock.calls[0]?.[0],
+      fixture.agents.mock.calls[0]?.[0],
+      fixture.prompt.mock.calls[0]?.[0],
+      fixture.log.mock.calls[0]?.[0],
+    ]) {
+      expect((request as unknown as { signal: AbortSignal }).signal.aborted).toBeTrue();
+    }
   });
 
   test("rejects ordinary SDK error responses", async () => {

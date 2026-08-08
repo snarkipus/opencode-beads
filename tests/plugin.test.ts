@@ -488,6 +488,25 @@ describe("Beads plugin controller", () => {
     expect(fixture.initialContexts).toHaveLength(1);
   });
 
+  test("never lets diagnostics block message or compaction hooks", async () => {
+    const fixture = createRuntime([new Error("bd unavailable")]);
+    fixture.runtime.diagnose = mock(() => new Promise<void>(() => {}));
+    const controller = await createBeadsController(fixture.runtime, "/workspace/project");
+
+    const messageResult = await Promise.race([
+      controller.onMessage(message("non-blocking"), fixture.deliver).then(() => "complete"),
+      Bun.sleep(50).then(() => "blocked"),
+    ]);
+    fixture.getMessages.mockRejectedValueOnce(new Error("messages unavailable"));
+    const compactionResult = await Promise.race([
+      controller.onCompacted("non-blocking").then(() => "complete"),
+      Bun.sleep(50).then(() => "blocked"),
+    ]);
+
+    expect(messageResult).toBe("complete");
+    expect(compactionResult).toBe("complete");
+  });
+
   test("isolates concurrent sessions from different OpenCode projects", async () => {
     const first = createRuntime(["first project context"]);
     const second = createRuntime(["second project context"]);

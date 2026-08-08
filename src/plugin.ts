@@ -10,6 +10,44 @@ import {
 } from "./plugin-core";
 import { runBdPrime } from "./prime";
 
+export const DEFAULT_OPENCODE_REQUEST_TIMEOUT_MS = 5_000;
+export const DEFAULT_OPENCODE_DIAGNOSTIC_TIMEOUT_MS = 1_000;
+
+export class OpenCodeTimeoutError extends Error {
+  constructor(readonly operation: string, readonly timeoutMs: number) {
+    super(`OpenCode ${operation} timed out after ${timeoutMs}ms`);
+    this.name = "OpenCodeTimeoutError";
+  }
+}
+
+export interface OpenCodeRuntimeOptions {
+  requestTimeoutMs?: number;
+  diagnosticTimeoutMs?: number;
+}
+
+async function withDeadline<T>(
+  operation: string,
+  timeoutMs: number,
+  execute: (signal: AbortSignal) => Promise<T>
+): Promise<T> {
+  const controller = new AbortController();
+  let rejectTimeout: (error: OpenCodeTimeoutError) => void = () => {};
+  const timeout = new Promise<never>((_resolve, reject) => {
+    rejectTimeout = reject;
+  });
+  const timer = setTimeout(() => {
+    const error = new OpenCodeTimeoutError(operation, timeoutMs);
+    controller.abort(error);
+    rejectTimeout(error);
+  }, timeoutMs);
+
+  try {
+    return await Promise.race([execute(controller.signal), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -58,13 +96,23 @@ function isBeadsContextInjection(parts: ReadonlyArray<Part>): boolean {
 }
 
 /** Adapt the official OpenCode client to the controller's small deterministic boundary. */
-export function createOpenCodeRuntime(client: PluginInput["client"]): PluginRuntime {
+export function createOpenCodeRuntime(
+  client: PluginInput["client"],
+  options: OpenCodeRuntimeOptions = {}
+): PluginRuntime {
+  const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_OPENCODE_REQUEST_TIMEOUT_MS;
+  const diagnosticTimeoutMs =
+    options.diagnosticTimeoutMs ?? DEFAULT_OPENCODE_DIAGNOSTIC_TIMEOUT_MS;
+
   return {
     async getMessages(projectDirectory, sessionID, limit) {
-      const response = await client.session.messages({
-        path: { id: sessionID },
-        query: { directory: projectDirectory, limit },
-      });
+      const response = await withDeadline("session.messages", requestTimeoutMs, (signal) =>
+        client.session.messages({
+          path: { id: sessionID },
+          query: { directory: projectDirectory, limit },
+          signal,
+        })
+      );
       if (response.error !== undefined) throw response.error;
       if (!Array.isArray(response.data) || !response.data.every(isSessionMessage)) {
         throw new Error("OpenCode returned malformed session messages");
@@ -73,7 +121,9 @@ export function createOpenCodeRuntime(client: PluginInput["client"]): PluginRunt
     },
 
     async getAgents(projectDirectory) {
-      const response = await client.app.agents({ query: { directory: projectDirectory } });
+      const response = await withDeadline("app.agents", requestTimeoutMs, (signal) =>
+        client.app.agents({ query: { directory: projectDirectory }, signal })
+      );
       if (response.error !== undefined) throw response.error;
       if (!Array.isArray(response.data) || !response.data.every(isAgent)) {
         throw new Error("OpenCode returned malformed agents");
@@ -82,11 +132,14 @@ export function createOpenCodeRuntime(client: PluginInput["client"]): PluginRunt
     },
 
     async prompt(projectDirectory, sessionID, body) {
-      const response = await client.session.prompt({
-        path: { id: sessionID },
-        query: { directory: projectDirectory },
-        body,
-      });
+      const response = await withDeadline("session.prompt", requestTimeoutMs, (signal) =>
+        client.session.prompt({
+          path: { id: sessionID },
+          query: { directory: projectDirectory },
+          body,
+          signal,
+        })
+      );
       if (response.error !== undefined) throw response.error;
       if (response.data === undefined) throw new Error("OpenCode returned no prompt result");
     },
@@ -100,15 +153,18 @@ export function createOpenCodeRuntime(client: PluginInput["client"]): PluginRunt
         diagnostic.code === "config_collision"
           ? { surface: diagnostic.surface, names: diagnostic.names }
           : { sessionID: diagnostic.sessionID };
-      const response = await client.app.log({
-        query: { directory: diagnostic.directory },
-        body: {
-          service: "opencode-beads",
-          level: "warn",
-          message: diagnostic.code,
-          extra,
-        },
-      });
+      const response = await withDeadline("app.log", diagnosticTimeoutMs, (signal) =>
+        client.app.log({
+          query: { directory: diagnostic.directory },
+          body: {
+            service: "opencode-beads",
+            level: "warn",
+            message: diagnostic.code,
+            extra,
+          },
+          signal,
+        })
+      );
       if (response.error !== undefined) throw response.error;
       if (response.data === undefined) throw new Error("OpenCode returned no log result");
     },
