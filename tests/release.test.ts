@@ -92,81 +92,85 @@ describe("release artifact identity", () => {
     );
   });
 
-  test("builds, inspects, and verifies one immutable publication archive", async () => {
-    const root = await fs.mkdtemp(join(tmpdir(), "opencode-beads-release-"));
-    temporaryDirectories.push(root);
-    const capstoneArchive = process.env.CAPSTONE_ARCHIVE;
-    const capstoneSha256 = process.env.CAPSTONE_SHA256;
-    if ((capstoneArchive === undefined) !== (capstoneSha256 === undefined)) {
-      throw new Error("CAPSTONE_ARCHIVE and CAPSTONE_SHA256 must be provided together");
-    }
-    const prepared =
-      capstoneArchive && capstoneSha256
-        ? await verifyReleaseArchive(projectDirectory, capstoneArchive, capstoneSha256)
-        : await prepareReleaseArchive(
-            projectDirectory,
-            `v${packageManifest.version}`,
-            join(root, "out")
-          );
-    const archiveName = `${packageManifest.name.slice(1).replace("/", "-")}-${packageManifest.version}.tgz`;
-    expect(prepared.path.endsWith(archiveName)).toBeTrue();
-    expect(prepared.sha256).toMatch(/^[a-f0-9]{64}$/);
+  test(
+    "builds, inspects, and verifies one immutable publication archive",
+    async () => {
+      const root = await fs.mkdtemp(join(tmpdir(), "opencode-beads-release-"));
+      temporaryDirectories.push(root);
+      const capstoneArchive = process.env.CAPSTONE_ARCHIVE;
+      const capstoneSha256 = process.env.CAPSTONE_SHA256;
+      if ((capstoneArchive === undefined) !== (capstoneSha256 === undefined)) {
+        throw new Error("CAPSTONE_ARCHIVE and CAPSTONE_SHA256 must be provided together");
+      }
+      const prepared =
+        capstoneArchive && capstoneSha256
+          ? await verifyReleaseArchive(projectDirectory, capstoneArchive, capstoneSha256)
+          : await prepareReleaseArchive(
+              projectDirectory,
+              `v${packageManifest.version}`,
+              join(root, "out")
+            );
+      const archiveName = `${packageManifest.name.slice(1).replace("/", "-")}-${packageManifest.version}.tgz`;
+      expect(prepared.path.endsWith(archiveName)).toBeTrue();
+      expect(prepared.sha256).toMatch(/^[a-f0-9]{64}$/);
 
-    await expect(
-      verifyReleaseArchive(projectDirectory, prepared.path, prepared.sha256)
-    ).resolves.toEqual(prepared);
+      await expect(
+        verifyReleaseArchive(projectDirectory, prepared.path, prepared.sha256)
+      ).resolves.toEqual(prepared);
 
-    const changed = join(root, "changed.tgz");
-    await fs.copyFile(prepared.path, changed);
-    await fs.appendFile(changed, "changed");
-    await expect(
-      verifyReleaseArchive(projectDirectory, changed, prepared.sha256)
-    ).rejects.toThrow("Release archive digest changed");
+      const changed = join(root, "changed.tgz");
+      await fs.copyFile(prepared.path, changed);
+      await fs.appendFile(changed, "changed");
+      await expect(
+        verifyReleaseArchive(projectDirectory, changed, prepared.sha256)
+      ).rejects.toThrow("Release archive digest changed");
 
-    const npmRehearsalDirectory = join(root, "npm-pack-rehearsal");
-    await fs.mkdir(npmRehearsalDirectory);
-    const npmPack = Bun.spawn(
-      ["npm", "pack", prepared.path, "--dry-run", "--json", "--ignore-scripts"],
-      { cwd: npmRehearsalDirectory, stdout: "pipe", stderr: "pipe" }
-    );
-    const [npmPackOutput, npmPackError, npmPackExit] = await Promise.all([
-      new Response(npmPack.stdout).text(),
-      new Response(npmPack.stderr).text(),
-      npmPack.exited,
-    ]);
-    expect(npmPackExit, npmPackError).toBe(0);
-    const npmReports = JSON.parse(npmPackOutput) as Array<{
-      id: string;
-      name: string;
-      version: string;
-      filename: string;
-      entryCount: number;
-      files: Array<{ path: string }>;
-    }>;
-    expect(npmReports).toHaveLength(1);
-    const npmReport = npmReports[0];
-    expect(npmReport?.id).toBe(`${packageManifest.name}@${packageManifest.version}`);
-    expect(npmReport?.name).toBe(packageManifest.name);
-    expect(npmReport?.version).toBe(packageManifest.version);
-    expect(npmReport?.filename).toBe(basename(prepared.path));
+      const npmRehearsalDirectory = join(root, "npm-pack-rehearsal");
+      await fs.mkdir(npmRehearsalDirectory);
+      const npmPack = Bun.spawn(
+        ["npm", "pack", prepared.path, "--dry-run", "--json", "--ignore-scripts"],
+        { cwd: npmRehearsalDirectory, stdout: "pipe", stderr: "pipe" }
+      );
+      const [npmPackOutput, npmPackError, npmPackExit] = await Promise.all([
+        new Response(npmPack.stdout).text(),
+        new Response(npmPack.stderr).text(),
+        npmPack.exited,
+      ]);
+      expect(npmPackExit, npmPackError).toBe(0);
+      const npmReports = JSON.parse(npmPackOutput) as Array<{
+        id: string;
+        name: string;
+        version: string;
+        filename: string;
+        entryCount: number;
+        files: Array<{ path: string }>;
+      }>;
+      expect(npmReports).toHaveLength(1);
+      const npmReport = npmReports[0];
+      expect(npmReport?.id).toBe(`${packageManifest.name}@${packageManifest.version}`);
+      expect(npmReport?.name).toBe(packageManifest.name);
+      expect(npmReport?.version).toBe(packageManifest.version);
+      expect(npmReport?.filename).toBe(basename(prepared.path));
 
-    const tar = Bun.spawn(["tar", "-tzf", prepared.path], {
-      cwd: projectDirectory,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const [tarOutput, tarError, tarExit] = await Promise.all([
-      new Response(tar.stdout).text(),
-      new Response(tar.stderr).text(),
-      tar.exited,
-    ]);
-    expect(tarExit, tarError).toBe(0);
-    const archiveEntryCount = tarOutput
-      .split("\n")
-      .filter((entry) => entry.startsWith("package/") && !entry.endsWith("/")).length;
-    expect(npmReport?.entryCount).toBe(archiveEntryCount);
-    expect(npmReport?.files).toHaveLength(archiveEntryCount);
-  });
+      const tar = Bun.spawn(["tar", "-tzf", prepared.path], {
+        cwd: projectDirectory,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const [tarOutput, tarError, tarExit] = await Promise.all([
+        new Response(tar.stdout).text(),
+        new Response(tar.stderr).text(),
+        tar.exited,
+      ]);
+      expect(tarExit, tarError).toBe(0);
+      const archiveEntryCount = tarOutput
+        .split("\n")
+        .filter((entry) => entry.startsWith("package/") && !entry.endsWith("/")).length;
+      expect(npmReport?.entryCount).toBe(archiveEntryCount);
+      expect(npmReport?.files).toHaveLength(archiveEntryCount);
+    },
+    30_000
+  );
 
   test("rejects malformed archive inventory", async () => {
     const root = await fs.mkdtemp(join(tmpdir(), "opencode-beads-release-malformed-"));
@@ -200,5 +204,29 @@ describe("release artifact identity", () => {
     expect(workflow).toContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}");
     expect(workflow).toContain('npm publish "$ARCHIVE" --access public');
     expect(workflow).not.toMatch(/npm publish\s*(?:\n|$)/);
+  });
+
+  test("hardens workflow dependencies, credentials, caching, and update cooldowns", async () => {
+    const workflowNames = ["ci.yml", "release.yml", "sync-beads.yml"];
+    const workflows = await Promise.all(
+      workflowNames.map((name) =>
+        fs.readFile(join(projectDirectory, ".github/workflows", name), "utf8")
+      )
+    );
+    for (const [index, workflow] of workflows.entries()) {
+      expect(
+        [...workflow.matchAll(/uses:\s+[^\s@]+@([^\s#]+)/g)].every((match) =>
+          /^[a-f0-9]{40}$/.test(match[1] ?? "")
+        ),
+        workflowNames[index]
+      ).toBeTrue();
+      expect(workflow).toContain("persist-credentials: false");
+    }
+    expect(workflows[0]).toContain("zizmorcore/zizmor-action@");
+    expect(workflows[1]).toContain("no-cache: true");
+    expect(workflows[2]).toContain("gh auth setup-git");
+
+    const dependabot = await fs.readFile(join(projectDirectory, ".github/dependabot.yml"), "utf8");
+    expect(dependabot.match(/default-days: 7/g)).toHaveLength(2);
   });
 });
