@@ -18,9 +18,15 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.9.3]
+
 ### Changed
 
-- Synced vendored beads files to v1.2.1
+- Reframed the plugin around context-preserving atomic delegation: the primary OpenCode thread retains planning context and control while `beads-task-agent` processes exactly one Bead per invocation.
+- Rewrote the README around the current installation, ownership, context, task-agent, vendor, and compatibility contracts; retired the obsolete 0.8.0 migration walkthrough.
+- Clarified that the vendored upstream task-agent artifact supplies metadata, provenance, and compatibility validation while the runtime prompt is a fork-owned bounded OpenCode adaptation.
+- Documented fail-open context injection for unknown custom primary agents while known regular subagents remain excluded.
+- Synced vendored Beads files and provenance to v1.2.1.
 
 ## [0.9.2]
 
@@ -229,7 +235,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.9.2...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.9.3...HEAD
+[0.9.3]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.3
 [0.9.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.2
 [0.9.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.1
 [0.9.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.0

@@ -26,15 +26,14 @@ describe("documentation contracts", () => {
       ),
     ].map((match) => match[1]);
     expect(documentedVersions.length).toBeGreaterThan(0);
-    expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version, "0.8.0"]));
-    expect(readme.match(/bunx @snarkipus\/opencode-beads@0\.8\.0 remove/g)).toHaveLength(1);
+    expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version]));
   });
 
-  test("presents the 0.9.2 contract and credits the original project", () => {
-    expect(packageManifest.version).toBe("0.9.2");
+  test("presents the 0.9.3 contract and credits the original project", () => {
+    expect(packageManifest.version).toBe("0.9.3");
     expect(readme).not.toContain("This plugin is intentionally small in scope");
     expect(readme).not.toContain("limits its scope to bug fixes");
-    expect(readme).toContain("maintained fork");
+    expect(readme).toContain("maintained OpenCode adapter");
     expect(readme).not.toContain("managed companion skill lifecycle");
     expect(readme).toContain("https://github.com/joshuadavidthomas/opencode-beads");
     expect(readme).toContain("Josh Thomas");
@@ -46,28 +45,27 @@ describe("documentation contracts", () => {
     expect(changelog).toContain("## [0.9.0]");
     expect(changelog).toContain("## [0.9.1]");
     expect(changelog).toContain("## [0.9.2]");
+    expect(changelog).toContain("## [0.9.3]");
     expect(changelog).toContain(
       "[0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0"
     );
   });
 
-  test("documents canonical per-project initialization and the pinned upgrade path", () => {
+  test("documents canonical per-project initialization and current ownership boundaries", () => {
     for (const required of [
-      "Install the `bd` CLI once on the host",
+      "Install the [`bd` CLI]",
       "git init",
       "bd init",
-      "automatic Codex project integration creates the canonical shared skill",
+      "creates the canonical shared Beads skill",
       "`.agents/skills/beads`",
-      "bunx @snarkipus/opencode-beads@0.8.0 remove",
-      "Do not substitute 0.9.2 in the removal command",
-      "upstream currently has no skill-only setup command",
-      "copy only its canonical skill directory",
-      "This bounded migration copies only `.agents/skills/beads`",
+      "This plugin has no separate skill lifecycle",
+      "does not write startup files",
+      "Update the pin explicitly when upgrading",
     ]) {
       expect(readme).toContain(required);
     }
-    expect(readme).toContain("Do not run `bd setup codex` as a substitute");
-    expect(readme).toContain("it does not copy `.codex` artifacts or generated instruction files");
+    expect(readme).not.toContain("Upgrading from 0.8.0");
+    expect(readme).not.toContain("bunx @snarkipus/opencode-beads@0.8.0 remove");
     expect(artifactPolicy).toContain("not by `bd setup opencode`");
     expect(readme).not.toContain("/beads:setup");
     expect(artifactPolicy).toContain(
@@ -130,13 +128,28 @@ describe("documentation contracts", () => {
     expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
 
-  test("records the reviewed Beads v1.1.2 runtime provenance", () => {
-    expect(readme).toContain("Command and agent provenance is currently synced from Beads v1.1.2");
+  test("records the reviewed Beads v1.2.1 runtime provenance", () => {
+    expect(readme).toContain("Command and agent provenance is synced from Beads v1.2.1");
     expect(artifactPolicy).toContain("`v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`");
     expect(artifactPolicy).toContain(
       "`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`"
     );
-    expect(artifactPolicy).not.toContain("Currently packaged artifact baseline: Beads `v1.0.5`");
+    expect(artifactPolicy).toContain(
+      "Currently packaged artifact baseline: Beads `v1.2.1`, commit `634cbbc4bc580fa5124f63fdf65d137a46d5b4ff`"
+    );
+  });
+
+  test("documents context-preserving atomic delegation and runtime provenance", () => {
+    expect(readme).toContain("context-preserving atomic delegation");
+    expect(readme).not.toContain("Autonomous issue completion");
+    expect(readme).toContain("exactly one Bead per invocation");
+    expect(readme).toContain("primary OpenCode thread retains planning context, decisions, and control");
+    expect(readme).toContain("unknown custom primary agents");
+    expect(readme).toContain("Known regular subagents remain excluded");
+    expect(artifactPolicy).toContain("metadata, provenance, and compatibility validation");
+    expect(artifactPolicy).toContain("fork-owned bounded OpenCode adaptation");
+    expect(artifactPolicy).toContain("does not execute upstream's autonomous multi-task loop");
+    expect(artifactPolicy).toContain("fail open for context injection");
   });
 
   test("retains compact OpenCode-specific runtime policy", () => {
