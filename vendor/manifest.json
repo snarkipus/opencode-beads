@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "repository": "https://github.com/gastownhall/beads.git",
-  "tag": "v1.1.2",
-  "commit": "20e493e569c922d1253bdeff068c5e56c94957fb",
+  "tag": "v1.2.1",
+  "commit": "634cbbc4bc580fa5124f63fdf65d137a46d5b4ff",
   "sources": [
     {
       "source": "plugins/beads/agents/task-agent.md",
@@ -21,78 +21,78 @@
     },
     {
       "path": "commands/audit.md",
-      "bytes": 955,
-      "sha256": "8a7f942b3b94576f8503cba282c9144953991ab2a76926323ab6ee895d33b9c5"
+      "bytes": 956,
+      "sha256": "bf941ae72f3dfad0e5a0997c8afa1647d6ce17934692efa30e9fe4da98e39de8"
     },
     {
       "path": "commands/blocked.md",
       "bytes": 561,
-      "sha256": "14822b644bb93d9f038107aaccf1eb5112e3e0b1cb0b9c013cb6dffbfe570335"
+      "sha256": "30181c3645b5e233005facde694a3bb001c5935258745ae976abfe7b93eec346"
     },
     {
       "path": "commands/close.md",
-      "bytes": 583,
-      "sha256": "413946f6210b743398e1510a9806ac1c51c6d6e994d020e7e122062cc69ffd97"
+      "bytes": 585,
+      "sha256": "ef43e31c9f86082a6192ca131c175c55ee37dc115f4781413be11f1e85274b58"
     },
     {
       "path": "commands/comments.md",
-      "bytes": 965,
-      "sha256": "9680911b297bdf24cb943c5dd7f71812cd60e0f9ef52a57bf1832110e02d5efc"
+      "bytes": 967,
+      "sha256": "cad54141ee590be3b8d07878bb3ea34c252466bbb00a9b95d7d521303a8e3b83"
     },
     {
       "path": "commands/compact.md",
-      "bytes": 1081,
-      "sha256": "0fc6810f4e4da2d521d747c50c73e3a388bf16a94dc47ddf241a52826071d766"
+      "bytes": 1083,
+      "sha256": "5204417505320501e2c5a529da6c670826ef5b62feab708a33b7452dfd6a80c4"
     },
     {
       "path": "commands/create.md",
-      "bytes": 649,
-      "sha256": "f70104bd3792e5f005d0d7f2901c2b56da7f0136bf279f6d36e36d89b553bb93"
+      "bytes": 651,
+      "sha256": "1e27f3ff4f3ae041f6896b5181f0b0399ff80d52cd415dfd8cf6584a218736d3"
     },
     {
       "path": "commands/decision.md",
-      "bytes": 2662,
-      "sha256": "d62efc7e0d0bcd3a080e825b315acbf42c024d937382d8b8cf83b47016d4f908"
+      "bytes": 2670,
+      "sha256": "78c0de4a0979502cb553c2ad49df32cc1e6a7cb3eec25dc41f60290ad4fbbe36"
     },
     {
       "path": "commands/delete.md",
-      "bytes": 959,
-      "sha256": "90424c81aac3d2b12379820aa0b6f5e37a60a0da33474d28c66e0422b8361532"
+      "bytes": 961,
+      "sha256": "a6a5e943cccc75c27820548ec4a810894be646604b98821822968c7cb55552eb"
     },
     {
       "path": "commands/dep.md",
-      "bytes": 3408,
-      "sha256": "2679ab80bfade1f6d4769ecef2575b196592c919cc36912e9fa8f29ab2a7d9f5"
+      "bytes": 3410,
+      "sha256": "2d50ea5c65e0ce27bc076e77de5ea32de7086b34c6f49736e71517548cfe4b76"
     },
     {
       "path": "commands/epic.md",
-      "bytes": 858,
-      "sha256": "b31ffcfc2a423684f153042a0cb67b2d0472b63da594691b3c2656ed00cf2d6c"
+      "bytes": 1027,
+      "sha256": "174f54e3092e5a4b2f4c010e95418b13f1d910e185349ba0e131b04cf5783b8b"
     },
     {
       "path": "commands/export.md",
-      "bytes": 789,
-      "sha256": "dc021e36c11c3ad2724f3097c6f461221d77e5bd26296e6db65b8bd5f5190be0"
+      "bytes": 800,
+      "sha256": "5c8e9c9b4df71c804f489fa5785d607be971b7f62c836ad531f11e8b105ee47a"
     },
     {
       "path": "commands/import.md",
-      "bytes": 401,
-      "sha256": "4f2b270a3f55d5b48f615864c07408bec3b339cd9ccab581e1e3c7c6ecd27e0e"
+      "bytes": 4433,
+      "sha256": "604e48e6d093d9a93f28a3a5ed7dd7946b10e7a4897bec8a88eefc5b6c9c776e"
     },
     {
       "path": "commands/init.md",
-      "bytes": 751,
-      "sha256": "68413502bcb73f25cbf7505e3951967bffb8e125f6647e98018588558171abae"
+      "bytes": 753,
+      "sha256": "975759ee3d7ac6611fa54ae27c277a2995288a8fd089e6b46b791f73f3322177"
     },
     {
       "path": "commands/label.md",
-      "bytes": 896,
-      "sha256": "82b702f10b31caf1c538119a5ae70603c88a7534de33bec2662b67a039a45572"
+      "bytes": 898,
+      "sha256": "45f0422cce8764a19158a98e95b6b3c790e7a01b3438d9b5471ddb5f8c544129"
     },
     {
       "path": "commands/list.md",
-      "bytes": 2626,
-      "sha256": "a986fdc0400c5e637f9e2103775f6b0c0297e48f96b0d2d1f8ecd15f14b7c524"
+      "bytes": 2628,
+      "sha256": "990a0e6ef5af6a6ec596df32590750efd27fd231a44a0882d3f900dc71a4380f"
     },
     {
       "path": "commands/prime.md",
@@ -101,8 +101,8 @@
     },
     {
       "path": "commands/quickstart.md",
-      "bytes": 469,
-      "sha256": "ee1d55aad65e7f5d293a394517964719b1bff1e4d7c92ccf55e2125608473bee"
+      "bytes": 537,
+      "sha256": "de372b2dac3b1786ee383e8295bca781d6ce890db0daa09efa4d044325b80bbc"
     },
     {
       "path": "commands/ready.md",
@@ -111,28 +111,28 @@
     },
     {
       "path": "commands/rename-prefix.md",
-      "bytes": 599,
-      "sha256": "0315a4e4c8ddfd3ec6006f30f80de69c25d1cf3cab43d6bfa3d657b551437b60"
+      "bytes": 574,
+      "sha256": "2e6a457dfe58a855daecc0581433584073d7b52565a9bdb85131d1b4a3d920e8"
     },
     {
       "path": "commands/reopen.md",
-      "bytes": 593,
-      "sha256": "db2927072ffbc3dbde644a123f877e4cb9a46df87c1252ab1256f8fa1f75a41e"
+      "bytes": 595,
+      "sha256": "ea5535f0004d3137f05b6fc81cff1ecc670d918465b7d878eb6cb01d2427578c"
     },
     {
       "path": "commands/restore.md",
-      "bytes": 712,
-      "sha256": "8cda7ebcaa572572cf55e4f1a2b15e028a01f7c373842c941c7f6fabbcecb4d2"
+      "bytes": 714,
+      "sha256": "94928e7b5d8ca1da80571e56685020f31eba6ce8fd38100cba09f00a051e164e"
     },
     {
       "path": "commands/search.md",
-      "bytes": 3188,
-      "sha256": "5d07fd4bd26bd90a31f2d0c58b8e1245234f3a897c2d2fe326b5f372ea2a9ecd"
+      "bytes": 3190,
+      "sha256": "2295d2cf34f0d7c3a74fab86f73aa312435870c97aa71d8c965486a450310085"
     },
     {
       "path": "commands/show.md",
-      "bytes": 561,
-      "sha256": "e170d3d532954aeea5c20eb2b1ea96625f17069d2cd6f9ff81317c05c13dda80"
+      "bytes": 563,
+      "sha256": "51aa4b5a5bebeb9f1027f5a31a3de307dd8116052471f40272f0b2c980c720af"
     },
     {
       "path": "commands/stats.md",
@@ -141,8 +141,8 @@
     },
     {
       "path": "commands/sync.md",
-      "bytes": 493,
-      "sha256": "7ac9938d0e5ec0514edefc240971b4a0aade61cffca75efefac4011117d53ebb"
+      "bytes": 4964,
+      "sha256": "09d999165b93ea183e5828c94d45498503ed179211db5f68b3c32f372ade9ac7"
     },
     {
       "path": "commands/template.md",
@@ -151,8 +151,8 @@
     },
     {
       "path": "commands/update.md",
-      "bytes": 868,
-      "sha256": "ff12a4ac6a686a11e2a029aac7070829051662027a868794717b1d3fee255d66"
+      "bytes": 870,
+      "sha256": "34896bde7871805fb1941afd81a25ebc2ce1030090b8ce96afc63763bd2bd108"
     },
     {
       "path": "commands/version.md",
