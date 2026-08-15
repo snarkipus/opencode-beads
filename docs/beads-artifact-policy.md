@@ -4,12 +4,12 @@ Status: revised for the 0.9.0 contract by `opencode-beads-98l`; the 0.8.0 compan
 
 ## Evidence
 
-- Currently packaged artifact baseline: Beads `v1.2.1`, commit `634cbbc4bc580fa5124f63fdf65d137a46d5b4ff`, under `plugins/beads/`.
+- Currently packaged artifact baseline: Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`, under `plugins/beads/`. Its non-manifest vendor bytes match the tested v1.1.2 baseline at local repository commit `e51b8fe`.
 - OpenCode baseline: minimum plugin/SDK `1.18.3` and reviewed stable `1.18.15`, as recorded in [the SDK contract](opencode-sdk-contract.md).
 - OpenCode's [skill documentation](https://opencode.ai/docs/skills) limits automatic discovery to `skills/<name>/SKILL.md` under project or global `.opencode`, `.claude`, and `.agents` configuration trees. It does not scan npm package internals.
 - OpenCode's [plugin documentation](https://opencode.ai/docs/plugins) and reviewed plugin types expose native command, agent, tool, hook, and configuration integration, but no hook or configuration field for registering a package-local skill or resource tree.
-- The upstream [`SKILL.md`](https://github.com/gastownhall/beads/blob/v1.2.1/plugins/beads/skills/beads/SKILL.md) is declared for Claude Code and Codex, uses frontmatter fields OpenCode ignores, and directs agents to `bd prime` as the canonical current workflow source.
-- Upstream [ADR-0001](https://github.com/gastownhall/beads/blob/v1.2.1/plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md) makes full `bd prime` the canonical dynamic context source.
+- The upstream [`SKILL.md`](https://github.com/gastownhall/beads/blob/v1.2.2/plugins/beads/skills/beads/SKILL.md) is declared for Claude Code and Codex, uses frontmatter fields OpenCode ignores, and directs agents to `bd prime` as the canonical current workflow source.
+- Upstream [ADR-0001](https://github.com/gastownhall/beads/blob/v1.2.2/plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md) makes full `bd prime` the canonical dynamic context source.
 - The Beads `v1.0.5` and `v1.1.0` Claude Code plugin manifests both run full `bd prime` at `SessionStart` and `PreCompact`, while bundling the Beads skill and command templates as static discovery surfaces.
 - The Codex hook implementation expresses the target lifecycle: `SessionStart` injects full prime, `PreCompact` uses `--memories-only` only to check context availability, and `PostCompact` plus the next `UserPromptSubmit` refreshes full prime. The `v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`; `v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`. OpenCode follows the lifecycle behavior, not the broken older manifest path.
 
@@ -43,7 +43,9 @@ The full `bd` command surface remains CLI-only. OpenCode receives no generated t
 
 ## Provenance and package implications
 
-The npm package ships only the runtime adapter source and the reviewed command and task-agent artifacts under `vendor/`. `vendor/manifest.json` pins Beads `v1.2.1` at `634cbbc4bc580fa5124f63fdf65d137a46d5b4ff` and records exact source paths, sorted inventory, byte lengths, and SHA-256 checksums. Strict package tests reject a companion bin, `dist/init` content, missing runtime artifacts, or unexpected files.
+The npm package ships only the runtime adapter source and the reviewed command and task-agent artifacts under `vendor/`. `vendor/manifest.json` pins Beads `v1.2.2` at `6c124203e771433a3550c348771a5b5e27fd3c21` and records exact source paths, sorted inventory, byte lengths, and SHA-256 checksums. Strict package tests reject a companion bin, `dist/init` content, missing runtime artifacts, or unexpected files.
+
+The 0.9.3 package contained withdrawn upstream v1.2.1 command guidance. This adapter did not bundle the `bd` binary or implement database migrations, but its context injection could invoke a consumer-installed v1.2.1 binary through `bd prime`. Even one v1.2.1 execution could migrate the database from schema v53 to v65. Users must upgrade the plugin package to 0.9.4; if v1.2.1 was installed and may have run, they must additionally follow [upstream v1.2.2 database recovery guidance](https://github.com/gastownhall/beads/blob/v1.2.2/docs/RECOVERY-1.2.1.md). This repository does not perform database recovery.
 
 Any future artifact added to this policy must have all of the following before implementation:
 

@@ -29,8 +29,8 @@ describe("documentation contracts", () => {
     expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version]));
   });
 
-  test("presents the 0.9.3 contract and credits the original project", () => {
-    expect(packageManifest.version).toBe("0.9.3");
+  test("presents the 0.9.4 contract and credits the original project", () => {
+    expect(packageManifest.version).toBe("0.9.4");
     expect(readme).not.toContain("This plugin is intentionally small in scope");
     expect(readme).not.toContain("limits its scope to bug fixes");
     expect(readme).toContain("maintained OpenCode adapter");
@@ -46,6 +46,7 @@ describe("documentation contracts", () => {
     expect(changelog).toContain("## [0.9.1]");
     expect(changelog).toContain("## [0.9.2]");
     expect(changelog).toContain("## [0.9.3]");
+    expect(changelog).toContain("## [0.9.4]");
     expect(changelog).toContain(
       "[0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0"
     );
@@ -128,15 +129,33 @@ describe("documentation contracts", () => {
     expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
 
-  test("records the reviewed Beads v1.2.1 runtime provenance", () => {
-    expect(readme).toContain("Command and agent provenance is synced from Beads v1.2.1");
+  test("records the reviewed Beads v1.2.2 recovery provenance", () => {
+    expect(readme).toContain("Command and agent provenance is synced from Beads v1.2.2");
+    expect(readme).toContain("6c124203e771433a3550c348771a5b5e27fd3c21");
     expect(artifactPolicy).toContain("`v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`");
     expect(artifactPolicy).toContain(
       "`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`"
     );
     expect(artifactPolicy).toContain(
-      "Currently packaged artifact baseline: Beads `v1.2.1`, commit `634cbbc4bc580fa5124f63fdf65d137a46d5b4ff`"
+      "Currently packaged artifact baseline: Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`"
     );
+  });
+
+  test("documents the withdrawn-guidance recovery boundary", () => {
+    const recoveryGuide =
+      "https://github.com/gastownhall/beads/blob/v1.2.2/docs/RECOVERY-1.2.1.md";
+    for (const document of [readme, changelog, artifactPolicy]) {
+      expect(document).toContain("did not bundle");
+      expect(document).toContain("implement database migrations");
+      expect(document).toContain("consumer-installed");
+      expect(document).toContain("`bd prime`");
+      expect(document).toMatch(/even one v1\.2\.1 execution could migrate the database/i);
+      expect(document).toContain("v1.2.1");
+      expect(document).toContain(recoveryGuide);
+    }
+    expect(readme).toContain("if v1.2.1 was installed and may have run");
+    expect(artifactPolicy).toContain("upstream v1.2.2 database recovery guidance");
+    expect(artifactPolicy).toContain("local repository commit `e51b8fe`");
   });
 
   test("documents context-preserving atomic delegation and runtime provenance", () => {
