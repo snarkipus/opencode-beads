@@ -18,9 +18,15 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.9.4]
+
 ### Changed
 
-- Synced vendored beads files to v1.2.2
+- Restored command and task-agent guidance to the tested upstream artifact baseline through Beads v1.2.2 (`6c124203e771433a3550c348771a5b5e27fd3c21`).
+
+### Fixed
+
+- Replaced the withdrawn Beads v1.2.1 command guidance shipped in 0.9.3. The plugin did not bundle `bd` or implement database migrations, but it could invoke a consumer-installed binary through `bd prime`; because even one v1.2.1 execution could migrate the database, affected users must also follow [upstream recovery guidance](https://github.com/gastownhall/beads/blob/v1.2.2/docs/RECOVERY-1.2.1.md).
 
 ## [0.9.3]
 
@@ -239,7 +245,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.9.3...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.9.4...HEAD
+[0.9.4]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.4
 [0.9.3]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.3
 [0.9.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.2
 [0.9.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.1

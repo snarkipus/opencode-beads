@@ -30,11 +30,15 @@ Add the version-pinned plugin to `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "plugin": ["@snarkipus/opencode-beads@0.9.3"]
+  "plugin": ["@snarkipus/opencode-beads@0.9.4"]
 }
 ```
 
 Restart OpenCode. Update the pin explicitly when upgrading; an unpinned package entry is less reproducible.
+
+### 0.9.3 recovery notice
+
+Version 0.9.3 contained command guidance from the withdrawn upstream Beads v1.2.1 release. This plugin did not bundle the `bd` binary or implement database migrations, but it could invoke a consumer-installed v1.2.1 binary through `bd prime`. Even one v1.2.1 execution could migrate the database. Upgrade the plugin package to 0.9.4; if v1.2.1 was installed and may have run, also follow the [upstream database recovery guidance](https://github.com/gastownhall/beads/blob/v1.2.2/docs/RECOVERY-1.2.1.md).
 
 ## Context injection
 
@@ -67,10 +71,10 @@ Do not edit vendored files directly. Sync and package validation reject provenan
 | Component | Expected range | Validated baseline |
 | --- | --- | --- |
 | OpenCode | 1.18.3 through 1.x | 1.18.15 |
-| `bd` CLI | 1.0.5 through 1.x | 1.1.2 |
+| `bd` CLI | 1.0.5 through 1.x | 1.2.2 |
 | Bun | >=1.3.14 | 1.3.14 |
 
-The adapter builds against paired `@opencode-ai/plugin` and `@opencode-ai/sdk` 1.18.15 releases and declares compatible optional peers from 1.18.3 through stable 1.x. Command and agent provenance is synced from Beads v1.2.1.
+The adapter builds against paired `@opencode-ai/plugin` and `@opencode-ai/sdk` 1.18.15 releases and declares compatible optional peers from 1.18.3 through stable 1.x. Command and agent provenance is synced from Beads v1.2.2 at commit `6c124203e771433a3550c348771a5b5e27fd3c21`.
 
 ## Troubleshooting
 
