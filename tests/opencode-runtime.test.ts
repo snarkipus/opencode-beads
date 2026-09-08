@@ -198,6 +198,34 @@ describe("OpenCode SDK runtime", () => {
     expect(fixture.messages).toHaveBeenCalledTimes(1);
   });
 
+  test("carries Luna startup and compaction context through the official hooks", async () => {
+    const agent = "beads-task-agent-luna";
+    const model = { providerID: "openai", modelID: "gpt-5.6-luna" };
+    const fixture = createClient({
+      messages: { data: [{ info: { role: "user", agent, model }, parts: [] }] },
+      agents: { data: [{ name: agent, mode: "subagent" }] },
+    });
+    const prime = mock(async () => "Luna workflow context");
+    const hooks = await createBeadsHooks(createOpenCodeRuntime(fixture.client, { prime }), "/project");
+    const config = { agent: { [agent]: {} } };
+    await hooks.config?.(config);
+    expect(config.agent[agent]).toMatchObject({ model: "openai/gpt-5.6-luna", variant: "max" });
+    const output = { message: { sessionID: "luna", system: "existing system" }, parts: [] };
+    await hooks["chat.message"]?.({ sessionID: "luna", agent, model }, output as never);
+    expect(output.message.system).toContain('existing system\n\n<beads-context audience="task-agent">');
+    expect(output.message.system).toContain("Luna workflow context");
+    expect(output.message.system).not.toContain("Delegate multi-command");
+    await hooks.event?.({ event: { type: "session.compacted", properties: { sessionID: "luna" } } } as never);
+    const body = fixture.prompt.mock.calls[0]?.[0].body;
+    expect(body).toMatchObject({ agent, model, noReply: true });
+    expect(body?.parts?.[0]).toMatchObject({
+      type: "text", synthetic: true,
+      text: expect.stringContaining('<beads-context audience="task-agent">\nLuna workflow context'),
+    });
+    expect(prime).toHaveBeenCalledTimes(2);
+    expect(fixture.agents).not.toHaveBeenCalled();
+  });
+
   test("retires controller state on the official session.deleted event", async () => {
     const fixture = createClient({
       messages: {

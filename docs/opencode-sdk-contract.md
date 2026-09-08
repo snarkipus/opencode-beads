@@ -28,6 +28,16 @@ Reviewed on 2026-08-08 for the narrow OpenCode boundary used by this package.
 | `config` | The official hook mutates `Config` in place. Beads commands and the task agent are merged into `command` and `agent`, with explicit user definitions taking precedence. Vendor command metadata preserves `description`, `agent`, `model`, and `subtask`; supported task-agent metadata maps directly to `AgentConfig`. |
 | Shell | The plugin does not use `PluginInput.$`: bounded process lifecycle control uses `Bun.spawn(["bd", "prime"], { cwd: projectDirectory, ... })`. Full prime is the canonical live workflow source, matching upstream Claude Code and Codex startup behavior. The one attempt retains timeout and cleanup guarantees; there is no implicit process cwd. |
 
+## Luna profile qualification
+
+The opt-in profile uses the existing `config.agent["beads-task-agent-luna"]` entry; no plugin option transport is required. The installed plugin 1.18.15 API also supports optional plugin options, but a separate flag would duplicate the native agent configuration seam. An empty named entry opts in; omission leaves Luna unregistered. Explicit fields merge over each profile's defaults independently, preserving the shared bounded prompt for partial overrides. Commands retain whole-definition replacement.
+
+The v1 SDK's `AgentConfig` accepts extension fields through an index signature; installed `@opencode-ai/sdk/v2` 1.18.15 explicitly declares `variant?: string`. The Luna definition is checked with that type without changing the runtime's v1 client or request shapes. Its routing defaults are `model: "openai/gpt-5.6-luna"`, `variant: "max"`; vanilla keeps both unset.
+
+Local OpenCode 1.18.29 qualification loaded the actual source plugin via a file URL in disposable project configuration with an isolated HOME. `opencode debug agent` confirmed the Luna model and variant, identical resolved prompt/permissions/tools across both profiles, and unset vanilla model/variant. Independent omitted-entry and `disable: true` cases reported Luna not found. Controller and official-hook tests cover both startup and compaction injection. Earlier disposable native-task routing verified Luna Max under an Astra Low parent before and after delegation; live provider generation and forced compaction were not repeated with this plugin integration fixture.
+
+OpenCode merges ancestor/global configuration: omitting a local entry does not remove an inherited opt-in. Use `disable: true` to suppress one, or remove the entry at its source and restart. Provider/model availability is external to this plugin.
+
 ## Compatibility decisions
 
 The supported OpenCode line begins at `1.18.3`, with the concrete contract checked against that minimum and current stable `1.18.15`. Both expose the nested v1 request shape used here, the hook and session lifecycle events consumed here, directory query parameters, abort signals, and field-style SDK results. No compatibility fallback is needed.

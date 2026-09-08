@@ -18,6 +18,20 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.10.0]
+
+### Added
+
+- Opt-in `beads-task-agent-luna` profile using `openai/gpt-5.6-luna` at `max`, enabled by an entry in OpenCode agent configuration. It shares the bounded one-Bead workflow and receives startup and post-compaction context without changing the parent session or default agent routing.
+
+### Fixed
+
+- Merge task-agent overrides field-by-field over shared defaults so partial configuration retains the prompt and subagent mode. Explicit fields still win; nested permissions and tools are replaced rather than deep-merged.
+
+### Validation
+
+- Verified native Luna Max delegation under an unchanged Astra Low parent on OpenCode 1.18.29, actual plugin agent loading, and automated startup/compaction hooks. Combined live provider generation and forced compaction with the plugin were not repeated.
+
 ## [0.9.4]
 
 ### Changed
@@ -245,7 +259,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.9.4...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.10.0
 [0.9.4]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.4
 [0.9.3]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.3
 [0.9.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.2
