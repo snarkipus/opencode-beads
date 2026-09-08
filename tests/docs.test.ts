@@ -29,8 +29,8 @@ describe("documentation contracts", () => {
     expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version]));
   });
 
-  test("presents the 0.9.4 contract and credits the original project", () => {
-    expect(packageManifest.version).toBe("0.9.4");
+  test("presents the 0.10.0 contract and credits the original project", () => {
+    expect(packageManifest.version).toBe("0.10.0");
     expect(readme).not.toContain("This plugin is intentionally small in scope");
     expect(readme).not.toContain("limits its scope to bug fixes");
     expect(readme).toContain("maintained OpenCode adapter");

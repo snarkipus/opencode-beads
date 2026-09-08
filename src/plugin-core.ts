@@ -1,4 +1,5 @@
 import type { Hooks } from "@opencode-ai/plugin";
+import type { AgentConfig as AgentConfigV2 } from "@opencode-ai/sdk/v2";
 import type {
   Agent,
   SessionMessagesResponse,
@@ -11,6 +12,12 @@ import { PrimeTimeoutError } from "./prime";
 import { beadsGuidance, loadAgent, loadCommands } from "./vendor";
 
 const BEADS_TASK_AGENT = "beads-task-agent";
+const BEADS_TASK_AGENT_LUNA = "beads-task-agent-luna";
+
+/** Both named profiles use the same bounded task-agent context. */
+function isBeadsTaskAgent(name: string | undefined): boolean {
+  return name === BEADS_TASK_AGENT || name === BEADS_TASK_AGENT_LUNA;
+}
 
 type ChatMessageInput = Parameters<NonNullable<Hooks["chat.message"]>>[0];
 type SessionMessageResponse = SessionMessagesResponse[number];
@@ -99,7 +106,7 @@ function beadsContextAudience(text: string): InjectionAudience | undefined {
 }
 
 function injectionAudience(agentName: string | undefined): InjectionAudience {
-  return agentName === BEADS_TASK_AGENT ? "task-agent" : "primary";
+  return isBeadsTaskAgent(agentName) ? "task-agent" : "primary";
 }
 
 /** Resolve OpenCode project scope without falling back to the process directory. */
@@ -160,7 +167,7 @@ export async function createBeadsController(
     agentName: string | undefined,
     sessionID: string
   ): Promise<boolean> {
-    if (!agentName || agentName === BEADS_TASK_AGENT) return true;
+    if (!agentName || isBeadsTaskAgent(agentName)) return true;
 
     const availableAgents = await runtime.getAgents(directory).catch(async () => {
       await diagnoseSession("agents_lookup_failed", sessionID);
@@ -315,16 +322,29 @@ export async function createBeadsController(
     },
 
     async configure(config) {
+      // A named config entry opts in without another plugin option or config file.
+      const configuredAgents = { ...agents };
+      if (Object.hasOwn(config.agent ?? {}, BEADS_TASK_AGENT_LUNA)) {
+        configuredAgents[BEADS_TASK_AGENT_LUNA] = {
+          ...agents[BEADS_TASK_AGENT],
+          model: "openai/gpt-5.6-luna",
+          variant: "max",
+        } satisfies AgentConfigV2;
+      }
       const commandCollisions = Object.keys(config.command ?? {})
         .filter(
           (name) =>
             Object.hasOwn(commands, name) && config.command?.[name] !== commands[name]
         )
         .sort();
-      const agentCollisions = Object.keys(config.agent ?? {})
-        .filter(
-          (name) => Object.hasOwn(agents, name) && config.agent?.[name] !== agents[name]
+      const agentCollisions = Object.entries(configuredAgents)
+        .filter(([name, defaults]) =>
+          defaults !== undefined &&
+          Object.entries(config.agent?.[name] ?? {}).some(
+            ([key, value]) => value !== defaults[key]
+          )
         )
+        .map(([name]) => name)
         .sort();
 
       await Promise.all(
@@ -341,7 +361,11 @@ export async function createBeadsController(
       );
 
       config.command = { ...commands, ...config.command };
-      config.agent = { ...agents, ...config.agent };
+      const mergedAgents = { ...config.agent };
+      for (const [name, defaults] of Object.entries(configuredAgents)) {
+        mergedAgents[name] = { ...defaults, ...config.agent?.[name] };
+      }
+      config.agent = mergedAgents;
     },
   };
 }

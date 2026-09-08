@@ -20,6 +20,7 @@ function createRuntime(primeResults: PrimeFixtureResult[] = ["context"]) {
     { name: "build", mode: "primary" },
     { name: "explore", mode: "subagent" },
     { name: "beads-task-agent", mode: "subagent" },
+    { name: "beads-task-agent-luna", mode: "subagent" },
   ];
   const promptCalls: Array<{ sessionID: string; body: PromptBody }> = [];
   const initialContexts: string[] = [];
@@ -252,7 +253,7 @@ describe("Beads plugin controller", () => {
   });
 
   test("injects full prime at startup and after compaction for eligible agents", async () => {
-    for (const agent of ["build", "beads-task-agent"]) {
+    for (const agent of ["build", "beads-task-agent", "beads-task-agent-luna"]) {
       const project = `/workspace/${agent}`;
       const sessionID = `${agent}-lifecycle`;
       const fixture = createRuntime([`${agent} startup`, `${agent} compacted`]);
@@ -278,6 +279,15 @@ describe("Beads plugin controller", () => {
       expect(fixture.promptCalls[0]?.body.parts[0]?.text, agent).toContain(
         `${agent} compacted`
       );
+      const audience = agent === "build" ? "primary" : "task-agent";
+      expect(fixture.initialContexts[0]).toContain(`audience="${audience}"`);
+      expect(fixture.promptCalls[0]?.body.parts[0]?.text).toContain(`audience="${audience}"`);
+      expect(fixture.promptCalls[0]?.body.agent).toBe(agent);
+      expect(fixture.promptCalls[0]?.body.model).toEqual({ providerID: "provider", modelID: "model" });
+      if (audience === "task-agent") {
+        expect(fixture.initialContexts[0]).not.toContain("Delegate multi-command");
+        expect(fixture.promptCalls[0]?.body.parts[0]?.text).not.toContain("Delegate multi-command");
+      }
     }
 
     const excluded = createRuntime(["must not run"]);
@@ -615,6 +625,100 @@ describe("Beads plugin controller", () => {
     expect(second.promptDirectories).toEqual([]);
     expect(second.initialContexts[0]).toContain("second project context");
     expect(second.initialContexts[0]).not.toContain("first project context");
+  });
+
+  test("opts into Luna Max through a named agent entry without changing vanilla inheritance", async () => {
+    const fixture = createRuntime();
+    const controller = await createBeadsController(fixture.runtime, "/project");
+    const off: MutablePluginConfig = {};
+    await controller.configure(off);
+    expect(off.agent?.["beads-task-agent-luna"]).toBeUndefined();
+    const vanilla = off.agent?.["beads-task-agent"];
+    expect(vanilla?.model).toBeUndefined();
+    expect(vanilla?.variant).toBeUndefined();
+
+    const on: MutablePluginConfig = {
+      model: "openai/gpt-6-astra",
+      agent: { "beads-task-agent-luna": {} },
+    };
+    await controller.configure(on);
+    const luna = on.agent?.["beads-task-agent-luna"];
+    expect(luna).toEqual({ ...vanilla, model: "openai/gpt-5.6-luna", variant: "max" });
+    expect(luna?.prompt).toContain("process exactly one bead");
+    expect(luna?.permission).toEqual(vanilla?.permission);
+    expect(luna?.tools).toEqual(vanilla?.tools);
+    expect(on.agent?.["beads-task-agent"]).toEqual(vanilla);
+    expect(on.model).toBe("openai/gpt-6-astra");
+    await controller.configure(on);
+    expect(on.agent?.["beads-task-agent-luna"]).toEqual(luna);
+  });
+
+  test("merges partial task-agent overrides without losing the shared workflow", async () => {
+    const fixture = createRuntime();
+    const controller = await createBeadsController(fixture.runtime, "/project");
+    const config: MutablePluginConfig = {
+      agent: {
+        "beads-task-agent": {
+          model: "local/model", variant: "low", permission: { bash: "ask" },
+          tools: { task: false },
+        },
+        "beads-task-agent-luna": { description: "Luna worker", disable: true },
+        unrelated: { prompt: "leave alone" },
+      },
+    };
+    await controller.configure(config);
+    const vanilla = config.agent?.["beads-task-agent"];
+    const luna = config.agent?.["beads-task-agent-luna"];
+    expect(vanilla?.prompt).toContain("process exactly one bead");
+    expect(vanilla?.mode).toBe("subagent");
+    expect(vanilla?.model).toBe("local/model");
+    expect(vanilla?.variant).toBe("low");
+    expect(vanilla?.permission).toEqual({ bash: "ask" });
+    expect(vanilla?.tools).toEqual({ task: false });
+    expect(luna?.prompt).toBe(vanilla?.prompt);
+    expect(luna?.model).toBe("openai/gpt-5.6-luna");
+    expect(luna?.variant).toBe("max");
+    expect(luna?.description).toBe("Luna worker");
+    expect(luna?.disable).toBe(true);
+    expect(luna?.permission).toBeUndefined();
+    expect(luna?.tools).toBeUndefined();
+    expect(config.agent?.unrelated).toEqual({ prompt: "leave alone" });
+  });
+
+  test("keeps Luna routing and prompt overrides explicit and diagnoses both profiles", async () => {
+    const fixture = createRuntime();
+    const controller = await createBeadsController(fixture.runtime, "/project");
+    const config: MutablePluginConfig = {
+      agent: {
+        "beads-task-agent": { disable: true },
+        "beads-task-agent-luna": {
+          model: "local/custom",
+          variant: "low",
+          prompt: "explicit replacement",
+          permission: { bash: "deny" },
+          tools: { task: false },
+        },
+      },
+    };
+    await controller.configure(config);
+    expect(config.agent?.["beads-task-agent-luna"]).toMatchObject({
+      model: "local/custom", variant: "low", prompt: "explicit replacement",
+      permission: { bash: "deny" }, tools: { task: false }, mode: "subagent",
+    });
+    expect(config.agent?.["beads-task-agent"]?.disable).toBe(true);
+    expect(fixture.diagnosticCalls).toEqual([{
+      code: "config_collision", directory: "/project", surface: "agent",
+      names: ["beads-task-agent", "beads-task-agent-luna"],
+    }]);
+  });
+
+  test("does not warn on opt-in defaults or repeated default configuration", async () => {
+    const fixture = createRuntime();
+    const controller = await createBeadsController(fixture.runtime, "/project");
+    const config: MutablePluginConfig = { agent: { "beads-task-agent-luna": {} } };
+    await controller.configure(config);
+    await controller.configure(config);
+    expect(fixture.diagnosticCalls).toEqual([]);
   });
 
   test("preserves explicit command and agent definitions and diagnoses collisions", async () => {

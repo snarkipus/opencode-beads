@@ -202,6 +202,20 @@ try {
   ) {
     throw new Error("Packed task-agent prompt lacks the bounded workflow fallback");
   }
+  if (agents?.["beads-task-agent-luna"] !== undefined) {
+    throw new Error("Packed plugin enabled Luna without an opt-in");
+  }
+  const lunaConfig = { agent: { "beads-task-agent-luna": {} } };
+  await hooks.config(lunaConfig);
+  const luna = lunaConfig.agent["beads-task-agent-luna"] as {
+    model?: string; variant?: string; prompt?: string; mode?: string;
+  };
+  if (
+    luna.model !== "openai/gpt-5.6-luna" || luna.variant !== "max" ||
+    luna.prompt !== taskAgentPrompt || luna.mode !== "subagent"
+  ) {
+    throw new Error("Packed plugin did not load the shared Luna Max profile");
+  }
   const cli = path.join(consumerDir, "node_modules", ".bin", "opencode-beads");
   if (await fs.exists(cli)) throw new Error("Packed package unexpectedly installed a companion CLI");
 
