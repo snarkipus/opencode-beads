@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "repository": "https://github.com/gastownhall/beads.git",
-  "tag": "v1.3.0",
-  "commit": "f45b249ce6b40ba62aecc03949e6371e8f7c79d8",
+  "tag": "v1.3.1",
+  "commit": "c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c",
   "sources": [
     {
       "source": "plugins/beads/agents/task-agent.md",
