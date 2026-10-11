@@ -39,6 +39,7 @@ Until 1.0.0 a daily workflow synced the upstream task agent into `vendor/` with 
 - `scripts/bd-contract.ts` exercises a real `bd` in a disposable repository: version parsing and the supported minimum, `bd where --json`, the `.beads/.local_version` contract the guard relies on, and every command named by the task-agent prompt. It runs the plugin's own guard code.
 - CI runs the contract against `beads.validated` from `package.json`. The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release and fails when a release breaks the contract or has not been reviewed yet, replacing the sync PRs as the new-release signal. After reviewing a release's upgrade notes against the surfaces above, the maintainer updates `beads.validated` and the README compatibility table, and records any follow-up work in Beads.
 - The task-agent contract is tested directly against the fork-owned prompt and description.
+- The contract also guards this plugin's reason to exist. The plugin gives OpenCode the integration shape `bd setup claude` gives Claude Code, and assumes users run plain `bd init` (minimal `AGENTS.md` pointer) but never `bd setup opencode`. The check fails with a `REASSESS:` message if `bd init` starts writing OpenCode integration files, if `bd setup opencode` changes anything besides `AGENTS.md`, or if the `opencode` recipe stops being an `AGENTS.md` section. Any of these would mean upstream may now cover OpenCode natively, and the plugin's scope should be reviewed rather than patched.
 
 ## Skill ownership
 

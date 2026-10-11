@@ -68,6 +68,9 @@ describe("documentation contracts", () => {
       "This plugin has no separate skill lifecycle",
       "does not write startup files",
       "Update the pin explicitly when upgrading",
+      "**Do not run `bd setup opencode`.**",
+      "| `bd setup claude` (Claude Code) | This plugin (OpenCode 2) |",
+      "`bd setup opencode --remove`",
     ]) {
       expect(readme).toContain(required);
     }
@@ -136,6 +139,7 @@ describe("documentation contracts", () => {
     expect(readme).toContain("`bd` 1.3.0 or later");
     expect(readme).toContain("beads-contract");
     expect(artifactPolicy).toContain("scripts/bd-contract.ts");
+    expect(artifactPolicy).toContain("REASSESS:");
   });
 
   test("documents the schema migration guard and plugin options", () => {

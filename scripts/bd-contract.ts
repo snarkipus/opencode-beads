@@ -19,11 +19,12 @@ import { minimizeBeadsInstructions } from "../src/instructions";
 import { runBd } from "../src/prime";
 
 const failures: string[] = [];
-function check(condition: unknown, message: string): void {
+function check(condition: unknown, message: string, failureHint?: string): void {
   if (condition) console.log(`ok   ${message}`);
   else {
-    console.log(`FAIL ${message}`);
-    failures.push(message);
+    const detail = failureHint ? `${message}\n     ${failureHint}` : message;
+    console.log(`FAIL ${detail}`);
+    failures.push(detail);
   }
 }
 
@@ -49,6 +50,19 @@ function issueId(value: unknown): string | undefined {
   const record = Array.isArray(value) ? value[0] : value;
   const id = (record as { id?: unknown } | undefined)?.id;
   return typeof id === "string" ? id : undefined;
+}
+
+/** Hash every file outside .git and .beads, keyed by relative path. */
+async function snapshot(directory: string): Promise<Map<string, string>> {
+  const files = new Map<string, string>();
+  for (const entry of await fs.readdir(directory, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const full = path.join(entry.parentPath, entry.name);
+    const relative = path.relative(directory, full);
+    if (/^(\.git|\.beads)(\/|$)/.test(relative)) continue;
+    files.set(relative, new Bun.CryptoHasher("sha256").update(await fs.readFile(full)).digest("hex"));
+  }
+  return files;
 }
 
 async function git(cwd: string, ...args: string[]): Promise<void> {
@@ -135,15 +149,48 @@ try {
     );
   }
 
-  // The instruction blocks the plugin minimizes while prime is attached (Claude Code parity).
+  // Install shape: the plugin assumes plain `bd init` and never `bd setup opencode` (Claude Code parity).
   const setupRepo = path.join(root, "setup");
   await fs.mkdir(setupRepo);
   await git(setupRepo, "init", "-q");
   await git(setupRepo, "config", "user.email", "contract@example.invalid");
   await git(setupRepo, "config", "user.name", "bd contract");
   await attempt("bd init (default integrations)", () => bd(setupRepo, ["init", "-q"]));
+  const readAgents = () => fs.readFile(path.join(setupRepo, "AGENTS.md"), "utf8").catch(() => "");
+  const initAgents = await readAgents();
+  check(
+    /<!-- BEGIN BEADS INTEGRATION\b[^>]*\bprofile:minimal\b[^>]*-->/.test(initAgents),
+    "bd init writes the minimal AGENTS.md profile (a pointer to bd prime), the install premise"
+  );
+  const reassess =
+    "REASSESS: upstream may now integrate OpenCode natively; review whether this plugin is still needed (docs/beads-artifact-policy.md).";
+  const openCodeFiles = ["opencode.json", "opencode.jsonc", ".opencode"];
+  const initOpenCode = (
+    await Promise.all(openCodeFiles.map(async (file) => ((await fs.exists(path.join(setupRepo, file))) ? file : "")))
+  ).filter(Boolean);
+  check(initOpenCode.length === 0, `bd init writes no OpenCode integration files (${initOpenCode.join(", ") || "none"})`, reassess);
+
+  const before = await snapshot(setupRepo);
   await attempt("bd setup opencode", () => bd(setupRepo, ["setup", "opencode"]));
-  const agentsFile = await fs.readFile(path.join(setupRepo, "AGENTS.md"), "utf8").catch(() => "");
+  const after = await snapshot(setupRepo);
+  const changed = [...new Set([...before.keys(), ...after.keys()])]
+    .filter((file) => before.get(file) !== after.get(file))
+    .sort();
+  check(
+    changed.join(",") === "AGENTS.md",
+    `bd setup opencode only edits AGENTS.md (changed: ${changed.join(", ") || "nothing"})`,
+    reassess
+  );
+  const setupList = await attempt("bd setup --list", () => bd(setupRepo, ["setup", "--list"]));
+  const opencodeRecipe = setupList?.split("\n").find((line) => /^\s*opencode\b/.test(line)) ?? "";
+  check(
+    /AGENTS\.md/.test(opencodeRecipe),
+    `bd setup --list still describes the opencode recipe as an AGENTS.md section ("${opencodeRecipe.trim()}")`,
+    reassess
+  );
+
+  // The blocks the plugin minimizes while prime is attached, for projects where setup was run anyway.
+  const agentsFile = await readAgents();
   check(
     /<!-- BEGIN BEADS INTEGRATION\b[^>]*\bprofile:full\b[^>]*-->/.test(agentsFile) &&
       agentsFile.includes("<!-- END BEADS INTEGRATION -->"),
