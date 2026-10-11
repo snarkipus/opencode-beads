@@ -62,6 +62,7 @@ Plugin options use the object form:
 | Option | Default | Effect |
 | --- | --- | --- |
 | `luna` | `false` | Also register the `beads-task-agent-luna` profile. |
+| `taskAgentSteps` | `100` | Hard cap on task-agent steps per invocation, a backstop for "one bead, then return". `0` removes the cap. |
 | `refreshAfterIdleMinutes` | `30` | Re-run `bd prime` when a session resumes after this much inactivity, as Claude Code does on resume. `0` disables idle refresh. |
 | `autoMigrate` | `false` | Let automatic `bd prime` open a store that may need a schema migration. See [Schema migration guard](#schema-migration-guard). |
 
@@ -102,6 +103,13 @@ Entries under `agents` in OpenCode configuration override the plugin's task-agen
 `beads-task-agent` supports read-only status and graph analysis or one-Bead completion. Analysis requests never mutate Beads. Completion requests inspect and process one caller-selected or highest-priority ready Bead, quarantine work discovered during that invocation, validate before closure, and return after closing or blocking the selected Bead.
 
 Its prompt and description are fork-owned. Upstream Beads ships a task agent only for Claude Code, as an autonomous multi-task loop; this adapter deliberately keeps the bounded one-Bead contract instead, so it no longer vendors that artifact.
+
+OpenCode lets the plugin enforce parts of that contract, beyond what Claude Code's hooks can do:
+
+- **No automatic commit, push, or sync.** The task agents' permissions require approval (`ask`) for `git commit`, `git push`, `bd dolt push`, `bd dolt pull`, and `bd sync`, on top of OpenCode's defaults. Compound commands are checked per command. A non-interactive run rejects them. Set the agent's `permissions` in OpenCode configuration to replace these rules.
+- **Step cap.** `taskAgentSteps` (default 100) limits a worker invocation; on its final step OpenCode removes tools and asks for a summary.
+- **Context in the worker.** The worker runs in its own child session and receives `bd prime` there too; Claude Code's `SessionStart` hooks do not reach subagents.
+- **Beads state across compaction.** Compaction requests in sessions with Beads context ask the summarizer to keep bead IDs, claim and status changes, discovered follow-ups, blockers, and pending validation.
 
 ### Opt-in Luna Max profile
 

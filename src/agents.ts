@@ -8,6 +8,22 @@ export const BEADS_TASK_AGENTS: ReadonlySet<string> = new Set([
   BEADS_TASK_AGENT_LUNA,
 ]);
 
+/** Default hard cap on worker steps; a backstop for "one bead, then return", not a target. */
+export const DEFAULT_TASK_AGENT_STEPS = 100;
+
+/**
+ * Enforce the no-automatic-commit/push/sync policy with OpenCode permissions rather than prompt
+ * text alone. Appended after OpenCode's defaults, so these `ask` rules win; compound commands are
+ * checked per command, so `cd x && git push` is caught too.
+ */
+export const TASK_AGENT_PERMISSIONS = [
+  { action: "shell", resource: "git commit *", effect: "ask" },
+  { action: "shell", resource: "git push *", effect: "ask" },
+  { action: "shell", resource: "bd dolt push *", effect: "ask" },
+  { action: "shell", resource: "bd dolt pull *", effect: "ask" },
+  { action: "shell", resource: "bd sync *", effect: "ask" },
+] as const;
+
 /** Routing for the opt-in Luna profile, `provider/model#variant` in OpenCode terms. */
 export const LUNA_MODEL = { providerID: "openai", id: "gpt-6-luna", variant: "max" } as const;
 
@@ -15,11 +31,14 @@ export interface BeadsAgentDefinition {
   description: string;
   system: string;
   model?: typeof LUNA_MODEL;
+  steps?: number;
 }
 
 export interface BeadsAgentOptions {
   /** Register the Luna Max profile alongside the default task agent. */
   luna?: boolean;
+  /** Hard cap on worker steps; 0 removes the cap. */
+  steps?: number;
 }
 
 /** Build the task-agent definitions from plugin options. */
@@ -28,6 +47,8 @@ export function beadsAgents(options: BeadsAgentOptions = {}): Record<string, Bea
     description: BEADS_TASK_AGENT_DESCRIPTION,
     system: BEADS_TASK_AGENT_PROMPT,
   };
+  const steps = options.steps ?? DEFAULT_TASK_AGENT_STEPS;
+  if (Number.isInteger(steps) && steps > 0) base.steps = steps;
   const agents: Record<string, BeadsAgentDefinition> = { [BEADS_TASK_AGENT]: base };
   if (options.luna) agents[BEADS_TASK_AGENT_LUNA] = { ...base, model: LUNA_MODEL };
   return agents;
@@ -51,6 +72,11 @@ export function applyBeadsAgents(
       agent.system = definition.system;
       agent.mode = "subagent";
       if (definition.model) agent.model = { ...definition.model } as unknown as typeof agent.model;
+      if (definition.steps !== undefined) agent.steps = definition.steps;
+      agent.permissions = [
+        ...(agent.permissions ?? []),
+        ...TASK_AGENT_PERMISSIONS.map((rule) => ({ ...rule })),
+      ] as unknown as typeof agent.permissions;
     });
   }
 }

@@ -1,5 +1,6 @@
 import type { Plugin } from "@opencode/plugin";
 import { applyBeadsAgents, beadsAgents } from "./agents";
+import { BEADS_COMPACTION_GUIDANCE } from "./guidance";
 import {
   createContextController,
   type AgentMode,
@@ -71,7 +72,11 @@ export async function setupBeads(
     },
   };
 
-  const agents = beadsAgents({ luna: ctx.options?.luna === true });
+  const stepsOption = ctx.options?.taskAgentSteps;
+  const agents = beadsAgents({
+    luna: ctx.options?.luna === true,
+    steps: typeof stepsOption === "number" && Number.isInteger(stepsOption) && stepsOption >= 0 ? stepsOption : undefined,
+  });
   await ctx.agent.transform((editor) => applyBeadsAgents(editor, agents));
 
   const idleMinutes = ctx.options?.refreshAfterIdleMinutes;
@@ -84,12 +89,24 @@ export async function setupBeads(
         : undefined,
   });
 
+  // Sessions that have received Beads context; their compaction summaries should keep Beads state.
+  const beadsSessions = new Set<string>();
+
   await ctx.session.hook("context", async (event) => {
     const text = await controller.systemFor(event.sessionID, event.agent);
     if (!text) return;
-    // With prime attached, bd's full AGENTS.md sections only repeat it (Claude Code gets a pointer).
-    if (text.startsWith("<beads-context")) minimizeSystemParts(event.system);
+    if (text.startsWith("<beads-context")) {
+      beadsSessions.add(event.sessionID);
+      // With prime attached, bd's full AGENTS.md sections only repeat it (Claude Code gets a pointer).
+      minimizeSystemParts(event.system);
+    }
     event.system.push({ type: "text", text });
+  });
+
+  await ctx.session.hook("compaction", (event) => {
+    if (beadsSessions.has(event.sessionID)) {
+      event.system.push({ type: "text", text: BEADS_COMPACTION_GUIDANCE });
+    }
   });
 
   const abort = new AbortController();
@@ -102,6 +119,7 @@ export async function setupBeads(
         if (type === "session.compaction.ended") controller.invalidate(sessionID);
         else if (type === "session.deleted") {
           controller.forget(sessionID);
+          beadsSessions.delete(sessionID);
           for (const key of diagnosticTimes.keys()) {
             if (key.endsWith(`:${sessionID}`)) diagnosticTimes.delete(key);
           }
