@@ -18,6 +18,21 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [1.0.1]
+
+Documentation-only release; the plugin code is unchanged from 1.0.0. It updates the README shown on npm.
+
+### Changed
+
+- README rewritten for the 1.0.0 implementation: the intro presents the plugin as OpenCode's equivalent of `bd setup claude`, installation is numbered steps with an `opencode debug agents` check, and the 0.9.3 recovery notice moves to an Earlier releases section.
+- README badges for CI, release, npm, and zizmor.
+
+### Fixed
+
+- README said `bd init` writes the full-profile `AGENTS.md` section; it writes the minimal one, which the plugin leaves alone. Only `bd setup opencode` writes the full section.
+- README said `@beads` loads the Beads skill; OpenCode loads skills with its `skill` tool.
+- README now states that `bd setup opencode --remove` deletes the whole Beads section from `AGENTS.md`, and gives the project configuration path as `.opencode/opencode.json`.
+
 ## [1.0.0]
 
 ### Added
@@ -289,7 +304,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.1
 [1.0.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.0
 [0.10.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.10.0
 [0.9.4]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.4
