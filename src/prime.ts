@@ -156,7 +156,8 @@ export async function runBd(
 /** Load the canonical Beads workflow and persistent project memories. */
 export async function runBdPrime(
   directory: string,
-  options: PrimeExecutionOptions = {}
+  options: PrimeExecutionOptions = {},
+  flags: readonly string[] = []
 ): Promise<string> {
-  return runBd(directory, ["prime"], options);
+  return runBd(directory, ["prime", ...flags], options);
 }

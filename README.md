@@ -62,6 +62,7 @@ Plugin options use the object form:
 | Option | Default | Effect |
 | --- | --- | --- |
 | `luna` | `false` | Also register the `beads-task-agent-luna` profile. |
+| `stealth` | `false` | Run `bd prime --stealth` (no git operations in the session-close protocol), like `bd setup claude --stealth`. `bd config set no-git-ops true` is the project-level equivalent. |
 | `taskAgentSteps` | `100` | Hard cap on task-agent steps per invocation, a backstop for "one bead, then return". `0` removes the cap. |
 | `refreshAfterIdleMinutes` | `30` | Re-run `bd prime` when a session resumes after this much inactivity, as Claude Code does on resume. `0` disables idle refresh. |
 | `autoMigrate` | `false` | Let automatic `bd prime` open a store that may need a schema migration. See [Schema migration guard](#schema-migration-guard). |
@@ -80,7 +81,7 @@ While prime is attached, bd's full-profile `AGENTS.md` section and its Codex sec
 
 Known regular subagents remain excluded, including `explore` and `general`, while `beads-task-agent` and `beads-task-agent-luna` remain eligible. If agent lookup fails, context injection fails open to preserve compatibility with unknown custom primary agents.
 
-If `bd` is unavailable, the project is uninitialized, or prime fails or returns no content, injection is skipped and retried after 30 seconds. Failures are logged as `[opencode-beads]` warnings. The task agent retains a bounded standalone quick reference for `ready`, `show`, atomic claim, discovered follow-up, validate before closure, and close.
+If `bd` is unavailable or the project is uninitialized, nothing is added. If `bd prime` fails or times out, the agent gets a short `<beads-notice>` saying context is unavailable and to run `bd prime`, as Beads' Codex hooks report refresh failures. Either way the plugin retries after 30 seconds, and failures are also logged as `[opencode-beads]` warnings. The task agent retains a bounded standalone quick reference for `ready`, `show`, atomic claim, discovered follow-up, validate before closure, and close.
 
 ## Schema migration guard
 
@@ -138,6 +139,7 @@ The adapter type-checks against `@opencode/plugin` 2.0.26 and declares it as an 
 ## Troubleshooting
 
 - **No Beads context:** Run `bd prime`. Install `bd` if missing or run `bd init` if the project has no Beads workspace.
+- **Agent reports that `bd prime` failed or timed out:** Run `bd prime` in the project to see the error; the plugin retries every 30 seconds.
 - **Agent reports a Beads notice instead of context:** The schema migration guard withheld prime. Back up `.beads`, run `bd migrate schema`, and continue; or upgrade `bd` if the notice says it is older than 1.3.0.
 - **Canonical skill missing:** For a new workspace, run `bd init`. For an existing workspace, follow current upstream Beads guidance; this plugin does not install or repair skills.
 - **Unexpected definition:** Check OpenCode configuration for a colliding `beads-task-agent` definition. Explicit configuration wins.

@@ -1,7 +1,7 @@
 import { BEADS_TASK_AGENTS } from "./agents";
 import { guardNotice, type GuardResult } from "./guard";
 import { PrimeTimeoutError } from "./prime";
-import { beadsGuidance } from "./guidance";
+import { beadsGuidance, primeFailureNotice } from "./guidance";
 
 /** Retry window for withheld or failed context, so model steps do not respawn `bd` each time. */
 export const DEFAULT_CONTEXT_RETRY_MS = 30_000;
@@ -107,11 +107,9 @@ export function createContextController(
     try {
       output = (await runtime.prime(directory)).trim();
     } catch (error) {
-      runtime.diagnose?.(
-        error instanceof PrimeTimeoutError ? "prime_timeout" : "prime_failed",
-        sessionID
-      );
-      return retryLater(undefined);
+      const timedOut = error instanceof PrimeTimeoutError;
+      runtime.diagnose?.(timedOut ? "prime_timeout" : "prime_failed", sessionID);
+      return retryLater(primeFailureNotice(timedOut ? "timed out" : "failed"));
     }
     if (!output) return retryLater(undefined);
     return renderBeadsContext(output, audience);

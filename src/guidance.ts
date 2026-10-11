@@ -31,6 +31,13 @@ For completion, process exactly one bead. Use a caller-supplied ID; otherwise ch
 
 Implement and validate it. Create discoveries with \`discovered-from:<current-id>\` and a parent only when structurally obvious. Never claim or implement work created this invocation; it may be eligible later. Close or block the current bead, report discoveries, and return without seeking more work. Return concise results, not raw JSON.`;
 
+/** Shown instead of context when `bd prime` fails, as upstream's Codex hook reports refresh failures. */
+export function primeFailureNotice(reason: "failed" | "timed out"): string {
+  return `<beads-notice>
+Beads workflow context could not be loaded: \`bd prime\` ${reason}. Beads may still work; run \`bd prime\` to load the workflow and see the error, and tell the user if it keeps failing.
+</beads-notice>`;
+}
+
 /** Added to compaction requests so the summary keeps the Beads work in flight. */
 export const BEADS_COMPACTION_GUIDANCE = `<beads-compaction>
 This session tracks work in Beads (bd). In the summary, preserve every bead ID mentioned, which bead is claimed or in progress and its current status, discovered follow-up beads and how they were linked, blockers, and validation still pending. Fresh \`bd prime\` context is attached again after compaction, so do not restate the Beads workflow itself.

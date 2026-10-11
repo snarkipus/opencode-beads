@@ -6,7 +6,7 @@ import * as pluginModule from "../src/plugin";
 import { renderBeadsContext } from "../src/context";
 import { setupBeads, type HostContext } from "../src/host";
 import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
-import { BEADS_COMPACTION_GUIDANCE } from "../src/guidance";
+import { BEADS_COMPACTION_GUIDANCE, primeFailureNotice } from "../src/guidance";
 
 type ContextEvent = { sessionID: string; agent: string; system: Array<{ type: "text"; text: string }> };
 
@@ -213,6 +213,21 @@ describe("setupBeads", () => {
     cleanup();
   });
 
+  test("runs bd prime with --stealth only when the stealth option is set", async () => {
+    for (const [options, flags] of [
+      [{}, []],
+      [{ stealth: true }, ["--stealth"]],
+      [{ stealth: "yes" }, []],
+    ] as const) {
+      const runPrime = mock(async (_cwd: string, _flags: readonly string[]) => "PRIME");
+      const f = fakeContext({ pluginOptions: options });
+      const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }) }, runPrime });
+      await f.request("s1", "build");
+      expect(runPrime).toHaveBeenCalledWith("/project", flags);
+      cleanup();
+    }
+  });
+
   test("caps worker steps from taskAgentSteps, and 0 removes the cap", async () => {
     const ready = { runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" } };
     const capped = fakeContext({ pluginOptions: { taskAgentSteps: 25, luna: true } });
@@ -323,9 +338,10 @@ describe("setupBeads", () => {
       diagnosticIntervalMs: 1_000,
     });
 
-    expect(await f.request("s1", "build")).toEqual([]);
+    const notice = [primeFailureNotice("failed")];
+    expect(await f.request("s1", "build")).toEqual(notice);
     time = 1;
-    expect(await f.request("s1", "build")).toEqual([]);
+    expect(await f.request("s1", "build")).toEqual(notice);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toContain("prime_failed");
     time = 1_002;

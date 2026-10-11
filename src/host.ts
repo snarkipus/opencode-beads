@@ -20,6 +20,8 @@ export type HostContext = Pick<Plugin.Context, "location" | "options" | "event">
 export interface HostDependencies {
   /** Override process-backed Beads calls, mainly for tests. */
   runtime?: Partial<Pick<ContextRuntime, "guard" | "prime">>;
+  /** Override the `bd prime` runner (receives extra flags such as `--stealth`). */
+  runPrime?: (directory: string, flags: readonly string[]) => Promise<string>;
   /** Override the bounded `bd` runner used by the store guard. */
   bd?: (directory: string, args: readonly string[]) => Promise<string>;
   warn?: (message: string) => void;
@@ -45,6 +47,8 @@ export async function setupBeads(
 ): Promise<() => void> {
   const directory = ctx.location.directory;
   const autoMigrate = ctx.options?.autoMigrate === true;
+  // Mirrors `bd setup claude --stealth`: prime without git operations in the session-close protocol.
+  const stealth = ctx.options?.stealth === true;
   const now = deps.now ?? Date.now;
   const warn = deps.warn ?? ((message: string) => console.warn(message));
   const diagnosticIntervalMs = deps.diagnosticIntervalMs ?? DEFAULT_DIAGNOSTIC_INTERVAL_MS;
@@ -53,7 +57,9 @@ export async function setupBeads(
   const guardRuntime = createGuardRuntime(deps.bd ?? ((cwd, args) => runBd(cwd, args)));
   const runtime: ContextRuntime = {
     guard: deps.runtime?.guard ?? ((cwd) => checkBeadsStore(cwd, guardRuntime, { autoMigrate })),
-    prime: deps.runtime?.prime ?? ((cwd) => runBdPrime(cwd)),
+    prime:
+      deps.runtime?.prime ??
+      ((cwd) => (deps.runPrime ?? ((dir, flags) => runBdPrime(dir, {}, flags)))(cwd, stealth ? ["--stealth"] : [])),
     async agentMode(agentID): Promise<AgentMode | undefined> {
       const response = await ctx.agent.get({ agentID });
       return response.data.mode;

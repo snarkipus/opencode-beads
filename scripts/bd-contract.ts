@@ -207,6 +207,8 @@ try {
     await fs.writeFile(markerPath, "0.0.1\n");
     const prime = await attempt("bd prime", () => bd(repo, ["prime"]));
     check(prime?.trim(), "bd prime succeeds with workflow output");
+    const stealthPrime = await attempt("bd prime --stealth", () => bd(repo, ["prime", "--stealth"]));
+    check(stealthPrime?.trim(), "bd prime --stealth succeeds (the stealth plugin option)");
     check((await readMarker())?.trim() === "0.0.1", "bd prime does not update .local_version");
     check(
       (await checkBeadsStore(repo, guardRuntime)).kind === "migration-pending",
