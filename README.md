@@ -1,5 +1,10 @@
 # opencode-beads
 
+[![CI](https://github.com/snarkipus/opencode-beads/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/snarkipus/opencode-beads/actions/workflows/ci.yml)
+[![Release](https://github.com/snarkipus/opencode-beads/actions/workflows/release.yml/badge.svg)](https://github.com/snarkipus/opencode-beads/actions/workflows/release.yml)
+[![npm](https://img.shields.io/npm/v/@snarkipus/opencode-beads)](https://www.npmjs.com/package/@snarkipus/opencode-beads)
+[![zizmor](https://img.shields.io/badge/%F0%9F%8C%88-zizmor-white?labelColor=white)](https://zizmor.sh/)
+
 [Beads](https://github.com/gastownhall/beads) issue tracker integration for [OpenCode](https://opencode.ai).
 
 `@snarkipus/opencode-beads` is a maintained OpenCode adapter that provides full `bd prime` context injection and a bounded task agent. It does not replace Beads: the installed `bd` CLI remains authoritative for issues, project initialization, skills, migrations, backups, and Dolt synchronization.
