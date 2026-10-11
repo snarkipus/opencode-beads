@@ -133,6 +133,38 @@ describe("setupBeads", () => {
     cleanup();
   });
 
+  test("minimizes bd's full AGENTS.md block only when prime is attached", async () => {
+    const block =
+      "<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:1 -->\nfull reference\n<!-- END BEADS INTEGRATION -->";
+    let guard: { kind: "ready" } | { kind: "migration-pending"; installed: string; store: string } = {
+      kind: "ready",
+    };
+    const f = fakeContext();
+    const cleanup = await setupBeads(f.ctx, {
+      runtime: { guard: async () => guard, prime: async () => "PRIME" },
+      retryMs: 0,
+    });
+    const hook = f.hooks.get("context");
+    if (!hook) throw new Error("context hook not registered");
+
+    const withPrime: ContextEvent = { sessionID: "s1", agent: "build", system: [{ type: "text", text: block }] };
+    await hook(withPrime);
+    expect(withPrime.system[0]?.text).toContain("provided by the opencode-beads plugin");
+    expect(withPrime.system[0]?.text).not.toContain("full reference");
+    expect(withPrime.system[1]?.text).toBe(renderBeadsContext("PRIME", "primary"));
+
+    const subagent: ContextEvent = { sessionID: "s1", agent: "explore", system: [{ type: "text", text: block }] };
+    await hook(subagent);
+    expect(subagent.system).toEqual([{ type: "text", text: block }]);
+
+    guard = { kind: "migration-pending", installed: "1.3.1", store: "1.2.2" };
+    const withNotice: ContextEvent = { sessionID: "s2", agent: "build", system: [{ type: "text", text: block }] };
+    await hook(withNotice);
+    expect(withNotice.system[0]?.text).toBe(block);
+    expect(withNotice.system[1]?.text).toContain("<beads-notice>");
+    cleanup();
+  });
+
   test("refreshes after compaction ends and forgets deleted sessions", async () => {
     const f = fakeContext();
     let output = "FIRST";
