@@ -31,6 +31,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 - `stealth` plugin option runs `bd prime --stealth`, matching `bd setup claude --stealth`.
 - When `bd prime` fails or times out, the agent receives a short notice instead of silently missing context, as Beads' Codex hooks report refresh failures.
 - `refreshAfterIdleMinutes` plugin option (default 30): a session that resumes after that much inactivity gets fresh `bd prime`, matching Claude Code's `SessionStart` resume behavior.
+- Claude Code parity matrix (`docs/claude-code-parity.md`), validated on OpenCode 2.0.26 with bd 1.3.1.
 - bd contract check (`scripts/bd-contract.ts`): runs a real `bd` against the guard and the task-agent commands in CI (validated release) and daily against the latest stable Beads release via the `beads-contract` workflow, which also flags releases that have not been reviewed yet, and changes that would make the plugin redundant (for example `bd setup opencode` starting to install hooks or plugin files).
 
 ### Changed
