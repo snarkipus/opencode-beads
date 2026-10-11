@@ -2,7 +2,7 @@
 
 [Beads](https://github.com/gastownhall/beads) issue tracker integration for [OpenCode](https://opencode.ai).
 
-`@snarkipus/opencode-beads` is a maintained OpenCode adapter that provides full `bd prime` context injection, vendored `/beads:*` workflows, and a bounded task agent. It does not replace Beads: the installed `bd` CLI remains authoritative for issues, project initialization, skills, migrations, backups, and Dolt synchronization.
+`@snarkipus/opencode-beads` is a maintained OpenCode adapter that provides full `bd prime` context injection and a bounded task agent. It does not replace Beads: the installed `bd` CLI remains authoritative for issues, project initialization, skills, migrations, backups, and Dolt synchronization.
 
 The project originated as [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads) and continues under the MIT license. This fork is maintained by Matt Jackson and tracks reviewed upstream Beads releases while adapting their plugin artifacts to OpenCode's CLI-only execution model.
 
@@ -46,13 +46,15 @@ The plugin runs full `bd prime` when a primary-agent session first receives a me
 
 Known regular subagents remain excluded, including `explore` and `general`, while `beads-task-agent` and `beads-task-agent-luna` remain eligible. If agent lookup fails, context injection fails open to preserve compatibility with unknown custom primary agents.
 
-If `bd` is unavailable, the project is uninitialized, or prime fails or returns no content, injection is silently skipped and remains retryable. Vendored commands stay available, and the task agent retains a bounded standalone quick reference for `ready`, `show`, atomic claim, discovered follow-up, validate before closure, and close.
+If `bd` is unavailable, the project is uninitialized, or prime fails or returns no content, injection is silently skipped and remains retryable. The task agent retains a bounded standalone quick reference for `ready`, `show`, atomic claim, discovered follow-up, validate before closure, and close.
 
-## Commands
+## Beads workflows
 
-Vendored workflows are registered under `/beads:*`, including `/beads:ready`, `/beads:create`, and `/beads:show`. The plugin does not generate a command for every `bd` subcommand; use the CLI and the generated [Beads CLI reference](https://beads.gascity.com/cli-reference/index) for the complete surface.
+The plugin registers no `/beads:*` commands. Earlier versions vendored upstream's Claude Code command templates; they duplicated `bd prime` and the canonical Beads skill that `bd init` installs at `.agents/skills/beads`, which OpenCode discovers natively. Ask the agent to work with Beads, load the skill with `@beads`, or use the `bd` CLI and the generated [Beads CLI reference](https://beads.gascity.com/cli-reference/index) directly.
 
-Explicit command definitions in OpenCode configuration replace plugin commands with the same name. Task-agent overrides merge field-by-field over plugin defaults, so a partial override does not discard the bounded prompt or subagent mode. Explicit fields (including `prompt`, `permission`, `tools`, `model`, `variant`, and `disable`) win; nested fields are replaced, not deep-merged. Conflicting `beads:*` commands or either named task-agent profile produce a grouped, rate-limited warning without preventing definitions from loading. An empty profile opt-in does not warn.
+## Agent configuration
+
+Entries under `agents` in OpenCode configuration override the plugin's task-agent fields one by one, so a partial override (for example only `description`) keeps the bounded `system` prompt and subagent `mode`. Fields you set explicitly, such as `system`, `model`, or `permissions`, win. OpenCode V2 does not expose configuration-only agents to plugins, so the plugin no longer warns about overrides.
 
 ## Task agent
 
@@ -82,7 +84,7 @@ Luna requires access to `openai/gpt-5.6-luna` and its `max` variant in your Open
 
 ## Vendored content
 
-[`scripts/sync-beads.sh`](scripts/sync-beads.sh) copies the reviewed upstream command templates and task-agent artifact into `vendor/`. [`vendor/manifest.json`](vendor/manifest.json) pins the upstream tag and commit and records source paths, sorted inventory, byte lengths, and SHA-256 checksums. A deterministic adaptation layer translates reviewed host-specific instructions to OpenCode's CLI-only model.
+[`scripts/sync-beads.sh`](scripts/sync-beads.sh) copies the reviewed upstream task-agent artifact into `vendor/`. [`vendor/manifest.json`](vendor/manifest.json) pins the upstream tag and commit and records source paths, sorted inventory, byte lengths, and SHA-256 checksums. A deterministic adaptation layer translates reviewed host-specific instructions to OpenCode's CLI-only model.
 
 Do not edit vendored files directly. Sync and package validation reject provenance, checksum, inventory, schema, or reviewed-transformation drift. Adapter behavior lives in `src/`; general Beads behavior and documentation remain upstream.
 
@@ -101,7 +103,7 @@ The adapter builds against paired `@opencode-ai/plugin` and `@opencode-ai/sdk` 1
 - **No Beads context:** Run `bd prime`. Install `bd` if missing or run `bd init` if the project has no Beads workspace.
 - **Canonical skill missing:** For a new workspace, run `bd init`. For an existing workspace, follow current upstream Beads guidance; this plugin does not install or repair skills.
 - **Vendor initialization error:** Reinstall the package. In a source checkout, rerun vendor sync and validation; the error identifies the malformed or missing artifact.
-- **Unexpected definition:** Check OpenCode configuration for a colliding `beads:*` command or `beads-task-agent` definition. Explicit configuration wins.
+- **Unexpected definition:** Check OpenCode configuration for a colliding `beads-task-agent` definition. Explicit configuration wins.
 - **Regular subagent has no context:** This is intentional. Delegate Beads work to `beads-task-agent` or run the required `bd` command explicitly.
 - **Behavior changed after upgrade:** Compare `opencode --version`, `bd version`, and `bun --version` with the compatibility table, then inspect [Beads releases](https://github.com/gastownhall/beads/releases) and this project's changelog.
 

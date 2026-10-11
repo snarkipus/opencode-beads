@@ -18,9 +18,20 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+### Added
+
+- OpenCode V2 plugin entry point. Beads context is attached to each model request through the session context hook, cached per session, and refreshed after compaction.
+- Beads store guard: automatic `bd prime` requires `bd` 1.3.0 or later and is withheld, with an agent-facing notice, when `.beads/.local_version` shows the store may need an irreversible schema migration. The plugin option `"autoMigrate": true` opts out.
+
 ### Changed
 
 - Synced vendored beads files to v1.3.0
+- Task agents register through the V2 agent transform. The Luna Max profile is enabled with the plugin option `"luna": true` instead of an empty agent entry.
+
+### Removed
+
+- Vendored `/beads:*` command templates. They came from upstream's Claude Code plugin and duplicated `bd prime` and the canonical Beads skill installed by `bd init`. Vendor sync and provenance now cover only the task-agent artifact.
+- OpenCode V1 hook adapter and its configuration collision warnings.
 
 ## [0.10.0]
 

@@ -165,8 +165,9 @@ try {
     throw new Error("Packed package does not default-export the OpenCode V2 plugin definition");
   }
 
-  const vendorCommands = await fs.readdir(path.join(packageDir, "vendor", "commands"));
-  if (vendorCommands.length === 0) throw new Error("Packed package has no vendor commands");
+  if (await fs.exists(path.join(packageDir, "vendor", "commands"))) {
+    throw new Error("Packed package unexpectedly contains retired vendor commands");
+  }
 
   if (await fs.exists(path.join(packageDir, "dist"))) {
     throw new Error("Packed package unexpectedly contains a dist payload");
@@ -250,7 +251,7 @@ try {
   }
 
   console.log(
-    `Validated ${archiveName} (${archiveChecksum}); loaded packed plugin with ${vendorCommands.length} vendor command files`
+    `Validated ${archiveName} (${archiveChecksum}); loaded packed V2 plugin`
   );
 } finally {
   await fs.rm(tempDir, { recursive: true, force: true });

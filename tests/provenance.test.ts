@@ -27,9 +27,7 @@ async function createVendorFixture() {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "vendor-provenance-"));
   temporaryDirectories.push(directory);
   await fs.mkdir(path.join(directory, "agents"));
-  await fs.mkdir(path.join(directory, "commands"));
   await fs.writeFile(path.join(directory, "agents", "task-agent.md"), "agent\n");
-  await fs.writeFile(path.join(directory, "commands", "ready.md"), "ready\n");
   return directory;
 }
 
@@ -91,10 +89,7 @@ describe("vendor provenance", () => {
     const first = await createVendorManifest(directory, repository, "v1.2.3", commit);
     const second = await createVendorManifest(directory, repository, "v1.2.3", commit);
     expect(serializeVendorManifest(first)).toBe(serializeVendorManifest(second));
-    expect(first.files.map((file) => file.path)).toEqual([
-      "agents/task-agent.md",
-      "commands/ready.md",
-    ]);
+    expect(first.files.map((file) => file.path)).toEqual(["agents/task-agent.md"]);
 
     await fs.writeFile(
       path.join(directory, VENDOR_MANIFEST),
@@ -121,7 +116,7 @@ describe("vendor provenance", () => {
       path.join(checksumDirectory, VENDOR_MANIFEST),
       serializeVendorManifest(checksumManifest)
     );
-    await fs.writeFile(path.join(checksumDirectory, "commands", "ready.md"), "changed\n");
+    await fs.writeFile(path.join(checksumDirectory, "agents", "task-agent.md"), "changed\n");
     await expect(validateVendorManifest(checksumDirectory)).rejects.toThrow(
       "Vendor checksum mismatch"
     );
@@ -137,16 +132,24 @@ describe("vendor provenance", () => {
       path.join(inventoryDirectory, VENDOR_MANIFEST),
       serializeVendorManifest(inventoryManifest)
     );
-    await fs.writeFile(path.join(inventoryDirectory, "commands", "extra.md"), "extra\n");
+    await fs.writeFile(path.join(inventoryDirectory, "agents", "extra.md"), "extra\n");
     await expect(validateVendorManifest(inventoryDirectory)).rejects.toThrow(
       "Vendor file inventory differs"
     );
 
-    await fs.rm(path.join(inventoryDirectory, "commands", "extra.md"));
-    await fs.rm(path.join(inventoryDirectory, "commands", "ready.md"));
+    await fs.rm(path.join(inventoryDirectory, "agents", "extra.md"));
+    await fs.rm(path.join(inventoryDirectory, "agents", "task-agent.md"));
     await expect(validateVendorManifest(inventoryDirectory)).rejects.toThrow(
       "Vendor file inventory differs"
     );
+
+    // Retired command templates must not reappear beside the task agent.
+    const retiredDirectory = await createVendorFixture();
+    await fs.mkdir(path.join(retiredDirectory, "commands"));
+    await fs.writeFile(path.join(retiredDirectory, "commands", "ready.md"), "ready\n");
+    await expect(
+      createVendorManifest(retiredDirectory, repository, "v1.2.3", commit)
+    ).rejects.toThrow("Unexpected vendor entries: agents, commands");
   });
 
   test("rejects source path provenance changes", async () => {
@@ -154,7 +157,7 @@ describe("vendor provenance", () => {
     const manifest = await createVendorManifest(directory, repository, "v1.2.3", commit);
     const invalidManifest = {
       ...manifest,
-      sources: [{ source: "unexpected", target: "commands" }],
+      sources: [{ source: "unexpected", target: "agents/task-agent.md" }],
     };
     await fs.writeFile(
       path.join(directory, VENDOR_MANIFEST),

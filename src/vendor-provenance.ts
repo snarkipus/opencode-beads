@@ -8,10 +8,6 @@ export const VENDOR_SOURCES = Object.freeze([
     source: "plugins/beads/agents/task-agent.md",
     target: "agents/task-agent.md",
   },
-  {
-    source: "plugins/beads/skills/beads/commands",
-    target: "commands",
-  },
 ]);
 
 interface Semver {
@@ -120,8 +116,11 @@ async function listVendorFiles(vendorDir: string): Promise<string[]> {
     }
   }
 
+  const topLevel = (await fs.readdir(vendorDir)).filter((entry) => entry !== VENDOR_MANIFEST).sort();
+  if (topLevel.join(",") !== "agents") {
+    throw new Error(`Unexpected vendor entries: ${topLevel.join(", ")}`);
+  }
   await visit("agents");
-  await visit("commands");
   return files.sort();
 }
 

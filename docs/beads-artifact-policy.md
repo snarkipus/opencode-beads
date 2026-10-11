@@ -17,7 +17,7 @@ Status: revised for the 0.9.0 contract by `opencode-beads-98l`; the 0.8.0 compan
 
 | Upstream artifact | Policy | Reason |
 | --- | --- | --- |
-| `skills/beads/commands/*.md` | Approved after OpenCode adaptation | OpenCode has a native `Config.command` surface. The current adapter namespaces these as `/beads:*`, validates known adaptations, and records exact provenance. |
+| `skills/beads/commands/*.md` | Retired for OpenCode V2 (`opencode-beads-2zs.4`) | These are upstream's Claude Code command templates, not part of the native OpenCode or Codex install. They largely wrap single `bd` subcommands and duplicate `bd prime` plus the canonical `.agents/skills/beads` skill, which OpenCode V2 discovers natively. V2 commands are executable code rather than templates, so keeping them would mean re-implementing template expansion. They are no longer synced, packaged, or registered. |
 | `agents/task-agent.md` | Approved after OpenCode adaptation | OpenCode has a native `Config.agent` surface. The vendored upstream artifact supplies metadata, provenance, and compatibility validation. The runtime prompt is a fork-owned bounded OpenCode adaptation for one-Bead execution, plus full prime injected once per session and after compaction; it does not execute upstream's autonomous multi-task loop. |
 | `skills/beads/SKILL.md`, `skills/beads/adr/`, and `skills/beads/resources/` | Excluded | `bd init` owns per-project initialization. Its automatic Codex project integration creates the canonical shared skill at `.agents/skills/beads`, which OpenCode discovers. This package does not fork, install, update, or remove that skill. |
 | Claude/Codex manifests and hooks | Excluded | `.claude-plugin` and `.codex-plugin` formats and lifecycle hooks are not OpenCode plugin registration formats. This adapter implements its own typed startup/message and compaction behavior. |
@@ -29,7 +29,7 @@ OpenCode does not search npm package internals, so this package ships no skill p
 
 Users upgrading from 0.8.0 must remove its old `.opencode/skills/beads` installation with `bunx @snarkipus/opencode-beads@0.8.0 remove` before upgrading. The 0.9.0 package has no companion executable, `/beads:setup` command, ownership manifest, collision policy, or `dist/init` payload.
 
-The approved commands and agent use native configuration mutation and explicit names. Their collision policy is separate work owned by `opencode-beads-yui.10`; this decision does not change precedence or merge behavior.
+The approved task agent is registered under an explicit name through OpenCode's agent transform; user configuration overrides its fields one by one.
 
 ## `bd prime` boundary
 

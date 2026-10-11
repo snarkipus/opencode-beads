@@ -40,27 +40,20 @@ if [[ "$CLONED_COMMIT" != "$BEADS_COMMIT" ]]; then
   exit 1
 fi
 
-UPSTREAM_COMMANDS="$TEMP_DIR/beads/plugins/beads/skills/beads/commands"
 UPSTREAM_AGENT="$TEMP_DIR/beads/plugins/beads/agents/task-agent.md"
 CANDIDATE_VENDOR="$TEMP_DIR/vendor"
 
-if [[ ! -d "$UPSTREAM_COMMANDS" ]] || ! compgen -G "$UPSTREAM_COMMANDS/*.md" >/dev/null; then
-  echo "Upstream command templates are missing" >&2
-  exit 1
-fi
 if [[ ! -f "$UPSTREAM_AGENT" ]]; then
   echo "Upstream task agent is missing" >&2
   exit 1
 fi
 
-mkdir -p "$CANDIDATE_VENDOR/commands" "$CANDIDATE_VENDOR/agents"
-cp -R "$UPSTREAM_COMMANDS/." "$CANDIDATE_VENDOR/commands/"
+mkdir -p "$CANDIDATE_VENDOR/agents"
 cp "$UPSTREAM_AGENT" "$CANDIDATE_VENDOR/agents/task-agent.md"
 bun "$SCRIPT_DIR/vendor-provenance.ts" write "$CANDIDATE_VENDOR" "$BEADS_REPO" "$BEADS_VERSION" "$BEADS_COMMIT"
 bun "$SCRIPT_DIR/validate-vendor.ts" "$CANDIDATE_VENDOR" "$BEADS_REPO" "$BEADS_VERSION" "$BEADS_COMMIT"
 
-if diff -qr "$PLUGIN_DIR/vendor/commands" "$CANDIDATE_VENDOR/commands" >/dev/null 2>&1 \
-  && cmp -s "$PLUGIN_DIR/vendor/agents/task-agent.md" "$CANDIDATE_VENDOR/agents/task-agent.md" \
+if cmp -s "$PLUGIN_DIR/vendor/agents/task-agent.md" "$CANDIDATE_VENDOR/agents/task-agent.md" \
   && cmp -s "$PLUGIN_DIR/vendor/manifest.json" "$CANDIDATE_VENDOR/manifest.json"; then
   echo "No changes detected for $BEADS_VERSION"
   exit 0
@@ -75,9 +68,7 @@ fi
 WORKTREE_ADDED=true
 git -C "$PLUGIN_DIR" worktree add --quiet --detach "$WORKTREE_DIR" HEAD
 
-rm -rf "$WORKTREE_DIR/vendor/commands"
 mkdir -p "$WORKTREE_DIR/vendor/agents"
-cp -R "$CANDIDATE_VENDOR/commands" "$WORKTREE_DIR/vendor/commands"
 cp "$CANDIDATE_VENDOR/agents/task-agent.md" "$WORKTREE_DIR/vendor/agents/task-agent.md"
 cp "$CANDIDATE_VENDOR/manifest.json" "$WORKTREE_DIR/vendor/manifest.json"
 
@@ -96,7 +87,7 @@ else
 - Synced vendored beads files to $BEADS_VERSION" "$CHANGELOG"
 fi
 
-git -C "$WORKTREE_DIR" add CHANGELOG.md vendor/commands vendor/agents/task-agent.md vendor/manifest.json
+git -C "$WORKTREE_DIR" add CHANGELOG.md vendor/agents/task-agent.md vendor/manifest.json
 git -C "$WORKTREE_DIR" commit -m "sync: beads $BEADS_VERSION"
 
 if git -C "$WORKTREE_DIR" ls-remote --exit-code --heads origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
