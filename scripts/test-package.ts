@@ -236,7 +236,7 @@ try {
   const luna = (await setupPacked({ luna: true })).agents.get("beads-task-agent-luna");
   const lunaModel = luna?.model as { providerID?: string; id?: string; variant?: string } | undefined;
   if (
-    lunaModel?.providerID !== "openai" || lunaModel.id !== "gpt-5.6-luna" ||
+    lunaModel?.providerID !== "openai" || lunaModel.id !== "gpt-6-luna" ||
     lunaModel.variant !== "max" || luna?.system !== taskAgentPrompt || luna?.mode !== "subagent"
   ) {
     throw new Error("Packed plugin did not register the shared Luna Max profile");

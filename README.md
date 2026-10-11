@@ -90,11 +90,11 @@ Its runtime prompt is a fork-owned bounded OpenCode adaptation. The vendored ups
 
 ### Opt-in Luna Max profile
 
-The default `beads-task-agent` leaves its model unset, so a subagent inherits the parent session's model. Set the plugin option `"luna": true` to also register `beads-task-agent-luna`, which uses `openai/gpt-5.6-luna#max` with exactly the same prompt, subagent mode, and default permissions. Per-agent overrides remain independent: customizations to `beads-task-agent` are not copied to Luna. Both profiles receive full prime context and retain the same exact-one-Bead workflow.
+The default `beads-task-agent` leaves its model unset, so a subagent inherits the parent session's model. Set the plugin option `"luna": true` to also register `beads-task-agent-luna`, which uses `openai/gpt-6-luna#max` with exactly the same prompt, subagent mode, and default permissions. Per-agent overrides remain independent: customizations to `beads-task-agent` are not copied to Luna. Both profiles receive full prime context and retain the same exact-one-Bead workflow.
 
 Ask the primary agent to delegate to `beads-task-agent-luna` by name through the `subagent` tool. Default delegation guidance still names `beads-task-agent`; enabling Luna does not reroute existing calls or change the primary agent's model. Remove the option to unregister the profile.
 
-Luna requires access to `openai/gpt-5.6-luna` and its `max` variant in your OpenCode provider setup. The plugin does not install models, configure authentication, or silently fall back to another model.
+Luna requires access to `openai/gpt-6-luna` and its `max` variant in your OpenCode provider setup. The plugin does not install models, configure authentication, or silently fall back to another model.
 
 ## Vendored content
 

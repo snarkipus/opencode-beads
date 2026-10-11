@@ -111,7 +111,7 @@ describe("setupBeads", () => {
     const luna = fakeContext({ pluginOptions: { luna: true } });
     const cleanupLuna = await setupBeads(luna.ctx, ready);
     const lunaAgent = luna.agents.get("beads-task-agent-luna");
-    expect(lunaAgent?.model).toEqual({ providerID: "openai", id: "gpt-5.6-luna", variant: "max" });
+    expect(lunaAgent?.model).toEqual({ providerID: "openai", id: "gpt-6-luna", variant: "max" });
     expect(lunaAgent?.system).toBe(luna.agents.get("beads-task-agent")?.system);
     expect(lunaAgent?.mode).toBe("subagent");
     cleanupLuna();

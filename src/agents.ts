@@ -9,7 +9,7 @@ export const BEADS_TASK_AGENTS: ReadonlySet<string> = new Set([
 ]);
 
 /** Routing for the opt-in Luna profile, `provider/model#variant` in OpenCode terms. */
-export const LUNA_MODEL = { providerID: "openai", id: "gpt-5.6-luna", variant: "max" } as const;
+export const LUNA_MODEL = { providerID: "openai", id: "gpt-6-luna", variant: "max" } as const;
 
 export interface BeadsAgentDefinition {
   description: string;
