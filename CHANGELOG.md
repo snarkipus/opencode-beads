@@ -28,6 +28,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 - Install guidance matches Beads' Claude Code integration: run plain `bd init` (minimal `AGENTS.md` pointer) and do not run `bd setup opencode`, with an effect-by-effect mapping from `bd setup claude` to the plugin.
 - Task agents enforce the no-automatic-commit/push/sync policy with OpenCode permissions (`ask` for `git commit`, `git push`, `bd dolt push`, `bd dolt pull`, `bd sync`) and cap each invocation with `taskAgentSteps` (default 100).
 - Compaction requests in sessions with Beads context ask the summarizer to keep bead IDs, statuses, discovered follow-ups, and blockers.
+- `stealth` plugin option runs `bd prime --stealth`, matching `bd setup claude --stealth`.
+- When `bd prime` fails or times out, the agent receives a short notice instead of silently missing context, as Beads' Codex hooks report refresh failures.
 - `refreshAfterIdleMinutes` plugin option (default 30): a session that resumes after that much inactivity gets fresh `bd prime`, matching Claude Code's `SessionStart` resume behavior.
 - bd contract check (`scripts/bd-contract.ts`): runs a real `bd` against the guard and the task-agent commands in CI (validated release) and daily against the latest stable Beads release via the `beads-contract` workflow, which also flags releases that have not been reviewed yet, and changes that would make the plugin redundant (for example `bd setup opencode` starting to install hooks or plugin files).
 

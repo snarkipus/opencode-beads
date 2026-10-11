@@ -7,6 +7,7 @@ import {
 } from "../src/context";
 import type { GuardResult } from "../src/guard";
 import { PrimeTimeoutError } from "../src/prime";
+import { primeFailureNotice } from "../src/guidance";
 
 function fixture(
   options: {
@@ -133,21 +134,22 @@ describe("context controller", () => {
     expect(f.prime).not.toHaveBeenCalled();
   });
 
-  test("diagnoses prime failures and timeouts, and retries empty or failed prime later", async () => {
+  test("tells the agent when prime fails or times out, and retries later", async () => {
     let outcome: () => Promise<string> = async () => {
       throw new PrimeTimeoutError(10);
     };
     const f = fixture({ prime: () => outcome() });
-    expect(await f.controller.systemFor("s1", "beads-task-agent")).toBeUndefined();
+    expect(await f.controller.systemFor("s1", "beads-task-agent")).toBe(primeFailureNotice("timed out"));
     expect(f.diagnose).toHaveBeenCalledWith("prime_timeout", "s1");
 
     outcome = async () => {
       throw new Error("exit 1");
     };
     f.advance(1_001);
-    expect(await f.controller.systemFor("s1", "beads-task-agent")).toBeUndefined();
+    expect(await f.controller.systemFor("s1", "beads-task-agent")).toBe(primeFailureNotice("failed"));
     expect(f.diagnose).toHaveBeenCalledWith("prime_failed", "s1");
 
+    // Empty output stays silent: a .beads/PRIME.md override may be empty on purpose.
     outcome = async () => "  \n";
     f.advance(1_001);
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toBeUndefined();
