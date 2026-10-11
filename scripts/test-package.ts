@@ -176,26 +176,69 @@ try {
   }
 
   // Exercise setup against a minimal V2 context; the context hook is registered but not invoked.
-  const registeredHooks: string[] = [];
-  const cleanup = await (plugin.setup as (ctx: unknown) => Promise<unknown>)({
-    location: { directory: consumerDir },
-    options: {},
-    agent: { get: async () => ({ data: { mode: "primary" } }) },
-    session: {
-      hook: async (name: string) => {
-        registeredHooks.push(name);
-        return { dispose: async () => {} };
+  type PackedAgent = { name?: string; mode?: string; system?: string; model?: unknown };
+  async function setupPacked(options: Record<string, unknown>) {
+    const registeredHooks: string[] = [];
+    const agents = new Map<string, PackedAgent>();
+    const cleanup = await (plugin!.setup as (ctx: unknown) => Promise<unknown>)({
+      location: { directory: consumerDir },
+      options,
+      agent: {
+        get: async () => ({ data: { mode: "primary" } }),
+        transform: async (callback: (editor: unknown) => void) => {
+          callback({
+            update(id: string, update: (agent: PackedAgent) => void) {
+              const agent = agents.get(id) ?? { name: id, mode: "primary" };
+              update(agent);
+              agents.set(id, agent);
+            },
+          });
+          return { dispose: async () => {} };
+        },
       },
-    },
-    event: {
-      subscribe: async function* () {},
-    },
-  });
-  if (registeredHooks.join(",") !== "context") {
-    throw new Error(`Packed plugin registered unexpected session hooks: ${registeredHooks.join(",")}`);
+      session: {
+        hook: async (name: string) => {
+          registeredHooks.push(name);
+          return { dispose: async () => {} };
+        },
+      },
+      event: {
+        subscribe: async function* () {},
+      },
+    });
+    if (typeof cleanup !== "function") throw new Error("Packed plugin setup returned no cleanup");
+    cleanup();
+    return { registeredHooks, agents };
   }
-  if (typeof cleanup !== "function") throw new Error("Packed plugin setup returned no cleanup");
-  cleanup();
+
+  const vanilla = await setupPacked({});
+  if (vanilla.registeredHooks.join(",") !== "context") {
+    throw new Error(`Packed plugin registered unexpected session hooks: ${vanilla.registeredHooks.join(",")}`);
+  }
+  const taskAgent = vanilla.agents.get("beads-task-agent");
+  const taskAgentPrompt = taskAgent?.system;
+  if (taskAgent?.mode !== "subagent" || !taskAgentPrompt) {
+    throw new Error("Packed plugin did not register the task agent as a subagent");
+  }
+  if (
+    taskAgentPrompt.length >= 1_000 ||
+    taskAgentPrompt.includes("Agent Delegation") ||
+    !taskAgentPrompt.includes("Full `bd prime` workflow context is injected") ||
+    !taskAgentPrompt.includes("bd update <id> --claim --json")
+  ) {
+    throw new Error("Packed task-agent prompt lacks the bounded workflow fallback");
+  }
+  if (vanilla.agents.has("beads-task-agent-luna")) {
+    throw new Error("Packed plugin enabled Luna without an opt-in");
+  }
+  const luna = (await setupPacked({ luna: true })).agents.get("beads-task-agent-luna");
+  const lunaModel = luna?.model as { providerID?: string; id?: string; variant?: string } | undefined;
+  if (
+    lunaModel?.providerID !== "openai" || lunaModel.id !== "gpt-5.6-luna" ||
+    lunaModel.variant !== "max" || luna?.system !== taskAgentPrompt || luna?.mode !== "subagent"
+  ) {
+    throw new Error("Packed plugin did not register the shared Luna Max profile");
+  }
   const cli = path.join(consumerDir, "node_modules", ".bin", "opencode-beads");
   if (await fs.exists(cli)) throw new Error("Packed package unexpectedly installed a companion CLI");
 

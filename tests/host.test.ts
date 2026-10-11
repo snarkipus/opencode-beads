@@ -47,11 +47,24 @@ function fakeContext(options: { directory?: string; pluginOptions?: Record<strin
   const agentGet = mock(async ({ agentID }: { agentID: string }) => ({
     data: { id: agentID, mode: agentID === "explore" ? "subagent" : "primary" },
   }));
+  // Mirrors OpenCode: update() on an unknown ID starts from defaults.
+  const agents = new Map<string, Record<string, unknown>>();
+  const editor = {
+    update(id: string, update: (agent: Record<string, unknown>) => void) {
+      const agent = agents.get(id) ?? { id, name: id, mode: "primary", hidden: false, permissions: [] };
+      update(agent);
+      agents.set(id, agent);
+    },
+  };
+  const agentTransform = mock(async (callback: (input: typeof editor) => void) => {
+    callback(editor);
+    return { dispose: async () => {} };
+  });
   const ctx = {
     location: { directory: options.directory ?? "/project" },
     options: options.pluginOptions ?? {},
     event: { subscribe: events.subscribe },
-    agent: { get: agentGet },
+    agent: { get: agentGet, transform: agentTransform },
     session: {
       hook: mock(async (name: string, callback: (event: ContextEvent) => void) => {
         hooks.set(name, callback);
@@ -68,7 +81,7 @@ function fakeContext(options: { directory?: string; pluginOptions?: Record<strin
     return event.system.slice(1).map((part) => part.text);
   }
 
-  return { ctx, hooks, events, agentGet, request };
+  return { ctx, hooks, events, agentGet, agents, request };
 }
 
 describe("OpenCode V2 entry", () => {
@@ -80,6 +93,31 @@ describe("OpenCode V2 entry", () => {
 });
 
 describe("setupBeads", () => {
+  test("registers the bounded task agent as a subagent and keeps Luna opt-in", async () => {
+    const ready = { runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" } };
+    const vanilla = fakeContext();
+    const cleanupVanilla = await setupBeads(vanilla.ctx, ready);
+    expect([...vanilla.agents.keys()]).toEqual(["beads-task-agent"]);
+    const agent = vanilla.agents.get("beads-task-agent");
+    expect(agent?.mode).toBe("subagent");
+    expect(agent?.name).toBe("beads-task-agent");
+    expect(agent?.model).toBeUndefined();
+    expect(String(agent?.system)).toContain("process exactly one bead");
+    expect(String(agent?.system)).toContain("bd update <id> --claim --json");
+    expect(typeof agent?.description).toBe("string");
+    expect(agent?.permissions).toEqual([]);
+    cleanupVanilla();
+
+    const luna = fakeContext({ pluginOptions: { luna: true } });
+    const cleanupLuna = await setupBeads(luna.ctx, ready);
+    const lunaAgent = luna.agents.get("beads-task-agent-luna");
+    expect(lunaAgent?.model).toEqual({ providerID: "openai", id: "gpt-5.6-luna", variant: "max" });
+    expect(lunaAgent?.system).toBe(luna.agents.get("beads-task-agent")?.system);
+    expect(lunaAgent?.mode).toBe("subagent");
+    cleanupLuna();
+  });
+
+
   test("appends rendered prime to eligible requests through the context hook only", async () => {
     const f = fakeContext();
     const prime = mock(async (_directory: string) => "PRIME");

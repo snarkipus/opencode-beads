@@ -1,4 +1,5 @@
 import type { Plugin } from "@opencode/plugin";
+import { applyBeadsAgents, loadBeadsAgents } from "./agents";
 import {
   createContextController,
   type AgentMode,
@@ -10,7 +11,7 @@ import { runBd, runBdPrime } from "./prime";
 
 /** The slice of the OpenCode V2 plugin context this adapter uses. */
 export type HostContext = Pick<Plugin.Context, "location" | "options" | "event"> & {
-  agent: Pick<Plugin.Context["agent"], "get">;
+  agent: Pick<Plugin.Context["agent"], "get" | "transform">;
   session: Pick<Plugin.Context["session"], "hook">;
 };
 
@@ -68,6 +69,9 @@ export async function setupBeads(
       }
     },
   };
+
+  const agents = await loadBeadsAgents({ luna: ctx.options?.luna === true });
+  await ctx.agent.transform((editor) => applyBeadsAgents(editor, agents));
 
   const controller = createContextController(runtime, directory, {
     now: deps.now,

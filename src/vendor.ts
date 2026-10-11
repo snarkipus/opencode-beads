@@ -180,11 +180,11 @@ Run relevant validation before closing an issue. Do not commit, push, or run Dol
 
 const BEADS_DELEGATION_GUIDANCE = `## Delegation
 
-Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-agent\`; perform only single atomic operations directly.`;
+Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-agent\` subagent through the \`subagent\` tool; perform only single atomic operations directly.`;
 
 const BEADS_SUBAGENT_CONTEXT = `## Beads Task Agent
 
-Full \`bd prime\` workflow context is injected at start and after compaction. Use \`bd\` via \`bash\`; rerun prime if context is missing or stale.
+Full \`bd prime\` workflow context is injected with each request. Use \`bd\` via \`bash\`; rerun prime if context is missing or stale.
 
 For status or graph analysis, never claim, update, close, or modify a bead. Return the analysis and stop.
 
