@@ -212,7 +212,7 @@ describe("release artifact identity", () => {
   });
 
   test("hardens workflow dependencies, credentials, caching, and update cooldowns", async () => {
-    const workflowNames = ["ci.yml", "release.yml", "sync-beads.yml"];
+    const workflowNames = ["ci.yml", "release.yml"];
     const workflows = await Promise.all(
       workflowNames.map((name) =>
         fs.readFile(join(projectDirectory, ".github/workflows", name), "utf8")
@@ -229,7 +229,8 @@ describe("release artifact identity", () => {
     }
     expect(workflows[0]).toContain("zizmorcore/zizmor-action@");
     expect(workflows[1]).toContain("no-cache: true");
-    expect(workflows[2]).toContain("gh auth setup-git");
+    // The upstream sync workflow (and its push credentials) was retired with vendoring.
+    expect(await fs.exists(join(projectDirectory, ".github/workflows/sync-beads.yml"))).toBeFalse();
 
     const dependabot = await fs.readFile(join(projectDirectory, ".github/dependabot.yml"), "utf8");
     expect(dependabot.match(/default-days: 7/g)).toHaveLength(2);

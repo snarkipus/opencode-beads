@@ -32,12 +32,6 @@ jobs:
       - name: Test
         run: bun test
 
-      - name: Validate vendor content
-        run: bun run test:vendor
-
-      - name: Test vendor sync
-        run: ./scripts/test-sync-beads.sh
-
       - name: Test packed package
         run: bun run test:package
 

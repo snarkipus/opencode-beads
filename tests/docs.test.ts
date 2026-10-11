@@ -147,15 +147,17 @@ describe("documentation contracts", () => {
     expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
 
-  test("records the current task-agent provenance and the v1.2.2 recovery baseline", () => {
-    expect(readme).toContain("Task-agent provenance is synced from Beads v1.3.1");
+  test("records the retired vendoring decision and the historical baselines", () => {
+    expect(readme).toContain("The package vendors nothing from upstream.");
+    expect(readme).toContain("The `bd` baseline was reviewed against Beads v1.3.1");
     expect(readme).toContain("c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c");
+    expect(artifactPolicy).toContain("The package vendors no upstream Beads artifacts.");
+    expect(artifactPolicy).toContain("| `agents/task-agent.md` | Retired in 1.0.0 (`opencode-beads-w5y`) |");
+    expect(artifactPolicy).toContain("### Rationale for retiring vendoring");
+    expect(artifactPolicy).toContain("Codex ships skills and hooks but no agent.");
     expect(artifactPolicy).toContain("`v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`");
     expect(artifactPolicy).toContain(
       "`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`"
-    );
-    expect(artifactPolicy).toContain(
-      "Currently packaged artifact baseline: Beads `v1.3.1`, commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`"
     );
     expect(artifactPolicy).toContain(
       "Earlier baselines were Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`"

@@ -29,12 +29,14 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - **Breaking:** requires OpenCode 2 (`@opencode/plugin` 2.0.26 through 2.x, optional peer) and `bd` 1.3.0 or later. OpenCode 1.x is no longer supported; configure the plugin under `plugins` rather than `plugin`.
 - The package also exports `./server`, which OpenCode V2 resolves first for package plugins.
-- Synced vendored beads files to v1.3.1 (the task-agent artifact is unchanged since v1.3.0)
+- Reviewed against Beads v1.3.1.
+- The task agent's description is fork-owned and describes the bounded one-bead worker, replacing upstream's "Autonomous agent that finds and completes ready tasks".
 - Task agents register through the V2 agent transform. The Luna Max profile is enabled with the plugin option `"luna": true` instead of an empty agent entry, and now uses `openai/gpt-6-luna#max` (previously `openai/gpt-5.6-luna`).
 
 ### Removed
 
-- Vendored `/beads:*` command templates. They came from upstream's Claude Code plugin and duplicated `bd prime` and the canonical Beads skill installed by `bd init`. Vendor sync and provenance now cover only the task-agent artifact.
+- Vendored `/beads:*` command templates. They came from upstream's Claude Code plugin and duplicated `bd prime` and the canonical Beads skill installed by `bd init`.
+- All vendoring of upstream Beads artifacts: `vendor/`, the daily `sync-beads` workflow, the sync script, and the provenance and adaptation validators. The only remaining artifact, upstream's Claude Code task agent, was never executed by this adapter. See `docs/beads-artifact-policy.md`.
 - OpenCode V1 hook adapter and its configuration collision warnings.
 
 ## [0.10.0]

@@ -4,9 +4,6 @@
 - **Typecheck**: `bun run typecheck`
 - **Tests**: `bun test`
 - **Package smoke test**: `bun run test:package`
-- **Vendor provenance tests**: `bun run test:provenance`
-- **Vendor adaptation validation**: `bun run test:vendor`
-- **Vendor sync tests**: `./scripts/test-sync-beads.sh`
 - **Install deps**: `bun install`
 
 ## Code Style
@@ -19,13 +16,16 @@
 - Async/await for async operations
 
 ## Project Structure
-- `src/plugin.ts` - Main plugin entry point
-- `src/vendor.ts` - Vendor file loaders
-- `vendor/` - Synced content from upstream beads repo (commands, agents)
+- `src/plugin.ts` - OpenCode V2 plugin entry point (default export `{ id, setup }`)
+- `src/host.ts` - Wires the context hook, session events, and agent registration
+- `src/context.ts` - Per-session `bd prime` context cache and audience selection
+- `src/guard.ts` - Beads version and schema-migration guard
+- `src/agents.ts`, `src/guidance.ts` - Fork-owned task agents, prompt, and shared guidance
+- `src/prime.ts` - Bounded `bd` process runner
 
 ## Notes
-- This is an OpenCode plugin integrating the beads issue tracker
-- Vendor files are synced via `scripts/sync-beads.sh` - don't edit directly
+- This is an OpenCode V2 plugin integrating the beads issue tracker
+- Nothing is vendored from upstream Beads; see `docs/beads-artifact-policy.md`. Review each Beads release's upgrade notes against the surfaces listed there
 
 ## Releasing a New Version
 
@@ -40,9 +40,8 @@ If the user specifies a version number (e.g., "bump to 0.4.0") or bump type (maj
 3. Get commits since last release: `git log v<current>..HEAD --oneline`
 4. **Read the actual diffs** - don't rely solely on commit messages:
    - `git diff v<current>..HEAD -- src/` for source changes
-   - `git diff v<current>..HEAD -- vendor/` for vendor syncs
 5. Apply semver:
-   - **patch** (0.0.x): Bug fixes, dependency updates, vendor syncs with no breaking changes
+   - **patch** (0.0.x): Bug fixes, dependency updates, and compatibility updates with no breaking changes
    - **minor** (0.x.0): New features, new commands, non-breaking enhancements
    - **major** (x.0.0): Breaking changes to plugin API or behavior
 
