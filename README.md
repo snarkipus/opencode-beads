@@ -24,7 +24,19 @@ git init # only when the directory is not already a Git worktree
 bd init
 ```
 
-`bd init` owns project initialization and creates the canonical shared Beads skill at `.agents/skills/beads`, which OpenCode discovers. This plugin has no separate skill lifecycle and does not write startup files.
+`bd init` owns project initialization and creates the canonical shared Beads skill at `.agents/skills/beads`, which OpenCode discovers. It also writes a minimal Beads section to `AGENTS.md` that points to `bd prime`, the same pointer Beads gives Claude Code in `CLAUDE.md`. This plugin has no separate skill lifecycle and does not write startup files.
+
+**Do not run `bd setup opencode`.** That recipe is for OpenCode without this plugin: because Beads assumes OpenCode has no hooks, it replaces the minimal pointer with the full command reference (about 2 kB more on every request). With this plugin, `bd prime` arrives through OpenCode's hooks instead, as it does for Claude Code. If you already ran it, `bd setup opencode --remove` deletes that section, or simply leave it: while prime is attached, the plugin replaces it in the request with a one-line pointer.
+
+Installing the plugin gives OpenCode the same integration that `bd setup claude` gives Claude Code:
+
+| `bd setup claude` (Claude Code) | This plugin (OpenCode 2) |
+| --- | --- |
+| `SessionStart` hook runs `bd prime --hook-json`, also on resume and after compaction | The session context hook attaches `bd prime` to each request; it is refreshed after compaction |
+| Minimal `CLAUDE.md` pointer to `bd prime` | `bd init`'s minimal `AGENTS.md` pointer; bd's full or Codex sections are reduced to a pointer while prime is attached |
+| `--global` or project install | Global `~/.config/opencode/opencode.json` or project `opencode.json` `plugins` entry |
+| `--remove` | Remove the `plugins` entry |
+| `--check` | `opencode debug agents` lists `beads-task-agent`; a session's agent sees a `<beads-context>` block |
 
 This plugin requires OpenCode 2 and `bd` 1.3.0 or later. Add the version-pinned plugin to `~/.config/opencode/opencode.json`:
 

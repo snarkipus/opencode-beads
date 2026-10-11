@@ -165,6 +165,27 @@ describe("setupBeads", () => {
     cleanup();
   });
 
+  test("attaches prime without altering instructions when AGENTS.md has no Beads block", async () => {
+    const f = fakeContext();
+    const cleanup = await setupBeads(f.ctx, {
+      runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" },
+    });
+    const hook = f.hooks.get("context");
+    if (!hook) throw new Error("context hook not registered");
+    const instructions = "Instructions from: /repo/AGENTS.md\n# Project rules";
+    const event: ContextEvent = {
+      sessionID: "s1",
+      agent: "build",
+      system: [{ type: "text", text: instructions }],
+    };
+    await hook(event);
+    expect(event.system).toEqual([
+      { type: "text", text: instructions },
+      { type: "text", text: renderBeadsContext("PRIME", "primary") },
+    ]);
+    cleanup();
+  });
+
   test("refreshes after compaction ends and forgets deleted sessions", async () => {
     const f = fakeContext();
     let output = "FIRST";
