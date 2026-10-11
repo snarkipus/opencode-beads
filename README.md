@@ -30,7 +30,7 @@ This plugin requires OpenCode 2 and `bd` 1.3.0 or later. Add the version-pinned 
 
 ```json
 {
-  "plugins": ["@snarkipus/opencode-beads@0.10.0"]
+  "plugins": ["@snarkipus/opencode-beads@1.0.0"]
 }
 ```
 
@@ -40,7 +40,7 @@ Plugin options use the object form:
 {
   "plugins": [
     {
-      "package": "@snarkipus/opencode-beads@0.10.0",
+      "package": "@snarkipus/opencode-beads@1.0.0",
       "options": { "luna": true, "autoMigrate": false }
     }
   ]

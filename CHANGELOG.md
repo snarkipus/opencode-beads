@@ -18,6 +18,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - OpenCode V2 plugin entry point. Beads context is attached to each model request through the session context hook, cached per session, and refreshed after compaction.
@@ -276,7 +278,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.10.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.0
 [0.10.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.10.0
 [0.9.4]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.4
 [0.9.3]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.3

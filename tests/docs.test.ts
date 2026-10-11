@@ -30,8 +30,8 @@ describe("documentation contracts", () => {
     expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version]));
   });
 
-  test("presents the 0.10.0 contract and credits the original project", () => {
-    expect(packageManifest.version).toBe("0.10.0");
+  test("presents the 1.0.0 contract and credits the original project", () => {
+    expect(packageManifest.version).toBe("1.0.0");
     expect(readme).not.toContain("This plugin is intentionally small in scope");
     expect(readme).not.toContain("limits its scope to bug fixes");
     expect(readme).toContain("maintained OpenCode adapter");
@@ -48,6 +48,8 @@ describe("documentation contracts", () => {
     expect(changelog).toContain("## [0.9.2]");
     expect(changelog).toContain("## [0.9.3]");
     expect(changelog).toContain("## [0.9.4]");
+    expect(changelog).toContain("## [0.10.0]");
+    expect(changelog).toContain("## [1.0.0]");
     expect(changelog).toContain(
       "[0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0"
     );
