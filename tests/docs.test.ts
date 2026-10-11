@@ -7,6 +7,7 @@ const readme = await fs.readFile("README.md", "utf8");
 const changelog = await fs.readFile("CHANGELOG.md", "utf8");
 const sdkContract = await fs.readFile("docs/opencode-sdk-contract.md", "utf8");
 const artifactPolicy = await fs.readFile("docs/beads-artifact-policy.md", "utf8");
+const parity = await fs.readFile("docs/claude-code-parity.md", "utf8");
 const packageManifest = JSON.parse(await fs.readFile("package.json", "utf8")) as {
   name: string;
   version: string;
@@ -102,6 +103,7 @@ describe("documentation contracts", () => {
       "CHANGELOG.md",
       "docs/beads-artifact-policy.md",
       "docs/opencode-sdk-contract.md",
+      "docs/claude-code-parity.md",
     ]) {
       const content = await fs.readFile(file, "utf8");
       const links = [...content.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)]
@@ -140,6 +142,23 @@ describe("documentation contracts", () => {
     expect(readme).toContain("beads-contract");
     expect(artifactPolicy).toContain("scripts/bd-contract.ts");
     expect(artifactPolicy).toContain("REASSESS:");
+  });
+
+  test("records Claude Code parity with live evidence and explicit divergences", () => {
+    expect(readme).toContain("[Claude Code parity matrix](docs/claude-code-parity.md)");
+    expect(parity).toContain("Validated on **OpenCode 2.0.26** with **bd 1.3.1**");
+    for (const source of ["`startup`", "`resume`", "`clear`", "`compact`"]) {
+      expect(parity).toContain(`\`SessionStart\` (${source})`);
+    }
+    for (const row of ["Minimal `CLAUDE.md` pointer", "`--stealth`", "`--remove`", "`--check`", "Hook errors are visible"]) {
+      expect(parity).toContain(row);
+    }
+    for (const heading of ["## Beyond Claude Code", "## Deliberate divergences", "## Not exercised"]) {
+      expect(parity).toContain(heading);
+    }
+    for (const option of ["refreshAfterIdleMinutes", "stealth", "taskAgentSteps", "autoMigrate", "luna"]) {
+      expect(readme).toContain(`| \`${option}\` |`);
+    }
   });
 
   test("documents the schema migration guard and plugin options", () => {

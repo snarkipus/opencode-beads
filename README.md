@@ -38,6 +38,8 @@ Installing the plugin gives OpenCode the same integration that `bd setup claude`
 | `--remove` | Remove the `plugins` entry |
 | `--check` | `opencode debug agents` lists `beads-task-agent`; a session's agent sees a `<beads-context>` block |
 
+The [Claude Code parity matrix](docs/claude-code-parity.md) records every `bd setup claude` behavior, its OpenCode equivalent and live evidence, the OpenCode-only capabilities, and the deliberate divergences.
+
 This plugin requires OpenCode 2 and `bd` 1.3.0 or later. Add the version-pinned plugin to `~/.config/opencode/opencode.json`:
 
 ```json
