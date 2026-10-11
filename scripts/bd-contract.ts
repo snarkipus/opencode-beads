@@ -15,6 +15,7 @@ import {
   MINIMUM_BD_VERSION,
   parseVersion,
 } from "../src/guard";
+import { minimizeBeadsInstructions } from "../src/instructions";
 import { runBd } from "../src/prime";
 
 const failures: string[] = [];
@@ -133,6 +134,26 @@ try {
       "bd close <id> --reason --json succeeds"
     );
   }
+
+  // The instruction blocks the plugin minimizes while prime is attached (Claude Code parity).
+  const setupRepo = path.join(root, "setup");
+  await fs.mkdir(setupRepo);
+  await git(setupRepo, "init", "-q");
+  await git(setupRepo, "config", "user.email", "contract@example.invalid");
+  await git(setupRepo, "config", "user.name", "bd contract");
+  await attempt("bd init (default integrations)", () => bd(setupRepo, ["init", "-q"]));
+  await attempt("bd setup opencode", () => bd(setupRepo, ["setup", "opencode"]));
+  const agentsFile = await fs.readFile(path.join(setupRepo, "AGENTS.md"), "utf8").catch(() => "");
+  check(
+    /<!-- BEGIN BEADS INTEGRATION\b[^>]*\bprofile:full\b[^>]*-->/.test(agentsFile) &&
+      agentsFile.includes("<!-- END BEADS INTEGRATION -->"),
+    "bd setup opencode writes a full-profile block with the expected markers"
+  );
+  const minimized = minimizeBeadsInstructions(agentsFile);
+  check(
+    minimized.replaced > 0 && !minimized.text.includes("profile:full"),
+    `the plugin replaces bd's duplicate AGENTS.md blocks (${minimized.replaced} block(s), ${agentsFile.length} -> ${minimized.text.length} chars)`
+  );
 
   // The guard's marker contract: prime never refreshes it, bd migrate schema always does.
   if (markerPath) {

@@ -62,6 +62,8 @@ Version 0.9.3 contained command guidance from the withdrawn upstream Beads v1.2.
 
 The plugin runs full `bd prime` in the project directory and attaches its output to each model request through OpenCode's session context hook. The output is cached per session, so prime runs once per session rather than per request, and the cache is refreshed after compaction so persistent memories stay current. Attached context is not stored in the conversation, so compaction cannot drop it. Prime supplies the canonical current workflow, command guidance, and persistent memories; the plugin adds only compact OpenCode-specific safety and delegation guidance.
 
+While prime is attached, bd's full-profile `AGENTS.md` section and its Codex section (the blocks `bd init` and `bd setup opencode` manage) only repeat it. The plugin replaces those marked blocks in the outgoing request with a one-line pointer, matching the minimal `CLAUDE.md` pointer Beads uses for Claude Code. Your `AGENTS.md` file and any text outside those markers are not changed, and nothing is replaced when prime is withheld or unavailable.
+
 Known regular subagents remain excluded, including `explore` and `general`, while `beads-task-agent` and `beads-task-agent-luna` remain eligible. If agent lookup fails, context injection fails open to preserve compatibility with unknown custom primary agents.
 
 If `bd` is unavailable, the project is uninitialized, or prime fails or returns no content, injection is skipped and retried after 30 seconds. Failures are logged as `[opencode-beads]` warnings. The task agent retains a bounded standalone quick reference for `ready`, `show`, atomic claim, discovered follow-up, validate before closure, and close.

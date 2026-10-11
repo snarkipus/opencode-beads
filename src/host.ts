@@ -7,6 +7,7 @@ import {
   type ContextRuntime,
 } from "./context";
 import { checkBeadsStore, createGuardRuntime } from "./guard";
+import { minimizeSystemParts } from "./instructions";
 import { runBd, runBdPrime } from "./prime";
 
 /** The slice of the OpenCode V2 plugin context this adapter uses. */
@@ -80,7 +81,10 @@ export async function setupBeads(
 
   await ctx.session.hook("context", async (event) => {
     const text = await controller.systemFor(event.sessionID, event.agent);
-    if (text) event.system.push({ type: "text", text });
+    if (!text) return;
+    // With prime attached, bd's full AGENTS.md sections only repeat it (Claude Code gets a pointer).
+    if (text.startsWith("<beads-context")) minimizeSystemParts(event.system);
+    event.system.push({ type: "text", text });
   });
 
   const abort = new AbortController();
