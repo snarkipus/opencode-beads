@@ -13,6 +13,7 @@ function fixture(
     guard?: GuardResult | (() => Promise<GuardResult>);
     prime?: () => Promise<string>;
     modes?: Record<string, AgentMode>;
+    idleRefreshMs?: number;
   } = {}
 ) {
   let time = 0;
@@ -26,6 +27,7 @@ function fixture(
   const runtime: ContextRuntime = { guard, prime, agentMode, diagnose };
   const controller = createContextController(runtime, "/project", {
     retryMs: 1_000,
+    idleRefreshMs: options.idleRefreshMs,
     now: () => time,
   });
   return {
@@ -169,6 +171,31 @@ describe("context controller", () => {
     f.controller.forget("s1");
     output = "THIRD";
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toContain("THIRD");
+  });
+
+  test("re-primes a session that resumes after the idle window, like Claude's resume", async () => {
+    let output = "FIRST";
+    const f = fixture({ prime: async () => output, idleRefreshMs: 10_000 });
+    expect(await f.controller.systemFor("s1", "beads-task-agent")).toContain("FIRST");
+    output = "SECOND";
+    // Steady use slides the window forward without re-running prime.
+    for (let step = 0; step < 5; step++) {
+      f.advance(9_000);
+      expect(await f.controller.systemFor("s1", "beads-task-agent")).toContain("FIRST");
+    }
+    expect(f.prime).toHaveBeenCalledTimes(1);
+    f.advance(10_001);
+    expect(await f.controller.systemFor("s1", "beads-task-agent")).toContain("SECOND");
+    expect(f.prime).toHaveBeenCalledTimes(2);
+  });
+
+  test("never refreshes on idle when the window is 0", async () => {
+    let output = "FIRST";
+    const f = fixture({ prime: async () => output, idleRefreshMs: 0 });
+    await f.controller.systemFor("s1", "beads-task-agent");
+    output = "SECOND";
+    f.advance(365 * 24 * 60 * 60_000);
+    expect(await f.controller.systemFor("s1", "beads-task-agent")).toContain("FIRST");
   });
 
   test("keeps sessions with similar IDs independent when invalidating", async () => {

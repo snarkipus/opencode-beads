@@ -62,6 +62,7 @@ Plugin options use the object form:
 | Option | Default | Effect |
 | --- | --- | --- |
 | `luna` | `false` | Also register the `beads-task-agent-luna` profile. |
+| `refreshAfterIdleMinutes` | `30` | Re-run `bd prime` when a session resumes after this much inactivity, as Claude Code does on resume. `0` disables idle refresh. |
 | `autoMigrate` | `false` | Let automatic `bd prime` open a store that may need a schema migration. See [Schema migration guard](#schema-migration-guard). |
 
 OpenCode loads configuration changes automatically. Update the pin explicitly when upgrading; an unpinned package entry is less reproducible. OpenCode 1.x plugins are not supported; use 0.10.x or earlier there.
@@ -72,7 +73,7 @@ Version 0.9.3 contained command guidance from the withdrawn upstream Beads v1.2.
 
 ## Context injection
 
-The plugin runs full `bd prime` in the project directory and attaches its output to each model request through OpenCode's session context hook. The output is cached per session, so prime runs once per session rather than per request, and the cache is refreshed after compaction so persistent memories stay current. Attached context is not stored in the conversation, so compaction cannot drop it. Prime supplies the canonical current workflow, command guidance, and persistent memories; the plugin adds only compact OpenCode-specific safety and delegation guidance.
+The plugin runs full `bd prime` in the project directory and attaches its output to each model request through OpenCode's session context hook. The output is cached per session, so prime runs once per session rather than per request. It runs again after compaction (automatic or manual), when a session resumes after `refreshAfterIdleMinutes` of inactivity, and when the plugin reloads, mirroring the `startup`, `resume`, `clear`, and `compact` sources of Claude Code's `SessionStart` hook. Steady work keeps the same text, which keeps provider prompt caches warm. Attached context is not stored in the conversation, so compaction cannot drop it. Prime supplies the canonical current workflow, command guidance, and persistent memories; the plugin adds only compact OpenCode-specific safety and delegation guidance.
 
 While prime is attached, bd's full-profile `AGENTS.md` section and its Codex section (the blocks `bd init` and `bd setup opencode` manage) only repeat it. The plugin replaces those marked blocks in the outgoing request with a one-line pointer, matching the minimal `CLAUDE.md` pointer Beads uses for Claude Code. Your `AGENTS.md` file and any text outside those markers are not changed, and nothing is replaced when prime is withheld or unavailable.
 

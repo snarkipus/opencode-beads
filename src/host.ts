@@ -74,9 +74,14 @@ export async function setupBeads(
   const agents = beadsAgents({ luna: ctx.options?.luna === true });
   await ctx.agent.transform((editor) => applyBeadsAgents(editor, agents));
 
+  const idleMinutes = ctx.options?.refreshAfterIdleMinutes;
   const controller = createContextController(runtime, directory, {
     now: deps.now,
     retryMs: deps.retryMs,
+    idleRefreshMs:
+      typeof idleMinutes === "number" && Number.isFinite(idleMinutes) && idleMinutes >= 0
+        ? idleMinutes * 60_000
+        : undefined,
   });
 
   await ctx.session.hook("context", async (event) => {

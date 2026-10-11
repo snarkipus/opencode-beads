@@ -26,6 +26,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 - Beads store guard: automatic `bd prime` requires `bd` 1.3.0 or later and is withheld, with an agent-facing notice, when `.beads/.local_version` shows the store may need an irreversible schema migration. The plugin option `"autoMigrate": true` opts out.
 - Minimal Beads instructions while prime is attached: bd's full-profile and Codex `AGENTS.md` blocks are replaced in the outgoing request with a one-line pointer (about 6k characters per request on a default `bd init` project), matching the Claude Code integration. Files are not modified.
 - Install guidance matches Beads' Claude Code integration: run plain `bd init` (minimal `AGENTS.md` pointer) and do not run `bd setup opencode`, with an effect-by-effect mapping from `bd setup claude` to the plugin.
+- `refreshAfterIdleMinutes` plugin option (default 30): a session that resumes after that much inactivity gets fresh `bd prime`, matching Claude Code's `SessionStart` resume behavior.
 - bd contract check (`scripts/bd-contract.ts`): runs a real `bd` against the guard and the task-agent commands in CI (validated release) and daily against the latest stable Beads release via the `beads-contract` workflow, which also flags releases that have not been reviewed yet, and changes that would make the plugin redundant (for example `bd setup opencode` starting to install hooks or plugin files).
 
 ### Changed

@@ -6,6 +6,13 @@ import { beadsGuidance } from "./guidance";
 /** Retry window for withheld or failed context, so model steps do not respawn `bd` each time. */
 export const DEFAULT_CONTEXT_RETRY_MS = 30_000;
 
+/**
+ * Re-run prime when a session resumes after this much inactivity. Claude Code's SessionStart hook
+ * re-primes on resume; OpenCode has no resume event, so an idle gap stands in for it. Continuous
+ * work keeps identical prime text, which keeps provider prompt caches warm.
+ */
+export const DEFAULT_IDLE_REFRESH_MS = 30 * 60_000;
+
 export type AgentMode = "primary" | "subagent" | "all";
 export type ContextAudience = "primary" | "task-agent";
 export type ContextDiagnostic = "agent_lookup_failed" | "prime_failed" | "prime_timeout";
@@ -20,6 +27,8 @@ export interface ContextRuntime {
 
 export interface ContextControllerOptions {
   retryMs?: number;
+  /** Refresh prime after this much session inactivity; 0 disables idle refresh. */
+  idleRefreshMs?: number;
   now?: () => number;
 }
 
@@ -32,7 +41,7 @@ export interface ContextController {
   forget(sessionID: string): void;
 }
 
-type CacheEntry = { value: Promise<string | undefined>; expiresAt?: number };
+type CacheEntry = { value: Promise<string | undefined>; expiresAt?: number; lastUsed: number };
 
 /** Wrap prime output in the envelope and shared guidance for one audience. */
 export function renderBeadsContext(prime: string, audience: ContextAudience): string {
@@ -52,6 +61,7 @@ export function createContextController(
   options: ContextControllerOptions = {}
 ): ContextController {
   const retryMs = options.retryMs ?? DEFAULT_CONTEXT_RETRY_MS;
+  const idleRefreshMs = options.idleRefreshMs ?? DEFAULT_IDLE_REFRESH_MS;
   const now = options.now ?? Date.now;
   const cache = new Map<string, CacheEntry>();
   const modes = new Map<string, Promise<AgentMode | undefined>>();
@@ -119,12 +129,16 @@ export function createContextController(
       if (!audience) return undefined;
 
       const key = `${sessionID}\0${audience}`;
+      const current = now();
       const cached = cache.get(key);
-      if (cached && (cached.expiresAt === undefined || cached.expiresAt > now())) {
+      const fresh = cached && (cached.expiresAt === undefined || cached.expiresAt > current);
+      const resumed = cached && idleRefreshMs > 0 && current - cached.lastUsed > idleRefreshMs;
+      if (cached && fresh && !resumed) {
+        cached.lastUsed = current;
         return cached.value;
       }
 
-      const entry: CacheEntry = { value: Promise.resolve(undefined) };
+      const entry: CacheEntry = { value: Promise.resolve(undefined), lastUsed: current };
       entry.value = load(sessionID, audience, entry);
       cache.set(key, entry);
       return entry.value;
