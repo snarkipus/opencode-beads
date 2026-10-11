@@ -34,6 +34,14 @@ jobs:
       - name: Test packed package
         run: bun run test:package
 
+      - name: Install validated bd
+        run: |
+          ./scripts/install-bd.sh "$(jq -r .beads.validated package.json)" "$RUNNER_TEMP/bd"
+          echo "$RUNNER_TEMP/bd" >> "$GITHUB_PATH"
+
+      - name: Check bd contract
+        run: bun run test:bd-contract
+
   zizmor:
     runs-on: ubuntu-latest
     timeout-minutes: 10

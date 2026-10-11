@@ -98,7 +98,9 @@ Luna requires access to `openai/gpt-6-luna` and its `max` variant in your OpenCo
 
 ## Tracking upstream Beads
 
-The package vendors nothing from upstream. It depends on the installed `bd` CLI at runtime: `bd prime` supplies the current workflow, and the schema migration guard enforces the supported `bd` range. When Beads publishes a release, review its upgrade notes for changes to `bd prime`, `bd where --json`, `.beads/.local_version`, schema migrations, or the `bd setup opencode` integration, then update the compatibility table. The [artifact policy](docs/beads-artifact-policy.md) records why upstream artifacts are not vendored.
+The package vendors nothing from upstream. It depends on the installed `bd` CLI at runtime: `bd prime` supplies the current workflow, and the schema migration guard enforces the supported `bd` range.
+
+[`scripts/bd-contract.ts`](scripts/bd-contract.ts) checks a real `bd` against everything the plugin relies on: version parsing, `bd where --json`, the `.beads/.local_version` behavior the guard depends on (written by `bd init`, untouched by `bd prime`, refreshed by `bd migrate schema`), and every command the task-agent prompt names. CI runs it against the validated release from `package.json` (`beads.validated`). The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release, and fails if that release breaks the contract or is newer than the validated one. When a new release appears, review its upgrade notes, then update `beads.validated` and the compatibility table. The [artifact policy](docs/beads-artifact-policy.md) records why upstream artifacts are not vendored.
 
 ## Compatibility
 

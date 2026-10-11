@@ -31,12 +31,13 @@ Upstream host integrations at Beads `v1.3.1` (commit `c1c4b642ac1c08d8c828007a1c
 
 ### Rationale for retiring vendoring
 
-Until 1.0.0 a daily workflow synced the upstream task agent into `vendor/` with a manifest of tag, commit, inventory, and checksums, and validated reviewed text replacements. After the command templates were retired, that machinery (sync script, provenance module, validator, and their tests) existed for one file. That file contributed only metadata, provenance, and compatibility validation, and its one user-visible effect was the wrong description. Its drift tripwire signalled edits to a Claude Code prompt this adapter does not run. Upstream changes that matter here (`bd prime` output, `bd where --json`, `.beads/.local_version`, schema migrations, and `bd setup opencode`) reach the adapter through the installed CLI and are covered by the runtime guard and release review, not by vendoring.
+Until 1.0.0 a daily workflow synced the upstream task agent into `vendor/` with a manifest of tag, commit, inventory, and checksums, and validated reviewed text replacements. After the command templates were retired, that machinery (sync script, provenance module, validator, and their tests) existed for one file. That file contributed only metadata, provenance, and compatibility validation, and its one user-visible effect was the wrong description. Its drift tripwire signalled edits to a Claude Code prompt this adapter does not run. Upstream changes that matter here (`bd prime` output, `bd where --json`, `.beads/.local_version`, schema migrations, the commands the task-agent prompt names, and `bd setup opencode`) reach the adapter through the installed CLI. Vendoring never tested any of them; the bd contract check does.
 
 ### Consequences
 
 - No `vendor/` directory, sync workflow, or provenance manifest. Packages contain only `src/`, `README.md`, `LICENSE`, and `package.json`.
-- The maintainer follows Beads releases (GitHub "Watch → Custom → Releases" on `gastownhall/beads`) and reviews each release's upgrade notes against the surfaces above, recording follow-up work in Beads.
+- `scripts/bd-contract.ts` exercises a real `bd` in a disposable repository: version parsing and the supported minimum, `bd where --json`, the `.beads/.local_version` contract the guard relies on, and every command named by the task-agent prompt. It runs the plugin's own guard code.
+- CI runs the contract against `beads.validated` from `package.json`. The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release and fails when a release breaks the contract or has not been reviewed yet, replacing the sync PRs as the new-release signal. After reviewing a release's upgrade notes against the surfaces above, the maintainer updates `beads.validated` and the README compatibility table, and records any follow-up work in Beads.
 - The task-agent contract is tested directly against the fork-owned prompt and description.
 
 ## Skill ownership

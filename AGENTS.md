@@ -4,6 +4,7 @@
 - **Typecheck**: `bun run typecheck`
 - **Tests**: `bun test`
 - **Package smoke test**: `bun run test:package`
+- **bd contract check** (needs `bd` on PATH): `bun run test:bd-contract`; install a pinned release with `./scripts/install-bd.sh <version> <dir>`
 - **Install deps**: `bun install`
 
 ## Code Style

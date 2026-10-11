@@ -1,0 +1,66 @@
+name: beads-contract
+
+# Nothing is vendored from upstream Beads. This checks the latest stable bd release against the
+# plugin's contract daily, and fails when a newer release has not been reviewed yet.
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Beads release to check, e.g. 1.3.1 (default latest stable)
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Resolve Beads release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          if [[ -n "$REQUESTED" ]]; then
+            version="$REQUESTED"
+          else
+            version="$(gh release view --repo gastownhall/beads --json tagName --jq .tagName)"
+          fi
+          echo "version=${version#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install bd
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          ./scripts/install-bd.sh "$VERSION" "$RUNNER_TEMP/bd"
+          echo "$RUNNER_TEMP/bd" >> "$GITHUB_PATH"
+
+      - name: Check bd contract
+        run: bun run test:bd-contract
+
+      - name: Require review of new Beads releases
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          validated="$(jq -r .beads.validated package.json)"
+          newest="$(printf '%s\n%s\n' "$validated" "$VERSION" | sort -V | tail -n 1)"
+          if [[ "$VERSION" != "$validated" && "$newest" == "$VERSION" ]]; then
+            echo "::error::Beads $VERSION passes the contract but is newer than the validated $validated. Review its upgrade notes against docs/beads-artifact-policy.md, then update beads.validated in package.json and the README compatibility table."
+            exit 1
+          fi

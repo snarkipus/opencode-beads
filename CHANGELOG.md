@@ -24,6 +24,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - OpenCode V2 plugin entry point. Beads context is attached to each model request through the session context hook, cached per session, and refreshed after compaction.
 - Beads store guard: automatic `bd prime` requires `bd` 1.3.0 or later and is withheld, with an agent-facing notice, when `.beads/.local_version` shows the store may need an irreversible schema migration. The plugin option `"autoMigrate": true` opts out.
+- bd contract check (`scripts/bd-contract.ts`): runs a real `bd` against the guard and the task-agent commands in CI (validated release) and daily against the latest stable Beads release via the `beads-contract` workflow, which also flags releases that have not been reviewed yet.
 
 ### Changed
 

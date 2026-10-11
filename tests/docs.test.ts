@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { MINIMUM_BD_VERSION } from "../src/guard";
 
 const readme = await fs.readFile("README.md", "utf8");
 const changelog = await fs.readFile("CHANGELOG.md", "utf8");
@@ -10,12 +11,14 @@ const packageManifest = JSON.parse(await fs.readFile("package.json", "utf8")) as
   name: string;
   version: string;
   contributors?: Array<{ name?: string; url?: string }>;
+  beads: { minimum: string; validated: string };
 };
 const packageIdentity = `${packageManifest.name}@${packageManifest.version}`;
 
 describe("documentation contracts", () => {
   test("uses current package, command, and upstream identities", () => {
-    expect(readme).not.toMatch(/\/bd-[a-z]/);
+    // Old `/bd-*` slash commands; a path segment such as `scripts/bd-contract.ts` is fine.
+    expect(readme).not.toMatch(/(?<![\w.])\/bd-[a-z]/);
     expect(readme).not.toContain("github.com/steveyegge");
     expect(readme).toContain("https://github.com/gastownhall/beads");
     expect(readme).toContain(`"plugins": ["${packageIdentity}"]`);
@@ -123,6 +126,16 @@ describe("documentation contracts", () => {
     expect(readme).toContain("| OpenCode | 2.0.26 through 2.x | 2.0.26 |");
     expect(readme).toContain("| `bd` CLI | 1.3.0 through 1.x | 1.3.1 |");
     expect(readme).not.toContain("@opencode-ai/");
+  });
+
+  test("keeps the Beads compatibility range in one place", () => {
+    const { minimum, validated } = packageManifest.beads;
+    expect(minimum).toBe(MINIMUM_BD_VERSION);
+    expect(readme).toContain(`| \`bd\` CLI | ${minimum} through 1.x | ${validated} |`);
+    expect(readme).toContain(`reviewed against Beads v${validated}`);
+    expect(readme).toContain("`bd` 1.3.0 or later");
+    expect(readme).toContain("beads-contract");
+    expect(artifactPolicy).toContain("scripts/bd-contract.ts");
   });
 
   test("documents the schema migration guard and plugin options", () => {
