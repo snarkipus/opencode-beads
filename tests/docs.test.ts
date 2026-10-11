@@ -146,14 +146,14 @@ describe("documentation contracts", () => {
   });
 
   test("records the current task-agent provenance and the v1.2.2 recovery baseline", () => {
-    expect(readme).toContain("Task-agent provenance is synced from Beads v1.3.0");
-    expect(readme).toContain("f45b249ce6b40ba62aecc03949e6371e8f7c79d8");
+    expect(readme).toContain("Task-agent provenance is synced from Beads v1.3.1");
+    expect(readme).toContain("c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c");
     expect(artifactPolicy).toContain("`v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`");
     expect(artifactPolicy).toContain(
       "`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`"
     );
     expect(artifactPolicy).toContain(
-      "Currently packaged artifact baseline: Beads `v1.3.0`, commit `f45b249ce6b40ba62aecc03949e6371e8f7c79d8`"
+      "Currently packaged artifact baseline: Beads `v1.3.1`, commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`"
     );
     expect(artifactPolicy).toContain(
       "Earlier baselines were Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`"

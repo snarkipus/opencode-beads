@@ -110,7 +110,7 @@ Do not edit vendored files directly. Sync and package validation reject provenan
 | `bd` CLI | 1.3.0 through 1.x | 1.3.1 |
 | Bun (OpenCode host runtime) | >=1.3.14 | 1.4.2 |
 
-The adapter type-checks against `@opencode/plugin` 2.0.26 and declares it as an optional peer from 2.0.26 through 2.x; the import is type-only, so OpenCode's own runtime is used. See the [OpenCode V2 contract](docs/opencode-sdk-contract.md). Task-agent provenance is synced from Beads v1.3.0 at commit `f45b249ce6b40ba62aecc03949e6371e8f7c79d8`.
+The adapter type-checks against `@opencode/plugin` 2.0.26 and declares it as an optional peer from 2.0.26 through 2.x; the import is type-only, so OpenCode's own runtime is used. See the [OpenCode V2 contract](docs/opencode-sdk-contract.md). Task-agent provenance is synced from Beads v1.3.1 at commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`.
 
 ## Troubleshooting
 

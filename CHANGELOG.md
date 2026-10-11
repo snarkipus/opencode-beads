@@ -27,7 +27,7 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - **Breaking:** requires OpenCode 2 (`@opencode/plugin` 2.0.26 through 2.x, optional peer) and `bd` 1.3.0 or later. OpenCode 1.x is no longer supported; configure the plugin under `plugins` rather than `plugin`.
 - The package also exports `./server`, which OpenCode V2 resolves first for package plugins.
-- Synced vendored beads files to v1.3.0
+- Synced vendored beads files to v1.3.1 (the task-agent artifact is unchanged since v1.3.0)
 - Task agents register through the V2 agent transform. The Luna Max profile is enabled with the plugin option `"luna": true` instead of an empty agent entry.
 
 ### Removed

@@ -4,7 +4,7 @@ Status: revised for the OpenCode V2 contract by `opencode-beads-2zs`; earlier re
 
 ## Evidence
 
-- Currently packaged artifact baseline: Beads `v1.3.0`, commit `f45b249ce6b40ba62aecc03949e6371e8f7c79d8`, limited to `plugins/beads/agents/task-agent.md`. Earlier baselines were Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`, whose non-manifest vendor bytes matched the tested v1.1.2 baseline at local repository commit `e51b8fe`.
+- Currently packaged artifact baseline: Beads `v1.3.1`, commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`, limited to `plugins/beads/agents/task-agent.md`. Earlier baselines were Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`, whose non-manifest vendor bytes matched the tested v1.1.2 baseline at local repository commit `e51b8fe`.
 - OpenCode baseline: `@opencode/plugin` and OpenCode `2.0.26`, as recorded in [the OpenCode V2 contract](opencode-sdk-contract.md).
 - OpenCode V2's [skill documentation](https://opencode.ai/v2/docs/skills/) discovers skills under project and global `.opencode/skills`, `.claude/skills`, and `.agents/skills`, plus configured directories or URLs. It does not scan npm package internals.
 - OpenCode V2's [plugin guide](https://opencode.ai/v2/docs/build/plugins/) exposes agent, command, skill, tool, and session-hook domains. Plugin commands are executable code, and plugin skills require a `path`.
@@ -43,7 +43,7 @@ The full `bd` command surface remains CLI-only. OpenCode receives no generated t
 
 ## Provenance and package implications
 
-The npm package ships only the runtime adapter source and the reviewed task-agent artifact under `vendor/`. `vendor/manifest.json` pins Beads `v1.3.0` at `f45b249ce6b40ba62aecc03949e6371e8f7c79d8` and records exact source paths, sorted inventory, byte lengths, and SHA-256 checksums. Strict package tests reject a companion bin, `dist/init` content, missing runtime artifacts, or unexpected files.
+The npm package ships only the runtime adapter source and the reviewed task-agent artifact under `vendor/`. `vendor/manifest.json` pins Beads `v1.3.1` at `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c` and records exact source paths, sorted inventory, byte lengths, and SHA-256 checksums. Strict package tests reject a companion bin, `dist/init` content, missing runtime artifacts, or unexpected files.
 
 The 0.9.3 package contained withdrawn upstream v1.2.1 command guidance. This adapter did not bundle the `bd` binary or implement database migrations, but its context injection could invoke a consumer-installed v1.2.1 binary through `bd prime`. Even one v1.2.1 execution could migrate the database from schema v53 to v65. Users must upgrade the plugin package to 0.9.4; if v1.2.1 was installed and may have run, they must additionally follow [upstream v1.2.2 database recovery guidance](https://github.com/gastownhall/beads/blob/v1.2.2/docs/RECOVERY-1.2.1.md). This repository does not perform database recovery.
 
