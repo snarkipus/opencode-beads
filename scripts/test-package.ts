@@ -103,6 +103,7 @@ try {
     JSON.stringify(manifest.exports) !==
       JSON.stringify({
         ".": { types: "./src/plugin.ts", import: "./src/plugin.ts" },
+        "./server": { types: "./src/plugin.ts", import: "./src/plugin.ts" },
       })
   ) {
     throw new Error("Packed package has an unexpected root export contract");
@@ -116,16 +117,12 @@ try {
   if (manifest.bin !== undefined) {
     throw new Error("Packed package unexpectedly registers a companion CLI");
   }
-  const opencodeRange = ">=1.18.3 <2";
+  const opencodeRange = ">=2.0.26 <3";
   if (
     manifest.dependencies !== undefined ||
     JSON.stringify(manifest.peerDependencies) !==
-      JSON.stringify({
-        "@opencode-ai/plugin": opencodeRange,
-        "@opencode-ai/sdk": opencodeRange,
-      }) ||
-    !manifest.peerDependenciesMeta["@opencode-ai/plugin"]?.optional ||
-    !manifest.peerDependenciesMeta["@opencode-ai/sdk"]?.optional
+      JSON.stringify({ "@opencode/plugin": opencodeRange }) ||
+    !manifest.peerDependenciesMeta["@opencode/plugin"]?.optional
   ) {
     throw new Error("Packed package has an unexpected OpenCode dependency contract");
   }
@@ -158,6 +155,10 @@ try {
   const entry = Bun.resolveSync(sourceManifest.name, consumerDir);
   if (entry !== path.join(packageDir, manifest.main)) {
     throw new Error("Packed package root export did not resolve to the plugin entry point");
+  }
+  // OpenCode V2 resolves `<name>/server` before `<name>` for package plugins.
+  if (Bun.resolveSync(`${sourceManifest.name}/server`, consumerDir) !== entry) {
+    throw new Error("Packed package ./server export did not resolve to the plugin entry point");
   }
   const loaded = await import(pathToFileURL(entry).href);
   const plugin = loaded.default as { id?: unknown; setup?: unknown } | undefined;

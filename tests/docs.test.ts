@@ -18,7 +18,8 @@ describe("documentation contracts", () => {
     expect(readme).not.toMatch(/\/bd-[a-z]/);
     expect(readme).not.toContain("github.com/steveyegge");
     expect(readme).toContain("https://github.com/gastownhall/beads");
-    expect(readme).toContain(`"plugin": ["${packageIdentity}"]`);
+    expect(readme).toContain(`"plugins": ["${packageIdentity}"]`);
+    expect(readme).not.toContain(`"plugin": [`);
 
     const documentedVersions = [
       ...readme.matchAll(
@@ -111,10 +112,25 @@ describe("documentation contracts", () => {
     }
   });
 
-  test("keeps the compatibility record on the supported OpenCode baseline", () => {
-    expect(sdkContract).not.toContain("1.0.148");
-    expect(sdkContract).toContain("Minimum `1.18.3` and current stable `1.18.15`");
-    expect(sdkContract).toContain("`bunx opencode-ai@1.18.15 agent list` discovered `beads-task-agent`");
+  test("keeps the compatibility record on the supported OpenCode V2 baseline", () => {
+    expect(sdkContract).toContain("# OpenCode V2 Plugin Contract");
+    expect(sdkContract).toContain("`@opencode/plugin` `>=2.0.26 <3`");
+    expect(sdkContract).toContain("`<name>/server`, then `<name>`");
+    expect(sdkContract).toContain("`session.compaction.ended`");
+    expect(sdkContract).not.toContain("1.18.");
+    expect(readme).toContain("| OpenCode | 2.0.26 through 2.x | 2.0.26 |");
+    expect(readme).toContain("| `bd` CLI | 1.3.0 through 1.x | 1.3.1 |");
+    expect(readme).not.toContain("@opencode-ai/");
+  });
+
+  test("documents the schema migration guard and plugin options", () => {
+    expect(readme).toContain("## Schema migration guard");
+    expect(readme).toContain("`bd --readonly` does not prevent that");
+    expect(readme).toContain("`bd migrate schema`");
+    expect(readme).toContain("| `autoMigrate` | `false` |");
+    expect(readme).toContain("| `luna` | `false` |");
+    expect(readme).not.toContain('"beads-task-agent-luna": {}');
+    expect(artifactPolicy).toContain("schema migration guard");
   });
 
   test("documents upstream-aligned full-prime context boundaries", () => {
@@ -129,15 +145,18 @@ describe("documentation contracts", () => {
     expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
 
-  test("records the reviewed Beads v1.2.2 recovery provenance", () => {
-    expect(readme).toContain("Command and agent provenance is synced from Beads v1.2.2");
-    expect(readme).toContain("6c124203e771433a3550c348771a5b5e27fd3c21");
+  test("records the current task-agent provenance and the v1.2.2 recovery baseline", () => {
+    expect(readme).toContain("Task-agent provenance is synced from Beads v1.3.0");
+    expect(readme).toContain("f45b249ce6b40ba62aecc03949e6371e8f7c79d8");
     expect(artifactPolicy).toContain("`v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`");
     expect(artifactPolicy).toContain(
       "`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`"
     );
     expect(artifactPolicy).toContain(
-      "Currently packaged artifact baseline: Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`"
+      "Currently packaged artifact baseline: Beads `v1.3.0`, commit `f45b249ce6b40ba62aecc03949e6371e8f7c79d8`"
+    );
+    expect(artifactPolicy).toContain(
+      "Earlier baselines were Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`"
     );
   });
 
