@@ -103,6 +103,7 @@ try {
     JSON.stringify(manifest.exports) !==
       JSON.stringify({
         ".": { types: "./src/plugin.ts", import: "./src/plugin.ts" },
+        "./server": { types: "./src/plugin.ts", import: "./src/plugin.ts" },
       })
   ) {
     throw new Error("Packed package has an unexpected root export contract");
@@ -116,16 +117,12 @@ try {
   if (manifest.bin !== undefined) {
     throw new Error("Packed package unexpectedly registers a companion CLI");
   }
-  const opencodeRange = ">=1.18.3 <2";
+  const opencodeRange = ">=2.0.26 <3";
   if (
     manifest.dependencies !== undefined ||
     JSON.stringify(manifest.peerDependencies) !==
-      JSON.stringify({
-        "@opencode-ai/plugin": opencodeRange,
-        "@opencode-ai/sdk": opencodeRange,
-      }) ||
-    !manifest.peerDependenciesMeta["@opencode-ai/plugin"]?.optional ||
-    !manifest.peerDependenciesMeta["@opencode-ai/sdk"]?.optional
+      JSON.stringify({ "@opencode/plugin": opencodeRange }) ||
+    !manifest.peerDependenciesMeta["@opencode/plugin"]?.optional
   ) {
     throw new Error("Packed package has an unexpected OpenCode dependency contract");
   }
@@ -159,13 +156,19 @@ try {
   if (entry !== path.join(packageDir, manifest.main)) {
     throw new Error("Packed package root export did not resolve to the plugin entry point");
   }
+  // OpenCode V2 resolves `<name>/server` before `<name>` for package plugins.
+  if (Bun.resolveSync(`${sourceManifest.name}/server`, consumerDir) !== entry) {
+    throw new Error("Packed package ./server export did not resolve to the plugin entry point");
+  }
   const loaded = await import(pathToFileURL(entry).href);
-  if (typeof loaded.BeadsPlugin !== "function") {
-    throw new Error("Packed package does not export BeadsPlugin");
+  const plugin = loaded.default as { id?: unknown; setup?: unknown } | undefined;
+  if (plugin?.id !== "opencode-beads" || typeof plugin.setup !== "function") {
+    throw new Error("Packed package does not default-export the OpenCode V2 plugin definition");
   }
 
-  const vendorCommands = await fs.readdir(path.join(packageDir, "vendor", "commands"));
-  if (vendorCommands.length === 0) throw new Error("Packed package has no vendor commands");
+  if (await fs.exists(path.join(packageDir, "vendor", "commands"))) {
+    throw new Error("Packed package unexpectedly contains retired vendor commands");
+  }
 
   if (await fs.exists(path.join(packageDir, "dist"))) {
     throw new Error("Packed package unexpectedly contains a dist payload");
@@ -174,25 +177,50 @@ try {
     throw new Error("Packed package unexpectedly contains the companion CLI source");
   }
 
-  const hooks = await loaded.BeadsPlugin({
-    client: {},
-    directory: consumerDir,
-    worktree: consumerDir,
-  });
-  if (typeof hooks.config !== "function") throw new Error("Packed plugin has no config hook");
-  const config: Record<string, unknown> = {};
-  await hooks.config(config);
-  const commands = config.command as Record<string, { template?: string }> | undefined;
-  const agents = config.agent as Record<string, { prompt?: string }> | undefined;
-  if (Object.keys(commands ?? {}).length !== 27 || !commands?.["beads:ready"]?.template) {
-    throw new Error("Packed plugin did not load the complete command inventory");
+  // Exercise setup against a minimal V2 context; the context hook is registered but not invoked.
+  type PackedAgent = { name?: string; mode?: string; system?: string; model?: unknown };
+  async function setupPacked(options: Record<string, unknown>) {
+    const registeredHooks: string[] = [];
+    const agents = new Map<string, PackedAgent>();
+    const cleanup = await (plugin!.setup as (ctx: unknown) => Promise<unknown>)({
+      location: { directory: consumerDir },
+      options,
+      agent: {
+        get: async () => ({ data: { mode: "primary" } }),
+        transform: async (callback: (editor: unknown) => void) => {
+          callback({
+            update(id: string, update: (agent: PackedAgent) => void) {
+              const agent = agents.get(id) ?? { name: id, mode: "primary" };
+              update(agent);
+              agents.set(id, agent);
+            },
+          });
+          return { dispose: async () => {} };
+        },
+      },
+      session: {
+        hook: async (name: string) => {
+          registeredHooks.push(name);
+          return { dispose: async () => {} };
+        },
+      },
+      event: {
+        subscribe: async function* () {},
+      },
+    });
+    if (typeof cleanup !== "function") throw new Error("Packed plugin setup returned no cleanup");
+    cleanup();
+    return { registeredHooks, agents };
   }
-  if (commands?.["beads:setup"] !== undefined) {
-    throw new Error("Packed plugin unexpectedly loaded /beads:setup");
+
+  const vanilla = await setupPacked({});
+  if (vanilla.registeredHooks.join(",") !== "context") {
+    throw new Error(`Packed plugin registered unexpected session hooks: ${vanilla.registeredHooks.join(",")}`);
   }
-  const taskAgentPrompt = agents?.["beads-task-agent"]?.prompt;
-  if (!taskAgentPrompt) {
-    throw new Error("Packed plugin did not load the task agent");
+  const taskAgent = vanilla.agents.get("beads-task-agent");
+  const taskAgentPrompt = taskAgent?.system;
+  if (taskAgent?.mode !== "subagent" || !taskAgentPrompt) {
+    throw new Error("Packed plugin did not register the task agent as a subagent");
   }
   if (
     taskAgentPrompt.length >= 1_000 ||
@@ -202,19 +230,16 @@ try {
   ) {
     throw new Error("Packed task-agent prompt lacks the bounded workflow fallback");
   }
-  if (agents?.["beads-task-agent-luna"] !== undefined) {
+  if (vanilla.agents.has("beads-task-agent-luna")) {
     throw new Error("Packed plugin enabled Luna without an opt-in");
   }
-  const lunaConfig = { agent: { "beads-task-agent-luna": {} } };
-  await hooks.config(lunaConfig);
-  const luna = lunaConfig.agent["beads-task-agent-luna"] as {
-    model?: string; variant?: string; prompt?: string; mode?: string;
-  };
+  const luna = (await setupPacked({ luna: true })).agents.get("beads-task-agent-luna");
+  const lunaModel = luna?.model as { providerID?: string; id?: string; variant?: string } | undefined;
   if (
-    luna.model !== "openai/gpt-5.6-luna" || luna.variant !== "max" ||
-    luna.prompt !== taskAgentPrompt || luna.mode !== "subagent"
+    lunaModel?.providerID !== "openai" || lunaModel.id !== "gpt-6-luna" ||
+    lunaModel.variant !== "max" || luna?.system !== taskAgentPrompt || luna?.mode !== "subagent"
   ) {
-    throw new Error("Packed plugin did not load the shared Luna Max profile");
+    throw new Error("Packed plugin did not register the shared Luna Max profile");
   }
   const cli = path.join(consumerDir, "node_modules", ".bin", "opencode-beads");
   if (await fs.exists(cli)) throw new Error("Packed package unexpectedly installed a companion CLI");
@@ -227,7 +252,7 @@ try {
   }
 
   console.log(
-    `Validated ${archiveName} (${archiveChecksum}); loaded packed plugin with ${vendorCommands.length} vendor command files`
+    `Validated ${archiveName} (${archiveChecksum}); loaded packed V2 plugin`
   );
 } finally {
   await fs.rm(tempDir, { recursive: true, force: true });

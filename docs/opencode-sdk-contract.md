@@ -1,45 +1,39 @@
-# OpenCode SDK and Plugin Contract
+# OpenCode V2 Plugin Contract
 
-Reviewed on 2026-08-08 for the narrow OpenCode boundary used by this package.
+Reviewed on 2026-10-11 for the narrow OpenCode boundary used by this package (`opencode-beads-2zs`). OpenCode 1.x and its `@opencode-ai/plugin` hook API are no longer supported; 0.10.x and earlier target that line.
 
 ## Versions and sources
 
-- Declared optional peer range: `@opencode-ai/plugin` and `@opencode-ai/sdk` `>=1.18.3 <2`; both imports are type-only, so consumers use the OpenCode host's compatible runtime rather than installing a duplicate.
-- Installed development dependencies: plugin `1.18.15` and SDK `1.18.15` as an exact compatible pair.
-- Minimum supported and separately validated pair: plugin `1.18.3` and SDK `1.18.3`.
-- Current stable reviewed from the npm `latest` dist-tag: plugin `1.18.15` and SDK `1.18.15`. The relevant nested v1 request, hook, and event declarations remain compatible with minimum `1.18.3`; `session.deleted` is present across that range and retires controller state.
-- Isolated load qualification: project config and default plugins were disabled, the local `src/plugin.ts` file URL was supplied through `OPENCODE_CONFIG_CONTENT`, and `bunx opencode-ai@1.18.15 agent list` discovered `beads-task-agent`. The package entry exports only `BeadsPlugin` because OpenCode treats every runtime export from a legacy plugin module as a plugin function.
-- Authoritative sources: the installed package declarations; the [official plugin documentation](https://opencode.ai/docs/plugins); the [official SDK documentation](https://opencode.ai/docs/sdk); the `1.18.15` [plugin declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/plugin@1.18.15/dist/index.d.ts), [generated SDK declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/sdk@1.18.15/dist/gen/types.gen.d.ts), and [generated client result declarations](https://cdn.jsdelivr.net/npm/@opencode-ai/sdk@1.18.15/dist/gen/client/types.gen.d.ts); and the upstream [plugin source](https://github.com/anomalyco/opencode/blob/dev/packages/plugin/src/index.ts). The same boundaries were checked against minimum `1.18.3`.
-- API history reviewed: the closed [SDK v2 migration proposal](https://github.com/anomalyco/opencode/pull/7639), which documents flattened v2 requests as a breaking alternative. Stable plugin `1.18.15` still exposes the v1 client with nested request objects.
+- Declared optional peer range: `@opencode/plugin` `>=2.0.26 <3`. The only import is type-only (`import type { Plugin } from "@opencode/plugin"`), so packages install nothing from OpenCode and use the host's runtime.
+- Installed development dependency: `@opencode/plugin` `2.0.26`, matching the validated `@opencode/cli` 2.0.26 host (Bun 1.4.2).
+- Authoritative sources: the installed `@opencode/plugin` 2.0.26 declarations, the [plugin guide](https://opencode.ai/v2/docs/build/plugins/), the [V1 migration guide](https://opencode.ai/v2/docs/build/plugins/migrate-v1/), [plugin configuration](https://opencode.ai/v2/docs/plugins/), the [skills reference](https://opencode.ai/v2/docs/skills/), the published OpenAPI document (`https://opencode.ai/v2/openapi.json`), and `@opencode/schema` 2.0.26 for event names.
+- Qualification: a throwaway V2 plugin (`opencode-beads-2zs.1`) and the actual source plugin were loaded into disposable projects on OpenCode 2.0.26. Results were read with `opencode debug agents`, a JSONL trace from the plugin, and short `opencode run` sessions. Test sessions were deleted afterwards.
+
+## Plugin shape and loading
+
+The package default-exports `{ id: "opencode-beads", setup }`, the object `Plugin.define` returns; no runtime import is needed. `setup` returns a cleanup that aborts the event subscription.
+
+OpenCode resolves a package plugin as `<name>/server`, then `<name>`. The package exports both specifiers to `src/plugin.ts`, and the package smoke test checks both. A configured local plugin must be a directory with an `index` or `server` entry file; a file path is rejected, relative paths resolve from the config file's directory, and a missing entry is skipped without a log line. Files in `.opencode/plugins/` load automatically.
 
 ## Boundary inventory
 
 | Boundary | Supported contract and decision |
 | --- | --- |
-| `PluginInput` | Minimum `1.18.3` and current stable `1.18.15` supply `client`, `project`, `directory`, `worktree`, `serverUrl`, `experimental_workspace`, and `$`. The plugin intentionally consumes only `client`, `directory`, and `worktree`; their declarations are compatible across the supported range. |
-| Project scope | `directory` is the active session directory and is preferred. `worktree` is the documented Git worktree and is the only fallback. Empty values fail rather than falling back to `process.cwd()`. Every project-scoped SDK query and `bd` process receives the resolved directory. |
-| Messages | `client.session.messages({ path: { id }, query: { directory, limit } })`; generated `SessionMessagesData` and `SessionMessagesResponse` types are authoritative. Returned arrays are checked before entering controller logic. |
-| Agents | `client.app.agents({ query: { directory } })`; generated `AppAgentsData`, `Agent`, and response types are authoritative. Required `name` and supported `mode` values are checked. |
-| Prompt | `client.session.prompt({ path: { id }, query: { directory }, body })`; the body is derived from `SessionPromptData`, with `noReply: true` and a synthetic `TextPartInput`. This is the documented context-only prompt path. |
-| Diagnostics | `client.app.log({ query: { directory }, body })` uses the generated log request and the official structured logging recommendation. Diagnostic failure remains non-fatal at the controller boundary. |
-| SDK results | Generated clients default to `responseStyle: "fields"` and `throwOnError: false`. Each call therefore checks ordinary `{ error }` results and required `data`; thrown transport/client failures also propagate to existing controller fallback and diagnostic handling. |
-| `chat.message` | The official hook input provides `sessionID`, optional `agent`, and optional model IDs in both reviewed versions. These input fields, not duplicated fields from the output message, drive injection. |
-| `event` | The official discriminated `Event` union includes `session.compacted` with `properties.sessionID` and `session.deleted` with `properties.info.id`. Compaction triggers reinjection; deletion retires per-session injection, attempt, and diagnostic state. |
-| `config` | The official hook mutates `Config` in place. Beads commands and the task agent are merged into `command` and `agent`, with explicit user definitions taking precedence. Vendor command metadata preserves `description`, `agent`, `model`, and `subtask`; supported task-agent metadata maps directly to `AgentConfig`. |
-| Shell | The plugin does not use `PluginInput.$`: bounded process lifecycle control uses `Bun.spawn(["bd", "prime"], { cwd: projectDirectory, ... })`. Full prime is the canonical live workflow source, matching upstream Claude Code and Codex startup behavior. The one attempt retains timeout and cleanup guarantees; there is no implicit process cwd. |
+| Location | `ctx.location.directory` scopes every `bd` process. The host's `process.cwd()` is the user's home directory, so `bd` is always spawned with an explicit `cwd`. |
+| Options | `ctx.options` carries the object form `{ "package": ..., "options": {...} }`. The plugin reads `luna` and `autoMigrate` as strict booleans. |
+| Agents | `ctx.agent.transform(editor => editor.update(id, fn))`. The editor has no `add`; `update` on an unknown ID creates the agent from OpenCode defaults, including the default permission ruleset. User `agents` configuration overrides plugin fields one by one, and the editor does not list configuration-only agents, so V1 collision warnings were dropped. The host appends a `browser` deny rule. |
+| Agent lookup | `ctx.agent.get({ agentID })` returns `Agent.Info` with `mode`; it is safe to call inside a session hook (about 1 ms). Subagents are excluded from context; lookup failures fail open. |
+| Context | `ctx.session.hook("context", event => event.system.push({ type: "text", text }))` runs before every agent-loop model request with `sessionID` and `agent`. Pushed parts reach the model, are not stored in history, and survive compaction. Subagents launched through the `subagent` tool run in child sessions with their own `sessionID` and also pass through this hook. Compaction requests use the separate `compaction` hook, which the plugin does not register. |
+| Events | `ctx.event.subscribe({ signal })` yields `{ type, data }`. The plugin uses `session.compaction.ended` (invalidate cached prime) and `session.deleted` (drop session state), both with `data.sessionID`. A manual compaction emitted `session.compaction.ended`, not `session.compacted`. |
+| Diagnostics | V2 has no plugin log API. Rate-limited `console.warn` lines prefixed `[opencode-beads]` are emitted, and their failures never affect requests. |
+| Shell | There is no `$` helper in V2. Bounded process lifecycle control uses `Bun.spawn(["bd", "prime"], { cwd, ... })` through a shared `runBd` runner with timeout and process-group cleanup; `node:child_process` also works in the host. |
 
-## Luna profile qualification
+## Commands and skills
 
-The opt-in profile uses the existing `config.agent["beads-task-agent-luna"]` entry; no plugin option transport is required. The installed plugin 1.18.15 API also supports optional plugin options, but a separate flag would duplicate the native agent configuration seam. An empty named entry opts in; omission leaves Luna unregistered. Explicit fields merge over each profile's defaults independently, preserving the shared bounded prompt for partial overrides. Commands retain whole-definition replacement.
-
-The v1 SDK's `AgentConfig` accepts extension fields through an index signature; installed `@opencode-ai/sdk/v2` 1.18.15 explicitly declares `variant?: string`. The Luna definition is checked with that type without changing the runtime's v1 client or request shapes. Its routing defaults are `model: "openai/gpt-5.6-luna"`, `variant: "max"`; vanilla keeps both unset.
-
-Local OpenCode 1.18.29 qualification loaded the actual source plugin via a file URL in disposable project configuration with an isolated HOME. `opencode debug agent` confirmed the Luna model and variant, identical resolved prompt/permissions/tools across both profiles, and unset vanilla model/variant. Independent omitted-entry and `disable: true` cases reported Luna not found. Controller and official-hook tests cover both startup and compaction injection. Earlier disposable native-task routing verified Luna Max under an Astra Low parent before and after delegation; live provider generation and forced compaction were not repeated with this plugin integration fixture.
-
-OpenCode merges ancestor/global configuration: omitting a local entry does not remove an inherited opt-in. Use `disable: true` to suppress one, or remove the entry at its source and restart. Provider/model availability is external to this plugin.
+V2 plugin commands are executable (`execute` calls `ctx.session.prompt`) rather than templates. Plugin-provided skills need a `path`. The vendored `/beads:*` templates were retired instead of ported (`opencode-beads-2zs.4`). OpenCode V2 discovers the canonical `.agents/skills/beads` skill installed by `bd init` natively, and users can load it with `@beads`.
 
 ## Compatibility decisions
 
-The supported OpenCode line begins at `1.18.3`, with the concrete contract checked against that minimum and current stable `1.18.15`. Both expose the nested v1 request shape used here, the hook and session lifecycle events consumed here, directory query parameters, abort signals, and field-style SDK results. No compatibility fallback is needed.
+The supported line begins at OpenCode 2.0.26, the first version qualified. There is no V1 fallback or dual export: V2 ignores V1 `server()` exports, and supporting both would mean maintaining two hook implementations. Tests fake only the small context slice the plugin uses (`location`, `options`, `event`, `agent.get`, `agent.transform`, `session.hook`) so behavior can be checked without the host.
 
-No SDK v2 facade or feature detection is included. Flattened request parameters belong to a separate breaking API and are not the stable plugin contract reviewed here. The controller keeps only small projections derived from official message, agent, prompt, hook, and config exports so tests can fake behavior without reproducing the SDK client.
+When running `opencode run` from a non-interactive shell during qualification, close stdin (`< /dev/null`); otherwise the CLI waits indefinitely, which looks like a hang.

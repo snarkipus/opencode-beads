@@ -15,8 +15,9 @@ REPO="$TEMP_DIR/repo"
 git init -q "$UPSTREAM"
 git -C "$UPSTREAM" config user.name "Sync Test"
 git -C "$UPSTREAM" config user.email "sync-test@example.com"
-mkdir -p "$UPSTREAM/plugins/beads/skills/beads" "$UPSTREAM/plugins/beads/agents"
-cp -R "$PROJECT_DIR/vendor/commands" "$UPSTREAM/plugins/beads/skills/beads/commands"
+# Upstream still ships Claude Code command templates; the sync must ignore them.
+mkdir -p "$UPSTREAM/plugins/beads/skills/beads/commands" "$UPSTREAM/plugins/beads/agents"
+printf '%s\n' '---' 'description: Ready work' '---' 'Use the beads MCP server.' > "$UPSTREAM/plugins/beads/skills/beads/commands/ready.md"
 cp "$PROJECT_DIR/vendor/agents/task-agent.md" "$UPSTREAM/plugins/beads/agents/task-agent.md"
 git -C "$UPSTREAM" add .
 git -C "$UPSTREAM" commit -qm "fixture"
@@ -28,10 +29,7 @@ git init -q --bare "$ORIGIN"
 git clone -q "$ORIGIN" "$REPO"
 git -C "$REPO" config user.name "Sync Test"
 git -C "$REPO" config user.email "sync-test@example.com"
-mkdir -p "$REPO/vendor/commands" "$REPO/vendor/agents"
-cp -R "$PROJECT_DIR/vendor/commands/." "$REPO/vendor/commands/"
-cp "$PROJECT_DIR/vendor/agents/task-agent.md" "$REPO/vendor/agents/task-agent.md"
-printf '%s\n' 'old command' > "$REPO/vendor/commands/ready.md"
+mkdir -p "$REPO/vendor/agents"
 printf '%s\n' 'old agent' > "$REPO/vendor/agents/task-agent.md"
 printf '%s\n' 'keep agent' > "$REPO/vendor/agents/keep.md"
 printf '%s\n' 'keep vendor file' > "$REPO/vendor/README.md"
@@ -56,7 +54,7 @@ PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" "$SYNC_SCRIPT" --dry-run >/dev/
 AFTER="$(git -C "$REPO" status --porcelain=v1)"
 [[ "$BEFORE" == "$AFTER" ]]
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$BEFORE_HEAD" ]]
-[[ "$(<"$REPO/vendor/commands/ready.md")" == "old command" ]]
+[[ "$(<"$REPO/vendor/agents/task-agent.md")" == "old agent" ]]
 
 printf '%s\n' 'dirty' > "$REPO/unrelated.txt"
 if PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" "$SYNC_SCRIPT" --dry-run >/dev/null 2>&1; then
@@ -70,7 +68,10 @@ PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" CREATE_PR=false "$SYNC_SCRIPT" 
 [[ "$(git -C "$REPO" branch --show-current)" == "$CURRENT_BRANCH" ]]
 [[ -z "$(git -C "$REPO" status --porcelain=v1)" ]]
 EXPECTED_TREE="$(git --git-dir="$ORIGIN" rev-parse 'sync-beads/v1.2.3^{tree}')"
-[[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/commands/ready.md')" == "$(<"$PROJECT_DIR/vendor/commands/ready.md")" ]]
+if git --git-dir="$ORIGIN" cat-file -e 'sync-beads/v1.2.3:vendor/commands' 2>/dev/null; then
+  echo "Sync vendored upstream command templates" >&2
+  exit 1
+fi
 [[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/agents/task-agent.md')" == "$(<"$PROJECT_DIR/vendor/agents/task-agent.md")" ]]
 [[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/agents/keep.md')" == "keep agent" ]]
 [[ "$(git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/README.md')" == "keep vendor file" ]]
@@ -78,7 +79,7 @@ git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:CHANGELOG.md' | grep -q -- '- Sy
 git --git-dir="$ORIGIN" show 'sync-beads/v1.2.3:vendor/manifest.json' | grep -q -- '"tag": "v1.2.3"'
 
 CHANGED_PATHS="$(git --git-dir="$ORIGIN" diff-tree --no-commit-id --name-only -r 'sync-beads/v1.2.3' | sort)"
-EXPECTED_PATHS="$(printf '%s\n' CHANGELOG.md vendor/agents/task-agent.md vendor/commands/ready.md vendor/manifest.json | sort)"
+EXPECTED_PATHS="$(printf '%s\n' CHANGELOG.md vendor/agents/task-agent.md vendor/manifest.json | sort)"
 [[ "$CHANGED_PATHS" == "$EXPECTED_PATHS" ]]
 
 PLUGIN_DIR="$REPO" BEADS_REPO="file://$UPSTREAM" CREATE_PR=false "$SYNC_SCRIPT" >/dev/null
@@ -103,8 +104,8 @@ fi
 [[ "$(git -C "$REPO" branch --show-current)" == "$CURRENT_BRANCH" ]]
 [[ -z "$(git -C "$REPO" status --porcelain=v1)" ]]
 
-printf '\nUse the beads MCP server.\n' >> "$UPSTREAM/plugins/beads/skills/beads/commands/ready.md"
-git -C "$UPSTREAM" add plugins/beads/skills/beads/commands/ready.md
+printf '\nUse the beads MCP server.\n' >> "$UPSTREAM/plugins/beads/agents/task-agent.md"
+git -C "$UPSTREAM" add plugins/beads/agents/task-agent.md
 git -C "$UPSTREAM" commit -qm "invalid fixture"
 git -C "$UPSTREAM" tag v1.2.4
 

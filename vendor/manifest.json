@@ -1,16 +1,12 @@
 {
   "schemaVersion": 1,
   "repository": "https://github.com/gastownhall/beads.git",
-  "tag": "v1.3.0",
-  "commit": "f45b249ce6b40ba62aecc03949e6371e8f7c79d8",
+  "tag": "v1.3.1",
+  "commit": "c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c",
   "sources": [
     {
       "source": "plugins/beads/agents/task-agent.md",
       "target": "agents/task-agent.md"
-    },
-    {
-      "source": "plugins/beads/skills/beads/commands",
-      "target": "commands"
     }
   ],
   "files": [
@@ -18,151 +14,6 @@
       "path": "agents/task-agent.md",
       "bytes": 1971,
       "sha256": "d5dd212e4f6324cf9f979eb8ed96ee094174c3e0cda8e217e55643244a7f4a79"
-    },
-    {
-      "path": "commands/audit.md",
-      "bytes": 956,
-      "sha256": "bf941ae72f3dfad0e5a0997c8afa1647d6ce17934692efa30e9fe4da98e39de8"
-    },
-    {
-      "path": "commands/blocked.md",
-      "bytes": 561,
-      "sha256": "30181c3645b5e233005facde694a3bb001c5935258745ae976abfe7b93eec346"
-    },
-    {
-      "path": "commands/close.md",
-      "bytes": 585,
-      "sha256": "ef43e31c9f86082a6192ca131c175c55ee37dc115f4781413be11f1e85274b58"
-    },
-    {
-      "path": "commands/comments.md",
-      "bytes": 967,
-      "sha256": "cad54141ee590be3b8d07878bb3ea34c252466bbb00a9b95d7d521303a8e3b83"
-    },
-    {
-      "path": "commands/compact.md",
-      "bytes": 1083,
-      "sha256": "5204417505320501e2c5a529da6c670826ef5b62feab708a33b7452dfd6a80c4"
-    },
-    {
-      "path": "commands/create.md",
-      "bytes": 651,
-      "sha256": "1e27f3ff4f3ae041f6896b5181f0b0399ff80d52cd415dfd8cf6584a218736d3"
-    },
-    {
-      "path": "commands/decision.md",
-      "bytes": 2670,
-      "sha256": "78c0de4a0979502cb553c2ad49df32cc1e6a7cb3eec25dc41f60290ad4fbbe36"
-    },
-    {
-      "path": "commands/delete.md",
-      "bytes": 961,
-      "sha256": "a6a5e943cccc75c27820548ec4a810894be646604b98821822968c7cb55552eb"
-    },
-    {
-      "path": "commands/dep.md",
-      "bytes": 3410,
-      "sha256": "2d50ea5c65e0ce27bc076e77de5ea32de7086b34c6f49736e71517548cfe4b76"
-    },
-    {
-      "path": "commands/epic.md",
-      "bytes": 1027,
-      "sha256": "174f54e3092e5a4b2f4c010e95418b13f1d910e185349ba0e131b04cf5783b8b"
-    },
-    {
-      "path": "commands/export.md",
-      "bytes": 800,
-      "sha256": "5c8e9c9b4df71c804f489fa5785d607be971b7f62c836ad531f11e8b105ee47a"
-    },
-    {
-      "path": "commands/import.md",
-      "bytes": 4433,
-      "sha256": "604e48e6d093d9a93f28a3a5ed7dd7946b10e7a4897bec8a88eefc5b6c9c776e"
-    },
-    {
-      "path": "commands/init.md",
-      "bytes": 753,
-      "sha256": "975759ee3d7ac6611fa54ae27c277a2995288a8fd089e6b46b791f73f3322177"
-    },
-    {
-      "path": "commands/label.md",
-      "bytes": 898,
-      "sha256": "45f0422cce8764a19158a98e95b6b3c790e7a01b3438d9b5471ddb5f8c544129"
-    },
-    {
-      "path": "commands/list.md",
-      "bytes": 2628,
-      "sha256": "990a0e6ef5af6a6ec596df32590750efd27fd231a44a0882d3f900dc71a4380f"
-    },
-    {
-      "path": "commands/prime.md",
-      "bytes": 363,
-      "sha256": "4b0559e792c2ea8ead359954896eca8518cd311303637b2e1c542e65b9d960b8"
-    },
-    {
-      "path": "commands/quickstart.md",
-      "bytes": 537,
-      "sha256": "de372b2dac3b1786ee383e8295bca781d6ce890db0daa09efa4d044325b80bbc"
-    },
-    {
-      "path": "commands/ready.md",
-      "bytes": 568,
-      "sha256": "48a42cab07b8580b0436bbddf5dd409333ff3b402bb4fee7af39b3aa3b078856"
-    },
-    {
-      "path": "commands/rename-prefix.md",
-      "bytes": 574,
-      "sha256": "2e6a457dfe58a855daecc0581433584073d7b52565a9bdb85131d1b4a3d920e8"
-    },
-    {
-      "path": "commands/reopen.md",
-      "bytes": 595,
-      "sha256": "ea5535f0004d3137f05b6fc81cff1ecc670d918465b7d878eb6cb01d2427578c"
-    },
-    {
-      "path": "commands/restore.md",
-      "bytes": 714,
-      "sha256": "94928e7b5d8ca1da80571e56685020f31eba6ce8fd38100cba09f00a051e164e"
-    },
-    {
-      "path": "commands/search.md",
-      "bytes": 3190,
-      "sha256": "2295d2cf34f0d7c3a74fab86f73aa312435870c97aa71d8c965486a450310085"
-    },
-    {
-      "path": "commands/show.md",
-      "bytes": 563,
-      "sha256": "51aa4b5a5bebeb9f1027f5a31a3de307dd8116052471f40272f0b2c980c720af"
-    },
-    {
-      "path": "commands/stats.md",
-      "bytes": 617,
-      "sha256": "f4da8a61fb7922ece1da727f7cfe2e020def6deed7cb2ce807cc6ab6c6d02aca"
-    },
-    {
-      "path": "commands/sync.md",
-      "bytes": 4964,
-      "sha256": "09d999165b93ea183e5828c94d45498503ed179211db5f68b3c32f372ade9ac7"
-    },
-    {
-      "path": "commands/template.md",
-      "bytes": 6641,
-      "sha256": "dd8865a9556ac67c49e83b7db9ad085e3e1ebf2e187fd6c407a0e116dbfb712b"
-    },
-    {
-      "path": "commands/update.md",
-      "bytes": 870,
-      "sha256": "34896bde7871805fb1941afd81a25ebc2ce1030090b8ce96afc63763bd2bd108"
-    },
-    {
-      "path": "commands/version.md",
-      "bytes": 975,
-      "sha256": "f994ab7afb0aef464fe0e77e7aad522d5f2d1558415d4ba63aede43a7411a075"
-    },
-    {
-      "path": "commands/workflow.md",
-      "bytes": 1987,
-      "sha256": "23ce9fbfe8acf49df1b4ddba8f908f4a3ef724c6d9203358c180d019e683978c"
     }
   ]
 }

@@ -12,7 +12,7 @@ const expectedProvenance =
   repository && tag && commit ? { repository, tag, commit } : undefined;
 const validatedPaths = new Set<string>();
 
-for (const directory of ["commands", "agents"]) {
+for (const directory of ["agents"]) {
   const files = await fs.readdir(path.join(vendorDir, directory));
   for (const file of files.sort()) {
     if (!file.endsWith(".md")) continue;

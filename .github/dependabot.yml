@@ -13,8 +13,7 @@ updates:
     groups:
       opencode:
         patterns:
-          - "@opencode-ai/plugin"
-          - "@opencode-ai/sdk"
+          - "@opencode/plugin"
         update-types:
           - minor
           - patch

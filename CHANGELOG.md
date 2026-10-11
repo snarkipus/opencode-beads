@@ -18,9 +18,24 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [1.0.0]
+
+### Added
+
+- OpenCode V2 plugin entry point. Beads context is attached to each model request through the session context hook, cached per session, and refreshed after compaction.
+- Beads store guard: automatic `bd prime` requires `bd` 1.3.0 or later and is withheld, with an agent-facing notice, when `.beads/.local_version` shows the store may need an irreversible schema migration. The plugin option `"autoMigrate": true` opts out.
+
 ### Changed
 
-- Synced vendored beads files to v1.3.0
+- **Breaking:** requires OpenCode 2 (`@opencode/plugin` 2.0.26 through 2.x, optional peer) and `bd` 1.3.0 or later. OpenCode 1.x is no longer supported; configure the plugin under `plugins` rather than `plugin`.
+- The package also exports `./server`, which OpenCode V2 resolves first for package plugins.
+- Synced vendored beads files to v1.3.1 (the task-agent artifact is unchanged since v1.3.0)
+- Task agents register through the V2 agent transform. The Luna Max profile is enabled with the plugin option `"luna": true` instead of an empty agent entry, and now uses `openai/gpt-6-luna#max` (previously `openai/gpt-5.6-luna`).
+
+### Removed
+
+- Vendored `/beads:*` command templates. They came from upstream's Claude Code plugin and duplicated `bd prime` and the canonical Beads skill installed by `bd init`. Vendor sync and provenance now cover only the task-agent artifact.
+- OpenCode V1 hook adapter and its configuration collision warnings.
 
 ## [0.10.0]
 
@@ -263,7 +278,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v0.10.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.0
 [0.10.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.10.0
 [0.9.4]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.4
 [0.9.3]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.9.3

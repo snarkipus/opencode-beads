@@ -1,13 +1,13 @@
 # Beads Artifact Policy
 
-Status: revised for the 0.9.0 contract by `opencode-beads-98l`; the 0.8.0 companion lifecycle decision is retired.
+Status: revised for the OpenCode V2 contract by `opencode-beads-2zs`; earlier revisions were the 0.9.0 contract (`opencode-beads-98l`), and the 0.8.0 companion lifecycle decision is retired.
 
 ## Evidence
 
-- Currently packaged artifact baseline: Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`, under `plugins/beads/`. Its non-manifest vendor bytes match the tested v1.1.2 baseline at local repository commit `e51b8fe`.
-- OpenCode baseline: minimum plugin/SDK `1.18.3` and reviewed stable `1.18.15`, as recorded in [the SDK contract](opencode-sdk-contract.md).
-- OpenCode's [skill documentation](https://opencode.ai/docs/skills) limits automatic discovery to `skills/<name>/SKILL.md` under project or global `.opencode`, `.claude`, and `.agents` configuration trees. It does not scan npm package internals.
-- OpenCode's [plugin documentation](https://opencode.ai/docs/plugins) and reviewed plugin types expose native command, agent, tool, hook, and configuration integration, but no hook or configuration field for registering a package-local skill or resource tree.
+- Currently packaged artifact baseline: Beads `v1.3.1`, commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`, limited to `plugins/beads/agents/task-agent.md`. Earlier baselines were Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`, whose non-manifest vendor bytes matched the tested v1.1.2 baseline at local repository commit `e51b8fe`.
+- OpenCode baseline: `@opencode/plugin` and OpenCode `2.0.26`, as recorded in [the OpenCode V2 contract](opencode-sdk-contract.md).
+- OpenCode V2's [skill documentation](https://opencode.ai/v2/docs/skills/) discovers skills under project and global `.opencode/skills`, `.claude/skills`, and `.agents/skills`, plus configured directories or URLs. It does not scan npm package internals.
+- OpenCode V2's [plugin guide](https://opencode.ai/v2/docs/build/plugins/) exposes agent, command, skill, tool, and session-hook domains. Plugin commands are executable code, and plugin skills require a `path`.
 - The upstream [`SKILL.md`](https://github.com/gastownhall/beads/blob/v1.2.2/plugins/beads/skills/beads/SKILL.md) is declared for Claude Code and Codex, uses frontmatter fields OpenCode ignores, and directs agents to `bd prime` as the canonical current workflow source.
 - Upstream [ADR-0001](https://github.com/gastownhall/beads/blob/v1.2.2/plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md) makes full `bd prime` the canonical dynamic context source.
 - The Beads `v1.0.5` and `v1.1.0` Claude Code plugin manifests both run full `bd prime` at `SessionStart` and `PreCompact`, while bundling the Beads skill and command templates as static discovery surfaces.
@@ -17,10 +17,10 @@ Status: revised for the 0.9.0 contract by `opencode-beads-98l`; the 0.8.0 compan
 
 | Upstream artifact | Policy | Reason |
 | --- | --- | --- |
-| `skills/beads/commands/*.md` | Approved after OpenCode adaptation | OpenCode has a native `Config.command` surface. The current adapter namespaces these as `/beads:*`, validates known adaptations, and records exact provenance. |
-| `agents/task-agent.md` | Approved after OpenCode adaptation | OpenCode has a native `Config.agent` surface. The vendored upstream artifact supplies metadata, provenance, and compatibility validation. The runtime prompt is a fork-owned bounded OpenCode adaptation for one-Bead execution, plus full prime injected once per session and after compaction; it does not execute upstream's autonomous multi-task loop. |
+| `skills/beads/commands/*.md` | Retired for OpenCode V2 (`opencode-beads-2zs.4`) | These are upstream's Claude Code command templates, not part of the native OpenCode or Codex install. They largely wrap single `bd` subcommands and duplicate `bd prime` plus the canonical `.agents/skills/beads` skill, which OpenCode V2 discovers natively. V2 commands are executable code rather than templates, so keeping them would mean re-implementing template expansion. They are no longer synced, packaged, or registered. |
+| `agents/task-agent.md` | Approved after OpenCode adaptation | OpenCode V2 has a native agent transform. The vendored upstream artifact supplies metadata, provenance, and compatibility validation. The runtime prompt is a fork-owned bounded OpenCode adaptation for one-Bead execution, plus full prime attached to each request; it does not execute upstream's autonomous multi-task loop. |
 | `skills/beads/SKILL.md`, `skills/beads/adr/`, and `skills/beads/resources/` | Excluded | `bd init` owns per-project initialization. Its automatic Codex project integration creates the canonical shared skill at `.agents/skills/beads`, which OpenCode discovers. This package does not fork, install, update, or remove that skill. |
-| Claude/Codex manifests and hooks | Excluded | `.claude-plugin` and `.codex-plugin` formats and lifecycle hooks are not OpenCode plugin registration formats. This adapter implements its own typed startup/message and compaction behavior. |
+| Claude/Codex manifests and hooks | Excluded | `.claude-plugin` and `.codex-plugin` formats and lifecycle hooks are not OpenCode plugin registration formats. This adapter implements the equivalent lifecycle through OpenCode V2's session context hook and session events. |
 | Beads executable, complete CLI docs, server, or MCP integration | Excluded | The installed `bd` CLI remains the sole execution and data-management boundary. This package invokes it but does not redistribute, emulate, or replace it. |
 
 ## Skill ownership
@@ -29,21 +29,21 @@ OpenCode does not search npm package internals, so this package ships no skill p
 
 Users upgrading from 0.8.0 must remove its old `.opencode/skills/beads` installation with `bunx @snarkipus/opencode-beads@0.8.0 remove` before upgrading. The 0.9.0 package has no companion executable, `/beads:setup` command, ownership manifest, collision policy, or `dist/init` payload.
 
-The approved commands and agent use native configuration mutation and explicit names. Their collision policy is separate work owned by `opencode-beads-yui.10`; this decision does not change precedence or merge behavior.
+The approved task agent is registered under an explicit name through OpenCode's agent transform; user configuration overrides its fields one by one.
 
 ## `bd prime` boundary
 
-The plugin runs the active project's installed full `bd prime` at initial context injection and after compaction for eligible primary agents and `beads-task-agent`. This mirrors the behavioral contract of the upstream Claude Code and Codex integrations using OpenCode's typed `chat.message`, `session.compacted`, and synthetic `noReply` prompt surfaces rather than host-specific hook files. Full prime supplies the canonical current workflow, command guidance, and persistent memories. The shared injected layer adds only OpenCode CLI safety and primary-agent delegation. Known regular subagents remain excluded; agent lookup failures fail open for context injection so unknown custom primary agents remain compatible.
+The plugin runs the active project's installed full `bd prime` once per session, attaches it to each model request for eligible primary agents and `beads-task-agent`, and refreshes it after compaction. This mirrors the behavioral contract of the upstream Claude Code and Codex integrations through OpenCode V2's session context hook and `session.compaction.ended` event rather than host-specific hook files. Before running prime, a schema migration guard confirms that `bd` is 1.3.0 or later and that `.beads/.local_version` is current; otherwise it withholds prime with an agent-facing notice so the plugin never applies an irreversible store migration unattended. Full prime supplies the canonical current workflow, command guidance, and persistent memories. The shared injected layer adds only OpenCode CLI safety and primary-agent delegation. Known regular subagents remain excluded; agent lookup failures fail open for context injection so unknown custom primary agents remain compatible.
 
 This is context-preserving atomic delegation: the primary OpenCode thread retains planning context, decisions, and control while `beads-task-agent` processes exactly one Bead per invocation. In the absence of an external orchestrator, that boundary intentionally favors Bead atomicity and context preservation over broad autonomous execution. An orchestrator may repeat the one-Bead cycle, but should preserve the worker boundary.
 
-The registered task agent also carries a bounded static quick reference, analogous to Codex's managed `AGENTS.md` section and Claude Code's bundled skill, so it can discover `ready`, `show`, atomic claim, discovered follow-up, validation before closure, close, and manual `bd prime` recovery without consumer-owned instructions. The shared runtime layer additionally prohibits automatic commit, push, or Dolt synchronization unless current instructions or repository policy explicitly require it. It does not embed the complete prime workflow. If full prime fails or returns no content, automatic injection remains retryable; vendored commands and the task-agent fallback remain available.
+The registered task agent also carries a bounded static quick reference, analogous to Codex's managed `AGENTS.md` section and Claude Code's bundled skill, so it can discover `ready`, `show`, atomic claim, discovered follow-up, validation before closure, close, and manual `bd prime` recovery without consumer-owned instructions. The shared runtime layer additionally prohibits automatic commit, push, or Dolt synchronization unless current instructions or repository policy explicitly require it. It does not embed the complete prime workflow. If full prime fails or returns no content, automatic injection is retried later, and the task-agent fallback remains available.
 
 The full `bd` command surface remains CLI-only. OpenCode receives no generated tool per subcommand, no embedded database API, and no bundled Beads binary.
 
 ## Provenance and package implications
 
-The npm package ships only the runtime adapter source and the reviewed command and task-agent artifacts under `vendor/`. `vendor/manifest.json` pins Beads `v1.2.2` at `6c124203e771433a3550c348771a5b5e27fd3c21` and records exact source paths, sorted inventory, byte lengths, and SHA-256 checksums. Strict package tests reject a companion bin, `dist/init` content, missing runtime artifacts, or unexpected files.
+The npm package ships only the runtime adapter source and the reviewed task-agent artifact under `vendor/`. `vendor/manifest.json` pins Beads `v1.3.1` at `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c` and records exact source paths, sorted inventory, byte lengths, and SHA-256 checksums. Strict package tests reject a companion bin, `dist/init` content, missing runtime artifacts, or unexpected files.
 
 The 0.9.3 package contained withdrawn upstream v1.2.1 command guidance. This adapter did not bundle the `bd` binary or implement database migrations, but its context injection could invoke a consumer-installed v1.2.1 binary through `bd prime`. Even one v1.2.1 execution could migrate the database from schema v53 to v65. Users must upgrade the plugin package to 0.9.4; if v1.2.1 was installed and may have run, they must additionally follow [upstream v1.2.2 database recovery guidance](https://github.com/gastownhall/beads/blob/v1.2.2/docs/RECOVERY-1.2.1.md). This repository does not perform database recovery.
 

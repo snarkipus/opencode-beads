@@ -1,14 +1,13 @@
 /**
  * Vendor file loaders for beads plugin.
  *
- * The vendor directory contains beads command definitions and agent prompts
- * synced from the upstream beads repository via scripts/sync-beads.sh.
+ * The vendor directory contains the upstream task-agent artifact synced from the
+ * beads repository via scripts/sync-beads.sh.
  */
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AgentConfig, Config } from "@opencode-ai/sdk";
 import { adaptVendorPrompt } from "./vendor-adaptations";
 
 function getVendorDir(): string {
@@ -21,14 +20,19 @@ interface ParsedMarkdown {
   body: string;
 }
 
-const DOCUMENT_ONLY_COMMANDS = new Set(["commands/prime.md", "commands/template.md"]);
-const COMMAND_FRONTMATTER_FIELDS = new Set([
-  "agent",
-  "argument-hint",
-  "description",
-  "model",
-  "subtask",
-]);
+/** Task-agent fields parsed from the vendored frontmatter. */
+export interface VendoredAgent {
+  description: string;
+  prompt: string;
+  mode: "subagent";
+  model?: string;
+  temperature?: number;
+  top_p?: number;
+  disable?: boolean;
+  color?: string;
+  maxSteps?: number;
+}
+
 const AGENT_FRONTMATTER_FIELDS = new Set([
   "color",
   "description",
@@ -180,11 +184,11 @@ Run relevant validation before closing an issue. Do not commit, push, or run Dol
 
 const BEADS_DELEGATION_GUIDANCE = `## Delegation
 
-Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-agent\`; perform only single atomic operations directly.`;
+Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-agent\` subagent through the \`subagent\` tool; perform only single atomic operations directly.`;
 
 const BEADS_SUBAGENT_CONTEXT = `## Beads Task Agent
 
-Full \`bd prime\` workflow context is injected at start and after compaction. Use \`bd\` via \`bash\`; rerun prime if context is missing or stale.
+Full \`bd prime\` workflow context is injected with each request. Use \`bd\` via \`bash\`; rerun prime if context is missing or stale.
 
 For status or graph analysis, never claim, update, close, or modify a bead. Return the analysis and stop.
 
@@ -201,7 +205,9 @@ export function beadsGuidance(
   return `<beads-guidance>\n${sections.join("\n\n")}\n</beads-guidance>`;
 }
 
-export async function loadAgent(vendorDirectory = getVendorDir()): Promise<Config["agent"]> {
+export async function loadAgent(
+  vendorDirectory = getVendorDir()
+): Promise<Record<string, VendoredAgent>> {
   const relativePath = "agents/task-agent.md";
   const paths = await manifestPaths(vendorDirectory);
   if (!paths.includes(relativePath)) {
@@ -215,7 +221,7 @@ export async function loadAgent(vendorDirectory = getVendorDir()): Promise<Confi
     throw vendorError(relativePath, "mode must be subagent when provided");
   }
 
-  const agent: AgentConfig = {
+  const agent: VendoredAgent = {
     description: requiredString(frontmatter, "description", relativePath),
     prompt: BEADS_SUBAGENT_CONTEXT,
     mode: "subagent",
@@ -236,42 +242,4 @@ export async function loadAgent(vendorDirectory = getVendorDir()): Promise<Confi
   }
 
   return { "beads-task-agent": agent };
-}
-
-export async function loadCommands(vendorDirectory = getVendorDir()): Promise<Config["command"]> {
-  const paths = await manifestPaths(vendorDirectory);
-  const commandPaths = paths.filter((file) => file.startsWith("commands/") && file.endsWith(".md"));
-  if (commandPaths.length === 0) {
-    throw vendorError("manifest.json", "no command Markdown files are recorded");
-  }
-  const commands: Config["command"] = {};
-
-  for (const relativePath of commandPaths) {
-    const content = await readVendorFile(vendorDirectory, relativePath);
-    if (DOCUMENT_ONLY_COMMANDS.has(relativePath)) continue;
-    const parsed = parseMarkdownWithFrontmatter(content, relativePath);
-    const { frontmatter } = parsed;
-    rejectUnsupportedFields(frontmatter, COMMAND_FRONTMATTER_FIELDS, relativePath);
-    const file = path.basename(relativePath);
-    const name = `beads:${file.replace(".md", "")}`;
-
-    const argHint = frontmatter["argument-hint"];
-    const baseDescription = requiredString(frontmatter, "description", relativePath);
-    const description = argHint
-      ? `${baseDescription} (${argHint})`
-      : baseDescription;
-
-    const command: NonNullable<Config["command"]>[string] = {
-      description,
-      template: adaptVendorPrompt(relativePath, parsed.body),
-    };
-    if (frontmatter.agent) command.agent = frontmatter.agent;
-    if (frontmatter.model) command.model = frontmatter.model;
-    if (frontmatter.subtask) {
-      command.subtask = parseBoolean(frontmatter.subtask, "subtask", relativePath);
-    }
-    commands[name] = command;
-  }
-
-  return commands;
 }
