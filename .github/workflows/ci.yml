@@ -28,17 +28,19 @@ jobs:
       - name: Test
         run: bun test
 
-      - name: Test vendor sync
-        run: ./scripts/test-sync-beads.sh
-
-      - name: Validate vendor content
-        run: bun run test:vendor
-
       - name: Typecheck
         run: bun run typecheck
 
       - name: Test packed package
         run: bun run test:package
+
+      - name: Install validated bd
+        run: |
+          ./scripts/install-bd.sh "$(jq -r .beads.validated package.json)" "$RUNNER_TEMP/bd"
+          echo "$RUNNER_TEMP/bd" >> "$GITHUB_PATH"
+
+      - name: Check bd contract
+        run: bun run test:bd-contract
 
   zizmor:
     runs-on: ubuntu-latest

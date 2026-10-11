@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode/plugin";
-import { applyBeadsAgents, loadBeadsAgents } from "./agents";
+import { applyBeadsAgents, beadsAgents } from "./agents";
 import {
   createContextController,
   type AgentMode,
@@ -70,7 +70,7 @@ export async function setupBeads(
     },
   };
 
-  const agents = await loadBeadsAgents({ luna: ctx.options?.luna === true });
+  const agents = beadsAgents({ luna: ctx.options?.luna === true });
   await ctx.agent.transform((editor) => applyBeadsAgents(editor, agents));
 
   const controller = createContextController(runtime, directory, {

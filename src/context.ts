@@ -1,7 +1,7 @@
 import { BEADS_TASK_AGENTS } from "./agents";
 import { guardNotice, type GuardResult } from "./guard";
 import { PrimeTimeoutError } from "./prime";
-import { beadsGuidance } from "./vendor";
+import { beadsGuidance } from "./guidance";
 
 /** Retry window for withheld or failed context, so model steps do not respawn `bd` each time. */
 export const DEFAULT_CONTEXT_RETRY_MS = 30_000;

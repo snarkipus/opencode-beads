@@ -86,7 +86,7 @@ Entries under `agents` in OpenCode configuration override the plugin's task-agen
 
 `beads-task-agent` supports read-only status and graph analysis or one-Bead completion. Analysis requests never mutate Beads. Completion requests inspect and process one caller-selected or highest-priority ready Bead, quarantine work discovered during that invocation, validate before closure, and return after closing or blocking the selected Bead.
 
-Its runtime prompt is a fork-owned bounded OpenCode adaptation. The vendored upstream task-agent artifact supplies metadata, provenance, and compatibility validation; it is not executed as upstream's autonomous multi-task loop.
+Its prompt and description are fork-owned. Upstream Beads ships a task agent only for Claude Code, as an autonomous multi-task loop; this adapter deliberately keeps the bounded one-Bead contract instead, so it no longer vendors that artifact.
 
 ### Opt-in Luna Max profile
 
@@ -96,11 +96,11 @@ Ask the primary agent to delegate to `beads-task-agent-luna` by name through the
 
 Luna requires access to `openai/gpt-6-luna` and its `max` variant in your OpenCode provider setup. The plugin does not install models, configure authentication, or silently fall back to another model.
 
-## Vendored content
+## Tracking upstream Beads
 
-[`scripts/sync-beads.sh`](scripts/sync-beads.sh) copies the reviewed upstream task-agent artifact into `vendor/`. [`vendor/manifest.json`](vendor/manifest.json) pins the upstream tag and commit and records source paths, sorted inventory, byte lengths, and SHA-256 checksums. A deterministic adaptation layer translates reviewed host-specific instructions to OpenCode's CLI-only model.
+The package vendors nothing from upstream. It depends on the installed `bd` CLI at runtime: `bd prime` supplies the current workflow, and the schema migration guard enforces the supported `bd` range.
 
-Do not edit vendored files directly. Sync and package validation reject provenance, checksum, inventory, schema, or reviewed-transformation drift. Adapter behavior lives in `src/`; general Beads behavior and documentation remain upstream.
+[`scripts/bd-contract.ts`](scripts/bd-contract.ts) checks a real `bd` against everything the plugin relies on: version parsing, `bd where --json`, the `.beads/.local_version` behavior the guard depends on (written by `bd init`, untouched by `bd prime`, refreshed by `bd migrate schema`), and every command the task-agent prompt names. CI runs it against the validated release from `package.json` (`beads.validated`). The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release, and fails if that release breaks the contract or is newer than the validated one. When a new release appears, review its upgrade notes, then update `beads.validated` and the compatibility table. The [artifact policy](docs/beads-artifact-policy.md) records why upstream artifacts are not vendored.
 
 ## Compatibility
 
@@ -110,14 +110,13 @@ Do not edit vendored files directly. Sync and package validation reject provenan
 | `bd` CLI | 1.3.0 through 1.x | 1.3.1 |
 | Bun (OpenCode host runtime) | >=1.3.14 | 1.4.2 |
 
-The adapter type-checks against `@opencode/plugin` 2.0.26 and declares it as an optional peer from 2.0.26 through 2.x; the import is type-only, so OpenCode's own runtime is used. See the [OpenCode V2 contract](docs/opencode-sdk-contract.md). Task-agent provenance is synced from Beads v1.3.1 at commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`.
+The adapter type-checks against `@opencode/plugin` 2.0.26 and declares it as an optional peer from 2.0.26 through 2.x; the import is type-only, so OpenCode's own runtime is used. See the [OpenCode V2 contract](docs/opencode-sdk-contract.md). The `bd` baseline was reviewed against Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`).
 
 ## Troubleshooting
 
 - **No Beads context:** Run `bd prime`. Install `bd` if missing or run `bd init` if the project has no Beads workspace.
 - **Agent reports a Beads notice instead of context:** The schema migration guard withheld prime. Back up `.beads`, run `bd migrate schema`, and continue; or upgrade `bd` if the notice says it is older than 1.3.0.
 - **Canonical skill missing:** For a new workspace, run `bd init`. For an existing workspace, follow current upstream Beads guidance; this plugin does not install or repair skills.
-- **Vendor initialization error:** Reinstall the package. In a source checkout, rerun vendor sync and validation; the error identifies the malformed or missing artifact.
 - **Unexpected definition:** Check OpenCode configuration for a colliding `beads-task-agent` definition. Explicit configuration wins.
 - **Regular subagent has no context:** This is intentional. Delegate Beads work to `beads-task-agent` or run the required `bd` command explicitly.
 - **Behavior changed after upgrade:** Compare `opencode --version`, `bd version`, and `bun --version` with the compatibility table, then inspect [Beads releases](https://github.com/gastownhall/beads/releases) and this project's changelog.

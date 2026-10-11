@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { MINIMUM_BD_VERSION } from "../src/guard";
 
 const readme = await fs.readFile("README.md", "utf8");
 const changelog = await fs.readFile("CHANGELOG.md", "utf8");
@@ -10,12 +11,14 @@ const packageManifest = JSON.parse(await fs.readFile("package.json", "utf8")) as
   name: string;
   version: string;
   contributors?: Array<{ name?: string; url?: string }>;
+  beads: { minimum: string; validated: string };
 };
 const packageIdentity = `${packageManifest.name}@${packageManifest.version}`;
 
 describe("documentation contracts", () => {
   test("uses current package, command, and upstream identities", () => {
-    expect(readme).not.toMatch(/\/bd-[a-z]/);
+    // Old `/bd-*` slash commands; a path segment such as `scripts/bd-contract.ts` is fine.
+    expect(readme).not.toMatch(/(?<![\w.])\/bd-[a-z]/);
     expect(readme).not.toContain("github.com/steveyegge");
     expect(readme).toContain("https://github.com/gastownhall/beads");
     expect(readme).toContain(`"plugins": ["${packageIdentity}"]`);
@@ -125,6 +128,16 @@ describe("documentation contracts", () => {
     expect(readme).not.toContain("@opencode-ai/");
   });
 
+  test("keeps the Beads compatibility range in one place", () => {
+    const { minimum, validated } = packageManifest.beads;
+    expect(minimum).toBe(MINIMUM_BD_VERSION);
+    expect(readme).toContain(`| \`bd\` CLI | ${minimum} through 1.x | ${validated} |`);
+    expect(readme).toContain(`reviewed against Beads v${validated}`);
+    expect(readme).toContain("`bd` 1.3.0 or later");
+    expect(readme).toContain("beads-contract");
+    expect(artifactPolicy).toContain("scripts/bd-contract.ts");
+  });
+
   test("documents the schema migration guard and plugin options", () => {
     expect(readme).toContain("## Schema migration guard");
     expect(readme).toContain("`bd --readonly` does not prevent that");
@@ -147,15 +160,17 @@ describe("documentation contracts", () => {
     expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
 
-  test("records the current task-agent provenance and the v1.2.2 recovery baseline", () => {
-    expect(readme).toContain("Task-agent provenance is synced from Beads v1.3.1");
+  test("records the retired vendoring decision and the historical baselines", () => {
+    expect(readme).toContain("The package vendors nothing from upstream.");
+    expect(readme).toContain("The `bd` baseline was reviewed against Beads v1.3.1");
     expect(readme).toContain("c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c");
+    expect(artifactPolicy).toContain("The package vendors no upstream Beads artifacts.");
+    expect(artifactPolicy).toContain("| `agents/task-agent.md` | Retired in 1.0.0 (`opencode-beads-w5y`) |");
+    expect(artifactPolicy).toContain("### Rationale for retiring vendoring");
+    expect(artifactPolicy).toContain("Codex ships skills and hooks but no agent.");
     expect(artifactPolicy).toContain("`v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`");
     expect(artifactPolicy).toContain(
       "`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`"
-    );
-    expect(artifactPolicy).toContain(
-      "Currently packaged artifact baseline: Beads `v1.3.1`, commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`"
     );
     expect(artifactPolicy).toContain(
       "Earlier baselines were Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`"

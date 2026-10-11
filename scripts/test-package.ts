@@ -110,7 +110,7 @@ try {
   }
   if (
     JSON.stringify(manifest.files) !==
-    JSON.stringify(["src", "vendor", "README.md", "LICENSE"])
+    JSON.stringify(["src", "README.md", "LICENSE"])
   ) {
     throw new Error("Packed package has an unexpected files contract");
   }
@@ -135,7 +135,7 @@ try {
   }
 
   const expectedPackedFiles = ["LICENSE", "README.md", "package.json"];
-  for (const directory of ["src", "vendor"]) {
+  for (const directory of ["src"]) {
     expectedPackedFiles.push(
       ...(await filesBelow(path.join(projectDir, directory))).map((file) => `${directory}/${file}`)
     );
@@ -166,8 +166,8 @@ try {
     throw new Error("Packed package does not default-export the OpenCode V2 plugin definition");
   }
 
-  if (await fs.exists(path.join(packageDir, "vendor", "commands"))) {
-    throw new Error("Packed package unexpectedly contains retired vendor commands");
+  if (await fs.exists(path.join(packageDir, "vendor"))) {
+    throw new Error("Packed package unexpectedly contains the retired vendor directory");
   }
 
   if (await fs.exists(path.join(packageDir, "dist"))) {

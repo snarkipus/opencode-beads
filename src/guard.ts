@@ -4,7 +4,7 @@ import { join } from "node:path";
 /** Oldest Beads release this adapter supports. */
 export const MINIMUM_BD_VERSION = "1.3.0";
 
-type Version = readonly [number, number, number];
+export type Version = readonly [number, number, number];
 
 /** Outcome of checking whether automatic `bd prime` may open the project store. */
 export type GuardResult =
@@ -33,7 +33,8 @@ export function parseVersion(text: string): Version | undefined {
   return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
-function compareVersions(left: Version, right: Version): number {
+/** Compare two parsed versions; negative when `left` is older. */
+export function compareVersions(left: Version, right: Version): number {
   for (let index = 0; index < 3; index++) {
     const difference = (left[index] ?? 0) - (right[index] ?? 0);
     if (difference !== 0) return difference;
