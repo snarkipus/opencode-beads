@@ -210,6 +210,23 @@ describe("setupBeads", () => {
     cleanup();
   });
 
+  test("passes refreshAfterIdleMinutes through to the context cache", async () => {
+    let time = 0;
+    let output = "FIRST";
+    const f = fakeContext({ pluginOptions: { refreshAfterIdleMinutes: 1 } });
+    const cleanup = await setupBeads(f.ctx, {
+      runtime: { guard: async () => ({ kind: "ready" }), prime: async () => output },
+      now: () => time,
+    });
+    expect((await f.request("s1", "beads-task-agent"))[0]).toContain("FIRST");
+    output = "SECOND";
+    time = 59_000;
+    expect((await f.request("s1", "beads-task-agent"))[0]).toContain("FIRST");
+    time = 59_000 + 60_001;
+    expect((await f.request("s1", "beads-task-agent"))[0]).toContain("SECOND");
+    cleanup();
+  });
+
   test("stops the event stream on cleanup", async () => {
     const f = fakeContext();
     const cleanup = await setupBeads(f.ctx, {
