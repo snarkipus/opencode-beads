@@ -137,14 +137,19 @@ describe("release artifact identity", () => {
         npmPack.exited,
       ]);
       expect(npmPackExit, npmPackError).toBe(0);
-      const npmReports = JSON.parse(npmPackOutput) as Array<{
+      type NpmPackReport = {
         id: string;
         name: string;
         version: string;
         filename: string;
         entryCount: number;
         files: Array<{ path: string }>;
-      }>;
+      };
+      // npm <= 11 prints an array of reports; npm 12 prints an object keyed by package name.
+      const npmPackJson = JSON.parse(npmPackOutput) as
+        | NpmPackReport[]
+        | Record<string, NpmPackReport>;
+      const npmReports = Array.isArray(npmPackJson) ? npmPackJson : Object.values(npmPackJson);
       expect(npmReports).toHaveLength(1);
       const npmReport = npmReports[0];
       expect(npmReport?.id).toBe(`${packageManifest.name}@${packageManifest.version}`);
