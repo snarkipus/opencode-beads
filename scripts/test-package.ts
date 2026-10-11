@@ -178,7 +178,14 @@ try {
   }
 
   // Exercise setup against a minimal V2 context; the context hook is registered but not invoked.
-  type PackedAgent = { name?: string; mode?: string; system?: string; model?: unknown };
+  type PackedAgent = {
+    name?: string;
+    mode?: string;
+    system?: string;
+    model?: unknown;
+    steps?: number;
+    permissions?: Array<{ action: string; resource: string; effect: string }>;
+  };
   async function setupPacked(options: Record<string, unknown>) {
     const registeredHooks: string[] = [];
     const agents = new Map<string, PackedAgent>();
@@ -214,7 +221,7 @@ try {
   }
 
   const vanilla = await setupPacked({});
-  if (vanilla.registeredHooks.join(",") !== "context") {
+  if (vanilla.registeredHooks.join(",") !== "context,compaction") {
     throw new Error(`Packed plugin registered unexpected session hooks: ${vanilla.registeredHooks.join(",")}`);
   }
   const taskAgent = vanilla.agents.get("beads-task-agent");
@@ -229,6 +236,10 @@ try {
     !taskAgentPrompt.includes("bd update <id> --claim --json")
   ) {
     throw new Error("Packed task-agent prompt lacks the bounded workflow fallback");
+  }
+  const rules = (taskAgent.permissions ?? []).map((rule) => `${rule.action}:${rule.resource}:${rule.effect}`);
+  if (!rules.includes("shell:git push *:ask") || taskAgent.steps !== 100) {
+    throw new Error("Packed task agent lacks the no-push permission rules or the default steps cap");
   }
   if (vanilla.agents.has("beads-task-agent-luna")) {
     throw new Error("Packed plugin enabled Luna without an opt-in");

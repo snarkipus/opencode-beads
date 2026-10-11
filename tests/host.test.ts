@@ -5,6 +5,8 @@ import path from "node:path";
 import * as pluginModule from "../src/plugin";
 import { renderBeadsContext } from "../src/context";
 import { setupBeads, type HostContext } from "../src/host";
+import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
+import { BEADS_COMPACTION_GUIDANCE } from "../src/guidance";
 
 type ContextEvent = { sessionID: string; agent: string; system: Array<{ type: "text"; text: string }> };
 
@@ -105,7 +107,8 @@ describe("setupBeads", () => {
     expect(String(agent?.system)).toContain("process exactly one bead");
     expect(String(agent?.system)).toContain("bd update <id> --claim --json");
     expect(typeof agent?.description).toBe("string");
-    expect(agent?.permissions).toEqual([]);
+    expect(agent?.permissions).toEqual([...TASK_AGENT_PERMISSIONS]);
+    expect(agent?.steps).toBe(DEFAULT_TASK_AGENT_STEPS);
     cleanupVanilla();
 
     const luna = fakeContext({ pluginOptions: { luna: true } });
@@ -123,7 +126,7 @@ describe("setupBeads", () => {
     const prime = mock(async (_directory: string) => "PRIME");
     const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime } });
 
-    expect([...f.hooks.keys()]).toEqual(["context"]);
+    expect([...f.hooks.keys()]).toEqual(["context", "compaction"]);
     expect(await f.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary")]);
     expect(await f.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary")]);
     expect(await f.request("s1", "explore")).toEqual([]);
@@ -207,6 +210,42 @@ describe("setupBeads", () => {
     f.events.push({ type: "session.deleted", data: { sessionID: "s1" } });
     await settle();
     expect((await f.request("s1", "beads-task-agent"))[0]).toContain("THIRD");
+    cleanup();
+  });
+
+  test("caps worker steps from taskAgentSteps, and 0 removes the cap", async () => {
+    const ready = { runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" } };
+    const capped = fakeContext({ pluginOptions: { taskAgentSteps: 25, luna: true } });
+    (await setupBeads(capped.ctx, ready))();
+    expect(capped.agents.get("beads-task-agent")?.steps).toBe(25);
+    expect(capped.agents.get("beads-task-agent-luna")?.steps).toBe(25);
+    const uncapped = fakeContext({ pluginOptions: { taskAgentSteps: 0 } });
+    (await setupBeads(uncapped.ctx, ready))();
+    expect(uncapped.agents.get("beads-task-agent")?.steps).toBeUndefined();
+    const invalid = fakeContext({ pluginOptions: { taskAgentSteps: "lots" } });
+    (await setupBeads(invalid.ctx, ready))();
+    expect(invalid.agents.get("beads-task-agent")?.steps).toBe(DEFAULT_TASK_AGENT_STEPS);
+  });
+
+  test("asks compaction to keep Beads state only for sessions that had Beads context", async () => {
+    const f = fakeContext();
+    const cleanup = await setupBeads(f.ctx, {
+      runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" },
+    });
+    const compaction = f.hooks.get("compaction");
+    if (!compaction) throw new Error("compaction hook not registered");
+    await f.request("s1", "build");
+    const withBeads: ContextEvent = { sessionID: "s1", agent: "build", system: [] };
+    await compaction(withBeads);
+    expect(withBeads.system).toEqual([{ type: "text", text: BEADS_COMPACTION_GUIDANCE }]);
+    const other: ContextEvent = { sessionID: "s2", agent: "build", system: [] };
+    await compaction(other);
+    expect(other.system).toEqual([]);
+    f.events.push({ type: "session.deleted", data: { sessionID: "s1" } });
+    await settle();
+    const deleted: ContextEvent = { sessionID: "s1", agent: "build", system: [] };
+    await compaction(deleted);
+    expect(deleted.system).toEqual([]);
     cleanup();
   });
 

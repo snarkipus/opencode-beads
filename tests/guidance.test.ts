@@ -64,6 +64,7 @@ describe("fork-owned task-agent contract", () => {
       description: BEADS_TASK_AGENT_DESCRIPTION,
       system: BEADS_TASK_AGENT_PROMPT,
       model: { providerID: "openai", id: "gpt-6-luna", variant: "max" },
+      steps: 100,
     });
     expect(Object.keys(beadsAgents())).toEqual(["beads-task-agent"]);
   });
