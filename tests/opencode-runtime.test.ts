@@ -8,8 +8,7 @@ import type {
 } from "@opencode-ai/sdk";
 import { createOpenCodeRuntime, OpenCodeTimeoutError } from "../src/opencode-runtime";
 import { createBeadsHooks } from "../src/plugin-hooks";
-import * as pluginModule from "../src/plugin";
-import { BeadsPlugin } from "../src/plugin";
+import { resolveProjectDirectory } from "../src/plugin-core";
 
 type Responses = {
   messages?: unknown;
@@ -53,11 +52,6 @@ const validMessages = [
 const validAgents = [{ name: "build", mode: "primary" }] as const;
 
 describe("OpenCode SDK runtime", () => {
-  test("exports only the OpenCode plugin function from the package entry", () => {
-    expect(Object.keys(pluginModule)).toEqual(["BeadsPlugin"]);
-    expect(Object.values(pluginModule).every((value) => typeof value === "function")).toBeTrue();
-  });
-
   test("uses the official chat.message input context", async () => {
     const fixture = createClient({
       messages: {
@@ -75,11 +69,10 @@ describe("OpenCode SDK runtime", () => {
         ],
       },
     });
-    const hooks = await BeadsPlugin({
-      client: fixture.client,
-      directory: "/project",
-      worktree: "/worktree",
-    } as PluginInput);
+    const hooks = await createBeadsHooks(
+      createOpenCodeRuntime(fixture.client),
+      resolveProjectDirectory("/project", "/worktree")
+    );
     const onMessage = hooks["chat.message"];
     if (!onMessage) throw new Error("chat.message hook missing");
 
@@ -97,11 +90,10 @@ describe("OpenCode SDK runtime", () => {
 
   test("ignores its own synthetic context message instead of re-entering injection", async () => {
     const fixture = createClient();
-    const hooks = await BeadsPlugin({
-      client: fixture.client,
-      directory: "/project",
-      worktree: "/worktree",
-    } as PluginInput);
+    const hooks = await createBeadsHooks(
+      createOpenCodeRuntime(fixture.client),
+      resolveProjectDirectory("/project", "/worktree")
+    );
     const onMessage = hooks["chat.message"];
     if (!onMessage) throw new Error("chat.message hook missing");
 
@@ -141,11 +133,10 @@ describe("OpenCode SDK runtime", () => {
         ],
       },
     });
-    const hooks = await BeadsPlugin({
-      client: fixture.client,
-      directory: "/project",
-      worktree: "/worktree",
-    } as PluginInput);
+    const hooks = await createBeadsHooks(
+      createOpenCodeRuntime(fixture.client),
+      resolveProjectDirectory("/project", "/worktree")
+    );
     const onMessage = hooks["chat.message"];
     if (!onMessage) throw new Error("chat.message hook missing");
 
@@ -241,11 +232,10 @@ describe("OpenCode SDK runtime", () => {
       },
       agents: { data: validAgents },
     });
-    const hooks = await BeadsPlugin({
-      client: fixture.client,
-      directory: "/project",
-      worktree: "/worktree",
-    } as PluginInput);
+    const hooks = await createBeadsHooks(
+      createOpenCodeRuntime(fixture.client),
+      resolveProjectDirectory("/project", "/worktree")
+    );
     const onEvent = hooks.event;
     const onMessage = hooks["chat.message"];
     if (!onEvent || !onMessage) throw new Error("required hooks missing");

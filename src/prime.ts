@@ -4,15 +4,15 @@ export const DEFAULT_PRIME_TIMEOUT_MS = 10_000;
 export const DEFAULT_PRIME_DRAIN_TIMEOUT_MS = 1_000;
 
 export class PrimeTimeoutError extends Error {
-  constructor(timeoutMs: number) {
-    super(`bd prime timed out after ${timeoutMs}ms`);
+  constructor(timeoutMs: number, command = "bd prime") {
+    super(`${command} timed out after ${timeoutMs}ms`);
     this.name = "PrimeTimeoutError";
   }
 }
 
 export class PrimeProcessError extends Error {
-  constructor(readonly exitCode: number, readonly stderr: string) {
-    super(`bd prime exited with code ${exitCode}`);
+  constructor(readonly exitCode: number, readonly stderr: string, command = "bd prime") {
+    super(`${command} exited with code ${exitCode}`);
     this.name = "PrimeProcessError";
   }
 }
@@ -34,8 +34,8 @@ export interface PrimeExecutionOptions {
   scheduleDrainTimeout?: (callback: () => void, delayMs: number) => () => void;
 }
 
-function spawnPrime(directory: string, args: readonly string[]): PrimeProcess {
-  const child = Bun.spawn(["bd", "prime", ...args], {
+function spawnBd(directory: string, args: readonly string[]): PrimeProcess {
+  const child = Bun.spawn(["bd", ...args], {
     cwd: directory,
     stdin: "ignore",
     stdout: "pipe",
@@ -100,14 +100,15 @@ async function drainAfterKill(
   });
 }
 
-async function runPrimeAttempt(
+async function runBdAttempt(
   directory: string,
   args: readonly string[],
   options: PrimeExecutionOptions = {}
 ): Promise<string> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_PRIME_TIMEOUT_MS;
   const drainTimeoutMs = options.drainTimeoutMs ?? DEFAULT_PRIME_DRAIN_TIMEOUT_MS;
-  const child = (options.spawn ?? spawnPrime)(directory, args);
+  const command = ["bd", ...args].join(" ");
+  const child = (options.spawn ?? spawnBd)(directory, args);
   const stdout = new Response(child.stdout).text();
   const stderr = new Response(child.stderr).text();
 
@@ -119,12 +120,12 @@ async function runPrimeAttempt(
   const cancelTimeout = (options.scheduleTimeout ?? scheduleTimeout)(() => {
     timedOut = true;
     terminateProcessTree(child);
-    rejectTimeout(new PrimeTimeoutError(timeoutMs));
+    rejectTimeout(new PrimeTimeoutError(timeoutMs, command));
   }, timeoutMs);
 
   const completion = Promise.all([child.exited, stdout, stderr]).then(
     ([exitCode, output, errorOutput]) => {
-      if (exitCode !== 0) throw new PrimeProcessError(exitCode, errorOutput);
+      if (exitCode !== 0) throw new PrimeProcessError(exitCode, errorOutput, command);
       return output;
     }
   );
@@ -143,10 +144,19 @@ async function runPrimeAttempt(
   }
 }
 
+/** Run one bounded `bd` invocation in the project directory and return its stdout. */
+export async function runBd(
+  directory: string,
+  args: readonly string[],
+  options: PrimeExecutionOptions = {}
+): Promise<string> {
+  return runBdAttempt(directory, args, options);
+}
+
 /** Load the canonical Beads workflow and persistent project memories. */
 export async function runBdPrime(
   directory: string,
   options: PrimeExecutionOptions = {}
 ): Promise<string> {
-  return runPrimeAttempt(directory, [], options);
+  return runBd(directory, ["prime"], options);
 }

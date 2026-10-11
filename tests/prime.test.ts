@@ -35,7 +35,7 @@ describe("runBdPrime", () => {
     });
 
     expect(result).toBe("prime output");
-    expect(spawn).toHaveBeenCalledWith("/project", []);
+    expect(spawn).toHaveBeenCalledWith("/project", ["prime"]);
     expect(cancelled).toBeTrue();
   });
 
@@ -53,7 +53,7 @@ describe("runBdPrime", () => {
       PrimeProcessError
     );
     expect(genericFailure).toHaveBeenCalledTimes(1);
-    expect(genericFailure).toHaveBeenCalledWith("/project", []);
+    expect(genericFailure).toHaveBeenCalledWith("/project", ["prime"]);
   });
 
   test("bounds stream draining after timeout", async () => {
