@@ -21,7 +21,7 @@
 - `src/host.ts` - Wires the context hook, session events, and agent registration
 - `src/context.ts` - Per-session `bd prime` context cache and audience selection
 - `src/guard.ts` - Beads version and schema-migration guard
-- `src/agents.ts`, `src/guidance.ts` - Fork-owned task agents, prompt, and shared guidance
+- `src/agents.ts`, `src/guidance.ts` - Project-owned task agents, prompt, and shared guidance
 - `src/prime.ts` - Bounded `bd` process runner
 
 ## Notes

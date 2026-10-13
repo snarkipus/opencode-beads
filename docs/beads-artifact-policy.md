@@ -10,7 +10,7 @@ Upstream host integrations at Beads `v1.3.1` (commit `c1c4b642ac1c08d8c828007a1c
 | --- | --- | --- | --- | --- |
 | Claude Code | `plugins/beads/.claude-plugin/plugin.json` | `SessionStart` and `PreCompact` hooks run full `bd prime` | `skills/beads/commands/*.md` | `plugins/beads/agents/task-agent.md` (`@task-agent`), discovered by convention: an autonomous loop that finds, claims, and completes ready work through MCP-style tool names |
 | Codex | `plugins/beads/.codex-plugin/plugin.json` and `.codex-plugin/hooks/hooks.json` | `SessionStart`, `PreCompact`, `PostCompact`, and `UserPromptSubmit` hooks | none | none |
-| OpenCode (this adapter) | `@snarkipus/opencode-beads` | Session context hook attaches full `bd prime` to each request, behind the schema migration guard | none | Fork-owned `beads-task-agent`: one bead per invocation |
+| OpenCode (this adapter) | `@snarkipus/opencode-beads` | Session context hook attaches full `bd prime` to each request, behind the schema migration guard | none | Project-owned `beads-task-agent`: one bead per invocation |
 
 - The upstream task agent is consumed only by the Claude Code plugin (`docs/integrations/claude-code-plugin.md`, `cmd/bd/setup/plugin_layout_test.go`). Codex ships skills and hooks but no agent.
 - Upstream [ADR-0001](https://github.com/gastownhall/beads/blob/v1.3.1/plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md) makes full `bd prime` the canonical dynamic context source.
@@ -24,7 +24,7 @@ Upstream host integrations at Beads `v1.3.1` (commit `c1c4b642ac1c08d8c828007a1c
 | Upstream artifact | Policy | Reason |
 | --- | --- | --- |
 | `skills/beads/commands/*.md` | Retired in 1.0.0 (`opencode-beads-2zs.4`) | Claude Code command templates, not part of the native OpenCode or Codex install. They largely wrap single `bd` subcommands and duplicate `bd prime` plus the canonical `.agents/skills/beads` skill, which OpenCode V2 discovers natively. V2 commands are executable code rather than templates. |
-| `agents/task-agent.md` | Retired in 1.0.0 (`opencode-beads-w5y`) | A Claude Code-only artifact whose autonomous multi-task loop this adapter deliberately does not adopt. Before retirement, its body was never executed: the runtime prompt was already a fork-owned bounded OpenCode adaptation, and only the upstream description string reached users, misdescribing the one-bead worker. The task agent's prompt and description now live in `src/guidance.ts`. It does not execute upstream's autonomous multi-task loop. |
+| `agents/task-agent.md` | Retired in 1.0.0 (`opencode-beads-w5y`) | A Claude Code-only artifact whose autonomous multi-task loop this adapter deliberately does not adopt. Before retirement, its body was never executed: the runtime prompt was already a project-owned bounded OpenCode adaptation, and only the upstream description string reached users, misdescribing the one-bead worker. The task agent's prompt and description now live in `src/guidance.ts`. It does not execute upstream's autonomous multi-task loop. |
 | `skills/beads/SKILL.md`, `skills/beads/adr/`, and `skills/beads/resources/` | Excluded | `bd init` owns per-project initialization. Its automatic Codex project integration creates the canonical shared skill at `.agents/skills/beads`, which OpenCode discovers. This package does not fork, install, update, or remove that skill. |
 | Claude/Codex manifests and hooks | Excluded | `.claude-plugin` and `.codex-plugin` formats and lifecycle hooks are not OpenCode plugin registration formats. This adapter implements the equivalent lifecycle through OpenCode V2's session context hook and session events. |
 | Beads executable, complete CLI docs, server, or MCP integration | Excluded | The installed `bd` CLI remains the sole execution and data-management boundary. This package invokes it but does not redistribute, emulate, or replace it. |
@@ -38,7 +38,7 @@ Until 1.0.0 a daily workflow synced the upstream task agent into `vendor/` with 
 - No `vendor/` directory, sync workflow, or provenance manifest. Packages contain only `src/`, `README.md`, `LICENSE`, and `package.json`.
 - `scripts/bd-contract.ts` exercises a real `bd` in a disposable repository: version parsing and the supported minimum, `bd where --json`, the `.beads/.local_version` contract the guard relies on, `bd prime --full` under a Claude Code MCP configuration, and every command named by the task-agent prompt. It runs the plugin's own guard code.
 - CI runs the contract against `beads.validated` from `package.json`. The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release and fails when a release breaks the contract or has not been reviewed yet, replacing the sync PRs as the new-release signal. After reviewing a release's upgrade notes against the surfaces above, the maintainer updates `beads.validated` and the README compatibility table, and records any follow-up work in Beads.
-- The task-agent contract is tested directly against the fork-owned prompt and description.
+- The task-agent contract is tested directly against the project-owned prompt and description.
 - The contract also guards this plugin's reason to exist. The plugin gives OpenCode the integration shape `bd setup claude` gives Claude Code, and assumes users run plain `bd init` (minimal `AGENTS.md` pointer) but never `bd setup opencode`. The check fails with a `REASSESS:` message if `bd init` starts writing OpenCode integration files, if `bd setup opencode` changes anything besides `AGENTS.md`, or if the `opencode` recipe stops being an `AGENTS.md` section. Any of these would mean upstream may now cover OpenCode natively, and the plugin's scope should be reviewed rather than patched.
 
 ## Skill ownership
@@ -67,7 +67,7 @@ The full `bd` command surface remains CLI-only. OpenCode receives no generated t
 Any future upstream artifact proposed for inclusion must first show:
 
 - a native, documented OpenCode discovery or registration path;
-- that it is executed or rendered as shipped, rather than replaced by a fork-owned adaptation;
+- that it is executed or rendered as shipped, rather than replaced by a project-owned adaptation;
 - that it does not duplicate `bd prime` or the canonical skill;
 - deterministic validation, package-content tests, and failure behavior;
 - a documented owner and removal or upgrade path.
