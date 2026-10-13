@@ -25,7 +25,7 @@ export interface ReleaseArchive {
 
 /** Format a workflow output as an explicit local path rather than an npm Git shorthand. */
 export function releaseOutputPath(projectDirectory: string, archivePath: string): string {
-  const relative = path.relative(projectDirectory, archivePath);
+  const relative = path.relative(projectDirectory, archivePath).split(path.sep).join("/");
   return relative.startsWith(".") ? relative : `./${relative}`;
 }
 
@@ -144,7 +144,7 @@ export async function inspectReleaseArchive(
   const archive = path.resolve(projectDirectory, archivePath);
   const listed = await capture(["tar", "-tzf", archive], projectDirectory);
   const inventory = listed
-    .split("\n")
+    .split(/\r?\n/)
     .filter((entry) => entry.startsWith("package/") && !entry.endsWith("/"))
     .map((entry) => entry.slice("package/".length))
     .sort();
