@@ -18,6 +18,12 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [1.0.2]
+
+### Changed
+
+- The README describes opencode-beads as an independent project that began as a fork of Josh Thomas's `opencode-beads`, and "fork-owned" becomes "project-owned" in the docs.
+
 ### Fixed
 
 - Task-agent approval rules now also catch commit, push, and sync commands written with global options, such as `git -C . push`, `git -c user.name=x commit`, and `bd --json dolt push`, which previously ran without asking. Tests now check permission decisions against OpenCode's matcher instead of only checking that the rules were registered.
@@ -311,7 +317,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.0.1...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.2
 [1.0.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.1
 [1.0.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.0
 [0.10.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.10.0
