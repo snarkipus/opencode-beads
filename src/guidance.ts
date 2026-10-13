@@ -11,7 +11,7 @@ export const BEADS_TASK_AGENT_DESCRIPTION =
 
 const BEADS_HOST_GUIDANCE = `## CLI Safety
 
-There is no native \`bd\` or Beads MCP tool in OpenCode. Run \`bd\` through \`bash\`.
+There is no native \`bd\` or Beads MCP tool in OpenCode. Run \`bd\` through the \`shell\` tool.
 Treat the injected \`bd prime\` output as the canonical workflow reference. Use \`bd --help\` to discover commands, \`bd <command> --help\` for current syntax, and \`--json\` when structured output improves reliability. Distinguish command failures from output parsing failures.
 
 Run relevant validation before closing an issue. Do not commit, push, or run Dolt synchronization automatically; do so only when current instructions or repository policy explicitly require it.`;
@@ -23,7 +23,7 @@ Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-a
 /** Fork-owned system prompt for the bounded one-bead task agent. */
 export const BEADS_TASK_AGENT_PROMPT = `## Beads Task Agent
 
-Full \`bd prime\` workflow context is injected with each request. Use \`bd\` via \`bash\`; rerun prime if context is missing or stale.
+Full \`bd prime\` workflow context is injected with each request. Use \`bd\` via the \`shell\` tool; rerun prime if context is missing or stale.
 
 For status or graph analysis, never claim, update, close, or modify a bead. Return the analysis and stop.
 

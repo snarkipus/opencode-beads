@@ -18,6 +18,13 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+### Fixed
+
+- Task-agent approval rules now also catch commit, push, and sync commands written with global options, such as `git -C . push`, `git -c user.name=x commit`, and `bd --json dolt push`, which previously ran without asking. Tests now check permission decisions against OpenCode's matcher instead of only checking that the rules were registered.
+- The plugin runs `bd prime --full`. Without it, `bd` read Claude Code's settings and, if a Beads MCP server was configured there, returned brief MCP reminders instead of the full workflow, even though OpenCode has no Beads MCP tool.
+- The injected guidance and the task-agent prompt named V1's `bash` tool; they now name OpenCode V2's `shell` tool.
+- The bd contract check now really isolates `HOME`. Bun does not pass later `process.env` changes to spawned processes, so `bd` had been reading the caller's own configuration. The check also covers prime with a Claude Code MCP configuration.
+
 ## [1.0.1]
 
 Documentation-only release; the plugin code is unchanged from 1.0.0. It updates the README shown on npm.

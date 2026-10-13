@@ -51,11 +51,18 @@ describe("fork-owned task-agent contract", () => {
     const taskAgent = beadsGuidance("task-agent");
     for (const guidance of [primary, taskAgent]) {
       expect(guidance).toMatch(/^<beads-guidance>\n[\s\S]*\n<\/beads-guidance>$/);
-      expect(guidance).toContain("Run `bd` through `bash`");
+      expect(guidance).toContain("Run `bd` through the `shell` tool");
       expect(guidance).toContain("Do not commit, push, or run Dolt synchronization automatically");
     }
     expect(primary).toContain("through the `subagent` tool");
     expect(taskAgent).not.toContain("## Delegation");
+  });
+
+  test("names OpenCode V2's `shell` tool, not V1's `bash`", () => {
+    for (const text of [BEADS_TASK_AGENT_PROMPT, beadsGuidance("primary"), beadsGuidance("task-agent")]) {
+      expect(text).toContain("`shell` tool");
+      expect(text).not.toContain("`bash`");
+    }
   });
 
   test("gives the Luna profile the same prompt and description", () => {

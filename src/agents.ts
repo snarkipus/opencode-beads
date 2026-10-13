@@ -14,14 +14,22 @@ export const DEFAULT_TASK_AGENT_STEPS = 100;
 /**
  * Enforce the no-automatic-commit/push/sync policy with OpenCode permissions rather than prompt
  * text alone. Appended after OpenCode's defaults, so these `ask` rules win; compound commands are
- * checked per command, so `cd x && git push` is caught too.
+ * checked per command, so `cd x && git push` is caught too. Each subcommand has a second rule for
+ * global options before it (`git -C dir push`, `bd --json dolt push`). That also asks for a few
+ * harmless commands such as `git log --grep push`; asking too often is the safe direction. This is
+ * a guardrail against routine sync, not a sandbox: wrappers, aliases, and scripts still bypass it.
  */
 export const TASK_AGENT_PERMISSIONS = [
   { action: "shell", resource: "git commit *", effect: "ask" },
+  { action: "shell", resource: "git * commit *", effect: "ask" },
   { action: "shell", resource: "git push *", effect: "ask" },
+  { action: "shell", resource: "git * push *", effect: "ask" },
   { action: "shell", resource: "bd dolt push *", effect: "ask" },
+  { action: "shell", resource: "bd * dolt push *", effect: "ask" },
   { action: "shell", resource: "bd dolt pull *", effect: "ask" },
+  { action: "shell", resource: "bd * dolt pull *", effect: "ask" },
   { action: "shell", resource: "bd sync *", effect: "ask" },
+  { action: "shell", resource: "bd * sync *", effect: "ask" },
 ] as const;
 
 /** Routing for the opt-in Luna profile, `provider/model#variant` in OpenCode terms. */
