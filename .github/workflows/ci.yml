@@ -10,7 +10,10 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -35,11 +38,13 @@ jobs:
         run: bun run test:package
 
       - name: Install validated bd
+        if: runner.os == 'Linux'
         run: |
           ./scripts/install-bd.sh "$(jq -r .beads.validated package.json)" "$RUNNER_TEMP/bd"
           echo "$RUNNER_TEMP/bd" >> "$GITHUB_PATH"
 
       - name: Check bd contract
+        if: runner.os == 'Linux'
         run: bun run test:bd-contract
 
   zizmor:

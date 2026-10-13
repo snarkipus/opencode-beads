@@ -42,8 +42,11 @@ async function metadataFixture(): Promise<string> {
 
 describe("release artifact identity", () => {
   test("emits an explicit local archive path for npm", () => {
-    expect(releaseOutputPath("/checkout", "/checkout/release-artifacts/package.tgz")).toBe(
+    expect(releaseOutputPath(projectDirectory, join(projectDirectory, "release-artifacts", "package.tgz"))).toBe(
       "./release-artifacts/package.tgz"
+    );
+    expect(releaseOutputPath(projectDirectory, join(projectDirectory, "..", "package.tgz"))).toBe(
+      "../package.tgz"
     );
   });
 
@@ -169,7 +172,7 @@ describe("release artifact identity", () => {
       ]);
       expect(tarExit, tarError).toBe(0);
       const archiveEntryCount = tarOutput
-        .split("\n")
+        .split(/\r?\n/)
         .filter((entry) => entry.startsWith("package/") && !entry.endsWith("/")).length;
       expect(npmReport?.entryCount).toBe(archiveEntryCount);
       expect(npmReport?.files).toHaveLength(archiveEntryCount);
@@ -232,7 +235,7 @@ describe("release artifact identity", () => {
     }
     expect(workflows[0]).toContain("zizmorcore/zizmor-action@");
     expect(workflows[1]).toContain("no-cache: true");
-    expect(workflows[2]).toContain("permissions:\n  contents: read");
+    expect(workflows[2]).toMatch(/permissions:\r?\n  contents: read/);
     expect(workflows[2]).toContain("./scripts/install-bd.sh");
     expect(workflows[0]).toContain("bun run test:bd-contract");
     // The upstream sync workflow (and its push credentials) was retired with vendoring.
