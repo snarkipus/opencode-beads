@@ -213,11 +213,11 @@ describe("setupBeads", () => {
     cleanup();
   });
 
-  test("runs bd prime with --stealth only when the stealth option is set", async () => {
+  test("always runs bd prime with --full, and adds --stealth only when the stealth option is set", async () => {
     for (const [options, flags] of [
-      [{}, []],
-      [{ stealth: true }, ["--stealth"]],
-      [{ stealth: "yes" }, []],
+      [{}, ["--full"]],
+      [{ stealth: true }, ["--full", "--stealth"]],
+      [{ stealth: "yes" }, ["--full"]],
     ] as const) {
       const runPrime = mock(async (_cwd: string, _flags: readonly string[]) => "PRIME");
       const f = fakeContext({ pluginOptions: options });

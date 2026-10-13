@@ -20,7 +20,7 @@ export type HostContext = Pick<Plugin.Context, "location" | "options" | "event">
 export interface HostDependencies {
   /** Override process-backed Beads calls, mainly for tests. */
   runtime?: Partial<Pick<ContextRuntime, "guard" | "prime">>;
-  /** Override the `bd prime` runner (receives extra flags such as `--stealth`). */
+  /** Override the `bd prime` runner (receives `--full`, plus `--stealth` when enabled). */
   runPrime?: (directory: string, flags: readonly string[]) => Promise<string>;
   /** Override the bounded `bd` runner used by the store guard. */
   bd?: (directory: string, args: readonly string[]) => Promise<string>;
@@ -47,8 +47,10 @@ export async function setupBeads(
 ): Promise<() => void> {
   const directory = ctx.location.directory;
   const autoMigrate = ctx.options?.autoMigrate === true;
-  // Mirrors `bd setup claude --stealth`: prime without git operations in the session-close protocol.
-  const stealth = ctx.options?.stealth === true;
+  // `--full` defeats bd's MCP detection, which reads Claude Code's settings and would otherwise
+  // shrink prime to MCP reminders; OpenCode has no Beads MCP tool. `--stealth` mirrors
+  // `bd setup claude --stealth`: prime without git operations in the session-close protocol.
+  const primeFlags = ctx.options?.stealth === true ? ["--full", "--stealth"] : ["--full"];
   const now = deps.now ?? Date.now;
   const warn = deps.warn ?? ((message: string) => console.warn(message));
   const diagnosticIntervalMs = deps.diagnosticIntervalMs ?? DEFAULT_DIAGNOSTIC_INTERVAL_MS;
@@ -59,7 +61,7 @@ export async function setupBeads(
     guard: deps.runtime?.guard ?? ((cwd) => checkBeadsStore(cwd, guardRuntime, { autoMigrate })),
     prime:
       deps.runtime?.prime ??
-      ((cwd) => (deps.runPrime ?? ((dir, flags) => runBdPrime(dir, {}, flags)))(cwd, stealth ? ["--stealth"] : [])),
+      ((cwd) => (deps.runPrime ?? ((dir, flags) => runBdPrime(dir, {}, flags)))(cwd, primeFlags)),
     async agentMode(agentID): Promise<AgentMode | undefined> {
       const response = await ctx.agent.get({ agentID });
       return response.data.mode;

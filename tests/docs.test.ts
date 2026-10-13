@@ -173,7 +173,7 @@ describe("documentation contracts", () => {
   });
 
   test("documents upstream-aligned full-prime context boundaries", () => {
-    expect(readme).toContain("runs full `bd prime`");
+    expect(readme).toContain("runs `bd prime --full`");
     expect(readme).not.toContain("runs `bd prime --memories-only`");
     expect(readme).toContain("bounded standalone quick reference");
     expect(sdkContract).toContain('Bun.spawn(["bd", "prime"]');

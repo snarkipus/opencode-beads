@@ -37,7 +37,7 @@ OpenCode V2 exposes surfaces that Claude Code's hooks cannot use. The plugin use
 | --- | --- | --- |
 | Prime in subagents | The `beads-task-agent` child session passes through the same context hook | The worker reported `<beads-context>` in its own session (#16) |
 | Context survives compaction | Prime is a per-request system part, never stored in history | Spike `opencode-beads-2zs.1` |
-| Enforced no-push policy | Task-agent permissions `ask` for `git commit`, `git push`, `bd dolt push`, `bd dolt pull`, `bd sync` | A delegated `git commit` was rejected in a non-interactive run (#17) |
+| Enforced no-push policy | Task-agent permissions `ask` for `git commit`, `git push`, `bd dolt push`, `bd dolt pull`, `bd sync`, including forms with global options | A delegated `git commit` was rejected in a non-interactive run (#17) |
 | Worker step cap | `taskAgentSteps` (default 100) sets the agent's `steps` | Resolved by `opencode debug agents` (#17) |
 | Beads state across compaction | The compaction hook asks the summarizer to keep bead IDs, statuses, follow-ups, and blockers | The summary kept both bead IDs, their state, and the blocker (#17) |
 | Schema migration guard | `bd version`, `bd where --json`, and `.beads/.local_version` checks before automatic prime; `autoMigrate` opts out | A v1.2.2-created store got a notice and stayed unmigrated (1.0.0) |

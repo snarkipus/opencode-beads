@@ -70,11 +70,21 @@ async function git(cwd: string, ...args: string[]): Promise<void> {
   if ((await child.exited) !== 0) throw new Error(`git ${args.join(" ")} failed`);
 }
 
-const root = await fs.mkdtemp(path.join(os.tmpdir(), "bd-contract-"));
-// Isolate bd from the caller's configuration and workspaces.
-process.env.HOME = path.join(root, "home");
-delete process.env.BEADS_DIR;
-await fs.mkdir(process.env.HOME);
+// Isolate bd from the caller's configuration and workspaces. Bun.spawn ignores later edits to
+// process.env, so the script re-runs itself with the isolated environment instead.
+const isolatedRoot = process.env.BD_CONTRACT_ROOT;
+if (isolatedRoot === undefined) {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "bd-contract-"));
+  const home = path.join(root, "home");
+  await fs.mkdir(home);
+  const env: Record<string, string | undefined> = { ...process.env, HOME: home, BD_CONTRACT_ROOT: root };
+  delete env.BEADS_DIR;
+  const child = Bun.spawn([process.execPath, import.meta.path], { env, stdio: ["ignore", "inherit", "inherit"] });
+  const exitCode = await child.exited;
+  await fs.rm(root, { recursive: true, force: true });
+  process.exit(exitCode);
+}
+const root = isolatedRoot;
 
 try {
   const bd = (cwd: string, args: readonly string[]) => runBd(cwd, args, { timeoutMs: 60_000 });
@@ -209,6 +219,25 @@ try {
     check(prime?.trim(), "bd prime succeeds with workflow output");
     const stealthPrime = await attempt("bd prime --stealth", () => bd(repo, ["prime", "--stealth"]));
     check(stealthPrime?.trim(), "bd prime --stealth succeeds (the stealth plugin option)");
+    // bd shrinks prime to MCP reminders when Claude Code's settings list a Beads MCP server, even
+    // though OpenCode has none; the plugin passes --full to keep the CLI workflow.
+    const claudeSettings = path.join(process.env.HOME!, ".claude", "settings.json");
+    await fs.mkdir(path.dirname(claudeSettings), { recursive: true });
+    await fs.writeFile(claudeSettings, JSON.stringify({ mcpServers: { beads: { command: "beads-mcp" } } }));
+    const mcpPrime = await attempt("bd prime (Claude MCP configured)", () => bd(repo, ["prime"]));
+    const fullPrime = await attempt("bd prime --full --stealth (Claude MCP configured)", () =>
+      bd(repo, ["prime", "--full", "--stealth"])
+    );
+    check(
+      fullPrime?.includes("## Essential Commands"),
+      "bd prime --full --stealth keeps the CLI workflow when Claude Code has a Beads MCP server"
+    );
+    check(
+      mcpPrime !== undefined && !mcpPrime.includes("## Essential Commands"),
+      "bd prime without --full still drops to MCP mode (the reason the plugin passes --full)",
+      "REASSESS: bd may no longer read Claude Code's MCP settings; --full stays harmless."
+    );
+    await fs.rm(path.dirname(claudeSettings), { recursive: true, force: true });
     check((await readMarker())?.trim() === "0.0.1", "bd prime does not update .local_version");
     check(
       (await checkBeadsStore(repo, guardRuntime)).kind === "migration-pending",

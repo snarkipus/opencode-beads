@@ -63,7 +63,7 @@ Plugin options use the object form:
 | Option | Default | Effect |
 | --- | --- | --- |
 | `luna` | `false` | Also register the `beads-task-agent-luna` profile. |
-| `stealth` | `false` | Run `bd prime --stealth` (no git operations in the session-close protocol), like `bd setup claude --stealth`. `bd config set no-git-ops true` is the project-level equivalent. |
+| `stealth` | `false` | Add `--stealth` to `bd prime` (no git operations in the session-close protocol), like `bd setup claude --stealth`. `bd config set no-git-ops true` is the project-level equivalent. |
 | `taskAgentSteps` | `100` | Hard cap on task-agent steps per invocation, a backstop for "one bead, then return". `0` removes the cap. |
 | `refreshAfterIdleMinutes` | `30` | Re-run `bd prime` when a session resumes after this much inactivity, as Claude Code does on resume. `0` disables idle refresh. |
 | `autoMigrate` | `false` | Let automatic `bd prime` open a store that may need a schema migration. See [Schema migration guard](#schema-migration-guard). |
@@ -89,7 +89,7 @@ The [Claude Code parity matrix](docs/claude-code-parity.md) records every `bd se
 
 ## Context injection
 
-The plugin runs full `bd prime` in the project directory and attaches its output to each model request through OpenCode's session context hook. The output is cached per session, so prime runs once per session rather than per request. It runs again after compaction (automatic or manual), when a session resumes after `refreshAfterIdleMinutes` of inactivity, and when the plugin reloads, mirroring the `startup`, `resume`, `clear`, and `compact` sources of Claude Code's `SessionStart` hook. Steady work keeps the same text, which keeps provider prompt caches warm. Attached context is not stored in the conversation, so compaction cannot drop it. Prime supplies the canonical current workflow, command guidance, and persistent memories; the plugin adds only compact OpenCode-specific safety and delegation guidance.
+The plugin runs `bd prime --full` in the project directory and attaches its output to each model request through OpenCode's session context hook. The output is cached per session, so prime runs once per session rather than per request. It runs again after compaction (automatic or manual), when a session resumes after `refreshAfterIdleMinutes` of inactivity, and when the plugin reloads, mirroring the `startup`, `resume`, `clear`, and `compact` sources of Claude Code's `SessionStart` hook. Steady work keeps the same text, which keeps provider prompt caches warm. Attached context is not stored in the conversation, so compaction cannot drop it. `--full` matters: without it, `bd` switches to brief MCP reminders whenever Claude Code's settings list a Beads MCP server, and OpenCode has no Beads MCP tool. Prime supplies the canonical current workflow, command guidance, and persistent memories; the plugin adds only compact OpenCode-specific safety and delegation guidance.
 
 While prime is attached, two bd-managed `AGENTS.md` blocks only repeat it: the full-profile section `bd setup opencode` writes, and the Codex section `bd init` writes. The plugin replaces those marked blocks in the outgoing request with a one-line pointer, matching the minimal `CLAUDE.md` pointer Beads uses for Claude Code. `bd init`'s minimal section is left as is. Your `AGENTS.md` file and any text outside those markers are not changed, and nothing is replaced when prime is withheld or unavailable.
 
@@ -121,7 +121,7 @@ Its prompt and description are owned by this project. Upstream Beads ships a tas
 
 OpenCode lets the plugin enforce parts of that contract, beyond what Claude Code's hooks can do:
 
-- **No automatic commit, push, or sync.** The task agents' permissions require approval (`ask`) for `git commit`, `git push`, `bd dolt push`, `bd dolt pull`, and `bd sync`, on top of OpenCode's defaults. Compound commands are checked per command. A non-interactive run rejects them. Set the agent's `permissions` in OpenCode configuration to replace these rules.
+- **No automatic commit, push, or sync.** The task agents' permissions require approval (`ask`) for `git commit`, `git push`, `bd dolt push`, `bd dolt pull`, and `bd sync`, on top of OpenCode's defaults. Global options before the subcommand (`git -C dir push`, `bd --json dolt push`) are covered too, and compound commands are checked per command. This is a guardrail against routine sync, not a sandbox: scripts and aliases can still run these commands. A non-interactive run rejects them. Set the agent's `permissions` in OpenCode configuration to replace these rules.
 - **Step cap.** `taskAgentSteps` (default 100) limits a worker invocation; on its final step OpenCode removes tools and asks for a summary.
 - **Context in the worker.** The worker runs in its own child session and receives `bd prime` there too; Claude Code's `SessionStart` hooks do not reach subagents.
 - **Beads state across compaction.** Compaction requests in sessions with Beads context ask the summarizer to keep bead IDs, claim and status changes, discovered follow-ups, blockers, and pending validation.
@@ -138,7 +138,7 @@ Luna requires access to `openai/gpt-6-luna` and its `max` variant in your OpenCo
 
 The package vendors nothing from upstream. It depends on the installed `bd` CLI at runtime: `bd prime` supplies the current workflow, and the schema migration guard enforces the supported `bd` range.
 
-[`scripts/bd-contract.ts`](scripts/bd-contract.ts) checks a real `bd` against everything the plugin relies on: version parsing, `bd where --json`, the `.beads/.local_version` behavior the guard depends on (written by `bd init`, untouched by `bd prime`, refreshed by `bd migrate schema`), and every command the task-agent prompt names. CI runs it against the validated release from `package.json` (`beads.validated`). The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release, and fails if that release breaks the contract or is newer than the validated one. When a new release appears, review its upgrade notes, then update `beads.validated` and the compatibility table. The [artifact policy](docs/beads-artifact-policy.md) records why upstream artifacts are not vendored.
+[`scripts/bd-contract.ts`](scripts/bd-contract.ts) checks a real `bd` against everything the plugin relies on: version parsing, `bd where --json`, the `.beads/.local_version` behavior the guard depends on (written by `bd init`, untouched by `bd prime`, refreshed by `bd migrate schema`), that `bd prime --full` keeps the full workflow when Claude Code has a Beads MCP server, and every command the task-agent prompt names. CI runs it against the validated release from `package.json` (`beads.validated`). The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release, and fails if that release breaks the contract or is newer than the validated one. When a new release appears, review its upgrade notes, then update `beads.validated` and the compatibility table. The [artifact policy](docs/beads-artifact-policy.md) records why upstream artifacts are not vendored.
 
 ## Compatibility
 
