@@ -18,6 +18,10 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+### Fixed
+
+- The release tooling and its tests now work on Windows: archive paths use `/`, archive listings with CRLF line endings are parsed, and the workflow assertion no longer requires LF line endings. CI now also runs the tests, typecheck, and package smoke test on Windows; the bd contract check stays Linux-only.
+
 ## [1.0.2]
 
 ### Changed
