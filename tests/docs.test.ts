@@ -85,7 +85,7 @@ describe("documentation contracts", () => {
     );
   });
 
-  test("keeps changelog headings unique and current links fork-owned", () => {
+  test("keeps changelog headings unique and current links pointing at this repository", () => {
     const headings = changelog
       .split("\n")
       .filter((line) => /^## \[[^\]]+\]$/.test(line) && line !== "## [${version}]");
@@ -226,7 +226,7 @@ describe("documentation contracts", () => {
     expect(readme).toContain("unknown custom primary agents");
     expect(readme).toContain("Known regular subagents remain excluded");
     expect(artifactPolicy).toContain("metadata, provenance, and compatibility validation");
-    expect(artifactPolicy).toContain("fork-owned bounded OpenCode adaptation");
+    expect(artifactPolicy).toContain("project-owned bounded OpenCode adaptation");
     expect(artifactPolicy).toContain("does not execute upstream's autonomous multi-task loop");
     expect(artifactPolicy).toContain("fail open for context injection");
   });
@@ -235,6 +235,6 @@ describe("documentation contracts", () => {
     expect(readme).toContain("validate before closure");
     expect(artifactPolicy).toContain("prohibits automatic commit, push, or Dolt synchronization");
     expect(artifactPolicy).not.toContain("companion lifecycle CLI");
-    expect(artifactPolicy).not.toContain("fork-owned CLI");
+    expect(artifactPolicy).not.toContain("project-owned CLI");
   });
 });

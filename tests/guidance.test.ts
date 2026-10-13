@@ -8,7 +8,7 @@ import {
 
 const unsupportedPattern = /beads mcp|mcp server|via mcp|\bmcp\b|claude code|\/plugin update beads/i;
 
-describe("fork-owned task-agent contract", () => {
+describe("project-owned task-agent contract", () => {
   test("describes the bounded one-bead worker, not upstream's autonomous loop", () => {
     expect(BEADS_TASK_AGENT_DESCRIPTION).toContain("exactly one bead per invocation");
     expect(BEADS_TASK_AGENT_DESCRIPTION).not.toMatch(/autonomous|finds and completes ready tasks/i);

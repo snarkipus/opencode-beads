@@ -1,5 +1,5 @@
 /**
- * Fork-owned guidance for OpenCode: the shared context layer and the bounded task-agent prompt.
+ * Project-owned guidance for OpenCode: the shared context layer and the bounded task-agent prompt.
  *
  * Upstream Beads ships its task agent only for Claude Code, as an autonomous multi-task loop. This
  * adapter deliberately diverges (one bead per invocation), so the prompt and description live here.
@@ -20,7 +20,7 @@ const BEADS_DELEGATION_GUIDANCE = `## Delegation
 
 Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-agent\` subagent through the \`subagent\` tool; perform only single atomic operations directly.`;
 
-/** Fork-owned system prompt for the bounded one-bead task agent. */
+/** Project-owned system prompt for the bounded one-bead task agent. */
 export const BEADS_TASK_AGENT_PROMPT = `## Beads Task Agent
 
 Full \`bd prime\` workflow context is injected with each request. Use \`bd\` via the \`shell\` tool; rerun prime if context is missing or stale.
