@@ -69,3 +69,25 @@ Selected workflows SHALL preserve the user's requested execution scope, distingu
 - **WHEN** a selected bounded worker or permission constraint stops before completion
 - **THEN** the result identifies the incomplete work, relevant context and next action
 - **AND** does not claim that the task or durable write succeeded
+
+### Requirement: Explicit native availability and fallback
+
+Before implementation, the owner gate SHALL record the recommended architecture bundle, selected minimum host, experimental dispositions and consequential fallback behavior against pinned released contracts. Development-only and unqualified runtime capabilities SHALL NOT be presented as released guarantees. Low-level mappings SHALL be supplied by the decision packet rather than left for the owner to design.
+
+#### Scenario: Preferred typed operation needs a newer host
+
+- **WHEN** the preferred adapter requires plugin permission assertion unavailable at the existing minimum
+- **THEN** the owner chooses the recommended qualified minimum or the documented permissioned-CLI fallback before dependency changes
+- **AND** the fallback does not silently bypass authorization through privileged plugin execution
+
+#### Scenario: Experimental capability is considered
+
+- **WHEN** a released experimental mechanism could improve task flow or recovery
+- **THEN** the packet records its semantics, qualification, maintenance and fallback consequences before adoption
+- **AND** instability alone is neither approval nor automatic exclusion
+
+#### Scenario: Plugin reloads or a session changes location
+
+- **WHEN** registrations are unloaded or a session moves, forks or is deleted
+- **THEN** the selected integration disposes or re-resolves affected state and observers without leaking task context across sessions or locations
+- **AND** it preserves user overrides and does not claim cleanup guarantees a final durable write

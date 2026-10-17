@@ -897,5 +897,566 @@
       "owner_disposition": "pending",
       "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
     }
-  ]
+  ],
+  "native_assessment": {
+    "document": "opencode-native-parity-assessment.md",
+    "status": "pending",
+    "checked_on": "2026-10-17",
+    "release": "2.0.32",
+    "commit": "843a6c514e606b436a7fe713422ace0a93ad3d61",
+    "minimum_release": "2.0.26",
+    "minimum_commit": "9b4ec5714d481559990db0a816d5dec19541a814",
+    "development_commit": "8f7b0120eb6b4aa3da1f82b1a9094a9fb4db2d06",
+    "recommended_bundle": "N1",
+    "recommended_minimum": "2.0.32 (owner decision pending; no dependency edit)",
+    "runtime_qualification": "not executed",
+    "sources": [
+      {
+        "id": "S01",
+        "path": "packages/plugin/src/promise/session.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/plugin/src/promise/session.ts",
+        "sha256": "df8e425234da779742770e195ff99302aca59cf3dc8697e7d69985d209c48cdb",
+        "git_blob": "9794147461d67a5ac7694eb02c309ead5400a0b4"
+      },
+      {
+        "id": "S02",
+        "path": "packages/core/src/session/model-request.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/session/model-request.ts",
+        "sha256": "776ba86bcc1a82f38c5b2e29235eb77d196c9bab802957fbbef8dc6b7e5a6b42",
+        "git_blob": "293c93a5e61ce87b42d7e81ced5a06b3b7c0c30c"
+      },
+      {
+        "id": "S03",
+        "path": "packages/core/src/plugin/hooks.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/plugin/hooks.ts",
+        "sha256": "2e475ccada7437c648d81c16403671deeb2de74517e4b05a397c5c2513cbbe48",
+        "git_blob": "1325837f9d5864b2619b795c2cd1493d291786d1"
+      },
+      {
+        "id": "S03",
+        "path": "packages/plugin/src/promise/adapter.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/plugin/src/promise/adapter.ts",
+        "sha256": "80ba992bede54d6f975cef1025d238b3032a61d862f14815d31982eae60a57e4",
+        "git_blob": "aacf38893675a69f6d36b8766850d46ea371b388"
+      },
+      {
+        "id": "S04",
+        "path": "packages/plugin/src/promise/tool.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/plugin/src/promise/tool.ts",
+        "sha256": "1b6146b59b90f097fe0f8135b15ac4c51908b2e984b6186548bb8f649cad74b6",
+        "git_blob": "5eb814e39807fa416dcfaed47e6213922c677113"
+      },
+      {
+        "id": "S05",
+        "path": "packages/core/src/tool.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/tool.ts",
+        "sha256": "53d4b68ad8d7cf4ff4c88bf2c12ab028a0696fd5dfa41fa26951df55d633a2d4",
+        "git_blob": "a07468a61e18d56be6aec0eb75d499db0ba684c9"
+      },
+      {
+        "id": "S06",
+        "path": "packages/core/src/session/compaction.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/session/compaction.ts",
+        "sha256": "0ef0aef6759479f76bc0affe8edf8672460bf549da5f501a541ea6250943200b",
+        "git_blob": "3cb52790295e7057d06573598a2928f3ea27b4cf"
+      },
+      {
+        "id": "S07",
+        "path": "packages/schema/src/session-event.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/schema/src/session-event.ts",
+        "sha256": "5d5adb64afd74130d2376beb69004a51a068b253c42983cabdd214ca56ebd68e",
+        "git_blob": "0cffae27ad631740c4b7b59c09c01440b4b603a6"
+      },
+      {
+        "id": "S08",
+        "path": "packages/core/src/session/execution.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/session/execution.ts",
+        "sha256": "f86c35f46c9bae634f955328979c3eade27d5df06e115d677eece7f4e4f1ce3a",
+        "git_blob": "eeed241ae14e30645d4e0904c69d3ebfe919ef38"
+      },
+      {
+        "id": "S08",
+        "path": "packages/core/src/session/projector.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/session/projector.ts",
+        "sha256": "b2145973cd8ae49fdbde760cb4277ed61113669447583805fcbd2669ced304b1",
+        "git_blob": "e007d6f4db86b5f8470076d3f7fb3c66588ab95e"
+      },
+      {
+        "id": "S09",
+        "path": "packages/core/src/bus.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/bus.ts",
+        "sha256": "1bf5e97b3c3618a79487d75adcfddc602d2068c7759d2018eb9ad7d08f4b57f9",
+        "git_blob": "30bf10a31363954c800f352ad844416aa9e0dfd1"
+      },
+      {
+        "id": "S09",
+        "path": "packages/core/src/plugin/host.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/plugin/host.ts",
+        "sha256": "fac9d0f44b13c2c32c457a4ed5024a6577e4052300b0b44ee8302579965b84d6",
+        "git_blob": "8d40da4aa8b21f8a254bdbccd2a4158188fb26ae"
+      },
+      {
+        "id": "S10",
+        "path": "packages/core/src/session/session.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/session/session.ts",
+        "sha256": "53d67aef56a1a6b518fad623d51a15b26f071db25c7e5f1c71a21c36ac3a9d11",
+        "git_blob": "3cd130086ddd5561501c4b6bc0a348f32b8bc9be"
+      },
+      {
+        "id": "S10",
+        "path": "packages/core/src/session.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/session.ts",
+        "sha256": "67979f2c8133b2d350c7779cd2bd7c62b790bc9089ef913e2ca6c41af0882552",
+        "git_blob": "39f5f36d3a56e017a8b474a52f7d3863ee0effaf"
+      },
+      {
+        "id": "S11",
+        "path": "packages/core/src/session/prompt.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/session/prompt.ts",
+        "sha256": "4a453f9e57d3cc48fc7d6ea23504d1437c751620d7b97bff795c090f2941fc99",
+        "git_blob": "80878f354dd682311e518cac132f46b61df77523"
+      },
+      {
+        "id": "S11",
+        "path": "packages/core/src/session/inbox.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/session/inbox.ts",
+        "sha256": "e849cf92dd802282cba7739f50c7702d4c4e9c31b8299ee9c10353d05d81024a",
+        "git_blob": "3688575e2e9333055c19b4c029c8de5ddd6df2fe"
+      },
+      {
+        "id": "S12",
+        "path": "packages/core/src/tool/plugin/subagent.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/tool/plugin/subagent.ts",
+        "sha256": "fc6e821262ea17c26e63f2955e6fc1ad17475894701ec79d79494318204ad74b",
+        "git_blob": "87443f5e8a4b828eede4b632468511693f8ab9ee"
+      },
+      {
+        "id": "S12",
+        "path": "packages/core/src/session/subagent-completion.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/session/subagent-completion.ts",
+        "sha256": "76fd1bc8cde61470d79aa5144c05d08537b32aa2fd75980b5067270e8d364b03",
+        "git_blob": "79a00e112aa2f7b6141cef08efd83e3d14fb69d1"
+      },
+      {
+        "id": "S12",
+        "path": "packages/core/src/session/subagent-job.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/session/subagent-job.ts",
+        "sha256": "fcecd0bc044e643ab749e98aeee08cb40c391bb692fbcf73001b2902f4b62fbd",
+        "git_blob": "c64cb04732471657e2550b25d60d7a2f7d08a56d"
+      },
+      {
+        "id": "S13",
+        "path": "packages/core/src/command.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/command.ts",
+        "sha256": "51e55a74a561d4e5e03e5435515dac1f367043238789dcbc0c4b364aca977b00",
+        "git_blob": "8cf1b06bcfbb9a704dd8f2964bfa4c78a081c037"
+      },
+      {
+        "id": "S13",
+        "path": "packages/core/src/skill.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/skill.ts",
+        "sha256": "f857d7ccf3fb770f3dc45c8bc0391c355f753f873ab9f2607a6c63eff03930d6",
+        "git_blob": "493d1aa2923c111ce84f8c51786c4158bad9edc1"
+      },
+      {
+        "id": "S13",
+        "path": "packages/core/src/state.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/state.ts",
+        "sha256": "ffdaf9268a2cddec8f00870ed78a64031a148142e9c2497fad016e1c07cadea5",
+        "git_blob": "eafee2696e5645a215c19fdc4db341d283715359"
+      },
+      {
+        "id": "S14",
+        "path": "services/www/src/docs/content/build/plugins/index.mdx",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/services/www/src/docs/content/build/plugins/index.mdx",
+        "sha256": "873e30bcd87ac702e4be38e8f11ff3c22915083c3c713d63f41668626c2b160a",
+        "git_blob": "80705a86f947d8ba215591b094c69029793e1808"
+      },
+      {
+        "id": "S14",
+        "path": "services/www/src/docs/content/commands.mdx",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/services/www/src/docs/content/commands.mdx",
+        "sha256": "ad9e1902d1d09823f3773f6628252ff3ce37fa9307bd118206a56a1114df55df",
+        "git_blob": "a20d04f6fb301133603743d1bfe18ce6da2f1e89"
+      },
+      {
+        "id": "S14",
+        "path": "services/www/src/docs/content/skills.mdx",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/services/www/src/docs/content/skills.mdx",
+        "sha256": "9938a918cd4d2078eb7058dcc279ac0cc2c01154e6a167ecc9419f89d81cc032",
+        "git_blob": "2301c68629cd05a7ccb82e47b7952f8e0610fce5"
+      },
+      {
+        "id": "S15",
+        "path": "packages/plugin/src/promise/permission.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/plugin/src/promise/permission.ts",
+        "sha256": "9209981180f6504ef337b31df333326ccfb33223e2934e2d434973e08656ede2",
+        "git_blob": "f7eff1a5eb961369e8f0379707d338d2cb82a759"
+      },
+      {
+        "id": "S15",
+        "path": "packages/plugin/src/permission.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/plugin/src/permission.ts",
+        "sha256": "03225ec8a50b9a77e06c74a12070898fa5edcb98fa5cfed4ba8e1518bca572ec",
+        "git_blob": "73c854f075449e84a06383cb0c19098388cf0195"
+      },
+      {
+        "id": "S15",
+        "path": "packages/core/src/permission.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/permission.ts",
+        "sha256": "d69278896f9a541dac7cf46056c859834d840ecc16ac57a639cbabc1afdda9a5",
+        "git_blob": "2aecebb0ce347c9acfc7e8dbec0f6c1b7d5951b9"
+      },
+      {
+        "id": "S16",
+        "path": "packages/plugin/src/promise/plugin.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/plugin/src/promise/plugin.ts",
+        "sha256": "3990c2a177ebe917dcd8c94c25c4368d0e293c09e15ef9f8fdc7ce66bd86d081",
+        "git_blob": "3bb8ddf4effa2616593641d5178cf7be28cb14b9"
+      },
+      {
+        "id": "S17",
+        "path": "packages/schema/src/config/experimental.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/schema/src/config/experimental.ts",
+        "sha256": "fd207aa68daa3550ada1ee41d9d1230be494fb7efb71115fa0f5398222908b9a",
+        "git_blob": "be9134feeb0d63403bdb0dd7b41149c951a318cc"
+      },
+      {
+        "id": "S18",
+        "path": "packages/core/src/tool/plugin/shell.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/tool/plugin/shell.ts",
+        "sha256": "043dbf4b6c90a4ce2c44d7bbfb2bc62f8bfcc7b0f8f244286e5bc4f2328162ec",
+        "git_blob": "af454a7d63391473d939436c87fff5c4b73eefb5"
+      },
+      {
+        "id": "S18",
+        "path": "services/www/src/docs/content/permissions.mdx",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/services/www/src/docs/content/permissions.mdx",
+        "sha256": "68dfdc206ca010d78b0e8695dbc4220bdda8ddacea015b9be306aee23be2f4eb",
+        "git_blob": "e9c997253a159384884e59586460f542c51bdcf2"
+      },
+      {
+        "id": "S19",
+        "path": "services/www/src/docs/content/build/plugins/migrate-v1.mdx",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/services/www/src/docs/content/build/plugins/migrate-v1.mdx",
+        "sha256": "e51b691816a29c3fd868b100af7e13e6661fb3828a41c96d4fd1f01c3c5fde77",
+        "git_blob": "7c1b5e143d67d5a48785babb3b4181242565c4e9"
+      },
+      {
+        "id": "S19",
+        "path": "packages/core/src/config/normalize.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/config/normalize.ts",
+        "sha256": "38812844bbb38621c2a16971dc28bfe04f9362c93406d2054b2db9893f89a8d1",
+        "git_blob": "af50de40729c5869a2df5dd89ad0fe0fab1bab17"
+      },
+      {
+        "id": "S20",
+        "path": "services/www/src/docs/content/compaction.mdx",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/services/www/src/docs/content/compaction.mdx",
+        "sha256": "3381a38b1e8b64a767cb0392e3cde3b6ecc3517884d0e82814b3c197587ecb09",
+        "git_blob": "a22c87e508023b493df005d49931d14a2600b6ee"
+      },
+      {
+        "id": "S21",
+        "path": "packages/plugin/src/promise/aisdk.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/plugin/src/promise/aisdk.ts",
+        "sha256": "120000541b1ef008787bc3a7883f2b0fb9102476bf826502aa3bf1c9fdc02efb",
+        "git_blob": "9516b306259e62750172c05586fd770e03b05ff0"
+      },
+      {
+        "id": "S21",
+        "path": "packages/plugin/src/promise/shell.ts",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/plugin/src/promise/shell.ts",
+        "sha256": "dc3608b631d2b6600209a465b1d8d7e286a3a812ed57ba307e227ddb4ef16dc6",
+        "git_blob": "d0e6ae71ed7afef83385782b097a3502f836f52f"
+      }
+    ],
+    "mechanisms": [
+      {
+        "id": "M01",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "M02",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "M03",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "M04",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "M05",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "M06",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "M07",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "M08",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "M09",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "M10",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      }
+    ],
+    "candidates": [
+      {
+        "id": "X01",
+        "availability": "released-experimental",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "X02",
+        "availability": "released-experimental",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "X03",
+        "availability": "released-experimental",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "X04",
+        "availability": "released-experimental",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "X05",
+        "availability": "mixed-v1-deprecated",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "X06",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "X07",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "X08",
+        "availability": "released-public",
+        "owner_disposition": "pending"
+      },
+      {
+        "id": "X09",
+        "availability": "development-only",
+        "owner_disposition": "pending"
+      }
+    ],
+    "package_evidence": [
+      {
+        "package": "@opencode/plugin",
+        "version": "2.0.26",
+        "published_at": "2026-10-08T19:45:20.324Z",
+        "integrity": "sha512-8fu/WokR5hxGjclLQJKL0PAgsMEfh81MHnUBsJuhcnYUiTJ2ZQPLqSYAhzoYEQu/Vj4M65D3Xx7QS0Q9b9Z4fw==",
+        "tarball": "https://registry.npmjs.org/@opencode/plugin/-/plugin-2.0.26.tgz"
+      },
+      {
+        "package": "@opencode/plugin",
+        "version": "2.0.32",
+        "published_at": "2026-10-16T22:15:43.217Z",
+        "integrity": "sha512-S83qCwl6VTiRxtpqEmrNr5SHXJDS2FHP9XarTazlSWoccKpefDOdWxwCzF/qkgwQRq09T2t9vVbzv4UuzgFXEw==",
+        "tarball": "https://registry.npmjs.org/@opencode/plugin/-/plugin-2.0.32.tgz"
+      }
+    ],
+    "declarations_identical_26_32": [
+      "session",
+      "tool",
+      "skill",
+      "command",
+      "agent",
+      "registration"
+    ],
+    "availability_anchors": [
+      {
+        "id": "M01",
+        "path": "packages/plugin/src/promise/session.ts",
+        "tokens": [
+          "readonly context: SessionContext",
+          "readonly compaction: SessionCompaction"
+        ]
+      },
+      {
+        "id": "M02",
+        "path": "packages/plugin/src/promise/tool.ts",
+        "tokens": [
+          "\"execute.before\"",
+          "\"execute.after\"",
+          "readonly status: \"error\""
+        ]
+      },
+      {
+        "id": "M03",
+        "path": "packages/core/src/session/compaction.ts",
+        "tokens": [
+          "requests.compaction({",
+          "if (prepared.event.result)",
+          "const prepared = yield* prepare(context, context.messages, budget, \"session\")"
+        ]
+      },
+      {
+        "id": "M04",
+        "path": "packages/schema/src/session-event.ts",
+        "tokens": [
+          "session.execution.interrupted",
+          "session.execution.failed",
+          "session.step.ended"
+        ]
+      },
+      {
+        "id": "M05",
+        "path": "packages/schema/src/session-event.ts",
+        "tokens": [
+          "session.created",
+          "session.moved",
+          "session.deleted",
+          "session.forked"
+        ]
+      },
+      {
+        "id": "M06",
+        "path": "packages/core/src/session/session.ts",
+        "tokens": [
+          "input.resume !== false",
+          "execution.wake(sessionID)",
+          "type: \"synthetic\""
+        ]
+      },
+      {
+        "id": "M07",
+        "path": "packages/core/src/session/subagent-completion.ts",
+        "tokens": [
+          "sessions.synthetic({",
+          "metadata: { source: \"subagent\"",
+          "NO_TEXT"
+        ]
+      },
+      {
+        "id": "M08",
+        "path": "packages/core/src/command.ts",
+        "tokens": [
+          "add: (definition) => editor.set(definition.name, definition)"
+        ]
+      },
+      {
+        "id": "M09",
+        "path": "packages/plugin/src/promise/permission.ts",
+        "tokens": [
+          "readonly assert:",
+          "readonly hook:"
+        ]
+      },
+      {
+        "id": "M10",
+        "path": "packages/core/src/plugin/hooks.ts",
+        "tokens": [
+          "Scope.addFinalizer(scope, dispose)",
+          "yield* result"
+        ]
+      },
+      {
+        "id": "X01",
+        "path": "packages/plugin/src/promise/session.ts",
+        "tokens": [
+          "experimental.ws.handshake",
+          "experimental.ws.send",
+          "experimental.ws.receive"
+        ]
+      },
+      {
+        "id": "X02",
+        "path": "packages/plugin/src/promise/plugin.ts",
+        "tokens": [
+          "readonly experimental:",
+          "persistentPty",
+          "\"read\""
+        ]
+      },
+      {
+        "id": "X03",
+        "path": "packages/schema/src/config/experimental.ts",
+        "tokens": [
+          "subagent_depth:",
+          "Defaults to 1."
+        ]
+      },
+      {
+        "id": "X04",
+        "path": "packages/schema/src/config/experimental.ts",
+        "tokens": [
+          "portable_shell_scanner:",
+          "Defaults to false."
+        ]
+      },
+      {
+        "id": "X05",
+        "path": "services/www/src/docs/content/build/plugins/migrate-v1.mdx",
+        "tokens": [
+          "experimental.compaction.autocontinue",
+          "experimental.text.complete"
+        ]
+      },
+      {
+        "id": "X06",
+        "path": "packages/core/src/session/compaction.ts",
+        "tokens": [
+          "compactNatively",
+          "context.model.compaction?.type === \"native\""
+        ]
+      },
+      {
+        "id": "X07",
+        "path": "packages/plugin/src/promise/shell.ts",
+        "tokens": [
+          "\"create.before\""
+        ]
+      },
+      {
+        "id": "X08",
+        "path": "packages/plugin/src/promise/plugin.ts",
+        "tokens": [
+          "readonly storage:",
+          "readonly rpc:",
+          "readonly reference:"
+        ]
+      },
+      {
+        "id": "X09",
+        "path": "packages/plugin/src/promise/session.ts",
+        "tokens": [
+          "\"context\""
+        ],
+        "absent": [
+          "| \"list\""
+        ]
+      }
+    ]
+  }
 }

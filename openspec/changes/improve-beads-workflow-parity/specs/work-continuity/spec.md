@@ -67,3 +67,25 @@ For selected delegated workflows, the integration SHALL preserve the task's scop
 
 - **WHEN** a task has unresolved acceptance criteria or relevant validation has failed
 - **THEN** the workflow preserves the unresolved state and evidence rather than closing it as complete
+
+### Requirement: Native trigger and semantic responsibility separation
+
+The selected integration SHALL distinguish awaited interception from observational events and semantic judgment from transport success. It SHALL document the selected native mechanism for each continuity behavior, preserve failed or uncertain persistence status, and avoid indiscriminate conversion of tool results or transcripts into durable memory.
+
+#### Scenario: Compaction starts with unsaved meaning
+
+- **WHEN** compaction occurs before a semantic checkpoint has been prepared
+- **THEN** summary guidance does not claim that durable task context was saved
+- **AND** an event subscriber is not treated as a compaction barrier or a guaranteed final-write mechanism
+
+#### Scenario: Prepared checkpoint fails during compaction
+
+- **WHEN** an awaited compaction hook attempts to finish an already-prepared authorized checkpoint and persistence fails or times out
+- **THEN** the integration preserves the incomplete status without claiming successful persistence
+- **AND** it does not wait for a recursive same-session prompt or initiate new permission escalation inside that checkpoint path
+
+#### Scenario: User stops execution
+
+- **WHEN** an execution interruption or permission wait is observed
+- **THEN** the integration does not automatically restart work or approve the blocked operation to manufacture a final checkpoint
+- **AND** recovery uses earlier durable checkpoints and reports known gaps
