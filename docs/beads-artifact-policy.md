@@ -1,6 +1,6 @@
 # Beads Artifact Policy
 
-Status: revised for 1.0.0 by `opencode-beads-w5y`. The package vendors no upstream Beads artifacts. Earlier revisions were the OpenCode V2 port (`opencode-beads-2zs`), the 0.9.0 contract (`opencode-beads-98l`), and the retired 0.8.0 companion lifecycle decision.
+Status: current implementation policy, under review in the [full integration decision packet](claude-code-integration-analysis.md); no new adoption decision has been accepted. Revised for 1.0.0 by `opencode-beads-w5y`. The package vendors no upstream Beads artifacts. Earlier revisions were the OpenCode V2 port (`opencode-beads-2zs`), the 0.9.0 contract (`opencode-beads-98l`), and the retired 0.8.0 companion lifecycle decision.
 
 ## Evidence
 
@@ -8,7 +8,7 @@ Upstream host integrations at Beads `v1.3.1` (commit `c1c4b642ac1c08d8c828007a1c
 
 | Host | Integration source | Context lifecycle | Commands | Task agent |
 | --- | --- | --- | --- | --- |
-| Claude Code | `plugins/beads/.claude-plugin/plugin.json` | `SessionStart` and `PreCompact` hooks run full `bd prime` | `skills/beads/commands/*.md` | `plugins/beads/agents/task-agent.md` (`@task-agent`), discovered by convention: an autonomous loop that finds, claims, and completes ready work through MCP-style tool names |
+| Claude Code | `plugins/beads/.claude-plugin/plugin.json` | `SessionStart` and `PreCompact` hooks run plain `bd prime` (MCP-sensitive) | `skills/beads/commands/*.md` | `plugins/beads/agents/task-agent.md` (`@task-agent`), discovered by convention: an autonomous loop that finds, claims, and completes ready work through MCP-style tool names |
 | Codex | `plugins/beads/.codex-plugin/plugin.json` and `.codex-plugin/hooks/hooks.json` | `SessionStart`, `PreCompact`, `PostCompact`, and `UserPromptSubmit` hooks | none | none |
 | OpenCode (this adapter) | `@snarkipus/opencode-beads` | Session context hook attaches full `bd prime` to each request, behind the schema migration guard | none | Project-owned `beads-task-agent`: one bead per invocation |
 
@@ -23,7 +23,7 @@ Upstream host integrations at Beads `v1.3.1` (commit `c1c4b642ac1c08d8c828007a1c
 
 | Upstream artifact | Policy | Reason |
 | --- | --- | --- |
-| `skills/beads/commands/*.md` | Retired in 1.0.0 (`opencode-beads-2zs.4`) | Claude Code command templates, not part of the native OpenCode or Codex install. They largely wrap single `bd` subcommands and duplicate `bd prime` plus the canonical `.agents/skills/beads` skill, which OpenCode V2 discovers natively. V2 commands are executable code rather than templates. |
+| `skills/beads/commands/*.md` | Retired in 1.0.0 (`opencode-beads-2zs.4`) | Claude Code command templates, not part of the native OpenCode or Codex install. They largely wrap single `bd` subcommands and duplicate `bd prime` plus the canonical `.agents/skills/beads` skill, which OpenCode V2 discovers natively. V2 plugin command registration uses executable code, but native Markdown and JSON prompt commands are also supported. Retirement was a package policy choice, not a limitation of all V2 commands; see the [full integration analysis](claude-code-integration-analysis.md). |
 | `agents/task-agent.md` | Retired in 1.0.0 (`opencode-beads-w5y`) | A Claude Code-only artifact whose autonomous multi-task loop this adapter deliberately does not adopt. Before retirement, its body was never executed: the runtime prompt was already a project-owned bounded OpenCode adaptation, and only the upstream description string reached users, misdescribing the one-bead worker. The task agent's prompt and description now live in `src/guidance.ts`. It does not execute upstream's autonomous multi-task loop. |
 | `skills/beads/SKILL.md`, `skills/beads/adr/`, and `skills/beads/resources/` | Excluded | `bd init` owns per-project initialization. Its automatic Codex project integration creates the canonical shared skill at `.agents/skills/beads`, which OpenCode discovers. This package does not fork, install, update, or remove that skill. |
 | Claude/Codex manifests and hooks | Excluded | `.claude-plugin` and `.codex-plugin` formats and lifecycle hooks are not OpenCode plugin registration formats. This adapter implements the equivalent lifecycle through OpenCode V2's session context hook and session events. |

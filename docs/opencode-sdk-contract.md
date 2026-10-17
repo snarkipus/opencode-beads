@@ -31,7 +31,7 @@ OpenCode resolves a package plugin as `<name>/server`, then `<name>`. The packag
 
 ## Commands and skills
 
-V2 plugin commands are executable (`execute` calls `ctx.session.prompt`) rather than templates. Plugin-provided skills need a `path`. The vendored `/beads:*` templates were retired instead of ported (`opencode-beads-2zs.4`). OpenCode V2 discovers the canonical `.agents/skills/beads` skill installed by `bd init` natively, and users can load it with `@beads`.
+V2 plugin commands are executable (`execute` calls `ctx.session.prompt`). Separately, native [Markdown and JSON commands](https://opencode.ai/v2/docs/commands/) support prompt templates, description metadata and argument substitution. The [full integration analysis](claude-code-integration-analysis.md) pins current source and records the remaining minimum-host qualification; command retirement was not forced by an absence of V2 prompt templates. Plugin-provided skills need a `path`. The vendored `/beads:*` templates were retired instead of ported (`opencode-beads-2zs.4`). OpenCode V2 discovers the canonical `.agents/skills/beads` skill installed by `bd init` natively, and users can load it with `@beads`.
 
 ## Compatibility decisions
 
