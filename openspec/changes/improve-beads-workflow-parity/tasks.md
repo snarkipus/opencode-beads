@@ -8,6 +8,7 @@
 - [x] 1.2 Correct the historical parity scope and V2 command-surface conflation without replacing prior evidence; verify the changes are limited to docs and this OpenSpec package.
 - [x] 1.3 Validate the change strictly, report the empty canonical baseline honestly, programmatically verify source-inventory coverage and inspect tracked/new-file whitespace and historical protected-file hash; record exact first-pass outcomes in the planning handoff.
 - [x] 1.4 Complete the native architecture assessment with released/development provenance, behavior-to-mechanism mapping, call-site ordering, experimental dispositions, N1/N0 recommendation and reproducible source checks; preserve the full corpus and pending owner gate.
+- [x] 1.5 Record the actual local Claude plugin and Codex setup, installed revision versus pinned release, component discovery and hook ownership; distinguish these observations from unexecuted model behavior and clarify complete npm-package delivery of selected capabilities.
 
 ## 2. Owner decision gate and planning revision — required before product work
 

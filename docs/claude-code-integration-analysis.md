@@ -24,6 +24,8 @@ The [native architecture assessment](opencode-native-parity-assessment.md) compl
 
 ## Installation paths and actual reachability
 
+Subsequent local installation evidence is recorded in [Installed Claude reference integration](claude-code-local-reference.md): Claude recognizes the rich skill, all command entries, agent and hooks. The installed marketplace checkout differs from the pinned release corpus; this does not replace its inventory or establish live model behavior. Future comparisons must align or explicitly distinguish these revisions. The OpenCode packaging objective is a complete owner-selected integration from its npm package, not a hidden separate skill installer.
+
 | ID / surface | Shipped/runtime connection | Provisional adoption; dependencies and risks |
 | --- | --- | --- |
 | F01: setup lifecycle | [`setup/claude.go`](https://github.com/gastownhall/beads/blob/c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c/cmd/bd/setup/claude.go) installs `SessionStart` → `bd prime --hook-json`, minimal instruction pointer, project/global/check/remove and legacy-hook cleanup. Comments identify startup/resume/clear/compact. It removes old PreCompact prime hooks. Recognized enabled `beads@…` plugin skips duplicate setup hook registration. | Adapt lifecycle through awaited native V2 context/compaction hooks and observational events (M01/M03/M04); events cannot delay compaction. Keep setup diagnostics and removal understandable. Do not translate Claude hook JSON into OpenCode system text. Detection reduces duplicates but does not prove arbitrary combined installations are duplicate-free. |

@@ -42,6 +42,14 @@ The integration SHALL preserve applicable user and repository authority across i
 
 ### Requirement: Owned installation and user customization
 
+The OpenCode npm package SHALL supply and register the complete owner-selected integration, including its selected command, skill/resource, agent and lifecycle surfaces. Advertised capability SHALL NOT depend on a separate undocumented or manual skill/resource installation. The installed Beads CLI and upstream-owned workspace/data initialization remain external prerequisites.
+
+#### Scenario: Package installed in an initialized workspace
+
+- **WHEN** a supported OpenCode host loads the package in an initialized Beads workspace with its prerequisites satisfied
+- **THEN** the selected packaged workflows and supporting guidance are available through native registration without separately installing the rich Claude plugin or copying skills
+- **AND** qualification verifies effective discovery and installed resource paths rather than source-tree presence alone
+
 Selected integration surfaces SHALL document who installs, updates and removes them and how user overrides are resolved. Updates and removal SHALL preserve unrelated or user-modified artifacts and SHALL NOT silently overwrite the upstream-owned shared skill or runtime configuration.
 
 #### Scenario: User customizes an installed workflow
