@@ -10,7 +10,7 @@ Owner selections apply to the complete marketplace-main corpus: core workflows a
 
 ### Requirement: Discoverable selected workflows
 
-The package-owned `oc-beads` skill, all 15 resources and all 29 `oc-beads:<command>` entries (including documented replacements) SHALL have a documented native entry point that exposes its purpose and relevant supporting guidance. Advertised command and skill behavior SHALL match the installed implementation and available tools rather than assume absent MCP tools or unreachable resources.
+The package-owned `oc-beads` skill, all 15 resources plus ADR rationale and all 29 `oc-beads:<command>` entries (including documented replacements) SHALL have a documented native entry point that exposes its purpose and relevant supporting guidance. Advertised command and skill behavior SHALL match the installed implementation and available tools rather than assume absent MCP tools or unreachable resources.
 
 #### Scenario: User invokes a selected command
 
@@ -22,7 +22,13 @@ The package-owned `oc-beads` skill, all 15 resources and all 29 `oc-beads:<comma
 
 - **WHEN** a selected workflow directs an agent to a supporting resource
 - **THEN** that resource is reachable from the installed guidance's documented base
+- **AND** SKILL.md explicitly links all 15 resources plus ADR rather than relying on the host’s ten-file auto-listing
 - **AND** its presence alone is not reported as evidence that the model used it
+
+#### Scenario: Installed resource requires external access
+
+- **WHEN** an installed resource outside the workspace encounters external-directory ask or deny
+- **THEN** the integration respects approval/rejection and reports unreachable guidance honestly without bypassing permission
 
 ### Requirement: Coherent context and authority
 
@@ -57,6 +63,7 @@ Selected integration surfaces SHALL document who installs, updates and removes t
 - **WHEN** an integration update or removal encounters a user-modified or colliding artifact
 - **THEN** it preserves that customization and reports the conflict or documented override behavior
 - **AND** does not remove unrelated commands, skills or configuration
+- **AND** withholds and diagnoses affected colliding entries where possible if preservation cannot be established across rebuilds; documented override behavior does not authorize overwriting user commands
 
 ### Requirement: Scope-preserving execution and visible failure
 
@@ -112,6 +119,12 @@ Typed continuity tools SHALL inherit shell-based visibility/filtering and operat
 
 - **WHEN** a typed operation is called by an agent with more restrictive rules than the session's default agent
 - **THEN** permission evaluation uses the invoking agent and does not broaden saved approvals to unrelated bd operations
+
+#### Scenario: Saved approval remains narrow
+
+- **WHEN** a typed operation requests approval with `save: []`
+- **THEN** even an “always” response installs no new saved grant and guidance explains possible repeat prompts
+- **AND** existing shell `bd *` grants may authorize equivalent typed operations, while configured denies retain precedence
 
 #### Scenario: External target or held workspace
 

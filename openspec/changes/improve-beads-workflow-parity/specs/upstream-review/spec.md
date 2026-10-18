@@ -19,12 +19,12 @@ The maintenance workflow SHALL compare selected upstream integration source path
 
 ### Requirement: Check-based review notification
 
-The workflow SHALL reuse the existing scheduled contract/check pattern and expose unreviewed source drift in check output with immutable review links. It SHALL NOT create GitHub issues or request issue-write permission. Source review SHALL remain separate from stable CLI release checks; Beads owns any later execution work.
+The workflow SHALL reuse the existing scheduled contract/check pattern and fail a distinct check/job for unreviewed source drift, with immutable review links and a drift `::error::` diagnostic. Retrieval/comparison failure SHALL fail with a distinct retrieval-error diagnostic rather than report no change. It SHALL NOT create GitHub issues or request issue-write permission. Source review SHALL remain separate from stable CLI release checks; Beads owns any later execution work.
 
 #### Scenario: Repeated detection
 
 - **WHEN** the same candidate remains unreviewed across scheduled checks
-- **THEN** each check reports the same baseline/candidate scope and review links without creating duplicate external tracking records
+- **THEN** each check fails while reporting the same baseline/candidate scope and review links without creating duplicate external tracking records
 
 ### Requirement: Explicit baseline disposition
 

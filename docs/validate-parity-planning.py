@@ -84,12 +84,13 @@ assert current_actual.keys() - actual.keys() == {'plugins/beads/BUILD.bazel'}
 assert not actual.keys() - current_actual.keys()
 current_skill = (scratch / 'marketplace-main/plugins/beads/skills/beads/SKILL.md').read_text()
 assert set(re.findall(r'\]\((resources/[^)]+)\)', current_skill)) == resources
+# Ignore only the cache owner's .in_use runtime marker; all payload membership/hashes remain exact.
 # Installed cache comparison is optional for other machines; its identity is not inferred from version.
 installed = Path('/opt/data/home/.claude/plugins/cache/beads-marketplace/beads/1.3.0')
 if installed.is_dir():
     plugin_entries = {p.removeprefix('plugins/beads/'): e for p, e in current_actual.items()
                       if p.startswith('plugins/beads/')}
-    assert {str(p.relative_to(installed)) for p in installed.rglob('*') if p.is_file()} == plugin_entries.keys()
+    assert {str(p.relative_to(installed)) for p in installed.rglob('*') if p.is_file() and p.relative_to(installed).as_posix() != '.in_use'} == plugin_entries.keys()
     for path, entry in plugin_entries.items():
         assert hashlib.sha256((installed / path).read_bytes()).hexdigest() == entry['sha256'], path
 
@@ -99,6 +100,14 @@ parsed_tasks = re.findall(r'^- \[([ xX])\] (\d+\.\d+) ', tasks, re.M)
 task_ids = [task_id for _, task_id in parsed_tasks]
 assert len(task_ids) == len(set(task_ids)) and task_ids
 assert all(mark == ' ' for mark, _ in parsed_tasks), 'Implementation tasks must remain unchecked'
+# Final review B1: stable task IDs with dependency/types preparation first.
+assert task_ids.index('1.2') < task_ids.index('1.1')
+task_text = dict(re.findall(r'^- \[ \] (\d+\.\d+) (.+)$', tasks, re.M))
+assert 'After 1.2' in task_text['1.1'] and 'throwaway' in task_text['1.1']
+assert 'tests/continuity.test.ts' not in task_text['1.1']
+assert 'tests/continuity.test.ts' in task_text['3.1']
+assert '1.1' not in task_text['5.1']
+assert 'Live prerequisite for 1.1, 4.2 and 6.2' in tasks
 valid_dispositions = {'adapt', 'replace', 'preserve-external', 'reference-only'}
 for entry in data['files'] + current['files']:
     mapping = entry['selected_mapping']
@@ -184,7 +193,8 @@ files += [repo / 'docs' / name for name in (
     'claude-code-integration-analysis.md', 'claude-code-integration-inventory.json',
     'opencode-native-parity-assessment.md', 'validate-parity-planning.py',
     'claude-code-local-reference.md', 'beads-artifact-policy.md',
-    'claude-code-parity.md', 'opencode-sdk-contract.md')]
+    'claude-code-parity.md', 'opencode-sdk-contract.md',
+    'reviews/opus-planning-review-50919ae.md')]
 for path in files:
     assert not path.is_symlink() and path.resolve().is_relative_to(repo)
     check = subprocess.run(['git', 'diff', '--no-index', '--check', '/dev/null', str(path)],

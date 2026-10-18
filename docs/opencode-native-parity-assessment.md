@@ -10,7 +10,7 @@ Selected minimum is **OpenCode >=2.0.32 <3**, delivered through opt-in beta/next
 
 Scope-bounded continuation is selected: atomic claims and per-bead validation, exact assignment stopping, authorized batch/goal continuation and no discovery-driven scope expansion. Normal blocking child return is the base native mechanism. N2 background completion, nested-depth changes and auxiliary checkpoint/compaction automation are deferred engineering mechanisms; they are unnecessary to implement authorized sequential continuation and carry stop/wake risks. No plugin synthetic restart, command-count delegation mandate or new orchestration service. Optional one-bead mode and opt-in Luna remain.
 
-Upstream drift compares reviewed marketplace-main commits across full selected roots/support paths, using the existing scheduled check pattern and check output/review links. No GitHub issue or issue-write permission. Human review advances the baseline; no automatic adaptation, bump or release.
+Upstream drift compares reviewed marketplace-main commits across full selected roots/support paths, using the existing scheduled check pattern and check output/review links. Unreviewed drift fails a distinct check/job with a drift error; retrieval failure fails with a distinct error diagnostic. No GitHub issue or issue-write permission. Human review advances the baseline; no automatic adaptation, bump or release.
 
 ## Release provenance and availability
 
@@ -77,7 +77,7 @@ All mechanisms below are released public contracts at 2.0.32 unless explicitly m
 
 N1 writes synchronously inside the typed operation and returns its evidenced status before ordinary continuation. The compaction hook is reference-only: it carries acknowledged references and known gaps, with no pending-write state, new permission wait or recursive same-session prompt. `session.prompt`/`session.compact` admission is not completion evidence. Meaningful earlier checkpoints protect against compaction; crash-final-write guarantees are unsupported.
 
-**Concrete permission contract (F2):** S05 `Tool.snapshot` filters on `tool.options?.permission ?? name`; set `options.permission: "shell"` for direct and code-mode inventory filtering. S15 `configured` resolves `agent ?? session.agent`; pass the actual invocation `context.agent`, sessionID and source message/call ID. Assert `action: "shell"` with canonical resource text for the fixed argv operation, preserving selective write denials. S15 saves an "always" reply only when `request.save?.length`; use `save: []`, not `bd *`, and qualify installed behavior. Plain rejection must propagate.
+**Concrete permission contract (F2):** S05 `Tool.snapshot` filters on `tool.options?.permission ?? name`; set `options.permission: "shell"` for direct and code-mode inventory filtering. S15 `configured` resolves `agent ?? session.agent`; pass the actual invocation `context.agent`, sessionID and source message/call ID. Assert `action: "shell"` with canonical resource text for the fixed argv operation, preserving selective write denials. S15 saves an "always" reply only when `request.save?.length`; use `save: []`, never a new broad `bd *` grant. Expected “always” acceptance is one-call, so explain repeat prompts. Existing shell `bd *` project grants can authorize equivalent typed operations, subject to configured denies evaluated first. S18 shell parsing gives `bd` a one-token prefix, explaining that existing grant scope. Qualify these outcomes without broadening permissions. Plain rejection must propagate.
 
 S18 shell preparation resolves cwd, scans target directories, calls `access.authorizeExternal`, then asserts shell resources. The added S18 file-access source shows `external_directory` resources and scope. Plugin assertion alone does not reproduce this path. Bind the narrow adapter to the actual resolved location/workspace, check routing/redirect/symlink/environment effects and guard hold before spawn and after approval. Assert equivalent external-directory restrictions with invocation identity and no broad saved grant where needed; if target or equivalence cannot be established, refuse before store access. Never add a permissive custom action or silently use N0. Qualification covers shell-denied/read-only agents, changed invocation identity, allow/ask/deny, cancelled approval and external targets; no new generic permission manager.
 
@@ -131,3 +131,18 @@ Additional checked sources in existing groups:
 - S13: [packages/app/src/composer/client-slash-command.ts](https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/app/src/composer/client-slash-command.ts).
 
 - S13: [packages/app/src/composer/submit.ts](https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/app/src/composer/submit.ts).
+
+## Final review correction evidence
+
+The [50919ae independent review](reviews/opus-planning-review-50919ae.md) remains REVISE as issued. B1 is addressed in tasks 1.2 → 1.1: prepare 2.0.32 types first, then minimal throwaway host probes; adapter fixtures are solely 3.1. Live gates 1.1/4.2/6.2 require a separately authorized disposable host pinned initially to 2.0.32 (`>=2.0.32 <3`). The image CLI package is 2.0.29; no runtime was started or upgraded. Missing live environment does not block independent source/fixture work.
+
+Collision recommendation evidence needs a narrower interpretation: S13 supervisor `ordered` is pre → packages → post; internal `post` includes ConfigCommandPlugin. That plugin refreshes loaded documents, calls command.reload and replays its transform after package commands. Thus source supports later config commands overriding package entries, not the review’s blanket claim that package plugins overwrite them on rebuild. Other transform ordering still needs qualification: command editor has add/Map.set but no conditional get/list; initial listing alone cannot prove preservation. Withhold affected colliding entries where possible, and stop the affected path if public APIs cannot preserve customization. No override permission or generic registry is introduced. Skill editor get/list permits checking each rebuild.
+
+S13 Skill.prepare sorts and truncates automatic resource listing to ten. Future SKILL.md must explicitly link all 15 resources plus ADR; 2.2 verifies their installed-base paths, and 6.2 checks reachability with external_directory ask/deny (S18), reporting unavailable files without bypass.
+
+Additional pinned sources for these corrections (same release tree, no new source baseline):
+
+- S13: [packages/core/src/plugin/supervisor.ts](https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/plugin/supervisor.ts).
+- S13: [packages/core/src/plugin/internal.ts](https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/plugin/internal.ts).
+- S13: [packages/core/src/config/plugin/command.ts](https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/config/plugin/command.ts).
+- S18: [packages/core/src/shell/parse.ts](https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/shell/parse.ts).

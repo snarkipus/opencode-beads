@@ -18,7 +18,7 @@ Recorded 2026-10-18 UTC from Matt's direct response to the Opus review on publis
 
 ## Review corrections to reconcile
 
-The original Opus verdict was REVISE. The reconciliation record addresses F1–F5 with source evidence and exact artifact/task mappings: installed/release/main differences, typed-tool visibility/agent/save/external-access, reference-only compaction and check-based drift. This is the planning agent’s reconciliation, not new independent reviewer approval. Runtime and behavioral acceptance remain unexecuted; no new infrastructure or wholesale analysis restart is required.
+The original Opus verdict was REVISE. The reconciliation record addresses F1–F5 with source evidence and exact artifact/task mappings: installed/release/main differences, typed-tool visibility/agent/save/external-access, reference-only compaction and check-based drift. This is the planning agent’s reconciliation, not new independent reviewer approval. The [50919ae review](../../../docs/reviews/opus-planning-review-50919ae.md) is preserved with its REVISE verdict. Final B1/recommendation corrections are mapped in reconciliation; no owner selection is reopened. Dependency preparation now precedes host probes, with separately authorized disposable live-host prerequisites. Runtime and behavioral acceptance remain unexecuted; no new infrastructure or wholesale analysis restart is required.
 
 ## Authority
 

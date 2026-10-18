@@ -2071,6 +2071,34 @@
         "git_blob": "be339fdb72338fd8366018a650b71c05f1bb37d7",
         "sha256": "0f1c10887b162a84700a539720f8abe4f35b4cfd6fc720ef632e4427bf2e4513",
         "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/app/src/composer/submit.ts"
+      },
+      {
+        "id": "S13",
+        "path": "packages/core/src/plugin/supervisor.ts",
+        "git_blob": "a1bdae8b3acd49b9c8177dd56327e1f62cf63a5f",
+        "sha256": "7c5b72503909c8dfb20c75315d8f2b4101a48da81f64e2565a330f75afc06666",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/plugin/supervisor.ts"
+      },
+      {
+        "id": "S13",
+        "path": "packages/core/src/plugin/internal.ts",
+        "git_blob": "f6239be4cbd122d97128404402594705f4c981ce",
+        "sha256": "04d94eb755195c2682cb677bcf6cec2a33726926a096c6c49ebf343cf576bf99",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/plugin/internal.ts"
+      },
+      {
+        "id": "S13",
+        "path": "packages/core/src/config/plugin/command.ts",
+        "git_blob": "a029fb8adeffbed8194be614af4ca793635c540a",
+        "sha256": "1732401ccab0a8ea3221a1d107fa7e29bf974cd38ba3460cd6a511e3661ba868",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/config/plugin/command.ts"
+      },
+      {
+        "id": "S18",
+        "path": "packages/core/src/shell/parse.ts",
+        "git_blob": "e94f2288eb4e0bdeece051e45374262c16377676",
+        "sha256": "80179fc5ceff8db1475b45b5be02cd9cd5d01321fe7f7370d64ddfc6bbaa83c9",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/shell/parse.ts"
       }
     ],
     "mechanisms": [
