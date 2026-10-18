@@ -38,3 +38,9 @@ V2 plugin commands are executable (`execute` calls `ctx.session.prompt`). Separa
 The supported line begins at OpenCode 2.0.26, the first version qualified. There is no V1 fallback or dual export: V2 ignores V1 `server()` exports, and supporting both would mean maintaining two hook implementations. Tests fake only the small context slice the plugin uses (`location`, `options`, `event`, `agent.get`, `agent.transform`, `session.hook`) so behavior can be checked without the host.
 
 When running `opencode run` from a non-interactive shell during qualification, close stdin (`< /dev/null`); otherwise the CLI waits indefinitely, which looks like a hang.
+
+## Selected beta/next boundary (not yet qualified)
+
+The [reconciled design](../openspec/changes/improve-beads-workflow-parity/design.md) selects N1 on OpenCode `>=2.0.32 <3`, released source `843a6c514e606b436a7fe713422ace0a93ad3d61`. The 2.0.26 runtime evidence above remains historical and does not qualify N1. Package/runtime dependencies are unchanged in this planning turn.
+
+Required acceptance covers typed-tool `options.permission: shell` filtering, actual invocation agent in assertions, canonical fixed-operation resources, empty/narrow saved grants, external-directory/location equivalence, holds and cancellation. Command schema/registry accepts string names including the selected `oc-beads:<command>` namespace; installed UI/dispatch still needs qualification. Compaction only carries acknowledged references and known gaps, never a pending-write queue or same-runner checkpoint. Package assets/registrations/disposal and blocking-child stop races need their own fixtures and installed-host checks. N0 is a historical alternative, not an automatic fallback.

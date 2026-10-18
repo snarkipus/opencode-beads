@@ -4,11 +4,11 @@
 
 ### Requirement: Relevant upstream source comparison
 
-The maintenance workflow SHALL compare selected upstream integration source paths between an explicitly reviewed release/commit baseline and a resolved candidate stable release. It SHALL detect additions, modifications, deletions and renames where identifiable, and report incomplete retrieval or comparison as an error rather than no change. Source comparison SHALL remain separate from CLI compatibility checks.
+The maintenance workflow SHALL compare selected upstream integration source paths between an explicitly human-reviewed marketplace-main commit baseline and the upstream default branch resolved to an immutable candidate commit. It SHALL detect additions, modifications, deletions and renames where identifiable, and report incomplete retrieval or comparison as an error rather than no change. Source comparison SHALL remain separate from CLI compatibility checks.
 
 #### Scenario: Relevant source changes
 
-- **WHEN** a candidate release changes content or membership under the selected source paths
+- **WHEN** a candidate commit changes content or membership under the selected source paths
 - **THEN** the workflow reports both immutable commit identities, changed paths and reviewable diff references
 - **AND** it does not infer behavioral incompatibility from source changes alone
 
@@ -17,14 +17,14 @@ The maintenance workflow SHALL compare selected upstream integration source path
 - **WHEN** source retrieval or comparison is incomplete
 - **THEN** the workflow exposes the failure and does not record a successful no-change result
 
-### Requirement: Deduplicated review notification
+### Requirement: Check-based review notification
 
-The workflow SHALL create or update a deduplicated review issue for unreviewed relevant drift. Repeated scheduled checks SHALL NOT create duplicate issues for the same review scope and candidate. Issue-write authority SHALL be limited separately from source comparison.
+The workflow SHALL reuse the existing scheduled contract/check pattern and expose unreviewed source drift in check output with immutable review links. It SHALL NOT create GitHub issues or request issue-write permission. Source review SHALL remain separate from stable CLI release checks; Beads owns any later execution work.
 
 #### Scenario: Repeated detection
 
 - **WHEN** the same candidate remains unreviewed across scheduled checks
-- **THEN** its existing review alert is reused rather than creating a new issue each run
+- **THEN** each check reports the same baseline/candidate scope and review links without creating duplicate external tracking records
 
 ### Requirement: Explicit baseline disposition
 

@@ -4,13 +4,13 @@
 
 Preserve meaningful work context so authorized work can resume across compaction, session changes and delegation without reconstructing failed approaches or asking the user to repeat known context.
 
-These are proposed common outcomes, not approved feature selections. The owner gate in proposal/design blocks implementation. Delivery mechanisms and selected integration features require a follow-on revision after Matt's dispositions.
+These are the selected N1 outcome contracts. Owner selections are complete; implementation and behavioral acceptance remain unexecuted. See design and tasks for qualified delivery boundaries.
 
 ## ADDED Requirements
 
 ### Requirement: Meaningful progress checkpoints
 
-During authorized tracked work, the integration SHALL guide preservation of material attempts, outcomes, rationale, blockers and the next action at meaningful work transitions without requiring repeated user reminders. Records SHALL preserve relevant prior learning and distinguish verified results from hypotheses.
+During authorized tracked work, the integration SHALL guide preservation of material attempts, outcomes, rationale, blockers and the next action at meaningful work transitions without requiring repeated user reminders. Records SHALL preserve relevant prior learning through append-style checkpoints and distinguish verified results from hypotheses; replacement of existing notes SHALL be intentional, not the default checkpoint path.
 
 #### Scenario: Failed approach changes the next step
 
@@ -78,14 +78,28 @@ The selected integration SHALL distinguish awaited interception from observation
 - **THEN** summary guidance does not claim that durable task context was saved
 - **AND** an event subscriber is not treated as a compaction barrier or a guaranteed final-write mechanism
 
-#### Scenario: Prepared checkpoint fails during compaction
+#### Scenario: Compaction carries known references and gaps
 
-- **WHEN** an awaited compaction hook attempts to finish an already-prepared authorized checkpoint and persistence fails or times out
-- **THEN** the integration preserves the incomplete status without claiming successful persistence
-- **AND** it does not wait for a recursive same-session prompt or initiate new permission escalation inside that checkpoint path
+- **WHEN** the awaited compaction hook prepares summary or native-provider context
+- **THEN** it carries acknowledged durable references and known unsaved or uncertain status without initiating persistence
+- **AND** it does not wait for a same-session semantic checkpoint, queued write or permission escalation
 
 #### Scenario: User stops execution
 
 - **WHEN** an execution interruption or permission wait is observed
 - **THEN** the integration does not automatically restart work or approve the blocked operation to manufacture a final checkpoint
 - **AND** recovery uses earlier durable checkpoints and reports known gaps
+
+### Requirement: Honest persistence acknowledgement
+
+N1 operations SHALL acknowledge only evidenced outcomes and distinguish failure, uncertain completion and a landed but uncommitted write. They SHALL NOT blindly retry an ambiguous append, force a rejected write or imply a compaction summary is durable Beads state.
+
+#### Scenario: Memory write landed but commit failed
+
+- **WHEN** the CLI reports a stored memory with failed or indeterminate commit status
+- **THEN** the integration preserves the memory reference and qualified status without claiming committed durability or automatically committing
+
+#### Scenario: Interrupted append has unknown outcome
+
+- **WHEN** cancellation or timeout prevents confirmation of an append
+- **THEN** recovery checks current durable state before another write and exposes the uncertainty

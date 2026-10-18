@@ -2,32 +2,32 @@
 
 ## Why
 
-The existing comparison established only the `bd setup claude` lifecycle target, not the full Claude Code Beads experience. Matt's reported differences in task notes and memory use motivate a broader, source-backed effort to recover attempts, learning, rationale, blockers and next actions across sessions without repeated prompting; the report does not establish model or host causality.
+The historical comparison established setup-lifecycle parity, not the complete Claude marketplace experience. The selected redesign aims for coherent native discovery, task execution, recovery and durable learning; Matt's reported note/memory gap motivates evaluation but does not establish host or model causality.
 
 ## What Changes
 
-- Review the entire pinned Claude integration corpus: setup/init, marketplace hooks, rich and shared skills, every resource/ADR, all 29 commands, agent, configuration, memory and errors/approvals. Analysis and the machine-readable inventory are completed planning evidence in `docs/claude-code-integration-analysis.md` and `docs/claude-code-integration-inventory.json`.
-- Establish an explicit owner decision gate covering the full corpus and extension model. Matt must accept/adapt/defer/exclude the surfaces and choose the recommended architecture/compatibility bundle, ownership and consequential continuation/experimental policies before feature selection becomes normative. The linked native assessment supplies low-level mappings rather than requiring the owner to design them. No acceptance is recorded yet.
-- Propose common outcome contracts for durable work continuity and discoverable, authority-respecting workflow access. Concrete commands, skill packaging, routing defaults, bounded workers, Luna and guard/permission changes remain provisional until the gate and follow-on revision.
-- Recommend the source-backed N1 native continuity adapter with typed checkpoint/recall operations, awaited context/tool/compaction hooks, observational lifecycle events and D01+D04 package-owned commands/skill. Recommend 2.0.32 qualification and eventual minimum for permission assertion; N0 preserves 2.0.26 through ordinary permissioned CLI execution. Both remain owner decisions. Assess N2 continuation and X01–X09 experimental/adjacent options explicitly; no wholesale vendoring or predetermined catalog subset.
-- Qualify deterministic integration behavior separately from model-dependent recovery outcomes, controlling provider/model and installation-path confounds where feasible.
-- Add review-driven upstream drift detection for selected integration source paths against a reviewed release/commit baseline. Recommend scheduled path-scoped Git comparison, not a prescribed hash-map implementation. Alert maintainers without automatic repackaging or baseline advancement.
-- Reassess invocation scope separately from atomic claiming: recommend exact single-bead stopping plus explicitly authorized batch/goal continuation. Upstream repeats the ready-work cycle; universal one-bead termination remains a pending policy choice.
+- Adopt the complete marketplace-main integration as the behavioral reference, resolved for this evaluation to `4a67d0d0288c1b4ee23e17fc896f47616931ba2d`. Preserve the separate 73-file v1.3.1 inventory and characterize installed/release/current differences.
+- Deliver N1: narrow typed continuity operations, awaited context/tool hooks, reference-only compaction guidance, observational events, package-owned `oc-beads` skill/resources and `oc-beads:<command>` commands. Supply all selected surfaces from npm; bd remains the external executable/database owner.
+- Adapt core daily workflows, expose all advanced guidance on demand without enabling automation, make supported admin workflows accessible under normal permissions, and replace obsolete/host-specific/broken content with documented native equivalents. The inventory maps every member.
+- **BREAKING, opt-in beta/next only:** target OpenCode `>=2.0.32 <3` and replace mandatory one-bead/command-count delegation with scope-bounded continuation. Exact assignments stop; authorized batches/goals may continue with atomic claims and per-bead validation. Stable consumers do not silently migrate. No package/version/tag changes are made here.
+- Preserve restricted-agent visibility, invocation identity, narrow saved approvals, location restrictions, holds, cancellation and honest persistence failures. An unqualified N1 guarantee blocks the affected path; N0 is a historical alternative, not a silent degraded default.
+- Extend the existing scheduled check pattern to compare selected marketplace-main paths and report drift/errors with immutable review links. Human-reviewed baseline advancement only; no GitHub issue creation or issue-write permission.
+- Qualify source contracts, disposable deterministic fixtures and live/model outcomes separately, including fresh-session recovery, discovery and authorized continuation. Architecture and tool-call counts are not behavioral proof.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `work-continuity`: meaningful progress/learning preservation, relevant memory retrieval, cross-session recovery and delegated knowledge handoff, within existing authority.
-- `workflow-access`: discoverable approved workflows, coherent context/authority handling, and explicit ownership of selected native integration surfaces.
-- `upstream-review`: detect relevant upstream source changes and maintain an explicit human-reviewed baseline without automatic repackaging.
+- `work-continuity`: meaningful checkpoints, reusable knowledge, recovery and delegated evidence.
+- `workflow-access`: complete native discovery/delivery, scope and authority, diagnostics and lifecycle.
+- `upstream-review`: path-scoped marketplace-main comparison and human-reviewed baseline maintenance.
 
 ### Modified Capabilities
 
-None. Canonical specs are empty. The new deltas cover only intended touched contracts; existing code is evidence, not automatically the desired specification.
+None; canonical specs are empty. Existing code remains evidence, not an automatic specification of desired behavior.
 
 ## Impact
 
-Current changes are docs and OpenSpec planning only. Conditional implementation may touch guidance/context/host/guard/agents/instruction minimization, packaged resources or command registration/install surfaces, their focused tests and user docs. No dependency upgrade or host/runtime configuration change is selected. OpenSpec owns intended behavior, docs preserve evidence/rationale, and Beads execution tracking comes later when authorized.
+Planning edits only. Later authorized implementation touches guidance/agents, host/context/guard/instructions, the bounded runner, narrow continuity/discovery modules, packaged assets, focused tests, compatibility declarations and documentation. The scheduled workflow is a future implementation seam, read-only in this assignment. No runtime/dependency upgrades, Beads operations or publication are authorized.
 
-**Implementation is blocked** until Matt's dispositions are recorded against the decision packet, all artifacts are revised coherently and strictly revalidated, and a subsequent implementation request is received. Planning completeness is not gate approval. This assignment performs no product changes, Beads commands/store operations, commits, pushes or integration regeneration.
+[Owner selections](owner-decisions.md) are settled. [Design](design.md), [tasks](tasks.md) and [reconciliation record](reconciliation.md) separate those selections from unexecuted acceptance checks. Implementation requires a subsequent request; release publication requires separate authority.

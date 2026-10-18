@@ -30,8 +30,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "F03: preserve discoverability; use native OpenCode delivery, not Claude marketplace installation.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "replace",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "replace",
+        "group": "native-replacement",
+        "target": "src/host.ts registration/hooks and src/workflows.ts",
+        "task_ids": [
+          "2.2",
+          "3.2",
+          "3.3"
+        ],
+        "reason": "Translate discovery/lifecycle intent to native registration, not host-specific manifests."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/codex_hook.go",
@@ -42,8 +55,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/init.go",
@@ -54,8 +80,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/init_agent.go",
@@ -66,8 +105,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/init_embedded_test.go",
@@ -78,8 +130,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/memory.go",
@@ -90,8 +155,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/prime.go",
@@ -102,8 +180,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/prime_memory_caps_test.go",
@@ -114,8 +205,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/setup/agent_skill.go",
@@ -126,8 +230,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/setup/claude.go",
@@ -138,8 +255,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/setup/claude_test.go",
@@ -150,8 +280,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/setup/codex.go",
@@ -162,8 +305,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/setup/opencode.go",
@@ -174,8 +330,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "cmd/bd/setup/plugin_layout_test.go",
@@ -186,8 +355,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "docs/integrations/claude-code-plugin.md",
@@ -198,8 +380,21 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "internal/templates/skills/beads/SKILL.md",
@@ -210,8 +405,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Shared and marketplace skill differ; adapt discovery and resource links without overwriting the bd-owned shared skill.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "preserve-external",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "preserve-external",
+        "group": "upstream-owned",
+        "target": "bd-owned shared beads skill; no writes",
+        "task_ids": [
+          "2.2",
+          "3.3"
+        ],
+        "reason": "Preserve shared skill and metadata; package-owned oc-beads adds the selected rich experience."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "internal/templates/skills/beads/agents/openai.yaml",
@@ -222,8 +429,20 @@
       "frontmatter": false,
       "recommendation": "retain",
       "rationale": "Preserve upstream ownership of shared metadata; plugin does not need to fork or install it.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "preserve-external",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "preserve-external",
+        "group": "upstream-owned",
+        "target": "bd-owned shared beads skill; no writes",
+        "task_ids": [
+          "2.2",
+          "3.3"
+        ],
+        "reason": "Preserve shared skill and metadata; package-owned oc-beads adds the selected rich experience."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/.claude-plugin/plugin.json",
@@ -234,8 +453,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "F03: translate lifecycle, skill and command intent; plain prime is MCP-sensitive.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "replace",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "replace",
+        "group": "native-replacement",
+        "target": "src/host.ts registration/hooks and src/workflows.ts",
+        "task_ids": [
+          "2.2",
+          "3.2",
+          "3.3"
+        ],
+        "reason": "Translate discovery/lifecycle intent to native registration, not host-specific manifests."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/.codex-plugin/hooks/hooks.json",
@@ -246,8 +478,19 @@
       "frontmatter": false,
       "recommendation": "exclude",
       "rationale": "F11 recommendation only: Codex event wiring; compare lifecycle, do not install in OpenCode.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "host-specific",
+        "target": "source review only; no OpenCode payload",
+        "task_ids": [
+          "5.1"
+        ],
+        "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/.codex-plugin/plugin.json",
@@ -258,8 +501,19 @@
       "frontmatter": false,
       "recommendation": "exclude",
       "rationale": "F11 recommendation only: host-specific manifest; retain shared behavior and comparison evidence.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "host-specific",
+        "target": "source review only; no OpenCode payload",
+        "task_ids": [
+          "5.1"
+        ],
+        "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/.copilot-plugin/plugin.json",
@@ -270,8 +524,19 @@
       "frontmatter": false,
       "recommendation": "exclude",
       "rationale": "F11 recommendation only: separate host packaging, not an OpenCode runtime surface.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "host-specific",
+        "target": "source review only; no OpenCode payload",
+        "task_ids": [
+          "5.1"
+        ],
+        "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/README.md",
@@ -282,8 +547,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "F12: preserve installation-path distinctions in product documentation, not runtime injection.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "F12: preserve installation-path distinctions in product documentation, not runtime injection."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/agents/task-agent.md",
@@ -294,8 +572,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "F07/E01/E05: native CLI delegation, semantic handoff, owner-selected completion scope and continuation policy.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "src/guidance.ts and src/agents.ts; existing agent IDs",
+        "task_ids": [
+          "4.1",
+          "4.2"
+        ],
+        "reason": "Scope-bounded continuation, atomic claims, per-bead evidence and semantic handoff through normal blocking children."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/copilot_manifest.go",
@@ -306,8 +596,19 @@
       "frontmatter": false,
       "recommendation": "exclude",
       "rationale": "F11 recommendation only: Copilot embedding helper, not OpenCode runtime behavior.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "host-specific",
+        "target": "source review only; no OpenCode payload",
+        "task_ids": [
+          "5.1"
+        ],
+        "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/CLAUDE.md",
@@ -318,8 +619,21 @@
       "frontmatter": false,
       "recommendation": "retain",
       "rationale": "F12: maintainer guidance and ADR intent remain evidence, not automatic runtime instructions.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "F12: maintainer guidance and ADR intent remain evidence, not automatic runtime instructions."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/README.md",
@@ -330,8 +644,21 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "F12: preserve useful recovery rationale; distinguish manual skill copy from full marketplace install.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "support-evidence",
+        "target": "docs evidence and native adaptation; no upstream source copying",
+        "task_ids": [
+          "2.1",
+          "3.1",
+          "5.1"
+        ],
+        "reason": "F12: preserve useful recovery rationale; distinguish manual skill copy from full marketplace install."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/SKILL.md",
@@ -342,8 +669,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Shared and marketplace skill differ; adapt discovery and resource links without overwriting the bd-owned shared skill.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "assets/oc-beads/SKILL.md",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Rich progressive guidance with native tools and corrected authority; shared beads remains untouched."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md",
@@ -354,8 +693,19 @@
       "frontmatter": false,
       "recommendation": "retain",
       "rationale": "Retain canonical dynamic CLI reference principle as rationale, not a guarantee against drift.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "rationale",
+        "target": "assets/oc-beads/adr/0001-bd-prime-as-source-of-truth.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Retain canonical dynamic CLI reference principle as rationale, not a guarantee against drift."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/agents/openai.yaml",
@@ -366,8 +716,19 @@
       "frontmatter": false,
       "recommendation": "exclude",
       "rationale": "F11 recommendation only: host UI metadata, not the task-agent prompt or a required native OpenCode asset.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "reference-only",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "reference-only",
+        "group": "host-specific",
+        "target": "source review only; no OpenCode payload",
+        "task_ids": [
+          "5.1"
+        ],
+        "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/audit.md",
@@ -378,8 +739,20 @@
       "frontmatter": true,
       "recommendation": "defer",
       "rationale": "Optional diagnostics; avoid making prompt/response logging or a telemetry service a parity dependency.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "supported-admin",
+        "target": "oc-beads:audit",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Expose supported audit logging/label workflow only on request; no automatic transcript collection or telemetry."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/blocked.md",
@@ -390,8 +763,20 @@
       "frontmatter": true,
       "recommendation": "retain",
       "rationale": "Useful blocker view; preserve read-only intent and distinguish blocked status from dependency blocking.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:blocked",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Useful blocker view; preserve read-only intent and distinguish blocked status from dependency blocking."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/close.md",
@@ -402,8 +787,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Replace MCP with CLI; require completion evidence and relevant validation, not merely a successful close call.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:close",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Replace MCP with CLI; require completion evidence and relevant validation, not merely a successful close call."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/comments.md",
@@ -414,8 +811,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Keep discussion/checkpoint history; use noninteractive field updates instead of bd edit advice.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:comments",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Keep discussion/checkpoint history; use noninteractive field updates instead of bd edit advice."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/compact.md",
@@ -426,8 +835,20 @@
       "frontmatter": true,
       "recommendation": "defer",
       "rationale": "Administrative destructive issue compaction is distinct from conversation compaction; review current CLI and explicit scope.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "supported-admin",
+        "target": "oc-beads:compact",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Explicit administrative issue-compaction workflow, distinct from host conversation compaction; verify current CLI semantics and authority."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/create.md",
@@ -438,8 +859,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "CLI structured creation with acceptance/design and discovered-from where applicable; avoid redundant questions when intent is known.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:create",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "CLI structured creation with acceptance/design and discovered-from where applicable; avoid redundant questions when intent is known."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/decision.md",
@@ -450,8 +883,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Retain rationale and alternatives; link OpenSpec intended behavior and docs rationale without duplicating their authority.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:decision",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Retain rationale and alternatives; link OpenSpec intended behavior and docs rationale without duplicating their authority."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/delete.md",
@@ -462,8 +907,20 @@
       "frontmatter": true,
       "recommendation": "defer",
       "rationale": "Destructive admin workflow needs explicit selection and verified current semantics; not ordinary closure.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "supported-admin",
+        "target": "oc-beads:delete",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Explicit scoped deletion under normal permissions; never substitute for closure or infer deletion authority."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/dep.md",
@@ -474,8 +931,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Retain graph operations; correct conflicting prose about dependency direction and verify X depends on Y.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:dep",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Retain graph operations; correct conflicting prose about dependency direction and verify X depends on Y."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/epic.md",
@@ -486,8 +955,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Retain hierarchy/status; do not equate all children closed with validated parent acceptance.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:epic",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Retain hierarchy/status; do not equate all children closed with validated parent acceptance."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/export.md",
@@ -498,8 +979,20 @@
       "frontmatter": true,
       "recommendation": "retain",
       "rationale": "Useful explicit interchange; distinguish issue export from full backup and memory-inclusive export.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "supported-admin",
+        "target": "oc-beads:export",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Useful explicit interchange; distinguish issue export from full backup and memory-inclusive export."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/import.md",
@@ -510,8 +1003,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Preserve documented stale/upsert/partial-write cautions and route limits; never implicit setup or restore.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "supported-admin",
+        "target": "oc-beads:import",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Preserve documented stale/upsert/partial-write cautions and route limits; never implicit setup or restore."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/init.md",
@@ -522,8 +1027,20 @@
       "frontmatter": true,
       "recommendation": "replace",
       "rationale": "Human-directed setup guide with side effects and ownership; do not invoke nonexistent MCP init or initialize automatically.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "replace",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "replace",
+        "group": "supported-admin",
+        "target": "oc-beads:init",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Human-directed upstream setup guidance with side effects; no automatic initialization."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/label.md",
@@ -534,8 +1051,20 @@
       "frontmatter": true,
       "recommendation": "retain",
       "rationale": "Useful metadata operations; respect existing project taxonomy.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:label",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Useful metadata operations; respect existing project taxonomy."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/list.md",
@@ -546,8 +1075,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Keep filters with current CLI help; separate retrieval from automatic task selection or mutation.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:list",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Keep filters with current CLI help; separate retrieval from automatic task selection or mutation."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/prime.md",
@@ -558,8 +1099,20 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "No frontmatter upstream; explicit guarded refresh using full CLI context; distinguish missing context from migration hold.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:prime",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "No frontmatter upstream; explicit guarded refresh using full CLI context; distinguish missing context from migration hold."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/quickstart.md",
@@ -570,8 +1123,20 @@
       "frontmatter": true,
       "recommendation": "replace",
       "rationale": "Deprecated command; offer current onboarding/resource entry without invoking bd quickstart.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "replace",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "replace",
+        "group": "core-daily",
+        "target": "oc-beads:quickstart",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Replace deprecated bd quickstart with onboarding using current prime/help and installed resources."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/ready.md",
@@ -582,8 +1147,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "CLI ready view; honor already-authorized task choice and atomic claim rather than always asking again.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:ready",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "CLI ready view; honor already-authorized task choice and atomic claim rather than always asking again."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/rename-prefix.md",
@@ -594,8 +1171,20 @@
       "frontmatter": true,
       "recommendation": "defer",
       "rationale": "Project-wide identifier migration; verify syntax and references before any separately approved admin workflow.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "supported-admin",
+        "target": "oc-beads:rename-prefix",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Explicit project identifier migration guidance with reference impact and current syntax checks; no automatic migration."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/reopen.md",
@@ -606,8 +1195,20 @@
       "frontmatter": true,
       "recommendation": "retain",
       "rationale": "Useful correction/regression operation with reason and current state check.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:reopen",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Useful correction/regression operation with reason and current state check."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/restore.md",
@@ -618,8 +1219,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Historical retrieval useful for recovery; verify current Dolt implementation instead of trusting mixed git/Dolt prose.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "supported-admin",
+        "target": "oc-beads:restore",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Historical retrieval useful for recovery; verify current Dolt implementation instead of trusting mixed git/Dolt prose."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/search.md",
@@ -630,8 +1243,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Preserve issue search; remove unsupported MCP efficiency claims and distinguish memory search.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:search",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Preserve issue search; remove unsupported MCP efficiency claims and distinguish memory search."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/show.md",
@@ -642,8 +1267,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "CLI detail retrieval including notes, acceptance and dependencies; do not mutate when asked to inspect.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:show",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "CLI detail retrieval including notes, acceptance and dependencies; do not mutate when asked to inspect."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/stats.md",
@@ -654,8 +1291,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "CLI overview; no automatic claiming from statistics.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:stats",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "CLI overview; no automatic claiming from statistics."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/sync.md",
@@ -666,8 +1315,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Current federation-loop bd sync differs from removed JSONL sync; preserve explicit authorization and conflict handling, no forced side selection.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "supported-admin",
+        "target": "oc-beads:sync",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Current federation-loop bd sync differs from removed JSONL sync; preserve explicit authorization and conflict handling, no forced side selection."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/template.md",
@@ -678,8 +1339,20 @@
       "frontmatter": false,
       "recommendation": "defer",
       "rationale": "No frontmatter and long static syntax; verify current template/formula support before selecting an entry.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "replace",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "replace",
+        "group": "core-daily",
+        "target": "oc-beads:template",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Replace obsolete static template commands with supported template/formula discovery from installed help; no automatic workflow execution."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/update.md",
@@ -690,8 +1363,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "CLI fields/atomic claim; distinguish current-state notes from append-only discussion; preserve prior learning.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:update",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Use atomic claim and append-style progress notes; intentional field replacement remains explicit."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/version.md",
@@ -702,8 +1387,20 @@
       "frontmatter": true,
       "recommendation": "replace",
       "rationale": "Query installed CLI/plugin versions; remove hardcoded 0.9.2, MCP assumptions and automatic install advice.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "replace",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "replace",
+        "group": "core-daily",
+        "target": "oc-beads:version",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Report installed CLI/package/host versions and capability limits; no hardcoded release or automatic install."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/commands/workflow.md",
@@ -714,8 +1411,20 @@
       "frontmatter": true,
       "recommendation": "adapt",
       "rationale": "Native CLI workflow and recovery entry; remove assumed MCP and unbounded continuation as universal default.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "oc-beads:workflow",
+        "task_ids": [
+          "2.1",
+          "2.2"
+        ],
+        "reason": "Native CLI workflow and recovery entry; remove assumed MCP and unbounded continuation as universal default."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/AGENTS.md",
@@ -726,8 +1435,19 @@
       "frontmatter": false,
       "recommendation": "defer",
       "rationale": "Optional agent-state/slot guidance; do not require new orchestration for basic task recovery.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "advanced-on-demand",
+        "target": "assets/oc-beads/resources/AGENTS.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "On-demand agent-state/slot guidance; do not require new orchestration for basic task recovery."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/ASYNC_GATES.md",
@@ -738,8 +1458,19 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "On-demand human/CI wait and resolution concepts; no new gate service or automatic approval.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "advanced-on-demand",
+        "target": "assets/oc-beads/resources/ASYNC_GATES.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "On-demand human/CI wait and resolution concepts; no new gate service or automatic approval."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/BOUNDARIES.md",
@@ -750,8 +1481,19 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Durable context vs ephemeral execution; reconcile TodoWrite advice with current prime and repository OpenSpec authority.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "assets/oc-beads/resources/BOUNDARIES.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Durable context vs ephemeral execution; reconcile TodoWrite advice with current prime and repository OpenSpec authority."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/CHEMISTRY_PATTERNS.md",
@@ -762,8 +1504,19 @@
       "frontmatter": false,
       "recommendation": "defer",
       "rationale": "Optional molecule/wisp selection guidance; useful extension when recurring workflows justify it.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "advanced-on-demand",
+        "target": "assets/oc-beads/resources/CHEMISTRY_PATTERNS.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "On-demand molecule/wisp selection guidance; useful extension when recurring workflows justify it."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/CLI_REFERENCE.md",
@@ -774,8 +1527,19 @@
       "frontmatter": false,
       "recommendation": "retain",
       "rationale": "Keep live prime/help pointers; avoid duplicating CLI reference.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "assets/oc-beads/resources/CLI_REFERENCE.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Keep live prime/help pointers; avoid duplicating CLI reference."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/DEPENDENCIES.md",
@@ -786,8 +1550,19 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Preserve dependency direction, provenance and hierarchy concepts; verify examples against current CLI.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "assets/oc-beads/resources/DEPENDENCIES.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Preserve dependency direction, provenance and hierarchy concepts; verify examples against current CLI."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/INTEGRATION_PATTERNS.md",
@@ -798,8 +1573,19 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Capture meaning at milestones; map planning to OpenSpec, evidence to docs, execution later to Beads.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "assets/oc-beads/resources/INTEGRATION_PATTERNS.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Capture meaning at milestones; map planning to OpenSpec, evidence to docs, execution later to Beads. Use marketplace-main append-notes examples; remove redundant approval loops while preserving authority."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/ISSUE_CREATION.md",
@@ -810,8 +1596,19 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Distinguish design from acceptance and capture resumption context; follow existing authorization.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "assets/oc-beads/resources/ISSUE_CREATION.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Distinguish design from acceptance and capture resumption context; follow existing authorization. Use marketplace-main append-notes examples; remove redundant approval loops while preserving authority."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/MOLECULES.md",
@@ -822,8 +1619,19 @@
       "frontmatter": false,
       "recommendation": "defer",
       "rationale": "Optional recurring-work extension, dependent on selected formula/CLI compatibility.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "advanced-on-demand",
+        "target": "assets/oc-beads/resources/MOLECULES.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "On-demand recurring-work extension, dependent on selected formula/CLI compatibility."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/PATTERNS.md",
@@ -834,8 +1642,19 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Preserve hypotheses, decisions, blocker and closure patterns; replace MCP examples and unnecessary approval loops.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "assets/oc-beads/resources/PATTERNS.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Preserve hypotheses, decisions, blocker and closure patterns; replace MCP examples and unnecessary approval loops. Use marketplace-main append-notes examples; remove redundant approval loops while preserving authority."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/RESUMABILITY.md",
@@ -846,8 +1665,19 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Preserve tested examples, failures, rationale and next action proportionate to task; no raw dumps.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "assets/oc-beads/resources/RESUMABILITY.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Preserve tested examples, failures, rationale and next action proportionate to task; no raw dumps."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/STATIC_DATA.md",
@@ -858,8 +1688,19 @@
       "frontmatter": false,
       "recommendation": "defer",
       "rationale": "Reference-database pattern is optional; use project memory for reusable knowledge rather than open issues as a glossary by default.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "advanced-on-demand",
+        "target": "assets/oc-beads/resources/STATIC_DATA.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Reference-database pattern is on-demand; use project memory for reusable knowledge rather than open issues as a glossary by default."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/TROUBLESHOOTING.md",
@@ -870,8 +1711,19 @@
       "frontmatter": false,
       "recommendation": "replace",
       "rationale": "Curate current CLI/guard failure recovery; stale server/export/import advice must not become automatic repair.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "replace",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "replace",
+        "group": "core-daily",
+        "target": "assets/oc-beads/resources/TROUBLESHOOTING.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Curate current CLI/guard failure recovery; stale server/export/import advice must not become automatic repair."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/WORKFLOWS.md",
@@ -882,8 +1734,19 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "Checkpoint and recovery triggers; resolve approval-on-every-handoff and overwriting-notes tension with existing authorization and retained learning.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "core-daily",
+        "target": "assets/oc-beads/resources/WORKFLOWS.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "Checkpoint and recovery triggers; resolve approval-on-every-handoff and historical replacement-notes examples with existing authorization and retained learning. Use marketplace-main append-notes examples; remove redundant approval loops while preserving authority. Current WORKFLOWS line 368 still says overwrite rather than append; correct that conflicting prose, not just examples."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     },
     {
       "path": "plugins/beads/skills/beads/resources/WORKTREES.md",
@@ -894,20 +1757,31 @@
       "frontmatter": false,
       "recommendation": "adapt",
       "rationale": "On-demand workspace routing and ownership guidance; no automatic worktree creation or store initialization.",
-      "owner_disposition": "pending",
-      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn."
+      "owner_disposition": "adapt",
+      "evidence": "Pinned source inspected; no live runtime qualification in this planning turn.",
+      "historical_owner_disposition": "pending",
+      "selected_mapping": {
+        "disposition": "adapt",
+        "group": "advanced-on-demand",
+        "target": "assets/oc-beads/resources/WORKTREES.md",
+        "task_ids": [
+          "2.1"
+        ],
+        "reason": "On-demand workspace routing and ownership guidance; no automatic worktree creation or store initialization."
+      },
+      "disposition_basis": "Engineering reconciliation within owner-selected corpus groups; original recommendation and release identity retained."
     }
   ],
   "native_assessment": {
     "document": "opencode-native-parity-assessment.md",
-    "status": "pending",
+    "status": "selected-planning",
     "checked_on": "2026-10-17",
     "release": "2.0.32",
     "commit": "843a6c514e606b436a7fe713422ace0a93ad3d61",
     "minimum_release": "2.0.26",
     "minimum_commit": "9b4ec5714d481559990db0a816d5dec19541a814",
     "development_commit": "8f7b0120eb6b4aa3da1f82b1a9094a9fb4db2d06",
-    "recommended_bundle": "N1",
+    "recommended_bundle": "N1 + D01 + D04 (selected)",
     "recommended_minimum": "2.0.32 (owner decision pending; no dependency edit)",
     "runtime_qualification": "not executed",
     "sources": [
@@ -1169,105 +2043,152 @@
         "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/plugin/src/promise/shell.ts",
         "sha256": "dc3608b631d2b6600209a465b1d8d7e286a3a812ed57ba307e227ddb4ef16dc6",
         "git_blob": "d0e6ae71ed7afef83385782b097a3502f836f52f"
+      },
+      {
+        "id": "S18",
+        "path": "packages/core/src/file-access.ts",
+        "git_blob": "bae484d5d79b52abfae67b1d6e6524f54b06279b",
+        "sha256": "811ceafb0f9b2f89c169a5d1c1158311cfaca1e9ccb2c5140b486ddf6ba103e9",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/core/src/file-access.ts"
+      },
+      {
+        "id": "S13",
+        "path": "packages/schema/src/command.ts",
+        "git_blob": "e1984a0e6af632b14aef77e4fc524ccf522b7335",
+        "sha256": "6091f667ccf353e2ec7ac93902cd2c58b951236823f9411fb88174f9494932ab",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/schema/src/command.ts"
+      },
+      {
+        "id": "S13",
+        "path": "packages/app/src/composer/client-slash-command.ts",
+        "git_blob": "b149796de2fa6cd49fb3602ae7303c5dd486ea23",
+        "sha256": "8c43cfe2d81a9f954ab804e6144221af4614af74b2edf08243dc013c3c0b56ee",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/app/src/composer/client-slash-command.ts"
+      },
+      {
+        "id": "S13",
+        "path": "packages/app/src/composer/submit.ts",
+        "git_blob": "be339fdb72338fd8366018a650b71c05f1bb37d7",
+        "sha256": "0f1c10887b162a84700a539720f8abe4f35b4cfd6fc720ef632e4427bf2e4513",
+        "url": "https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/packages/app/src/composer/submit.ts"
       }
     ],
     "mechanisms": [
       {
         "id": "M01",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Selected N1 mechanism with limits in native assessment and design; acceptance remains unexecuted."
       },
       {
         "id": "M02",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Selected N1 mechanism with limits in native assessment and design; acceptance remains unexecuted."
       },
       {
         "id": "M03",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Selected N1 mechanism with limits in native assessment and design; acceptance remains unexecuted."
       },
       {
         "id": "M04",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Selected N1 mechanism with limits in native assessment and design; acceptance remains unexecuted."
       },
       {
         "id": "M05",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Selected N1 mechanism with limits in native assessment and design; acceptance remains unexecuted."
       },
       {
         "id": "M06",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Selected N1 mechanism with limits in native assessment and design; acceptance remains unexecuted."
       },
       {
         "id": "M07",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Selected N1 mechanism with limits in native assessment and design; acceptance remains unexecuted."
       },
       {
         "id": "M08",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Selected N1 mechanism with limits in native assessment and design; acceptance remains unexecuted."
       },
       {
         "id": "M09",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Selected N1 mechanism with limits in native assessment and design; acceptance remains unexecuted."
       },
       {
         "id": "M10",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Selected N1 mechanism with limits in native assessment and design; acceptance remains unexecuted."
       }
     ],
     "candidates": [
       {
         "id": "X01",
         "availability": "released-experimental",
-        "owner_disposition": "pending"
+        "owner_disposition": "exclude",
+        "rationale": "No transport rewriting for semantic continuity."
       },
       {
         "id": "X02",
         "availability": "released-experimental",
-        "owner_disposition": "pending"
+        "owner_disposition": "defer",
+        "rationale": "Explicit terminal evidence retrieval is not needed for base workflows."
       },
       {
         "id": "X03",
         "availability": "released-experimental",
-        "owner_disposition": "pending"
+        "owner_disposition": "defer",
+        "rationale": "Keep normal blocking children; do not change nested-depth config."
       },
       {
         "id": "X04",
         "availability": "released-experimental",
-        "owner_disposition": "pending"
+        "owner_disposition": "defer",
+        "rationale": "Respect host parser; no plugin scanner changes."
       },
       {
         "id": "X05",
         "availability": "mixed-v1-deprecated",
-        "owner_disposition": "pending"
+        "owner_disposition": "exclude",
+        "rationale": "No deprecated/V1 hook assumptions."
       },
       {
         "id": "X06",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Support native-provider compaction without replacement or persistence in hook."
       },
       {
         "id": "X07",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "exclude",
+        "rationale": "No middleware/shell rewriting; domain hooks suffice."
       },
       {
         "id": "X08",
         "availability": "released-public",
-        "owner_disposition": "pending"
+        "owner_disposition": "adapt",
+        "rationale": "Existing read-only diagnostics only; no new service/store/UI."
       },
       {
         "id": "X09",
         "availability": "development-only",
-        "owner_disposition": "pending"
+        "owner_disposition": "exclude",
+        "rationale": "Development-only listing is not a released dependency."
       }
     ],
     "package_evidence": [
@@ -1456,6 +2377,1350 @@
         "absent": [
           "| \"list\""
         ]
+      }
+    ],
+    "selected_minimum": ">=2.0.32 <3"
+  },
+  "marketplace_main": {
+    "repository": "gastownhall/beads",
+    "default_branch": "main",
+    "commit": "4a67d0d0288c1b4ee23e17fc896f47616931ba2d",
+    "resolved_on": "2026-10-18",
+    "scope": "All blobs under plugins/beads/ and internal/templates/skills/beads/, marketplace manifest, and explicitly listed supporting implementation/docs. Enumeration is not runtime execution evidence.",
+    "tree_evidence": "marketplace-main-tree.json",
+    "commit_evidence": "marketplace-main-commit.json",
+    "installed_commit": "4a67d0d0288c1b4ee23e17fc896f47616931ba2d",
+    "installed_plugin_version": "1.3.0",
+    "installed_match": "All 57 files under plugins/beads byte-match the installed cache; installation/discovery is not behavioral qualification.",
+    "files": [
+      {
+        "path": ".claude-plugin/marketplace.json",
+        "category": "manifest-or-hooks",
+        "git_blob": "aad41ecfb55e1f2141567047e7eb03503c48be89",
+        "sha256": "408ff701ca7459caf6f4713ff2703d93b24eaf20b4e4baeba7b0a67e4e5498fe",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/.claude-plugin/marketplace.json",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "replace",
+          "group": "native-replacement",
+          "target": "src/host.ts registration/hooks and src/workflows.ts",
+          "task_ids": [
+            "2.2",
+            "3.2",
+            "3.3"
+          ],
+          "reason": "Translate discovery/lifecycle intent to native registration, not host-specific manifests."
+        }
+      },
+      {
+        "path": "cmd/bd/codex_hook.go",
+        "category": "support",
+        "git_blob": "dcbfb787ec4333298d7050ddeaaac70a0bd31c23",
+        "sha256": "2adab3df97a83045d95b2f44ab1ad1ddfcbb992287c03004e46746eba6f5fd79",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/codex_hook.go",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/init.go",
+        "category": "support",
+        "git_blob": "a5b9cd9c8a0a8319b7344450e623ec72d210a70e",
+        "sha256": "69a31b058e1a41416d3d86644e70631ebac2a503a5027ff7bc84aa7070e307a8",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/init.go",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/init_agent.go",
+        "category": "support",
+        "git_blob": "9cc630d716c2d8ac19e9794cd9f8886fbfd0cc33",
+        "sha256": "46f8e675121900c1b7da9b92c2f0722665cd2708f86c856eb90bafad12282463",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/init_agent.go",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/init_embedded_test.go",
+        "category": "support",
+        "git_blob": "dea6ce141cf2fd22a64a7fa50294d3859096bf19",
+        "sha256": "0a01c9e7088b0b764efa6ee6db6bf1d222ed968cf59a9536ea3173e80bdbf956",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/init_embedded_test.go",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/memory.go",
+        "category": "support",
+        "git_blob": "46fce8cd5bdae82fb98458c0303b627c6f1abe38",
+        "sha256": "95dc71450ec4bf2ae746900d3bc8e864d40878aed8ea2d03ebdacefe6a457253",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/memory.go",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/prime.go",
+        "category": "support",
+        "git_blob": "aada0aff8994889eee913e7b1b28198d5591a488",
+        "sha256": "03e0c9a4219cef2760698b64a062d186bc7ceb8ec815122686c6bb777dfaf4af",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/prime.go",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/prime_memory_caps_test.go",
+        "category": "support",
+        "git_blob": "20a1b0fcb254ac754c92db197f57f17b1465bf35",
+        "sha256": "81abb8df720cbf610d8614185e600f9c15e61201ed34eb6f6f689feba2580b5e",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/prime_memory_caps_test.go",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/setup/agent_skill.go",
+        "category": "support",
+        "git_blob": "e423b2e8534adc4f2b95dd4b08a9a0f01a5ff98e",
+        "sha256": "0caedc17156df34bea312c98c66763925b632b51dc68fdc6c46a09c1bee06353",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/setup/agent_skill.go",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/setup/claude.go",
+        "category": "support",
+        "git_blob": "ed9e252660eb5cd0ccda7b7872b3a8111f04dc7d",
+        "sha256": "aa79481df01669438afaec25e4854ce34bdf6214c98983f000877bdb5565530f",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/setup/claude.go",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/setup/claude_test.go",
+        "category": "support",
+        "git_blob": "4d1e178e1ce2dd0f17790d3b698f4ead7e9877ae",
+        "sha256": "c18abafbaa8c666c773a0293d4ca3619b838da3a2c7e14f0a33259797d5b2b03",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/setup/claude_test.go",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/setup/codex.go",
+        "category": "support",
+        "git_blob": "11044b1beefdc27094f797b4a22231a3279bc56d",
+        "sha256": "aea41b368a17496107caa67e9c4e5177a73dcabae69f441c1f6fa087d2b278b0",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/setup/codex.go",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/setup/opencode.go",
+        "category": "support",
+        "git_blob": "a728e07d667f7d86f8b92d6b432fdb6c4383ebd9",
+        "sha256": "91b214f63018a7c9ed768ce3db6fdef576c5beb4873bebf600b2ac973c7c9aff",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/setup/opencode.go",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "cmd/bd/setup/plugin_layout_test.go",
+        "category": "support",
+        "git_blob": "51b3a2a10aeda9958c04eb4b0b89884cebb6c60c",
+        "sha256": "3f8eccbaf0f4b5e7ea65a1fa2f527b22bd903fd54dab1cde054651eb58cc4e88",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/cmd/bd/setup/plugin_layout_test.go",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "docs/integrations/claude-code-plugin.md",
+        "category": "support",
+        "git_blob": "7112f7d404f9b1bc5ee283b7a8a9e0fa6997f48d",
+        "sha256": "5d43897dc1cc2d50f87de289d23270ca96040073aa2597b08e6919546574cfcc",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/docs/integrations/claude-code-plugin.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "Reference source only; transfer applicable behavior through native host interfaces, not wholesale copying."
+        }
+      },
+      {
+        "path": "internal/templates/skills/beads/SKILL.md",
+        "category": "skill",
+        "git_blob": "a5a3344cffc25b3563697746b6f15337a4f43e66",
+        "sha256": "1a621606cfa9a14cbacff84bf5c496b4c2c175c2df329e8d19d4e01fc989dedd",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/internal/templates/skills/beads/SKILL.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "preserve-external",
+          "group": "upstream-owned",
+          "target": "bd-owned shared beads skill; no writes",
+          "task_ids": [
+            "2.2",
+            "3.3"
+          ],
+          "reason": "Preserve shared skill and metadata; package-owned oc-beads adds the selected rich experience."
+        }
+      },
+      {
+        "path": "internal/templates/skills/beads/agents/openai.yaml",
+        "category": "agent-or-metadata",
+        "git_blob": "09c3b8f61fd5a6cfabe942909a6ad5658d40ab75",
+        "sha256": "c7ff618a9a6bcce71b25f722f67861b7685651d08fb72d8fff7d947aac403718",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/internal/templates/skills/beads/agents/openai.yaml",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "preserve-external",
+          "group": "upstream-owned",
+          "target": "bd-owned shared beads skill; no writes",
+          "task_ids": [
+            "2.2",
+            "3.3"
+          ],
+          "reason": "Preserve shared skill and metadata; package-owned oc-beads adds the selected rich experience."
+        }
+      },
+      {
+        "path": "plugins/beads/.claude-plugin/plugin.json",
+        "category": "manifest-or-hooks",
+        "git_blob": "f861043e2ee89511f20e678931b9515ecfccb2df",
+        "sha256": "f2ae1cfc1b9952c6e8885dc0db8db92c32a2e0eca9a64b83dd7c190e53e4b195",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/.claude-plugin/plugin.json",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "replace",
+          "group": "native-replacement",
+          "target": "src/host.ts registration/hooks and src/workflows.ts",
+          "task_ids": [
+            "2.2",
+            "3.2",
+            "3.3"
+          ],
+          "reason": "Translate discovery/lifecycle intent to native registration, not host-specific manifests."
+        }
+      },
+      {
+        "path": "plugins/beads/.codex-plugin/hooks/hooks.json",
+        "category": "manifest-or-hooks",
+        "git_blob": "9201db27b183ca6c3b1b896a4e68f0d6332c06a6",
+        "sha256": "383b2a4bb9a0a6b1c8e821f360bb9c1f5109c34eb7c02e7382dea1adc6aa0481",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/.codex-plugin/hooks/hooks.json",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "host-specific",
+          "target": "source review only; no OpenCode payload",
+          "task_ids": [
+            "5.1"
+          ],
+          "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+        }
+      },
+      {
+        "path": "plugins/beads/.codex-plugin/plugin.json",
+        "category": "manifest-or-hooks",
+        "git_blob": "bf76223b389566368ceaee2f8f4d9a3ea948593d",
+        "sha256": "8be296fa0eed2474cc174dd6bd3ed359e4247d25e5a2f5efdc71eb027cbec9bf",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/.codex-plugin/plugin.json",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "host-specific",
+          "target": "source review only; no OpenCode payload",
+          "task_ids": [
+            "5.1"
+          ],
+          "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+        }
+      },
+      {
+        "path": "plugins/beads/.copilot-plugin/plugin.json",
+        "category": "manifest-or-hooks",
+        "git_blob": "90a496a4371fb5012578caface56fbe0eec522e7",
+        "sha256": "7edb5507f855556510aea4eb0ea38330a0b4674d3b9c5e464139e51f7583874f",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/.copilot-plugin/plugin.json",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "host-specific",
+          "target": "source review only; no OpenCode payload",
+          "task_ids": [
+            "5.1"
+          ],
+          "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+        }
+      },
+      {
+        "path": "plugins/beads/BUILD.bazel",
+        "category": "build-support",
+        "git_blob": "feed1f222324204b5223a66e31bca223a98b88b5",
+        "sha256": "4f05ccbc9c63a52d1466446d879cf4d125bb9d3d903d85967962ba1a235f545a",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/BUILD.bazel",
+        "release_delta": "added",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "host-specific",
+          "target": "source review only; no OpenCode payload",
+          "task_ids": [
+            "5.1"
+          ],
+          "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+        }
+      },
+      {
+        "path": "plugins/beads/README.md",
+        "category": "support",
+        "git_blob": "f897aa8c7524ae554483675faf63275bcbf73232",
+        "sha256": "2effe26178ea7a51475126732a8ddd999e5a04664881b8d6a0fdd15c27ce9504",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/README.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "F12: preserve installation-path distinctions in product documentation, not runtime injection."
+        }
+      },
+      {
+        "path": "plugins/beads/agents/task-agent.md",
+        "category": "agent-or-metadata",
+        "git_blob": "7d04bb860553ac03c139478b295550418f72979c",
+        "sha256": "d5dd212e4f6324cf9f979eb8ed96ee094174c3e0cda8e217e55643244a7f4a79",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/agents/task-agent.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "src/guidance.ts and src/agents.ts; existing agent IDs",
+          "task_ids": [
+            "4.1",
+            "4.2"
+          ],
+          "reason": "Scope-bounded continuation, atomic claims, per-bead evidence and semantic handoff through normal blocking children."
+        }
+      },
+      {
+        "path": "plugins/beads/copilot_manifest.go",
+        "category": "support",
+        "git_blob": "d3ca8a206c3e1d01c10580fac559f19ac93ba3f5",
+        "sha256": "6cb9b61e868d38fc9eadca3ff6e985548a98f1c90f6bebd5bee4ca7302534451",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/copilot_manifest.go",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "host-specific",
+          "target": "source review only; no OpenCode payload",
+          "task_ids": [
+            "5.1"
+          ],
+          "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/CLAUDE.md",
+        "category": "support",
+        "git_blob": "2581bd4501eeaa35d8773732865c650c7831990e",
+        "sha256": "fdb958aad2188f0304cc76120727a7c3a214f072e94ee886d71bd247742bd09a",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/CLAUDE.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "F12: maintainer guidance and ADR intent remain evidence, not automatic runtime instructions."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/README.md",
+        "category": "support",
+        "git_blob": "a7723cfaeb74647a0a62f53dc1cb9e9179358702",
+        "sha256": "06be6931db34e7cc545e7714a79a3019c6b798c5ba19edc877e2d09da15a2c84",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/README.md",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "support-evidence",
+          "target": "docs evidence and native adaptation; no upstream source copying",
+          "task_ids": [
+            "2.1",
+            "3.1",
+            "5.1"
+          ],
+          "reason": "F12: preserve useful recovery rationale; distinguish manual skill copy from full marketplace install."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/SKILL.md",
+        "category": "skill",
+        "git_blob": "5a1968523adfc4f3f51a6257f550079e9dd98b29",
+        "sha256": "01555fe65d19be401d820d9dec029cd048fb0791d433b4b575374477d6f1d827",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/SKILL.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "assets/oc-beads/SKILL.md",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Rich progressive guidance with native tools and corrected authority; shared beads remains untouched."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md",
+        "category": "adr",
+        "git_blob": "8ea7996841479c8ef4d20e6cd254365d5fb1cd1a",
+        "sha256": "29985565ab384b381d7288f2c01e19e6d06d760c560152a1238151731a35ca91",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/adr/0001-bd-prime-as-source-of-truth.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "rationale",
+          "target": "assets/oc-beads/adr/0001-bd-prime-as-source-of-truth.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Retain canonical dynamic CLI reference principle as rationale, not a guarantee against drift."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/agents/openai.yaml",
+        "category": "agent-or-metadata",
+        "git_blob": "09c3b8f61fd5a6cfabe942909a6ad5658d40ab75",
+        "sha256": "c7ff618a9a6bcce71b25f722f67861b7685651d08fb72d8fff7d947aac403718",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/agents/openai.yaml",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "reference-only",
+          "group": "host-specific",
+          "target": "source review only; no OpenCode payload",
+          "task_ids": [
+            "5.1"
+          ],
+          "reason": "Host metadata/build wiring is evidence, not executable OpenCode behavior; useful shared semantics retained elsewhere."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/audit.md",
+        "category": "command",
+        "git_blob": "9c737eed8d9aa9d6249b72aa5fd0846205907d18",
+        "sha256": "bf941ae72f3dfad0e5a0997c8afa1647d6ce17934692efa30e9fe4da98e39de8",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/audit.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "supported-admin",
+          "target": "oc-beads:audit",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Expose supported audit logging/label workflow only on request; no automatic transcript collection or telemetry."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/blocked.md",
+        "category": "command",
+        "git_blob": "83baf87d8fc993cb7c2d9a54db27499cc609530f",
+        "sha256": "30181c3645b5e233005facde694a3bb001c5935258745ae976abfe7b93eec346",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/blocked.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:blocked",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Useful blocker view; preserve read-only intent and distinguish blocked status from dependency blocking."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/close.md",
+        "category": "command",
+        "git_blob": "82bd27a03b69d8df5361427bd962c3eeb7a930c2",
+        "sha256": "ef43e31c9f86082a6192ca131c175c55ee37dc115f4781413be11f1e85274b58",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/close.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:close",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Replace MCP with CLI; require completion evidence and relevant validation, not merely a successful close call."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/comments.md",
+        "category": "command",
+        "git_blob": "a21018db24707b4e308b7ad6074bfb8449e98b2d",
+        "sha256": "cad54141ee590be3b8d07878bb3ea34c252466bbb00a9b95d7d521303a8e3b83",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/comments.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:comments",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Keep discussion/checkpoint history; use noninteractive field updates instead of bd edit advice."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/compact.md",
+        "category": "command",
+        "git_blob": "5543e85ed80cb398705c82a801627902abb47869",
+        "sha256": "5204417505320501e2c5a529da6c670826ef5b62feab708a33b7452dfd6a80c4",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/compact.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "supported-admin",
+          "target": "oc-beads:compact",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Explicit administrative issue-compaction workflow, distinct from host conversation compaction; verify current CLI semantics and authority."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/create.md",
+        "category": "command",
+        "git_blob": "ee3a912de6c3778cd089885588829b775b41c154",
+        "sha256": "1e27f3ff4f3ae041f6896b5181f0b0399ff80d52cd415dfd8cf6584a218736d3",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/create.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:create",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "CLI structured creation with acceptance/design and discovered-from where applicable; avoid redundant questions when intent is known."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/decision.md",
+        "category": "command",
+        "git_blob": "6785eaa5d94543de0dfb5c105cc3ef29970c8b5c",
+        "sha256": "78c0de4a0979502cb553c2ad49df32cc1e6a7cb3eec25dc41f60290ad4fbbe36",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/decision.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:decision",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Retain rationale and alternatives; link OpenSpec intended behavior and docs rationale without duplicating their authority."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/delete.md",
+        "category": "command",
+        "git_blob": "b8c6eb61953af0ab25cbd40cc1f050482cf92106",
+        "sha256": "a6a5e943cccc75c27820548ec4a810894be646604b98821822968c7cb55552eb",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/delete.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "supported-admin",
+          "target": "oc-beads:delete",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Explicit scoped deletion under normal permissions; never substitute for closure or infer deletion authority."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/dep.md",
+        "category": "command",
+        "git_blob": "c02818b741c496b194e0c4d7c3cfbe644008aef6",
+        "sha256": "2d50ea5c65e0ce27bc076e77de5ea32de7086b34c6f49736e71517548cfe4b76",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/dep.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:dep",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Retain graph operations; correct conflicting prose about dependency direction and verify X depends on Y."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/epic.md",
+        "category": "command",
+        "git_blob": "4454d26ca06b03c1bf528e03f486a2484f00175a",
+        "sha256": "174f54e3092e5a4b2f4c010e95418b13f1d910e185349ba0e131b04cf5783b8b",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/epic.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:epic",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Retain hierarchy/status; do not equate all children closed with validated parent acceptance."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/export.md",
+        "category": "command",
+        "git_blob": "45612e49d361b2e903bda86c8c590ab0f469361c",
+        "sha256": "5c8e9c9b4df71c804f489fa5785d607be971b7f62c836ad531f11e8b105ee47a",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/export.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "supported-admin",
+          "target": "oc-beads:export",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Useful explicit interchange; distinguish issue export from full backup and memory-inclusive export."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/import.md",
+        "category": "command",
+        "git_blob": "318cf83e2006a57934d97c05468843d7254041b4",
+        "sha256": "604e48e6d093d9a93f28a3a5ed7dd7946b10e7a4897bec8a88eefc5b6c9c776e",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/import.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "supported-admin",
+          "target": "oc-beads:import",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Preserve documented stale/upsert/partial-write cautions and route limits; never implicit setup or restore."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/init.md",
+        "category": "command",
+        "git_blob": "805032cb5b9bad44f959963c0b7f8c6172ff1188",
+        "sha256": "975759ee3d7ac6611fa54ae27c277a2995288a8fd089e6b46b791f73f3322177",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/init.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "replace",
+          "group": "supported-admin",
+          "target": "oc-beads:init",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Human-directed upstream setup guidance with side effects; no automatic initialization."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/label.md",
+        "category": "command",
+        "git_blob": "579851759a983b9a8329eb6a3245d9a99fbb8fe9",
+        "sha256": "45f0422cce8764a19158a98e95b6b3c790e7a01b3438d9b5471ddb5f8c544129",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/label.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:label",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Useful metadata operations; respect existing project taxonomy."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/list.md",
+        "category": "command",
+        "git_blob": "b3b4fa3fdcecb7f3f12152399b0e1567e2a6db45",
+        "sha256": "990a0e6ef5af6a6ec596df32590750efd27fd231a44a0882d3f900dc71a4380f",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/list.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:list",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Keep filters with current CLI help; separate retrieval from automatic task selection or mutation."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/prime.md",
+        "category": "command",
+        "git_blob": "c464c7225058fd152080515e696dcf5ac41f982e",
+        "sha256": "4b0559e792c2ea8ead359954896eca8518cd311303637b2e1c542e65b9d960b8",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/prime.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:prime",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "No frontmatter upstream; explicit guarded refresh using full CLI context; distinguish missing context from migration hold."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/quickstart.md",
+        "category": "command",
+        "git_blob": "6bdbe3d8a67781c64e94d5da3a63e6d8ba6a75ec",
+        "sha256": "de372b2dac3b1786ee383e8295bca781d6ce890db0daa09efa4d044325b80bbc",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/quickstart.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "replace",
+          "group": "core-daily",
+          "target": "oc-beads:quickstart",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Replace deprecated bd quickstart with onboarding using current prime/help and installed resources."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/ready.md",
+        "category": "command",
+        "git_blob": "e6e50c24818c92c76c31ec64425d9246f248f82e",
+        "sha256": "48a42cab07b8580b0436bbddf5dd409333ff3b402bb4fee7af39b3aa3b078856",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/ready.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:ready",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "CLI ready view; honor already-authorized task choice and atomic claim rather than always asking again."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/rename-prefix.md",
+        "category": "command",
+        "git_blob": "8df7cb233b76276d9d5d7250357dd6e6dbca0145",
+        "sha256": "2e6a457dfe58a855daecc0581433584073d7b52565a9bdb85131d1b4a3d920e8",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/rename-prefix.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "supported-admin",
+          "target": "oc-beads:rename-prefix",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Explicit project identifier migration guidance with reference impact and current syntax checks; no automatic migration."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/reopen.md",
+        "category": "command",
+        "git_blob": "7ddb6c07394efbbbfc7326d82dda14801a8e2a57",
+        "sha256": "ea5535f0004d3137f05b6fc81cff1ecc670d918465b7d878eb6cb01d2427578c",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/reopen.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:reopen",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Useful correction/regression operation with reason and current state check."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/restore.md",
+        "category": "command",
+        "git_blob": "61a80990cb67b2279a751fb4957d5a2c76e5afa3",
+        "sha256": "94928e7b5d8ca1da80571e56685020f31eba6ce8fd38100cba09f00a051e164e",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/restore.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "supported-admin",
+          "target": "oc-beads:restore",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Historical retrieval useful for recovery; verify current Dolt implementation instead of trusting mixed git/Dolt prose."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/search.md",
+        "category": "command",
+        "git_blob": "dd611fc47fcc1ea9ea532089274e45f03ede550e",
+        "sha256": "2295d2cf34f0d7c3a74fab86f73aa312435870c97aa71d8c965486a450310085",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/search.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:search",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Preserve issue search; remove unsupported MCP efficiency claims and distinguish memory search."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/show.md",
+        "category": "command",
+        "git_blob": "7eda4208a7d15365cded5156a6687ac552da9e53",
+        "sha256": "51aa4b5a5bebeb9f1027f5a31a3de307dd8116052471f40272f0b2c980c720af",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/show.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:show",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "CLI detail retrieval including notes, acceptance and dependencies; do not mutate when asked to inspect."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/stats.md",
+        "category": "command",
+        "git_blob": "b9843127742eca6cc1a5a38fe4ef7c1db6e94f52",
+        "sha256": "f4da8a61fb7922ece1da727f7cfe2e020def6deed7cb2ce807cc6ab6c6d02aca",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/stats.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:stats",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "CLI overview; no automatic claiming from statistics."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/sync.md",
+        "category": "command",
+        "git_blob": "9841fe4205557d94203d757b1f0e8d77fa1d1aba",
+        "sha256": "09d999165b93ea183e5828c94d45498503ed179211db5f68b3c32f372ade9ac7",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/sync.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "supported-admin",
+          "target": "oc-beads:sync",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Current federation-loop bd sync differs from removed JSONL sync; preserve explicit authorization and conflict handling, no forced side selection."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/template.md",
+        "category": "command",
+        "git_blob": "ad724440593df6a12edc569f499712ff0816b8ff",
+        "sha256": "dd8865a9556ac67c49e83b7db9ad085e3e1ebf2e187fd6c407a0e116dbfb712b",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/template.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "replace",
+          "group": "core-daily",
+          "target": "oc-beads:template",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Replace obsolete static template commands with supported template/formula discovery from installed help; no automatic workflow execution."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/update.md",
+        "category": "command",
+        "git_blob": "6b705f7e17209890146878712aa242eab43efe2d",
+        "sha256": "34896bde7871805fb1941afd81a25ebc2ce1030090b8ce96afc63763bd2bd108",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/update.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:update",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Use atomic claim and append-style progress notes; intentional field replacement remains explicit."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/version.md",
+        "category": "command",
+        "git_blob": "751d293a4828f9693dc819ec53eebbf9e0d97140",
+        "sha256": "f994ab7afb0aef464fe0e77e7aad522d5f2d1558415d4ba63aede43a7411a075",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/version.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "replace",
+          "group": "core-daily",
+          "target": "oc-beads:version",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Report installed CLI/package/host versions and capability limits; no hardcoded release or automatic install."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/commands/workflow.md",
+        "category": "command",
+        "git_blob": "a91b929e681c26960605f12f6118584c060b984d",
+        "sha256": "23ce9fbfe8acf49df1b4ddba8f908f4a3ef724c6d9203358c180d019e683978c",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/commands/workflow.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "oc-beads:workflow",
+          "task_ids": [
+            "2.1",
+            "2.2"
+          ],
+          "reason": "Native CLI workflow and recovery entry; remove assumed MCP and unbounded continuation as universal default."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/AGENTS.md",
+        "category": "resource",
+        "git_blob": "807af0b051008084a7485794289afcabf6bb5a85",
+        "sha256": "0158c156ffe03858fea3816bc6142cb75133ed54748936a05202b485a02250b5",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/AGENTS.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "advanced-on-demand",
+          "target": "assets/oc-beads/resources/AGENTS.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "On-demand agent-state/slot guidance; do not require new orchestration for basic task recovery."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/ASYNC_GATES.md",
+        "category": "resource",
+        "git_blob": "2f99506a68bcf82a3cb1358cdab12bc5203693aa",
+        "sha256": "76e8d5d07f38226d7d822ad56a48c1f3c2e19556407d56ce97b8b7bd6a320ddd",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/ASYNC_GATES.md",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "advanced-on-demand",
+          "target": "assets/oc-beads/resources/ASYNC_GATES.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "On-demand human/CI wait and resolution concepts; no new gate service or automatic approval."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/BOUNDARIES.md",
+        "category": "resource",
+        "git_blob": "cb2eaef42e95b9d7875032ac3dd40667523ff86c",
+        "sha256": "9239200595fdc742bc2422c82bd7e71a55dc1af02ff6eea179642a0276f53a7c",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/BOUNDARIES.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "assets/oc-beads/resources/BOUNDARIES.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Durable context vs ephemeral execution; reconcile TodoWrite advice with current prime and repository OpenSpec authority."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/CHEMISTRY_PATTERNS.md",
+        "category": "resource",
+        "git_blob": "2a5abd9840be738fc90be051c20b5971b8544fce",
+        "sha256": "c81bf240429099eeafd68c06bad4af45b0360dd5d3c6444f6d5b60d31c1641c5",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/CHEMISTRY_PATTERNS.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "advanced-on-demand",
+          "target": "assets/oc-beads/resources/CHEMISTRY_PATTERNS.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "On-demand molecule/wisp selection guidance; useful extension when recurring workflows justify it."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/CLI_REFERENCE.md",
+        "category": "resource",
+        "git_blob": "ea24c638738a07cdd914a712275917067f0ce871",
+        "sha256": "ce9b2ba98f17a54cbfeac3ef7f8854fff93eea8d4114b361588ccfd6f4ad2385",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/CLI_REFERENCE.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "assets/oc-beads/resources/CLI_REFERENCE.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Keep live prime/help pointers; avoid duplicating CLI reference."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/DEPENDENCIES.md",
+        "category": "resource",
+        "git_blob": "4f18f3884811c1f21b9697a973f4b7674d0f3496",
+        "sha256": "9c3327611bfbdc47124736dd0cc928bfeff1c135d4ae79d4ea46cba1900df335",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/DEPENDENCIES.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "assets/oc-beads/resources/DEPENDENCIES.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Preserve dependency direction, provenance and hierarchy concepts; verify examples against current CLI."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/INTEGRATION_PATTERNS.md",
+        "category": "resource",
+        "git_blob": "c28cfa900a5d52673c1017dc6eb1aa01d9077de7",
+        "sha256": "40db2e08e2324bad02ab36679089da99e37d883392422c152b283ee6ac9b6946",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/INTEGRATION_PATTERNS.md",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "assets/oc-beads/resources/INTEGRATION_PATTERNS.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Capture meaning at milestones; map planning to OpenSpec, evidence to docs, execution later to Beads. Use marketplace-main append-notes examples; remove redundant approval loops while preserving authority."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/ISSUE_CREATION.md",
+        "category": "resource",
+        "git_blob": "cd235495f26dbf4f721ccecf9f67f29f14da343f",
+        "sha256": "e5d695c9e7d3cb6420e25884a588c1d0903fae0569a0ea079c331ee83fd32d3f",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/ISSUE_CREATION.md",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "assets/oc-beads/resources/ISSUE_CREATION.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Distinguish design from acceptance and capture resumption context; follow existing authorization. Use marketplace-main append-notes examples; remove redundant approval loops while preserving authority."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/MOLECULES.md",
+        "category": "resource",
+        "git_blob": "b1f380c876a3fc75ae3b50b8ec65e50e44bb9b46",
+        "sha256": "4dbadf02ef5c4ec585c3aef43fb28e440470b03151a6ff6b49e0c8d51dc9e0a9",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/MOLECULES.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "advanced-on-demand",
+          "target": "assets/oc-beads/resources/MOLECULES.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "On-demand recurring-work extension, dependent on selected formula/CLI compatibility."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/PATTERNS.md",
+        "category": "resource",
+        "git_blob": "151896571963d34be38ffa9d67f47706ed3eba53",
+        "sha256": "43a4fba53096b39ea55d7a00488fe17e0fc74d5867fff2cfe4447f81327e4ac9",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/PATTERNS.md",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "assets/oc-beads/resources/PATTERNS.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Preserve hypotheses, decisions, blocker and closure patterns; replace MCP examples and unnecessary approval loops. Use marketplace-main append-notes examples; remove redundant approval loops while preserving authority."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/RESUMABILITY.md",
+        "category": "resource",
+        "git_blob": "0cf0b257867fbd720cae652ad076e28154ca47d8",
+        "sha256": "8a7db4e967ace1b4f60dc85e3fb2d02f70749a18056fe90c61b2685bb172d7df",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/RESUMABILITY.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "assets/oc-beads/resources/RESUMABILITY.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Preserve tested examples, failures, rationale and next action proportionate to task; no raw dumps."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/STATIC_DATA.md",
+        "category": "resource",
+        "git_blob": "749dde96056c46c6ab3b90b78c9ec9bcf5ec174c",
+        "sha256": "610aca9de9cd7ff7bddeb636dd62f7b4b1e3b52694e90ed8c93639e4f17664c6",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/STATIC_DATA.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "advanced-on-demand",
+          "target": "assets/oc-beads/resources/STATIC_DATA.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Reference-database pattern is on-demand; use project memory for reusable knowledge rather than open issues as a glossary by default."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/TROUBLESHOOTING.md",
+        "category": "resource",
+        "git_blob": "171dd05f1d001cf19941b8944a457be845e468fb",
+        "sha256": "93dfa0a143a1117de111652cef340ca893e699d91875472d7968160388fa4c77",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/TROUBLESHOOTING.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "replace",
+          "group": "core-daily",
+          "target": "assets/oc-beads/resources/TROUBLESHOOTING.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Curate current CLI/guard failure recovery; stale server/export/import advice must not become automatic repair."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/WORKFLOWS.md",
+        "category": "resource",
+        "git_blob": "2a6d84097a9d510977c3eb8c58140c072f617f58",
+        "sha256": "33edff82ae0badba1100e4388d19e8a42058a104d7fade470dbac9868f02e56c",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/WORKFLOWS.md",
+        "release_delta": "modified",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "core-daily",
+          "target": "assets/oc-beads/resources/WORKFLOWS.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "Checkpoint and recovery triggers; resolve approval-on-every-handoff and historical replacement-notes examples with existing authorization and retained learning. Use marketplace-main append-notes examples; remove redundant approval loops while preserving authority. Current WORKFLOWS line 368 still says overwrite rather than append; correct that conflicting prose, not just examples."
+        }
+      },
+      {
+        "path": "plugins/beads/skills/beads/resources/WORKTREES.md",
+        "category": "resource",
+        "git_blob": "69178e9393c4e55437e748b96a2e72b3f421ad4a",
+        "sha256": "eb29be5ec2b1d645dbfe583cfc35b06063cfed8670fc76ba276987b486828cff",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/WORKTREES.md",
+        "release_delta": "unchanged",
+        "selected_mapping": {
+          "disposition": "adapt",
+          "group": "advanced-on-demand",
+          "target": "assets/oc-beads/resources/WORKTREES.md",
+          "task_ids": [
+            "2.1"
+          ],
+          "reason": "On-demand workspace routing and ownership guidance; no automatic worktree creation or store initialization."
+        }
       }
     ]
   }

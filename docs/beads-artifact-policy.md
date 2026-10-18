@@ -1,6 +1,6 @@
 # Beads Artifact Policy
 
-Status: current implementation policy, under review in the [full integration decision packet](claude-code-integration-analysis.md); no new adoption decision has been accepted. Revised for 1.0.0 by `opencode-beads-w5y`. The package vendors no upstream Beads artifacts. Earlier revisions were the OpenCode V2 port (`opencode-beads-2zs`), the 0.9.0 contract (`opencode-beads-98l`), and the retired 0.8.0 companion lifecycle decision.
+Status: current implementation policy, under review in the [full integration decision packet](claude-code-integration-analysis.md); owner selections for an opt-in beta/next redesign are recorded, but no product implementation has occurred. Revised for 1.0.0 by `opencode-beads-w5y`. The package vendors no upstream Beads artifacts. Earlier revisions were the OpenCode V2 port (`opencode-beads-2zs`), the 0.9.0 contract (`opencode-beads-98l`), and the retired 0.8.0 companion lifecycle decision.
 
 ## Evidence
 
@@ -71,3 +71,9 @@ Any future upstream artifact proposed for inclusion must first show:
 - that it does not duplicate `bd prime` or the canonical skill;
 - deterministic validation, package-content tests, and failure behavior;
 - a documented owner and removal or upgrade path.
+
+## Selected beta/next planning exception (not implemented)
+
+The [owner record](../openspec/changes/improve-beads-workflow-parity/owner-decisions.md) selects package-owned `oc-beads` skill/resources, `oc-beads:<command>` workflows, N1 continuity tools and scope-bounded continuation on OpenCode `>=2.0.32 <3`. This is an opt-in redesign; the current implementation policies above remain historical/current-stable descriptions, not prohibitions against the selected future assets. No upstream shared skill or user file is overwritten, and bd remains executable/data owner. Delivery is complete through npm with native registration/disposal; no manual rich-skill installation.
+
+Source drift will reuse the existing scheduled check output with immutable marketplace-main comparisons across inventory roots/support paths, separately from stable CLI compatibility. No GitHub issues, issue-write permissions, automatic copying, baseline advancement or releases. Human review selects subsequent Beads execution work. This planning reconciliation does not edit the workflow or package.

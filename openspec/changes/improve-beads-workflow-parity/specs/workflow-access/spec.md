@@ -4,13 +4,13 @@
 
 Make selected Beads workflows discoverable and usable through native OpenCode capabilities while preserving project authority, explicit ownership and honest failure handling.
 
-The owner decision gate controls feature selection. These common proposed contracts do not approve any specific command set, skill installation, delegation default or extension. Selected mappings require revision and validation before implementation.
+Owner selections apply to the complete marketplace-main corpus: core workflows adapted, advanced guidance available on demand, supported administration accessible under normal permissions, and obsolete or host-specific content corrected/replaced. The inventory maps every member to native delivery; acceptance is still unexecuted.
 
 ## ADDED Requirements
 
 ### Requirement: Discoverable selected workflows
 
-Each owner-selected workflow SHALL have a documented native entry point that exposes its purpose and relevant supporting guidance. Advertised command and skill behavior SHALL match the installed implementation and available tools rather than assume absent MCP tools or unreachable resources.
+The package-owned `oc-beads` skill, all 15 resources and all 29 `oc-beads:<command>` entries (including documented replacements) SHALL have a documented native entry point that exposes its purpose and relevant supporting guidance. Advertised command and skill behavior SHALL match the installed implementation and available tools rather than assume absent MCP tools or unreachable resources.
 
 #### Scenario: User invokes a selected command
 
@@ -80,13 +80,12 @@ Selected workflows SHALL preserve the user's requested execution scope, distingu
 
 ### Requirement: Explicit native availability and fallback
 
-Before implementation, the owner gate SHALL record the recommended architecture bundle, selected minimum host, experimental dispositions and consequential fallback behavior against pinned released contracts. Development-only and unqualified runtime capabilities SHALL NOT be presented as released guarantees. Low-level mappings SHALL be supplied by the decision packet rather than left for the owner to design.
+The redesign SHALL use N1 with a minimum OpenCode 2.0.32 within the V2 line, through opt-in beta/next delivery. It SHALL NOT silently migrate stable consumers, promise future-major compatibility, or replace selected guarantees with N0. Concrete incompatibilities SHALL block the affected path with diagnostics pending resolution. Exact version/tag publication remains separately authorized.
 
-#### Scenario: Preferred typed operation needs a newer host
+#### Scenario: Host cannot satisfy N1
 
-- **WHEN** the preferred adapter requires plugin permission assertion unavailable at the existing minimum
-- **THEN** the owner chooses the recommended qualified minimum or the documented permissioned-CLI fallback before dependency changes
-- **AND** the fallback does not silently bypass authorization through privileged plugin execution
+- **WHEN** the host lacks the selected permission or lifecycle contract
+- **THEN** the integration reports the unsupported path and does not enable privileged fallback execution or silently weaken guarantees
 
 #### Scenario: Experimental capability is considered
 
@@ -99,3 +98,51 @@ Before implementation, the owner gate SHALL record the recommended architecture 
 - **WHEN** registrations are unloaded or a session moves, forks or is deleted
 - **THEN** the selected integration disposes or re-resolves affected state and observers without leaking task context across sessions or locations
 - **AND** it preserves user overrides and does not claim cleanup guarantees a final durable write
+
+### Requirement: Restricted-agent typed operation boundary
+
+Typed continuity tools SHALL inherit shell-based visibility/filtering and operation-specific allow/ask/deny behavior in direct and code-mode use. Assertions SHALL use actual invocation agent/session identity, canonical fixed-operation resources and narrowly scoped or absent saved grants. Effective location/external-access restrictions and guard holds SHALL be checked before process execution, including after approval waits. Unresolved equivalence SHALL prevent execution.
+
+#### Scenario: Agent wholly denies shell
+
+- **WHEN** a restricted agent's effective rules wholly deny shell
+- **THEN** write-capable continuity tools are absent from its direct and code-mode tool inventory, not merely denied after selection
+
+#### Scenario: Invoking agent differs from session default
+
+- **WHEN** a typed operation is called by an agent with more restrictive rules than the session's default agent
+- **THEN** permission evaluation uses the invoking agent and does not broaden saved approvals to unrelated bd operations
+
+#### Scenario: External target or held workspace
+
+- **WHEN** a redirected workspace requires external access or a guard withholds store access
+- **THEN** the operation preserves the applicable restriction and refuses before spawning unless the required authority and target are established
+
+### Requirement: Authorized continuation without scope expansion
+
+Canonical execution SHALL allow continuation within an already-authorized batch or goal while retaining atomic claims and per-bead validation. Exact assignments SHALL stop without substitution. Discovery alone SHALL NOT authorize executing follow-up work. Cancellation, denied authority, exhausted scope or a blocker requiring a decision SHALL stop continuation; plugin events SHALL NOT restart it.
+
+#### Scenario: Exact assignment completes
+
+- **WHEN** the assigned bead is complete or cannot be acted on
+- **THEN** the workflow reports its evidence or blocker and returns without selecting another bead
+
+#### Scenario: Authorized batch has more work
+
+- **WHEN** one bead meets its acceptance and another actionable bead remains within the authorized batch
+- **THEN** the workflow may continue after recording evidence and claiming that bead atomically
+- **AND** newly discovered out-of-scope work remains a reported follow-up
+
+#### Scenario: Child result arrives after stop
+
+- **WHEN** a child completion races a deliberate stop
+- **THEN** the integration does not initiate renewed work or closure from the notification and preserves partial status for later authorized recovery
+
+### Requirement: Read-only native diagnostics
+
+The package SHALL expose effective discovery, compatibility, ownership conflicts and context/persistence status through a native status entry without opening a withheld store, changing configuration or exposing credentials. Diagnostics SHALL distinguish unavailable, failed, withheld and uncertain outcomes.
+
+#### Scenario: Discovery collision
+
+- **WHEN** a user customization prevents an owned entry from taking effect
+- **THEN** status identifies the collision and effective entry while preserving the customization
