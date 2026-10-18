@@ -36,5 +36,8 @@
 
 ## Workflow follow-up
 
+- [ ] 6.1 Implement selected upstream-source comparison and deduplicated review alerts, reusing the existing scheduled workflow where practical. Verify unchanged/added/deleted/renamed/modified paths, incomplete comparison, repeated alerts and explicit baseline advancement; isolate issue-write authority and prohibit automatic adaptation, package bump or release. This conditional product task remains behind section 2.
+- [ ] 6.2 Reconcile E01/E05/N2 scope decisions before implementation: distinguish atomic claims from invocation scope; recommend exact-assignment stopping and authorized batch/goal continuation; qualify both modes, discovery without scope expansion and cancellation/permission stops. No current default changes are authorized.
+
 - Beads execution tracking is separate and was reconciled by parent; no tracking store changes or hold resolution are part of this research. Future implementation still needs its own authorization.
 - Archive only after accepted implementation and qualification are complete and archival is requested. Keep rationale/source evidence in docs; synchronize only the touched behavioral contracts.

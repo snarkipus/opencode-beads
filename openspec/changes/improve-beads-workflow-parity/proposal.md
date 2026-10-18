@@ -11,6 +11,8 @@ The existing comparison established only the `bd setup claude` lifecycle target,
 - Propose common outcome contracts for durable work continuity and discoverable, authority-respecting workflow access. Concrete commands, skill packaging, routing defaults, bounded workers, Luna and guard/permission changes remain provisional until the gate and follow-on revision.
 - Recommend the source-backed N1 native continuity adapter with typed checkpoint/recall operations, awaited context/tool/compaction hooks, observational lifecycle events and D01+D04 package-owned commands/skill. Recommend 2.0.32 qualification and eventual minimum for permission assertion; N0 preserves 2.0.26 through ordinary permissioned CLI execution. Both remain owner decisions. Assess N2 continuation and X01–X09 experimental/adjacent options explicitly; no wholesale vendoring or predetermined catalog subset.
 - Qualify deterministic integration behavior separately from model-dependent recovery outcomes, controlling provider/model and installation-path confounds where feasible.
+- Add review-driven upstream drift detection for selected integration source paths against a reviewed release/commit baseline. Recommend scheduled path-scoped Git comparison, not a prescribed hash-map implementation. Alert maintainers without automatic repackaging or baseline advancement.
+- Reassess invocation scope separately from atomic claiming: recommend exact single-bead stopping plus explicitly authorized batch/goal continuation. Upstream repeats the ready-work cycle; universal one-bead termination remains a pending policy choice.
 
 ## Capabilities
 
@@ -18,6 +20,7 @@ The existing comparison established only the `bd setup claude` lifecycle target,
 
 - `work-continuity`: meaningful progress/learning preservation, relevant memory retrieval, cross-session recovery and delegated knowledge handoff, within existing authority.
 - `workflow-access`: discoverable approved workflows, coherent context/authority handling, and explicit ownership of selected native integration surfaces.
+- `upstream-review`: detect relevant upstream source changes and maintain an explicit human-reviewed baseline without automatic repackaging.
 
 ### Modified Capabilities
 

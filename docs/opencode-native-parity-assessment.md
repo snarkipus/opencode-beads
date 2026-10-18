@@ -12,6 +12,12 @@ Recommend **2.0.32 as the qualification and eventual minimum-host target** for N
 
 Matt should decide the consequential bundle (N1 vs N0), full-corpus grouped dispositions, continuation policy and N2/experimental adoption. Engineering owns the low-level mechanism mapping below unless qualification changes a consequential promise. Approval must identify the reviewed revision; nothing here records consent.
 
+## Additional owner discussion: upstream review and invocation scope
+
+The owner selected adding review-driven upstream drift alerts. Track selected source roots against an explicitly reviewed release/commit; recommend path-scoped Git comparison and deduplicated review issues through the existing scheduled workflow where practical. Detect source additions/deletions/renames as well as edits, distinguish comparison failure from no change, and advance the reviewed baseline only on explicit disposition. No automatic repackaging, package bump or release. See the `upstream-review` delta for the behavioral contract; a custom hash map is not required.
+
+The owner also questioned universal atomic-bead execution. The upstream task agent explicitly continues to newly ready work after completion. Atomic claiming and per-bead evidence do not require one-bead-per-invocation termination. Recommend scope-bounded execution: stop for an exact single-bead assignment, allow explicitly authorized batch/goal continuation, and never treat discovery itself as scope expansion. Preserve optional bounded mode for orchestrators or risky work; mandatory command-count delegation and invocation limits remain pending E01/E05/N2 choices, not assumed base requirements. This discussion does not authorize implementation or change defaults.
+
 ## Release provenance and availability
 
 The official [V2 documentation](https://opencode.ai/v2/docs) and [plugin guide](https://opencode.ai/v2/docs/build/plugins/) were checked alongside source and published npm declarations. Rolling docs are discovery evidence; pinned release call sites control availability claims here.
