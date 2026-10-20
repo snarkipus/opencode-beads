@@ -101,7 +101,7 @@ task_ids = [task_id for _, task_id in parsed_tasks]
 assert len(task_ids) == len(set(task_ids)) and task_ids
 # Source tasks have parent-accepted deterministic evidence; live gates remain unexecuted.
 accepted_tasks = {task_id for mark, task_id in parsed_tasks if mark.lower() == 'x'}
-assert accepted_tasks == {'1.2', '2.1', '3.1', '3.2'}, 'Only parent-accepted source tasks 1.2, 2.1, 3.1 and 3.2 may be checked'
+assert accepted_tasks == {'1.2', '2.1', '2.2', '3.1', '3.2', '3.3'}, 'Only parent-accepted source tasks 1.2, 2.1, 2.2, 3.1, 3.2 and 3.3 may be checked'
 # Final review B1: stable task IDs with dependency/types preparation first.
 assert task_ids.index('1.2') < task_ids.index('1.1')
 task_text = dict(re.findall(r'^- \[[ xX]\] (\d+\.\d+) (.+)$', tasks, re.M))

@@ -1,6 +1,16 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, mock, test } from "bun:test"
 import { existsSync, readFileSync } from "node:fs"
 import { relative, resolve, sep } from "node:path"
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import {
+  createBeadsCommands,
+  loadBeadsSkill,
+  WORKFLOWS,
+} from "../src/workflows";
+import type { Plugin } from "@opencode/plugin";
+import type { CommandInvocation } from "@opencode/plugin/promise/command";
 
 type InventoryEntry = {
 	category: string
@@ -207,3 +217,87 @@ describe("oc-beads guidance assets", () => {
 		expect(readResource("INTEGRATION_PATTERNS")).toMatch(/project.policy example[^.]*not[^.]*Beads requirement/is)
 	})
 })
+
+describe("packaged native workflows", () => {
+  test("defines exactly the selected inventory's 29 command stems plus status", async () => {
+    const inventory = await Bun.file("docs/claude-code-integration-inventory.json").json();
+    const selected = inventory.marketplace_main.files
+      .filter((file: { path: string }) => file.path.startsWith("plugins/beads/skills/beads/commands/"))
+      .map((file: { selected_mapping: { target: string } }) => file.selected_mapping.target).sort();
+    expect(Object.keys(WORKFLOWS).map((stem) => `oc-beads:${stem}`).sort()).toEqual(selected);
+    const commands = createBeadsCommands({ prompt: mock(async () => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>)) }, async () => "STATUS");
+    expect(commands.map((command) => command.name).sort()).toEqual([...selected, "oc-beads:status"].sort());
+  });
+
+  test("forwards literal arguments, attachments, prompt fields and native delivery without template execution", async () => {
+    const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
+    const input = {
+      sessionID: "s1", delivery: "queue",
+      prompt: { text: "a 'quoted' $ARGUMENTS $(touch nope) `literal`", files: [{ uri: "file:///tmp/a%20b", name: "a b" }], agents: [{ name: "build" }], skills: [{ id: "oc-beads" }] },
+    } as unknown as CommandInvocation;
+    for (const command of createBeadsCommands({ prompt }, async () => "STATUS: withheld")) {
+      await command.execute(input);
+      const sent = prompt.mock.calls.at(-1)![0] as Record<string, unknown>;
+      expect(sent.sessionID).toBe(input.sessionID);
+      expect(sent.delivery).toBe(input.delivery);
+      expect(sent.files).toBe(input.prompt.files);
+      expect(sent.agents).toBe(input.prompt.agents);
+      expect(sent.skills).toBe(input.prompt.skills);
+      expect(sent.text).toContain(input.prompt.text);
+      if (command.name !== "oc-beads:status") {
+        expect(sent.text).toContain("Do not bypass a hold");
+        expect(sent.text).toContain("oc-beads");
+        expect(sent.text).not.toContain("mcp__");
+      } else expect(sent.text).toContain("STATUS: withheld");
+    }
+  });
+
+  test("loads the rich skill at its installed path with all 16 explicit links, beyond a sampled ten", async () => {
+    const skill = await loadBeadsSkill();
+    expect(String(skill.id)).toBe("oc-beads");
+    expect(String(skill.name)).toBe("oc-beads");
+    expect(String(skill.path)).toBe(fileURLToPath(new URL("../assets/oc-beads/SKILL.md", import.meta.url)));
+    expect(skill.content).toContain("### Advanced");
+    const links = [...skill.content.matchAll(/\]\(((?:resources|adr)\/[^)]+)\)/g)].map((match) => match[1]!);
+    expect(new Set(links).size).toBe(16);
+    for (const link of links) expect(await readFile(new URL(link, `file://${skill.path}`), "utf8")).not.toBeEmpty();
+  });
+
+  test("reports missing or unreachable packaged guidance rather than silently advertising it", async () => {
+    const realRead = (file: string) => readFile(file, "utf8");
+    for (const code of ["ENOENT", "EACCES"]) {
+      await expect(loadBeadsSkill({ readText: async (file) => {
+        if (file.endsWith("WORKTREES.md")) throw Object.assign(new Error("sensitive detail"), { code });
+        return realRead(file);
+      } })).rejects.toThrow("resource-unreachable resources/WORKTREES.md");
+    }
+  });
+
+  test("package manifest includes owned assets without a version or dependency change", async () => {
+    const manifest = await Bun.file("package.json").json();
+    expect(manifest.files).toContain("assets/oc-beads");
+    expect(manifest.version).toBe("1.0.2");
+  });
+});
+
+
+test("explicit installed skill base survives ignored/hidden roots beyond the host scan depth and reload", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "oc-beads-path-"));
+  const installed = resolve(root, ".hidden/node_modules/a/b/c/d/e/f/g/oc-beads");
+  try {
+    await mkdir(installed, { recursive: true });
+    await cp(assetRoot, installed, { recursive: true });
+    const path = resolve(installed, "SKILL.md");
+    const first = await loadBeadsSkill({ skillPath: path });
+    expect(String(first.path)).toBe(path);
+    expect(first.content).toContain("resources/WORKTREES.md");
+    await writeFile(path, `${await readFile(path, "utf8")}\nReloaded package fixture.\n`);
+    const reloaded = await loadBeadsSkill({ skillPath: path });
+    expect(reloaded.content).toContain("Reloaded package fixture.");
+    // Explicit registration supplies SKILL.md; it never asks a recursive scanner or
+    // resource watcher to discover the other 16 files. Reads still use host permissions.
+    expect(reloaded.content.match(/\]\((?:resources|adr)\//g)).toHaveLength(16);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

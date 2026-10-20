@@ -60,10 +60,11 @@ Selected integration surfaces SHALL document who installs, updates and removes t
 
 #### Scenario: User customizes an installed workflow
 
-- **WHEN** an integration update or removal encounters a user-modified or colliding artifact
-- **THEN** it preserves that customization and reports the conflict or documented override behavior
+- **WHEN** an integration update or removal encounters user configuration, file commands or a colliding artifact
+- **THEN** it preserves user-owned files and ordinary configuration/file command overrides through native post-ordered precedence on initial load and rebuild
 - **AND** does not remove unrelated commands, skills or configuration
-- **AND** withholds and diagnoses affected colliding entries where possible if preservation cannot be established across rebuilds; documented override behavior does not authorize overwriting user commands
+- **AND** registers all selected namespaced commands without setup-time withholding; same-name conflicts with other plugin transforms follow native order, with detectable conflicts diagnosed rather than a promise of universal collision prevention
+- **AND** removing a user override restores the package entry through native rebuild; skill candidate collisions use the public per-rebuild editor check rather than a permanent setup-time gate
 
 ### Requirement: Scope-preserving execution and visible failure
 
@@ -172,4 +173,6 @@ The package SHALL expose effective discovery, compatibility, ownership conflicts
 #### Scenario: Discovery collision
 
 - **WHEN** a user customization prevents an owned entry from taking effect
-- **THEN** status identifies the collision and effective entry while preserving the customization
+- **THEN** status reports effective names/descriptions and detectable overrides while preserving native user-config precedence
+- **AND** a description mismatch may identify an override but SHALL NOT be presented as proof of ownership; public owner identity and identical-description overrides remain unobservable and are disclosed
+- **AND** command registration status reflects actual registration and lookup outcomes rather than an obsolete blanket hold

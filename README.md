@@ -11,6 +11,10 @@
 
 This is an independent project maintained by Matt Jackson under the MIT license. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. 1.0 rebuilt the plugin for OpenCode 2, and development now continues here independently. It vendors nothing from upstream Beads; instead, every Beads release is checked against the `bd` behavior the plugin relies on (see [Tracking upstream Beads](#tracking-upstream-beads)).
 
+This branch contains an unfinished **beta/next source candidate**, separate from the published 1.0.2 behavior described below. Its package includes `assets/oc-beads/` and explicitly registers the `oc-beads` skill at the installed package path, with all 15 resources and ADR linked from that base. No manual skill copy is needed. The external `bd` CLI and project initialization remain prerequisites; the plugin does not install or upgrade them.
+
+The candidate registers all 29 selected `oc-beads:<stem>` workflows and `oc-beads:status` through one ordinary native command transform. Ordinary user configuration/file commands run later and win on initial load and rebuild; removing an override restores the package definition. Other plugin conflicts follow native ordering, with initial collisions diagnosed rather than withheld. Status reports registration and effective name/description mismatches; public owner identity and identical-description overrides are unobservable, and matching descriptions do not prove ownership. Typed continuity execution remains withheld pending separate live task 1.1. These source/package fixtures do not qualify live discovery, namespace dispatch or model behavior. No activation option, version bump or publication is supplied by this source work.
+
 ## Design
 
 The plugin's primary design is **context-preserving atomic delegation**:
@@ -31,7 +35,7 @@ This plugin requires OpenCode 2 and `bd` 1.3.0 or later. This source branch prep
    bd init
    ```
 
-   `bd init` owns project initialization and creates the canonical shared Beads skill at `.agents/skills/beads`, which OpenCode discovers. It also writes a minimal Beads section to `AGENTS.md` that points to `bd prime`, the same pointer Beads gives Claude Code in `CLAUDE.md`. This plugin has no separate skill lifecycle and does not write startup files.
+   `bd init` owns project initialization and creates the canonical shared Beads skill at `.agents/skills/beads`, which OpenCode discovers. It also writes a minimal Beads section to `AGENTS.md` that points to `bd prime`, the same pointer Beads gives Claude Code in `CLAUDE.md`. The published stable package relies on that shared skill. The beta/next source candidate additionally owns its packaged `oc-beads` skill; it does not write startup files or change `.agents/skills/beads/SKILL.md`.
 
 2. Add the version-pinned plugin to `~/.config/opencode/opencode.json` for every project, or to a project's `.opencode/opencode.json`:
 
@@ -101,13 +105,19 @@ If `bd` is unavailable or the project is uninitialized, nothing is added. If `bd
 
 Beads 1.3 migrates an embedded store in place, irreversibly, the first time any command opens it, and `bd --readonly` does not prevent that. Because this plugin runs `bd prime` automatically, it would otherwise be the unattended first command after you upgrade `bd`.
 
-Before running prime, the plugin checks `bd version` and `bd where --json`, which never open the store, and reads `.beads/.local_version`. If the installed `bd` is older than 1.3.0, or the store was last opened by an older `bd`, the plugin withholds prime and gives the agent a notice telling it not to run `bd` and to ask you to act. To proceed, back up the `.beads` directory and run `bd migrate schema`; the plugin picks up the change on its next retry. Setting the `autoMigrate` option skips the store-version check.
+Before running prime, the plugin checks `bd version` and the configuration-only `bd context --json` probe, which do not open the store, and reads `.beads/.local_version`. If the installed `bd` is older than 1.3.0, or the store was last opened by an older `bd`, the plugin withholds prime and gives the agent a notice telling it not to run `bd` and to ask you to act. To proceed, back up the `.beads` directory and run `bd migrate schema`; the plugin picks up the change on its next retry. Setting the `autoMigrate` option skips the store-version check.
 
 `bd prime` itself does not update `.beads/.local_version`. A store migrated only by prime keeps the old marker until you run `bd migrate schema` (or any ordinary `bd` command), which is safe and idempotent.
 
 ## Beads workflows
 
-The plugin registers no slash commands; `bd setup claude` installs none either. Ask the agent to work with Beads, have it load the canonical `beads` skill that `bd init` installs at `.agents/skills/beads` (OpenCode lists it and loads it with its `skill` tool), or use the `bd` CLI and the generated [Beads CLI reference](https://beads.gascity.com/cli-reference/index) directly. Versions before 1.0.0 shipped `/beads:*` commands adapted from upstream's Claude Code plugin; they duplicated `bd prime` and the skill.
+Published stable 1.0.2 registers no slash commands; `bd setup claude` installs none either. Ask the agent to work with Beads, have it load the canonical `beads` skill that `bd init` installs at `.agents/skills/beads` (OpenCode lists it and loads it with its `skill` tool), or use the `bd` CLI and the generated [Beads CLI reference](https://beads.gascity.com/cli-reference/index) directly. Versions before 1.0.0 shipped `/beads:*` commands adapted from upstream's Claude Code plugin; they duplicated `bd prime` and the skill.
+
+## Removal and customization in the source candidate
+
+Remove the plugin's `plugins` entry to unload it. Cleanup aborts owned context/process work and its event observer, then awaits the scoped agent, skill, tool and hook disposers. It is idempotent and reports disposal failures. It never promises a final checkpoint after interruption. Reload starts with fresh session/location state. Package updates/removal belong to OpenCode's package lifecycle; this plugin has no installer or recursive asset watcher.
+
+Existing `oc-beads` skill IDs or names are checked and diagnosed in each rebuilt candidate; removing a customization allows the packaged skill to return. There is no permanent setup-time skill gate. Ordinary user configuration/file commands retain their later native precedence; same-name other-plugin conflicts follow native order rather than universal collision prevention. Disposing a registration removes only the package's transform; it does not delete user command/skill bodies, shared Beads skills, project data, startup files or global settings. Do not delete those files as plugin cleanup. Installed resource reads still require normal host permissions: external-directory ask/deny and actual model use remain unexecuted live acceptance checks. Missing/unreadable packaged guidance is diagnosed and its skill is withheld.
 
 ## Agent configuration
 

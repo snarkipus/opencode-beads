@@ -245,3 +245,17 @@ describe("context controller", () => {
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toContain("SECOND");
   });
 });
+
+test("pending context is distinguishable from missing context for read-only diagnostics", async () => {
+  let release: (value: string) => void = () => {};
+  const f = fixture({ prime: async () => new Promise<string>((resolve) => { release = resolve; }) });
+  expect(f.controller.statusFor("s1", "primary")).toBeUndefined();
+  const pending = f.controller.systemFor("s1", "build");
+  for (let index = 0; index < 5; index++) await Promise.resolve();
+  expect(f.controller.statusFor("s1", "primary")).toBe("loading");
+  release("PRIME");
+  await pending;
+  expect(f.controller.statusFor("s1", "primary")).toBe("ready");
+  f.controller.dispose();
+  expect(f.controller.statusFor("s1", "primary")).toBeUndefined();
+});

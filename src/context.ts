@@ -16,7 +16,7 @@ export const DEFAULT_IDLE_REFRESH_MS = 30 * 60_000;
 export type AgentMode = "primary" | "subagent" | "all";
 export type ContextAudience = "primary" | "task-agent";
 export type ContextDiagnostic = "agent_lookup_failed" | "guard_failed" | "prime_failed" | "prime_timeout";
-export type ContextStatus = "missing" | "withheld" | "failed" | "empty" | "ready";
+export type ContextStatus = "loading" | "missing" | "withheld" | "failed" | "empty" | "ready";
 
 export interface ContextRuntime {
   guard(directory: string, signal?: AbortSignal): Promise<GuardResult>;
@@ -164,7 +164,7 @@ export function createContextController(
       }
 
       cached?.abort.abort();
-      const entry: CacheEntry = { value: Promise.resolve(undefined), lastUsed: current, abort: new AbortController() };
+      const entry: CacheEntry = { value: Promise.resolve(undefined), lastUsed: current, abort: new AbortController(), status: "loading" };
       entry.value = load(sessionID, audience, entry);
       cache.set(key, entry);
       return entry.value;

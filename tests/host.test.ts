@@ -5,6 +5,7 @@ import path from "node:path";
 import * as pluginModule from "../src/plugin";
 import { renderBeadsContext } from "../src/context";
 import { setupBeads, type HostContext } from "../src/host";
+import type { CommandDefinition, CommandInvocation } from "@opencode/plugin/promise/command";
 import type { ContinuityHost } from "../src/continuity";
 import type { Info, ToolContext } from "@opencode/plugin/promise/tool";
 import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
@@ -494,4 +495,329 @@ describe("setupBeads", () => {
     expect(warn).toHaveBeenCalledTimes(2);
     cleanup();
   });
+});
+
+/** Replay only the public add callbacks in native package/config order. */
+function commandFixture(f: ReturnType<typeof fakeContext>) {
+  type Editor = { add(definition: CommandDefinition): void };
+  const callbacks: Array<(editor: Editor) => void> = [];
+  const initial: CommandDefinition = { name: "oc-beads:ready", description: "EARLIER PLUGIN", execute: async () => {} };
+  let lookupFailed = false;
+  let omitted: string | undefined;
+  const commands = () => {
+    const result = new Map([[initial.name, initial]]);
+    for (const callback of callbacks) callback({ add: (definition) => result.set(definition.name, definition) });
+    return result;
+  };
+  const transform = mock(async (callback: (editor: Editor) => void) => {
+    callbacks.push(callback);
+    commands();
+    return { dispose: async () => { callbacks.splice(callbacks.indexOf(callback), 1); } };
+  });
+  const prompt = mock(async (_input: Record<string, unknown>) => ({}));
+  Object.assign(f.ctx, { command: {
+    transform,
+    list: async () => {
+      if (lookupFailed) throw new Error("lookup failed");
+      return { data: [...commands().values()].filter((entry) => entry.name !== omitted).map(({ name, description }) => ({ name, description })) };
+    },
+  } });
+  Object.assign(f.ctx.session, { prompt, get: async () => ({ agent: "build", location: { directory: "/project" } }) });
+  const invocation = { sessionID: "s1", delivery: "queue", prompt: {
+    text: "literal '$ARGUMENTS' $(touch nope) `text`", files: [{ uri: "file:///tmp/a%20b" }],
+    agents: [{ name: "build" }], skills: [{ id: "oc-beads" }],
+  } } as unknown as CommandInvocation;
+  return { callbacks, commands, transform, prompt, invocation,
+    failLookup: (failed: boolean) => { lookupFailed = failed; },
+    omit: (name?: string) => { omitted = name; },
+  };
+}
+
+describe("owned workflow registration", () => {
+  test("registers all commands despite initial collisions; config wins on rebuild, removal restores and disposal preserves config", async () => {
+    const f = fakeContext();
+    const c = commandFixture(f);
+    const warns: string[] = [];
+    const cleanup = await setupBeads(f.ctx, { warn: (message) => warns.push(message) });
+    expect(c.transform).toHaveBeenCalledTimes(1);
+    expect(c.commands().size).toBe(30);
+    expect(warns.join("\n")).toContain("command-collision");
+    expect(warns.join("\n")).toContain("native precedence");
+    const packageCallback = c.callbacks[0]!;
+    const ready = c.commands().get("oc-beads:ready")!;
+    await ready.execute(c.invocation);
+    const sent = c.prompt.mock.calls.at(-1)![0];
+    expect(sent.text).toContain(c.invocation.prompt.text);
+    expect(sent.files).toBe(c.invocation.prompt.files);
+    expect(sent.agents).toBe(c.invocation.prompt.agents);
+    expect(sent.skills).toBe(c.invocation.prompt.skills);
+    expect(sent.delivery).toBe(c.invocation.delivery);
+    const user = { name: ready.name, description: "USER CONFIG", execute: mock(async () => {}) };
+    const config = (editor: { add(definition: CommandDefinition): void }) => editor.add(user);
+    c.callbacks.push(config);
+    expect(c.commands().get(ready.name)).toBe(user);
+    await c.commands().get(ready.name)!.execute(c.invocation);
+    expect(user.execute).toHaveBeenCalledTimes(1);
+    c.callbacks.splice(c.callbacks.indexOf(config), 1);
+    expect(c.commands().get(ready.name)).toBe(ready);
+    c.callbacks.push(config);
+    await cleanup();
+    expect(c.callbacks).toEqual([config]);
+    expect(c.commands().get(ready.name)).toBe(user);
+    expect(c.commands().has("oc-beads:status")).toBe(false);
+    const add = mock((_definition: CommandDefinition) => {});
+    packageCallback({ add });
+    expect(add).not.toHaveBeenCalled();
+    await expect(ready.execute(c.invocation)).rejects.toThrow("unloaded");
+    expect(f.events.aborted()).toBe(true);
+  });
+
+  test("registers after an initial lookup failure and reports observable mismatches, missing names and ownership blind spots", async () => {
+    const f = fakeContext();
+    const c = commandFixture(f);
+    c.failLookup(true);
+    const cleanup = await setupBeads(f.ctx, { warn: () => {}, runtime: { guard: async () => ({ kind: "ready" }) } });
+    expect(c.transform).toHaveBeenCalledTimes(1);
+    c.failLookup(false);
+    const ready = c.commands().get("oc-beads:ready")!;
+    const status = c.commands().get("oc-beads:status")!;
+    const report = async () => {
+      await status.execute(c.invocation);
+      const text = String(c.prompt.mock.calls.at(-1)![0].text);
+      return JSON.parse(text.split("\n")[1]!);
+    };
+    let observed = await report();
+    expect(observed.commands.registration).toBe("registered");
+    expect(observed.commands.lookup).toBe("available");
+    expect(observed.commands.ownership).toContain("unavailable");
+    expect(observed.commands.ownership).toContain("identical-description");
+    expect(observed.commands.ownership).toContain("do not prove ownership");
+    c.callbacks.push((editor) => editor.add({ ...ready, description: "USER DESCRIPTION" }));
+    observed = await report();
+    expect(observed.commands.mismatches).toContainEqual({ name: ready.name, expectedDescription: ready.description, effectiveDescription: "USER DESCRIPTION" });
+    expect(observed.commands.effective).toContainEqual({ name: ready.name, description: "USER DESCRIPTION" });
+    c.callbacks.push((editor) => editor.add({ ...ready, execute: async () => {} }));
+    expect((await report()).commands.mismatches).toEqual([]);
+    c.omit("oc-beads:show");
+    expect((await report()).commands.missing).toEqual(["oc-beads:show"]);
+    c.failLookup(true);
+    observed = await report();
+    expect(observed.commands.lookup).toBe("failed");
+    expect(observed.commands.effective).toBe("unknown: registry lookup failed");
+    expect(observed.commands.mismatches).toBeUndefined();
+    await cleanup();
+  });
+
+  test("skill checks each candidate without an initial list gate and restores a disappearing override", async () => {
+    const f = fakeContext();
+    type Skill = { id: string; name: string; path: string; content: string };
+    const custom = { id: "oc-beads", name: "oc-beads", path: "/user/SKILL.md", content: "USER" };
+    let before: Skill | undefined = custom;
+    let after: Skill | undefined;
+    const skills = new Map<string, Skill>();
+    const callbacks: Array<(editor: unknown) => void> = [];
+    const rebuild = () => {
+      skills.clear();
+      if (before) skills.set(before.id, before);
+      const editor = { list: () => [...skills.values()], add: (skill: Skill) => skills.set(skill.id, skill) };
+      for (const callback of callbacks) callback(editor);
+      if (after) skills.set(after.id, after);
+    };
+    const list = mock(async () => { throw new Error("setup must not gate on list"); });
+    Object.assign(f.ctx, { skill: { list, transform: async (callback: (editor: unknown) => void) => {
+      callbacks.push(callback); rebuild();
+      return { dispose: async () => { callbacks.splice(callbacks.indexOf(callback), 1); rebuild(); } };
+    } } });
+    const cleanup = await setupBeads(f.ctx, { warn: () => {} });
+    expect(list).not.toHaveBeenCalled();
+    expect(callbacks).toHaveLength(1);
+    expect(skills.get("oc-beads")).toBe(custom);
+    before = undefined; rebuild();
+    expect(skills.get("oc-beads")?.content).toContain("Beads work in OpenCode");
+    after = custom; rebuild();
+    expect(skills.get("oc-beads")).toBe(custom);
+    after = undefined; rebuild();
+    expect(skills.get("oc-beads")?.content).toContain("Beads work in OpenCode");
+    const callback = callbacks[0]!;
+    after = custom;
+    await cleanup();
+    expect(skills.get("oc-beads")).toBe(custom);
+    const add = mock((_skill: Skill) => {});
+    callback({ list: () => [], add });
+    expect(add).not.toHaveBeenCalled();
+  });
+});
+
+describe("owned lifecycle", () => {
+  test("awaits idempotent cleanup of every owned registration and aborts pending context", async () => {
+    const f = fakeContext();
+    const disposed: string[] = [];
+    const completed: string[] = [];
+    const own = (name: string) => ({ dispose: async () => {
+      disposed.push(name);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      completed.push(name);
+    } });
+    const originalAgent = f.ctx.agent.transform;
+    const transform: HostContext["agent"]["transform"] = async (callback) => { await originalAgent(callback); return own("agent"); };
+    Object.assign(f.ctx.agent, { transform });
+    const originalHook = f.ctx.session.hook;
+    const hook: HostContext["session"]["hook"] = async (name, callback) => { await originalHook(name, callback); return own(`hook:${name}`); };
+    Object.assign(f.ctx.session, { hook });
+    Object.assign(f.ctx, {
+      skill: { list: async () => ({ data: [] }), transform: async (callback: (editor: unknown) => void) => { callback({ list: () => [], add: () => {} }); return own("skill"); } },
+      tool: { transform: async () => own("tool"), hook: async () => own("tool-hook") },
+      permission: { assert: async () => {} },
+    });
+    Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
+    let signal: AbortSignal | undefined;
+    let release: (value: string) => void = () => {};
+    const cleanup = await setupBeads(f.ctx, { continuityQualified: true, runtime: {
+      guard: async () => ({ kind: "ready" }),
+      prime: async (_cwd, abortSignal) => { signal = abortSignal; return new Promise<string>((resolve) => { release = resolve; }); },
+    } });
+    const pending = f.request("s1", "build");
+    await settle();
+    await cleanup();
+    expect(signal?.aborted).toBe(true);
+    expect(f.events.aborted()).toBe(true);
+    expect(completed.sort()).toEqual(["agent", "skill", "tool", "hook:context", "hook:compaction", "tool-hook"].sort());
+    release("LATE OLD LOCATION");
+    expect(await pending).toEqual([]);
+    await cleanup();
+    expect(disposed).toHaveLength(6);
+  });
+
+  test("releases earlier owned registrations if a later setup seam fails", async () => {
+    const f = fakeContext();
+    const disposed = mock(async () => {});
+    const originalAgent = f.ctx.agent.transform;
+    const transform: HostContext["agent"]["transform"] = async (callback) => { await originalAgent(callback); return { dispose: disposed }; };
+    Object.assign(f.ctx.agent, { transform });
+    Object.assign(f.ctx.session, { hook: async () => { throw new Error("host hook failed"); } });
+    await expect(setupBeads(f.ctx)).rejects.toThrow("host hook failed");
+    expect(disposed).toHaveBeenCalledTimes(1);
+  });
+});
+
+test("missing packaged guidance is withheld with honest diagnostics", async () => {
+  const transform = mock(async () => ({ dispose: async () => {} }));
+  const warnings: string[] = [];
+  const missing = fakeContext();
+  Object.assign(missing.ctx, { skill: { list: async () => ({ data: [] }), transform } });
+  const missingCleanup = await setupBeads(missing.ctx, {
+    warn: (message) => warnings.push(message),
+    workflowAssets: { readText: async () => { throw new Error("sensitive exception content"); } },
+  });
+  expect(transform).not.toHaveBeenCalled();
+  expect(warnings.some((warning) => warning.includes("skill-unreachable SKILL.md"))).toBe(true);
+  expect(warnings.join("\n")).not.toContain("sensitive exception content");
+  await missingCleanup();
+});
+
+test("cleanup attempts every owned disposer and reports a failed disposal", async () => {
+  const f = fakeContext();
+  const warn = mock((_message: string) => {});
+  const disposed = mock(async () => {});
+  const transform: HostContext["agent"]["transform"] = async () => ({ dispose: async () => { throw new Error("dispose failed"); } });
+  Object.assign(f.ctx.agent, { transform });
+  const originalHook = f.ctx.session.hook;
+  const hook: HostContext["session"]["hook"] = async (name, callback) => { await originalHook(name, callback); return { dispose: disposed }; };
+  Object.assign(f.ctx.session, { hook });
+  const cleanup = await setupBeads(f.ctx, { warn });
+  await expect(cleanup()).rejects.toThrow("Beads cleanup failed");
+  expect(disposed).toHaveBeenCalledTimes(2);
+  expect(warn.mock.calls.flat().join("\n")).toContain("cleanup-failed");
+  expect(f.events.aborted()).toBe(true);
+});
+
+test("registered status distinguishes missing, held, failed, loading and uncertain context using only config probes", async () => {
+  const f = fakeContext({ pluginOptions: { autoMigrate: true } });
+  const c = commandFixture(f);
+  let time = 0;
+  let version = "1.3.1";
+  let probe: "missing" | "failed" | "ready" = "missing";
+  const bd = mock(async (_directory: string, args: readonly string[]) => {
+    if (args.join(" ") === "version") return `bd ${version}`;
+    if (args.join(" ") === "context --json") {
+      if (probe === "failed") throw new Error("probe failed");
+      return JSON.stringify({ beads_dir: probe === "ready" ? "/unused-fixture/.beads" : "" });
+    }
+    throw new Error("unexpected store-opening probe");
+  });
+  let release: (text: string) => void = () => {};
+  const prime = mock(async () => new Promise<string>((resolve) => { release = resolve; }));
+  const cleanup = await setupBeads(f.ctx, { bd, runtime: { prime }, now: () => time, retryMs: 1, warn: () => {} });
+  const status = c.commands().get("oc-beads:status")!;
+  const report = async () => {
+    await status.execute(c.invocation);
+    return JSON.parse(String(c.prompt.mock.calls.at(-1)![0].text).split("\n")[1]!);
+  };
+  expect((await report()).context).toBe("missing: not loaded");
+  await f.request("s1", "build");
+  expect((await report()).context).toBe("missing");
+  version = "1.2.0"; time += 2;
+  await f.request("s1", "build");
+  expect((await report()).context).toBe("withheld");
+  version = "1.3.1"; probe = "failed"; time += 2;
+  await f.request("s1", "build");
+  const failed = await report();
+  expect(failed.context).toBe("failed");
+  expect(failed.guard.kind).toBe("probe-failed");
+  expect(prime).not.toHaveBeenCalled();
+  probe = "ready"; time += 2;
+  const pending = f.request("s1", "build");
+  await settle();
+  expect((await report()).context).toBe("uncertain: context refresh in progress");
+  release("PRIME");
+  await pending;
+  expect((await report()).context).toBe("ready");
+  expect(prime).toHaveBeenCalledTimes(1);
+  f.events.push({ type: "session.execution.interrupted", data: { sessionID: "s1" } });
+  await settle();
+  expect((await report()).persistence).toContain("no final checkpoint");
+  Object.assign(f.ctx.session, { get: async () => { throw new Error("unknown location"); } });
+  const count = bd.mock.calls.length;
+  const unknown = await report();
+  expect(unknown.context).toBe("uncertain: session lookup failed");
+  expect(unknown.guard.kind).toBe("withheld");
+  expect(unknown.persistence).toContain("uncertain: no final-write guarantee");
+  expect(bd).toHaveBeenCalledTimes(count);
+  expect(new Set(bd.mock.calls.map(([, args]) => args.join(" ")))).toEqual(new Set(["version", "context --json"]));
+  await cleanup();
+});
+
+test("unload aborts an in-flight native status without submitting a late prompt", async () => {
+  const f = fakeContext();
+  const c = commandFixture(f);
+  let signal: AbortSignal | undefined;
+  let release: () => void = () => {};
+  const cleanup = await setupBeads(f.ctx, { warn: () => {}, runtime: {
+    guard: async (_directory, abortSignal) => {
+      signal = abortSignal;
+      await new Promise<void>((resolve) => { release = resolve; });
+      return { kind: "ready" };
+    },
+  } });
+  const pending = c.commands().get("oc-beads:status")!.execute(c.invocation);
+  await settle();
+  await cleanup();
+  expect(signal?.aborted).toBe(true);
+  release();
+  await expect(pending).rejects.toThrow("unloaded");
+  expect(c.prompt).not.toHaveBeenCalled();
+});
+
+test("a failed native command registration diagnoses failure and releases earlier owned registrations", async () => {
+  const f = fakeContext();
+  commandFixture(f);
+  const disposed = mock(async () => {});
+  const original = f.ctx.agent.transform;
+  const transform: HostContext["agent"]["transform"] = async (callback) => { await original(callback); return { dispose: disposed }; };
+  Object.assign(f.ctx.agent, { transform });
+  Object.assign(f.ctx.command!, { transform: async () => { throw new Error("native registration failed"); } });
+  const warnings: string[] = [];
+  await expect(setupBeads(f.ctx, { warn: (message) => warnings.push(message) })).rejects.toThrow("native registration failed");
+  expect(warnings.join("\n")).toContain("command-registration-failed");
+  expect(disposed).toHaveBeenCalledTimes(1);
 });

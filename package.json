@@ -43,6 +43,7 @@
   },
   "files": [
     "src",
+    "assets/oc-beads",
     "README.md",
     "LICENSE"
   ],

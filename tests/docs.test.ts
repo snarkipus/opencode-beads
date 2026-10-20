@@ -70,7 +70,7 @@ describe("documentation contracts", () => {
       "bd init",
       "creates the canonical shared Beads skill",
       "`.agents/skills/beads`",
-      "This plugin has no separate skill lifecycle",
+      "The beta/next source candidate additionally owns its packaged `oc-beads` skill",
       "does not write startup files",
       "Update the pin explicitly when upgrading",
       "**Do not run `bd setup opencode`.**",

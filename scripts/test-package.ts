@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { CommandDefinition, CommandInvocation } from "@opencode/plugin/promise/command";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -110,7 +111,7 @@ try {
   }
   if (
     JSON.stringify(manifest.files) !==
-    JSON.stringify(["src", "README.md", "LICENSE"])
+    JSON.stringify(["src", "assets/oc-beads", "README.md", "LICENSE"])
   ) {
     throw new Error("Packed package has an unexpected files contract");
   }
@@ -135,7 +136,7 @@ try {
   }
 
   const expectedPackedFiles = ["LICENSE", "README.md", "package.json"];
-  for (const directory of ["src"]) {
+  for (const directory of ["src", "assets/oc-beads"]) {
     expectedPackedFiles.push(
       ...(await filesBelow(path.join(projectDir, directory))).map((file) => `${directory}/${file}`)
     );
@@ -166,6 +167,34 @@ try {
     throw new Error("Packed package does not default-export the OpenCode V2 plugin definition");
   }
 
+  // Inspect the unpacked installed base, not the repository's assets. node_modules is
+  // ignored by host discovery, so this also exercises explicit package registration.
+  const workflows = await import(pathToFileURL(path.join(packageDir, "src/workflows.ts")).href);
+  const installedSkill = await workflows.loadBeadsSkill();
+  const installedSkillPath = path.join(packageDir, "assets/oc-beads/SKILL.md");
+  if (installedSkill.path !== installedSkillPath) throw new Error("Skill path escaped the installed package base");
+  const links = [...installedSkill.content.matchAll(/\]\(((?:resources|adr)\/[^)]+)\)/g)]
+    .map((match) => (match as RegExpMatchArray)[1]!);
+  if (new Set(links).size !== 16) throw new Error("Packed skill must explicitly link all 16 supporting resources");
+  for (const link of links) {
+    const resource = path.resolve(path.dirname(installedSkillPath), link);
+    const relative = path.relative(packageDir, resource);
+    const installed = await fs.readFile(resource);
+    const source = await fs.readFile(path.join(projectDir, relative));
+    if (!installed.equals(source)) throw new Error(`Packed resource differs: ${relative}`);
+  }
+  // Missing/unreachable guidance is a diagnostic, not silently advertised capability.
+  const missingResource = path.join(path.dirname(installedSkillPath), links[15]!);
+  const savedResource = await fs.readFile(missingResource);
+  try {
+    await fs.unlink(missingResource);
+    let failure = "";
+    try { await workflows.loadBeadsSkill(); } catch (error) { failure = String(error); }
+    if (!failure.includes(`resource-unreachable ${links[15]}`)) throw new Error("Missing packed guidance was not diagnosed");
+  } finally {
+    await fs.writeFile(missingResource, savedResource);
+  }
+
   if (await fs.exists(path.join(packageDir, "vendor"))) {
     throw new Error("Packed package unexpectedly contains the retired vendor directory");
   }
@@ -189,6 +218,21 @@ try {
   async function setupPacked(options: Record<string, unknown>) {
     const registeredHooks: string[] = [];
     const agents = new Map<string, PackedAgent>();
+    const skills = new Map<string, { id: string; name: string; content: string; path: string }>();
+    const userSkill = { id: "beads", name: "beads", content: "USER SHARED SKILL", path: "/user/SKILL.md" };
+    skills.set("beads", userSkill);
+    const commands = new Map<string, CommandDefinition>([["oc-beads:ready", {
+      name: "oc-beads:ready", description: "EARLIER PLUGIN", execute: async () => {},
+    }]]);
+    const owned = new Set<string>();
+    const disposed = new Set<string>();
+    const own = (name: string) => {
+      if (owned.has(name)) throw new Error(`Duplicate owned registration: ${name}`);
+      owned.add(name);
+      return { dispose: async () => { disposed.add(name); } };
+    };
+    const prompts: Array<Record<string, unknown>> = [];
+    let invoking = false;
     const cleanup = await (plugin!.setup as (ctx: unknown) => Promise<unknown>)({
       app: { name: "OpenCode", version: "2.1.1", channel: "stable" },
       location: { directory: consumerDir },
@@ -203,13 +247,32 @@ try {
               agents.set(id, agent);
             },
           });
-          return { dispose: async () => {} };
+          return own("agent");
+        },
+      },
+      command: {
+        list: async () => ({ data: [...commands.values()].map(({ name, description }) => ({ name, description })) }),
+        transform: async (callback: (editor: { add(definition: CommandDefinition): void }) => void) => {
+          callback({ add: (definition) => commands.set(definition.name, definition) });
+          return own("command");
+        },
+      },
+      skill: {
+        list: async () => ({ data: [...skills.values()] }),
+        transform: async (callback: (editor: unknown) => void) => {
+          callback({ list: () => [...skills.values()], add: (skill: { id: string; name: string; content: string; path: string }) => skills.set(skill.id, skill) });
+          return own("skill");
         },
       },
       session: {
+        prompt: async (input: Record<string, unknown>) => {
+          if (!invoking) throw new Error("Setup must not submit a prompt");
+          prompts.push(input);
+          return {};
+        },
         hook: async (name: string) => {
           registeredHooks.push(name);
-          return { dispose: async () => {} };
+          return own(`hook:${name}`);
         },
       },
       event: {
@@ -217,7 +280,42 @@ try {
       },
     });
     if (typeof cleanup !== "function") throw new Error("Packed plugin setup returned no cleanup");
-    cleanup();
+    const richSkill = skills.get("oc-beads");
+    if (richSkill?.path !== installedSkillPath || richSkill.content !== installedSkill.content) throw new Error("Installed skill registration differs from packed asset");
+    if (skills.get("beads") !== userSkill) throw new Error("Shared user skill was changed");
+    const expectedCommands = [...Object.keys(workflows.WORKFLOWS).map((stem) => `oc-beads:${stem}`), "oc-beads:status"].sort();
+    if (commands.size !== 30 || [...commands.keys()].sort().join("\0") !== expectedCommands.join("\0")) {
+      throw new Error("Packed callback did not register all 30 native command definitions");
+    }
+    invoking = true;
+    const invocation = {
+      sessionID: "packed-session", delivery: "steer",
+      prompt: { text: "literal '$ARGUMENTS' $(no-shell) `text`", files: [{ uri: "file:///tmp/a%20b" }], agents: [{ name: "build" }], skills: [{ id: "oc-beads" }] },
+    } as unknown as CommandInvocation;
+    for (const definition of commands.values()) {
+      if (typeof definition.execute !== "function" || !definition.description) throw new Error(`Missing native body: ${definition.name}`);
+      await definition.execute(invocation);
+      const submitted = prompts.at(-1);
+      if (!submitted || typeof submitted.text !== "string" || !submitted.text.includes(invocation.prompt.text)
+        || submitted.sessionID !== invocation.sessionID || submitted.delivery !== invocation.delivery
+        || submitted.files !== invocation.prompt.files || submitted.agents !== invocation.prompt.agents || submitted.skills !== invocation.prompt.skills) {
+        throw new Error(`Packed command did not preserve native invocation: ${definition.name}`);
+      }
+      if (definition.name === "oc-beads:status") {
+        const status = JSON.parse(submitted.text.split("\n")[1]!);
+        if (status.commands.registration !== "registered" || status.commands.lookup !== "available"
+          || !status.commands.ownership.includes("identical-description") || status.liveQualification !== "not executed") {
+          throw new Error("Packed status did not report observed registration and qualification limits");
+        }
+      } else if (!submitted.text.includes(installedSkillPath)) throw new Error("Packed command uses the wrong installed guidance base");
+    }
+    if (prompts.length !== commands.size) throw new Error("Packed native commands did not each submit one prompt");
+    await cleanup();
+    const expectedOwned = ["agent", "skill", "command", ...registeredHooks.map((name) => `hook:${name}`)].sort();
+    if ([...owned].sort().join("\0") !== expectedOwned.join("\0")
+      || [...disposed].sort().join("\0") !== expectedOwned.join("\0")) {
+      throw new Error("Owned native registrations were not all disposed");
+    }
     return { registeredHooks, agents };
   }
 
