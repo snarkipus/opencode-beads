@@ -14,8 +14,9 @@ description: >
 
 Beads is the external issue and execution record. The installed `bd` CLI owns its
 commands and data. Repository and user instructions set the authority for each
-operation. OpenSpec records intended behavior; project documents retain detailed
-rationale and evidence; Beads records execution, assignment, and acceptance.
+operation. The project's specification system (for example OpenSpec, when used)
+records intended behavior; project documents retain detailed rationale and
+evidence; Beads records execution, assignment, and acceptance.
 
 Use the current Beads context when the host provides it. If it is absent, retrieve
 current workflow context through the permissioned CLI only when that operation is
@@ -37,12 +38,15 @@ not assume an unstated tool name, approval, or setup step.
   actor. Keep that actor on every agent-authored Beads write and heartbeat:
 
   ```sh
-  bd update <id> --claim --actor=codex:<short-session> --sandbox --json
-  bd heartbeat <id> --actor=codex:<short-session> --sandbox --json
+  bd update '<id>' --claim --actor='<executor-actor>' --sandbox --json
+  bd heartbeat '<id>' --actor='<executor-actor>' --sandbox --json
   ```
 
-  Use a readable, unambiguous executor identity, not the human Git identity or a
-  model name. Give delegated instructions the delegate's real actor and have the
+  Use the actual actor from your assignment; `opencode:<suffix>` is only an
+  illustrative OpenCode example. If unspecified, ask to establish an explicit
+  assignment actor; never copy a sample or impersonate another executor. Use a
+  readable, unambiguous identity, not the human Git identity or a model name.
+  Give delegated instructions the delegate's real actor and have the
   executing worker claim its own authorized work. A deliberate handoff changes
   ownership; parent review does not.
 - Read back `created_by` (audit author), `owner` (record/account ownership), and
@@ -61,7 +65,7 @@ why the next step follows, any blocker, and the concrete next action. Append to
 the issue's notes so useful earlier learning remains available:
 
 ```sh
-bd update <id> --append-notes="Tried …; result …; because …; blocker …; next …" --actor=codex:<short-session> --sandbox --json
+bd update '<id>' --append-notes="Tried …; result …; because …; blocker …; next …" --actor='<executor-actor>' --sandbox --json
 ```
 
 Use `--append-notes` for checkpoints. Replacing notes is a deliberate edit, not
@@ -76,18 +80,22 @@ Attempts, issue-specific test results, decisions, and the next action belong on
 the issue. Use persistent Beads memory only for validated project knowledge that
 will likely help beyond this issue. Search for existing knowledge first, then
 update it deliberately with scope and evidence; a temporary failure usually
-belongs in the task record rather than global memory.
+belongs in the task record rather than global memory. Recall before updating an
+existing stable key: writing the same key replaces its content in place.
 
 ```sh
-bd memories <keyword>
-bd recall <known-key>
-bd remember "Validated learning, where it applies, and supporting evidence" --key=<stable-key> --actor=codex:<short-session> --sandbox
+bd memories '<keyword>'
+bd recall '<known-key>'
+bd remember "Validated learning, where it applies, and supporting evidence" --key='<stable-key>' --actor='<executor-actor>' --sandbox
 ```
 
 Do not dump all memories into every handoff or delete old knowledge as routine
 cleanup. Use the current CLI help for exact memory options.
 
-Do not initialize or reroute a store, synchronize it, change permissions, or enable automation as a side effect. Those separate administrative operations require explicit authorization. In projects that prohibit automatic remote updates, include `--sandbox` on CLI writes.
+Do not initialize or reroute a store, synchronize it, change permissions, or enable automation as a side effect.
+Those separate administrative operations require explicit authorization.
+Examples assume a project policy prohibiting automatic remote updates and include
+`--sandbox`; it only suppresses Dolt auto-push and provides no migration safety.
 
 ## Validation, handoff, and stopping
 

@@ -23,7 +23,7 @@ Include the attempt, result, why it matters, evidence, blocker, and next action.
 Use `--append-notes`, for example:
 
 ```sh
-bd update <id> --append-notes="Validated …; evidence …; next …" --actor=codex:<short-session> --sandbox --json
+bd update '<id>' --append-notes="Validated …; evidence …; next …" --actor='<executor-actor>' --sandbox --json
 ```
 
 This is an append. Do not use the replacing `--notes` field as the default

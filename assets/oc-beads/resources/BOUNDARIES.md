@@ -14,7 +14,7 @@ durable issue. Do not make a second Markdown task list the durable project recor
 | Short, linear steps that will finish in this session | Conversation checklist, if useful | Keeps execution visible without creating durable issue noise. |
 | Work needs an owner, blocker, dependency, acceptance, or later resume | Existing or authorized Bead | Preserves execution history and handoff context. |
 | Validated learning is likely to help on future issues | Relevant Beads memory | Reusable knowledge is separate from a task's attempts. |
-| Intended behavior and acceptance contract | OpenSpec | Keeps the project specification authoritative. |
+| Intended behavior and acceptance contract | Project's specification system (for example OpenSpec, when used) | Keeps the project specification authoritative. |
 | Detailed rationale, source evidence, or qualification result | Project documentation | Gives durable evidence a stable home. |
 | Temporary command output | Current session; summarize only if it changes a decision | Avoids storing noise. |
 | Host explicitly exposes experimental todo support and the user/project opts in | Host-owned transient checklist | Optional convenience only; it is not installed or enabled here. |
@@ -28,6 +28,9 @@ Do not create a new Bead for every command, transient retry, small nit, or
 document. Create or update a record when the work is genuinely durable and you
 have authority to do so. Existing assignment and project policy take priority
 over any general heuristic here.
+
+Ask: “Could I resume this after two weeks away?” If the answer needs context
+that would otherwise be lost, preserve it in the appropriate authorized record.
 
 ## Transition when the work grows
 

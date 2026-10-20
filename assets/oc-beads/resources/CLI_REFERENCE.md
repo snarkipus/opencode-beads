@@ -7,10 +7,10 @@ This resource deliberately does not copy the full command catalog. The installed
 
 - Use `bd prime` for current agent workflow context, only when authorized and
   not blocked by a context or migration hold.
-- Use `bd <command> --help` for a command's current flags and behavior.
+- Use `bd '<command>' --help` for a command's current flags and behavior.
 - Use `bd --help` to discover commands available in the installed binary.
 - Use `--json` when structured output is useful and supported by that command.
-- Supply `--actor=<executor>` on every agent-authored write, claim, and
+- Supply `--actor='<executor-actor>'` on every agent-authored write, claim, and
   heartbeat. Do not rely on `git user.name`, `$USER`, or an inherited global
   actor.
 

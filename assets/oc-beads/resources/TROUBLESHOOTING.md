@@ -12,7 +12,7 @@ CLI surface, or another agent as a bypass.
 
 ## A command or flag is unknown
 
-Use `bd --help` and `bd <command> --help` to inspect the installed CLI. Do not
+Use `bd --help` and `bd '<command>' --help` to inspect the installed CLI. Do not
 guess a flag from an old example, invoke a similarly named command, or assume an
 MCP interface. If a workflow depends on an unavailable command, explain the
 limitation and use a documented replacement only when it preserves the needed

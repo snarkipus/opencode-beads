@@ -29,7 +29,7 @@ validated findings:
 
 ```sh
 bd mol wisp create '<review-proto-id>' --var 'candidate=<revision>' \
-  --actor=codex:9c2e1 --sandbox --json
+  --actor='<executor-actor>' --sandbox --json
 bd mol show '<wisp-id>'
 ```
 
@@ -39,14 +39,14 @@ promote the result to a durable digest:
 ```sh
 bd mol squash '<wisp-id>' \
   --summary="Candidate <revision>: verified findings and evidence references" \
-  --actor=codex:9c2e1 --sandbox --json
+  --actor='<executor-actor>' --sandbox --json
 ```
 
 If the wisp contains only noise with no future value, burn it only when that
 deletion is explicitly authorized; this leaves no digest:
 
 ```sh
-bd mol burn '<wisp-id>' --actor=codex:9c2e1 --sandbox --json
+bd mol burn '<wisp-id>' --actor='<executor-actor>' --sandbox --json
 ```
 
 These verbs and phase effects are confirmed by installed subcommand help. A
@@ -61,6 +61,5 @@ ownership before proceeding. Do not pour, bond, squash, burn, or distill as
 automatic setup or background orchestration.
 
 Use `bd formula --help` and `bd mol --help`, then each relevant subcommand's
-help, for current syntax. Pouring, wisp creation, bonding, squashing, burning,
-and distilling are state changes; use an explicit actor and do not run them as
-implicit setup or background automation.
+help, for current syntax. These are state changes; keep the actual executor
+actor explicit.

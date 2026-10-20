@@ -15,7 +15,7 @@ be checked:
 | Kind | Successful condition | Failure or timeout behavior |
 | --- | --- | --- |
 | `human` | Explicit human decision, recorded by manual resolution. | A `--timeout` can be stored as metadata but is not enforced by `bd gate check`; silence is not consent. |
-| `timer` | The timeout has elapsed when an authorized executor runs `bd gate check --type=timer --actor='codex:<short-session>' --sandbox --json`. | Otherwise it remains pending. |
+| `timer` | The timeout has elapsed when an authorized executor runs `bd gate check --type=timer --actor='<executor-actor>' --sandbox --json`. | Otherwise it remains pending. |
 | `gh:run` | Run is completed with success (the pinned guidance also treats skipped as resolved). | Completed failure or cancellation escalates; the gate remains open for a decision. |
 | `gh:pr` | Pull request is merged. | Closed without merge escalates; the gate remains open for a decision. |
 | `bead` | The referenced issue is closed, when supported by the installed create path. | An open target remains pending. |
@@ -29,25 +29,25 @@ behavior.
 
 ## Inspect and resolve deliberately
 
-Use `bd gate --help` and `bd gate <subcommand> --help` for current syntax. The
+Use `bd gate --help` and `bd gate '<subcommand>' --help` for current syntax. The
 installed help supports this deliberate human-decision flow:
 
 ```sh
 # An authorized executor creates the wait condition.
 bd gate create --type=human --blocks='<issue-id>' \
-  --reason="Needs owner review" --actor='codex:<short-session>' --sandbox --json
+  --reason="Needs owner review" --actor='<executor-actor>' --sandbox --json
 bd gate list --json
-bd gate show <gate-id>
+bd gate show '<gate-id>'
 
-# The actual human resolves only after making the decision.
-bd gate resolve <gate-id> --reason="Reviewed; decision recorded" \
+# The actual human runs this command only after making the decision.
+bd gate resolve '<gate-id>' --reason="Reviewed; decision recorded" \
   --actor='<actual-human-actor>' --sandbox --json
 ```
 
-Read both the gate and blocked issue before changing either. Never resolve a
-human gate on the human's behalf or infer consent from silence. A failed CI run
-or unmerged closed pull request is a failure to investigate, not a successful
-gate. If an authorized executor runs a check, keep its actor explicit and
+Read both the gate and blocked issue before changing either. An agent must never
+supply a human actor or resolve a human gate on the human's behalf. Never infer
+consent from silence. A failed CI run or unmerged closed pull request is a failure
+to investigate, not a successful gate. If an authorized executor runs a check, keep its actor explicit and
 inspect the resulting state before continuing.
 
 Do not create gates automatically for every handoff, approval, test, or issue.

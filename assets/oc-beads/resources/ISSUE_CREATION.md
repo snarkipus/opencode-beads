@@ -37,7 +37,7 @@ bd create "Clarify retry behavior" --type=task --priority=2 \
   --description="Record the user-visible issue and affected path." \
   --design="Trace the current behavior and document the supported correction." \
   --acceptance="The behavior and validation evidence are recorded." \
-  --actor=codex:<short-session> --sandbox --json
+  --actor='<executor-actor>' --sandbox --json
 ```
 
 Before creating linked work, inspect the parent and verify dependency direction.

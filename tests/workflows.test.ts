@@ -139,7 +139,7 @@ describe("oc-beads guidance assets", () => {
 
 		expect(gates).toMatch(/human.{0,100}timeout.{0,100}(?:stored|metadata).{0,100}(?:not enforced|does not enforce)/is)
 		expect(gates).toMatch(/timeout has elapsed when an authorized executor runs/i)
-		expect(gates).toContain("bd gate check --type=timer --actor='codex:<short-session>' --sandbox --json")
+		expect(gates).toContain("bd gate check --type=timer")
 		expect(gates).toMatch(/success[\s\S]*failure[\s\S]*escalat/i)
 		expect(gates).toContain("bd gate create")
 		expect(gates).toContain("bd gate show")
@@ -159,5 +159,51 @@ describe("oc-beads guidance assets", () => {
 		expect(guidance).toContain("bd mol squash")
 		expect(guidance).toContain("bd mol burn")
 		expect(guidance).toMatch(/promot[\s\S]{0,100}findings[\s\S]{0,100}(?:noise|no future value)/i)
+	})
+
+	test("keeps copyable placeholders quoted and executor actors neutral", () => {
+		const files = [skillPath, ...selectedSupportingFiles().map((entry) => resolve(repositoryRoot, entry.selected_mapping.target))]
+		const guidance = files.map((file) => readFileSync(file, "utf8")).join("\n")
+		const actors = [...guidance.matchAll(/--actor=([^\s`]+)/g)].map((match) => match[1])
+
+		expect(actors.length).toBeGreaterThan(0)
+		expect(actors.filter((actor) => actor !== "'<executor-actor>'" && actor !== "'<actual-human-actor>'")).toEqual([])
+		expect(guidance).not.toMatch(/codex:/)
+		// Strip quoted arguments: remaining angle brackets in shell blocks would be redirects.
+		const shellBlocks = [...guidance.matchAll(/```(?:sh|bash)\n([\s\S]*?)```/g)].map((match) => match[1] ?? "")
+		const unquotedShell = shellBlocks.join("\n").replace(/'[^']*'|"[^"]*"/g, "")
+		expect(unquotedShell).not.toMatch(/<[^>\n]+>/)
+		expect(readFileSync(skillPath, "utf8")).toMatch(/actor[\s\S]{0,80}assignment/i)
+		expect(readResource("ASYNC_GATES")).toMatch(/(?:human[^.]*runs|run by[^.]*human)/i)
+	})
+
+	test("shows existing-issue dependency direction and graph readback", () => {
+		const dependencies = readResource("DEPENDENCIES")
+
+		expect(dependencies).toMatch(/bd dep add '<dependent-id>' '<prerequisite-id>'[^\n]*--actor='<executor-actor>'[^\n]*--sandbox/)
+		expect(dependencies).toMatch(/wrong[\s\S]*right/i)
+		expect(dependencies).toMatch(/phase 1[\s\S]*phase 2/i)
+		expect(dependencies).toContain("bd blocked --json")
+		expect(dependencies).toContain("bd dep list '<dependent-id>'")
+	})
+
+	test("recovers assigned active work before acting and protects existing memory keys", () => {
+		const recovery = readResource("RESUMABILITY")
+		const skill = readFileSync(skillPath, "utf8")
+
+		expect(recovery).toMatch(/bd list --status=in_progress --assignee='<executor-actor>'[^\n]*--json/)
+		expect(recovery).toContain("bd show '<issue-id>'")
+		expect(recovery).toMatch(/checkpoint[\s\S]*verify[\s\S]*before acting/i)
+		expect(recovery).toMatch(/(?:not|never|rather than)[^.]*`bd ready`/i)
+		expect(skill).toMatch(/recall[^.]*before[^.]*key/i)
+		expect(skill).toMatch(/same key[^.]*replace[^.]*in place/i)
+	})
+
+	test("makes the project specification system and planning pattern conditional", () => {
+		for (const guidance of [readFileSync(skillPath, "utf8"), readResource("BOUNDARIES"), readResource("INTEGRATION_PATTERNS")]) {
+			expect(guidance).toMatch(/project.{0,20}specification system/i)
+			expect(guidance).toMatch(/OpenSpec, when used/)
+		}
+		expect(readResource("INTEGRATION_PATTERNS")).toMatch(/project.policy example[^.]*not[^.]*Beads requirement/is)
 	})
 })

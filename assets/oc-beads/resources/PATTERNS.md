@@ -39,5 +39,5 @@ instead of closing on their behalf.
 
 There is no mandatory one-issue-per-session cadence. Keep each Bead's evidence
 clear, while following an explicitly authorized multi-item batch where one was
-granted. Use `bd <command> --help` for current syntax; do not use old MCP-only
+granted. Use `bd '<command>' --help` for current syntax; do not use old MCP-only
 examples or replace notes during ordinary checkpoints.

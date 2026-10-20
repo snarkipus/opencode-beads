@@ -3,9 +3,10 @@
 > Adapted from [Beads marketplace-main `DEPENDENCIES.md`](https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/DEPENDENCIES.md).
 
 Beads dependencies describe relationships between issues. Confirm direction
-before writing: in the current `bd create` help, a bare ID, `depends-on:<id>`, or
-`blocked-by:<id>` makes the new issue depend on that ID; `blocks:<id>` reverses
-that direction. Check `bd dep --help` for the current update form.
+before writing: in the current `bd create` help, a bare ID, `'depends-on:<id>'`, or
+`'blocked-by:<id>'` makes the new issue depend on that ID; `'blocks:<id>'` reverses
+that direction. For existing issues, the installed `bd dep add --help` confirms
+the dependent comes first and the prerequisite second (default type: `blocks`).
 
 ## Choose a relationship by meaning
 
@@ -24,13 +25,30 @@ prerequisite**. For example, an API task can depend on a schema task like this:
 bd create "Implement API" --type=task \
   --parent='<epic-id>' \
   --deps='depends-on:<schema-task-id>' \
-  --actor='codex:<short-session>' --sandbox --json
+  --actor='<executor-actor>' --sandbox --json
 ```
 
 The command above makes the API task a child of an epic while also adding a
 separate hard blocker on schema setup. Read back both edges: hierarchy answers
 “what work belongs here?”; a blocker answers “what must finish first?”. Add a
 hard block only when a real prerequisite exists.
+
+### Add and check existing-issue edges
+
+X needs Y means X depends on Y: dependent first, prerequisite second.
+
+```sh
+bd dep add '<dependent-id>' '<prerequisite-id>' --actor='<executor-actor>' --sandbox --json
+bd blocked --json
+bd dep list '<dependent-id>' --json
+```
+
+Phase trap: “Phase 1 before Phase 2” means Phase 2 needs Phase 1.
+Wrong: `bd dep add '<phase-1-id>' '<phase-2-id>' --actor='<executor-actor>' --sandbox --json` would block Phase 1.
+Right: `bd dep add '<phase-2-id>' '<phase-1-id>' --actor='<executor-actor>' --sandbox --json` blocks Phase 2 on Phase 1.
+Readback: `bd blocked` should show the dependent waiting while its prerequisite
+is open; `bd dep list` defaults to dependencies (down), so it should list that
+prerequisite, never the dependent's later work. These reads do not authorize work.
 
 ### Diamond and parallel merge
 

@@ -58,10 +58,22 @@ implementation discoveries and rationale.
 
 ## Resume safely
 
-Read the active issue and its recent notes. Retrieve only relevant reusable
-memory, then verify time-sensitive state before acting. The issue notes explain
-work on this item; memory carries validated learning that applies beyond it.
-Neither one should silently override current user or repository instructions.
+For a cold start or after compaction, recover the assigned work rather than
+selecting fresh work from `bd ready`:
+
+```sh
+bd list --status=in_progress --assignee='<executor-actor>' --json
+bd show '<issue-id>' --long --json
+```
+
+Use your actual assignment actor for the assignee filter. If the assignment
+already gives an exact issue ID, show that issue directly; an empty list is not
+permission to claim another task. Read the latest appended checkpoint and earlier
+notes for attempts, evidence, decisions, blockers, and the next authorized step.
+Retrieve only relevant reusable memory, then verify current assignment, status,
+dependencies, and time-sensitive evidence before acting. The issue notes explain
+work on this item; memory carries validated learning beyond it. Neither should
+override current user or repository instructions.
 
 Treat missing context, failed retrieval, and deliberately withheld context as
 different outcomes. A permission or migration hold is not an invitation to run a
