@@ -1,6 +1,6 @@
 # Beads Artifact Policy
 
-Status: current implementation policy, under review in the [full integration decision packet](claude-code-integration-analysis.md); owner selections for an opt-in beta/next redesign are recorded, but no product implementation has occurred. Revised for 1.0.0 by `opencode-beads-w5y`. The package vendors no upstream Beads artifacts. Earlier revisions were the OpenCode V2 port (`opencode-beads-2zs`), the 0.9.0 contract (`opencode-beads-98l`), and the retired 0.8.0 companion lifecycle decision.
+Status: current stable implementation policy, under review in the [full integration decision packet](claude-code-integration-analysis.md). Owner selections for an opt-in beta/next redesign are recorded; task 2.1 authors a package-owned source candidate, while host registration, package inclusion, and runtime qualification remain separate unfinished work. Revised for 1.0.0 by `opencode-beads-w5y`. The package vendors no upstream Beads artifacts. The task 2.1 adaptations are source assets outside the current package. Earlier revisions were the OpenCode V2 port (`opencode-beads-2zs`), the 0.9.0 contract (`opencode-beads-98l`), and the retired 0.8.0 companion lifecycle decision.
 
 ## Evidence
 
@@ -72,9 +72,15 @@ Any future upstream artifact proposed for inclusion must first show:
 - deterministic validation, package-content tests, and failure behavior;
 - a documented owner and removal or upgrade path.
 
-## Selected beta/next planning exception (not implemented)
+## Selected beta/next source candidate
 
 The [owner record](../openspec/changes/improve-beads-workflow-parity/owner-decisions.md) selects package-owned `oc-beads` skill/resources, `oc-beads:<command>` workflows, N1 continuity tools and scope-bounded continuation on OpenCode `>=2.1.1 <2.2`. This is an opt-in redesign; the current implementation policies above remain historical/current-stable descriptions, not prohibitions against the selected future assets. No upstream shared skill or user file is overwritten, and bd remains executable/data owner. Delivery is complete through npm with native registration/disposal; no manual rich-skill installation.
+
+Task 2.1 owns the source assets at `assets/oc-beads/`: one `SKILL.md`, the 15 selected marketplace-main resources, and the adapted ADR-0001 rationale. These are project-owned adaptations of the inventory's pinned marketplace-main commit `4a67d0d0288c1b4ee23e17fc896f47616931ba2d`; the [inventory](claude-code-integration-inventory.json) records each selected mapping and disposition. `TROUBLESHOOTING.md` is a curated replacement that preserves the support topic while removing unsafe stale repair advice. The skill links all 16 supporting files explicitly because host auto-listing is limited to ten. Advanced files stay on demand.
+
+The assets preserve Beads CLI ownership and use `bd prime` and installed command help as dynamic syntax references. Examples of writes carry an explicit executor actor. The agent-bead resource documents that `bd agent` and `bd slot` are not exposed by the inspected installed CLI; ordinary issue claims, assignees, and heartbeat leases are related supported conventions, not a complete substitute for those APIs. Shared `.agents/skills/beads` remains Beads-owned and must not be overwritten.
+
+Source assets alone do not establish npm inclusion, installed resource resolution, host compatibility, workflow registration, or live behavior. Those belong to later authorized implementation and acceptance tasks. This source candidate does not change `package.json`, register workflows, initialize/synchronize a store, or alter permissions.
 
 Source drift will fail a distinct check/job for unreviewed changes, with separate `::error::` diagnostics for drift and retrieval/comparison failure, reusing the existing scheduled check output with immutable marketplace-main comparisons across inventory roots/support paths, separately from stable CLI compatibility. No GitHub issues, issue-write permissions, automatic copying, baseline advancement or releases. Human review selects subsequent Beads execution work. This planning reconciliation does not edit the workflow or package.
 
