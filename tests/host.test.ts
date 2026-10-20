@@ -43,7 +43,11 @@ async function settle(): Promise<void> {
   for (let index = 0; index < 5; index++) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function fakeContext(options: { directory?: string; pluginOptions?: Record<string, unknown> } = {}) {
+function fakeContext(options: {
+  directory?: string;
+  pluginOptions?: Record<string, unknown>;
+  appVersion?: string;
+} = {}) {
   const hooks = new Map<string, (event: ContextEvent) => Promise<void> | void>();
   const events = eventStream();
   const agentGet = mock(async ({ agentID }: { agentID: string }) => ({
@@ -63,6 +67,7 @@ function fakeContext(options: { directory?: string; pluginOptions?: Record<strin
     return { dispose: async () => {} };
   });
   const ctx = {
+    app: { name: "OpenCode", version: options.appVersion ?? "2.1.1", channel: "stable" },
     location: { directory: options.directory ?? "/project" },
     options: options.pluginOptions ?? {},
     event: { subscribe: events.subscribe },
@@ -95,6 +100,32 @@ describe("OpenCode V2 entry", () => {
 });
 
 describe("setupBeads", () => {
+  test("reports and skips setup for an unsupported OpenCode host", async () => {
+    for (const appVersion of ["2.0.29", "2.1.0", "2.1.1-beta.1", "2.2.0", "unknown"]) {
+      const f = fakeContext({ appVersion });
+      const warn = mock(() => {});
+
+      const cleanup = await setupBeads(f.ctx, { warn });
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(`OpenCode ${appVersion}`));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.1.1 <2.2"));
+      expect(f.agents.size).toBe(0);
+      expect(f.hooks.size).toBe(0);
+      cleanup();
+    }
+  });
+
+  test("admits candidate patch hosts within the selected 2.1 line", async () => {
+    const f = fakeContext({ appVersion: "2.1.8" });
+    const cleanup = await setupBeads(f.ctx, {
+      runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" },
+    });
+
+    expect([...f.hooks.keys()]).toEqual(["context", "compaction"]);
+    expect([...f.agents.keys()]).toEqual(["beads-task-agent"]);
+    cleanup();
+  });
+
   test("registers the bounded task agent as a subagent and keeps Luna opt-in", async () => {
     const ready = { runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" } };
     const vanilla = fakeContext();

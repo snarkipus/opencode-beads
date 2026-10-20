@@ -117,7 +117,7 @@ try {
   if (manifest.bin !== undefined) {
     throw new Error("Packed package unexpectedly registers a companion CLI");
   }
-  const opencodeRange = ">=2.0.26 <3";
+  const opencodeRange = ">=2.1.1 <2.2";
   if (
     manifest.dependencies !== undefined ||
     JSON.stringify(manifest.peerDependencies) !==
@@ -190,6 +190,7 @@ try {
     const registeredHooks: string[] = [];
     const agents = new Map<string, PackedAgent>();
     const cleanup = await (plugin!.setup as (ctx: unknown) => Promise<unknown>)({
+      app: { name: "OpenCode", version: "2.1.1", channel: "stable" },
       location: { directory: consumerDir },
       options,
       agent: {

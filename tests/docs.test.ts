@@ -13,6 +13,9 @@ const packageManifest = JSON.parse(await fs.readFile("package.json", "utf8")) as
   version: string;
   contributors?: Array<{ name?: string; url?: string }>;
   beads: { minimum: string; validated: string };
+  peerDependencies: Record<string, string>;
+  peerDependenciesMeta: Record<string, { optional?: boolean }>;
+  devDependencies: Record<string, string>;
 };
 const packageIdentity = `${packageManifest.name}@${packageManifest.version}`;
 
@@ -123,13 +126,21 @@ describe("documentation contracts", () => {
     }
   });
 
-  test("keeps the compatibility record on the supported OpenCode V2 baseline", () => {
+  test("keeps the compatibility record on the selected beta/next OpenCode baseline", () => {
     expect(sdkContract).toContain("# OpenCode V2 Plugin Contract");
-    expect(sdkContract).toContain("`@opencode/plugin` `>=2.0.26 <3`");
+    expect(packageManifest.peerDependencies["@opencode/plugin"]).toBe(">=2.1.1 <2.2");
+    expect(packageManifest.peerDependenciesMeta["@opencode/plugin"]?.optional).toBeTrue();
+    expect(packageManifest.devDependencies["@opencode/plugin"]).toBe("2.1.1");
+    expect(sdkContract).toContain("`@opencode/plugin` `>=2.1.1 <2.2`");
+    expect(sdkContract).toContain("`@opencode/plugin` `2.1.1` for development typing only");
     expect(sdkContract).toContain("`<name>/server`, then `<name>`");
     expect(sdkContract).toContain("`session.compaction.ended`");
+    expect(sdkContract).toContain("The exact 2.1.1 runtime target has not been qualified");
     expect(sdkContract).not.toContain("1.18.");
-    expect(readme).toContain("| OpenCode | 2.0.26 through 2.x | 2.0.26 |");
+    expect(readme).toContain(
+      "| OpenCode (beta/next candidate) | `>=2.1.1 <2.2` | None (exact 2.1.1 target not qualified) |"
+    );
+    expect(readme).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
     expect(readme).toContain("| `bd` CLI | 1.3.0 through 1.x | 1.3.1 |");
     expect(readme).not.toContain("@opencode-ai/");
   });
@@ -147,7 +158,7 @@ describe("documentation contracts", () => {
 
   test("records Claude Code parity with live evidence and explicit divergences", () => {
     expect(readme).toContain("[Claude Code parity matrix](docs/claude-code-parity.md)");
-    expect(parity).toContain("Validated on **OpenCode 2.0.26** with **bd 1.3.1**");
+    expect(parity).toContain("validated on **OpenCode 2.0.26** with **bd 1.3.1**");
     for (const source of ["`startup`", "`resume`", "`clear`", "`compact`"]) {
       expect(parity).toContain(`\`SessionStart\` (${source})`);
     }

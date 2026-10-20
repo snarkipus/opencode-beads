@@ -12,7 +12,7 @@ import { minimizeSystemParts } from "./instructions";
 import { runBd, runBdPrime } from "./prime";
 
 /** The slice of the OpenCode V2 plugin context this adapter uses. */
-export type HostContext = Pick<Plugin.Context, "location" | "options" | "event"> & {
+export type HostContext = Pick<Plugin.Context, "app" | "location" | "options" | "event"> & {
   agent: Pick<Plugin.Context["agent"], "get" | "transform">;
   session: Pick<Plugin.Context["session"], "hook">;
 };
@@ -31,6 +31,16 @@ export interface HostDependencies {
 }
 
 const DEFAULT_DIAGNOSTIC_INTERVAL_MS = 60_000;
+const SUPPORTED_OPENCODE_RANGE = ">=2.1.1 <2.2";
+
+function isSupportedOpenCodeVersion(version: string): boolean {
+  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\+[0-9A-Za-z.-]+)?$/.exec(version);
+  if (!match) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  const patch = Number(match[3]);
+  return major === 2 && minor === 1 && patch >= 1;
+}
 
 function eventSessionID(event: unknown): string | undefined {
   if (typeof event !== "object" || event === null) return undefined;
@@ -55,6 +65,18 @@ export async function setupBeads(
   const warn = deps.warn ?? ((message: string) => console.warn(message));
   const diagnosticIntervalMs = deps.diagnosticIntervalMs ?? DEFAULT_DIAGNOSTIC_INTERVAL_MS;
   const diagnosticTimes = new Map<string, number>();
+
+  const hostVersion = typeof ctx.app?.version === "string" ? ctx.app.version : "unknown";
+  if (!isSupportedOpenCodeVersion(hostVersion)) {
+    try {
+      warn(
+        `[opencode-beads] unsupported-host OpenCode ${hostVersion}; supported beta/next range is ${SUPPORTED_OPENCODE_RANGE}. No Beads agents or hooks were registered.`
+      );
+    } catch {
+      // Host-version diagnostics never affect plugin loading.
+    }
+    return () => {};
+  }
 
   const guardRuntime = createGuardRuntime(deps.bd ?? ((cwd, args) => runBd(cwd, args)));
   const runtime: ContextRuntime = {

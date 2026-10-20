@@ -22,7 +22,7 @@ The plugin's primary design is **context-preserving atomic delegation**:
 
 ## Installation
 
-This plugin requires OpenCode 2 and `bd` 1.3.0 or later.
+This plugin requires OpenCode 2 and `bd` 1.3.0 or later. This source branch prepares an opt-in beta/next candidate for OpenCode `>=2.1.1 <2.2`; only the exact 2.1.1 development types are pinned, and runtime qualification has not been executed. The published stable package remains separately qualified against OpenCode 2.0.26.
 
 1. Install the [`bd` CLI](https://github.com/gastownhall/beads/blob/main/docs/getting-started/installation.md) once on the host, then initialize each project:
 
@@ -144,11 +144,12 @@ The package vendors nothing from upstream. It depends on the installed `bd` CLI 
 
 | Component | Expected range | Validated baseline |
 | --- | --- | --- |
-| OpenCode | 2.0.26 through 2.x | 2.0.26 |
+| OpenCode (beta/next candidate) | `>=2.1.1 <2.2` | None (exact 2.1.1 target not qualified) |
+| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |
 | `bd` CLI | 1.3.0 through 1.x | 1.3.1 |
 | Bun (OpenCode host runtime) | >=1.3.14 | 1.4.2 |
 
-The adapter type-checks against `@opencode/plugin` 2.0.26 and declares it as an optional peer from 2.0.26 through 2.x; the import is type-only, so OpenCode's own runtime is used. See the [OpenCode V2 contract](docs/opencode-sdk-contract.md). The `bd` baseline was reviewed against Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`).
+The beta/next candidate type-checks against `@opencode/plugin` 2.1.1 and declares an optional peer range of `>=2.1.1 <2.2`. It checks `ctx.app.version` at startup and reports an unsupported-host diagnostic before registering Beads agents or hooks. This source guard does not qualify the host range; the exact 2.1.1 target remains untested, and future 2.1 patches are admitted candidates rather than tested versions. The stable 1.0.2 qualification on 2.0.26 is historical. See the [OpenCode V2 contract](docs/opencode-sdk-contract.md). The `bd` baseline was reviewed against Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`).
 
 ## Troubleshooting
 

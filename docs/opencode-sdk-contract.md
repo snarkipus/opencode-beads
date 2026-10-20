@@ -1,11 +1,11 @@
 # OpenCode V2 Plugin Contract
 
-Reviewed on 2026-10-11 for the narrow OpenCode boundary used by this package (`opencode-beads-2zs`). OpenCode 1.x and its `@opencode-ai/plugin` hook API are no longer supported; 0.10.x and earlier target that line.
+Reviewed on 2026-10-11 for the narrow OpenCode boundary used by the published stable package (`opencode-beads-2zs`). OpenCode 1.x and its `@opencode-ai/plugin` hook API are no longer supported; 0.10.x and earlier target that line. The current source branch separately prepares an opt-in beta/next candidate on the 2.1 line.
 
 ## Versions and sources
 
-- Declared optional peer range: `@opencode/plugin` `>=2.0.26 <3`. The only import is type-only (`import type { Plugin } from "@opencode/plugin"`), so packages install nothing from OpenCode and use the host's runtime.
-- Installed development dependency: `@opencode/plugin` `2.0.26`, matching the validated `@opencode/cli` 2.0.26 host (Bun 1.4.2).
+- Historical stable 1.0.2 declarations used optional peer range `@opencode/plugin` `>=2.0.26 <3` and development dependency `2.0.26`. The only import is type-only (`import type { Plugin } from "@opencode/plugin"`), so packages install nothing from OpenCode and use the host's runtime.
+- Current beta/next candidate declarations use optional peer range `@opencode/plugin` `>=2.1.1 <2.2` and development typing dependency `@opencode/plugin` `2.1.1` for development typing only. The exact 2.1.1 runtime target has not been qualified.
 - Authoritative sources: the installed `@opencode/plugin` 2.0.26 declarations, the [plugin guide](https://opencode.ai/v2/docs/build/plugins/), the [V1 migration guide](https://opencode.ai/v2/docs/build/plugins/migrate-v1/), [plugin configuration](https://opencode.ai/v2/docs/plugins/), the [skills reference](https://opencode.ai/v2/docs/skills/), the published OpenAPI document (`https://opencode.ai/v2/openapi.json`), and `@opencode/schema` 2.0.26 for event names.
 - Qualification: a throwaway V2 plugin (`opencode-beads-2zs.1`) and the actual source plugin were loaded into disposable projects on OpenCode 2.0.26. Results were read with `opencode debug agents`, a JSONL trace from the plugin, and short `opencode run` sessions. Test sessions were deleted afterwards.
 
@@ -33,7 +33,7 @@ OpenCode resolves a package plugin as `<name>/server`, then `<name>`. The packag
 
 V2 plugin commands are executable (`execute` calls `ctx.session.prompt`). Separately, native [Markdown and JSON commands](https://opencode.ai/v2/docs/commands/) support prompt templates, description metadata and argument substitution. The [full integration analysis](claude-code-integration-analysis.md) pins current source and records the remaining minimum-host qualification; command retirement was not forced by an absence of V2 prompt templates. Plugin-provided skills need a `path`. The vendored `/beads:*` templates were retired instead of ported (`opencode-beads-2zs.4`). OpenCode V2 discovers the canonical `.agents/skills/beads` skill installed by `bd init` natively, and users can load it with `@beads`.
 
-## Compatibility decisions
+## Compatibility decisions for the historical stable 1.0.2 baseline
 
 The supported line begins at OpenCode 2.0.26, the first version qualified. There is no V1 fallback or dual export: V2 ignores V1 `server()` exports, and supporting both would mean maintaining two hook implementations. Tests fake only the small context slice the plugin uses (`location`, `options`, `event`, `agent.get`, `agent.transform`, `session.hook`) so behavior can be checked without the host.
 
@@ -41,7 +41,7 @@ When running `opencode run` from a non-interactive shell during qualification, c
 
 ## Selected beta/next boundary (not yet qualified)
 
-The [reconciled design](../openspec/changes/improve-beads-workflow-parity/design.md) selects N1 on OpenCode `>=2.1.1 <2.2`, released source `ba546ec1598a70db2570e9c6258028d955ba8f58`. The 2.0.26 runtime evidence above remains historical and does not qualify N1. Package/runtime dependencies are unchanged in this planning turn.
+The [reconciled design](../openspec/changes/improve-beads-workflow-parity/design.md) selects N1 on OpenCode `>=2.1.1 <2.2`, released source `ba546ec1598a70db2570e9c6258028d955ba8f58`. The package now declares that optional peer range and pins development types to exact `@opencode/plugin` `2.1.1`; the import remains type-only. The host context's existing `ctx.app.version` field is used to report an unsupported-host diagnostic and skip agent/hook registration outside that range. This source guard and the published declarations do not constitute runtime qualification: exact 2.1.1 remains untested, and future 2.1 patches are admitted candidates subject to checks rather than tested versions. The 2.0.26 runtime evidence above remains historical and does not qualify N1. No stable package version, consumer pin, or host runtime was changed.
 
 Required acceptance covers typed-tool `options.permission: shell` filtering, actual invocation agent in assertions, canonical fixed-operation resources, `save: []` without new broad saved grants, external-directory/location equivalence, holds and cancellation. Command schema/registry accepts string names including the selected `oc-beads:<command>` namespace; installed UI/dispatch still needs qualification. Compaction only carries acknowledged references and known gaps, never a pending-write queue or same-runner checkpoint. Package assets/registrations/disposal and blocking-child stop races need their own fixtures and installed-host checks. N0 is a historical alternative, not an automatic fallback.
 
