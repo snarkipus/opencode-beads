@@ -11,7 +11,7 @@ export class PrimeTimeoutError extends Error {
 }
 
 export class PrimeProcessError extends Error {
-  constructor(readonly exitCode: number, readonly stderr: string, command = "bd prime") {
+  constructor(readonly exitCode: number, readonly stderr: string, command = "bd prime", readonly stdout = "") {
     super(`${command} exited with code ${exitCode}`);
     this.name = "PrimeProcessError";
   }
@@ -27,6 +27,7 @@ export interface PrimeProcess {
 }
 
 export interface PrimeExecutionOptions {
+  signal?: AbortSignal;
   timeoutMs?: number;
   drainTimeoutMs?: number;
   spawn?: (directory: string, args: readonly string[]) => PrimeProcess;
@@ -108,12 +109,14 @@ async function runBdAttempt(
   const timeoutMs = options.timeoutMs ?? DEFAULT_PRIME_TIMEOUT_MS;
   const drainTimeoutMs = options.drainTimeoutMs ?? DEFAULT_PRIME_DRAIN_TIMEOUT_MS;
   const command = ["bd", ...args].join(" ");
+  options.signal?.throwIfAborted();
   const child = (options.spawn ?? spawnBd)(directory, args);
   const stdout = new Response(child.stdout).text();
   const stderr = new Response(child.stderr).text();
 
   let timedOut = false;
-  let rejectTimeout: (error: PrimeTimeoutError) => void = () => {};
+  let aborted = false;
+  let rejectTimeout: (error: unknown) => void = () => {};
   const timeout = new Promise<never>((_resolve, reject) => {
     rejectTimeout = reject;
   });
@@ -122,10 +125,17 @@ async function runBdAttempt(
     terminateProcessTree(child);
     rejectTimeout(new PrimeTimeoutError(timeoutMs, command));
   }, timeoutMs);
+  const onAbort = () => {
+    aborted = true;
+    terminateProcessTree(child);
+    rejectTimeout(options.signal?.reason ?? new DOMException("Aborted", "AbortError"));
+  };
+  options.signal?.addEventListener("abort", onAbort, { once: true });
+  if (options.signal?.aborted) onAbort();
 
   const completion = Promise.all([child.exited, stdout, stderr]).then(
     ([exitCode, output, errorOutput]) => {
-      if (exitCode !== 0) throw new PrimeProcessError(exitCode, errorOutput, command);
+      if (exitCode !== 0) throw new PrimeProcessError(exitCode, errorOutput, command, output);
       return output;
     }
   );
@@ -134,7 +144,8 @@ async function runBdAttempt(
     return await Promise.race([completion, timeout]);
   } finally {
     cancelTimeout();
-    if (timedOut) {
+    options.signal?.removeEventListener("abort", onAbort);
+    if (timedOut || aborted) {
       await drainAfterKill(
         completion.catch(() => undefined),
         drainTimeoutMs,

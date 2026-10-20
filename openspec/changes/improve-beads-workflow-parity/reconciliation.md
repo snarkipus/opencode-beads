@@ -1,5 +1,18 @@
 # Planning reconciliation — 2026-10-18
 
+## 2026-10-20 owner correction — upstream responsibility
+
+The current owner decision supersedes the vuy.4 final-store confinement interpretation and its proposed upstream prerequisite. This is scope reconciliation plus authorized 3.1/3.2 source continuation, not an independent review verdict or live qualification.
+
+| Earlier implementation interpretation | Current contract and correction |
+| --- | --- |
+| Refuse checkpoint/show until final-store attestation or a routing-disable switch exists | Restore normal fixed append/show operations. Beads owns supported routing, including local-miss fallback; no upstream incident was demonstrated. |
+| Snapshot backend/metadata/routes and restrict execution to embedded storage | Remove those gates and repeated snapshots. Preserve inherited CLI context and backend selection; no environment clearing, metadata/resolver clone or upstream repair framework. |
+| Treat every internal Beads target as a plugin external-access target | Check actual session/project cwd and normal OpenCode permissions for the exact operation and explicit invocation/location access. This does not promise absolute filesystem confinement. |
+| Conflate source completion with activation or persistence guarantees | Retain attribution, migration guard via config-only context, bounded cancellation, honest acknowledgements, context/policy retention and reference-only compaction. Live 1.1 remains unexecuted and production activation withheld. |
+
+The operative vuy.4 description/design/acceptance/metadata are reconciled to this boundary; historical notes and reviews are preserved. All 17 requirement titles, 13 task IDs and nine child owners remain unchanged. Tasks 3.1/3.2 stay unchecked until parent accepts the source candidate; no other child or publication/closure authority is granted.
+
 ## Owner-approved process correction
 
 After the 2.1.1 READY review, Matt approved adopting Docker Lab's explicit executor-attribution policy and proportionate tracking of substantive planning/independent review work. Project-owned AGENTS.md now carries that policy outside generated blocks. Existing task IDs 3.1, 4.1 and 6.2 cover typed-write actor propagation, delegation/claim guidance and actual audit/assignment readback; the existing restricted-agent requirement includes an attribution scenario. There are still 13 tasks and 17 requirements; this correction is not implementation or live qualification.

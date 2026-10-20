@@ -3,6 +3,7 @@ import {
   PrimeProcessError,
   PrimeTimeoutError,
   runBdPrime,
+  runBd,
   type PrimeProcess,
 } from "../src/prime";
 
@@ -21,6 +22,31 @@ function completedProcess(exitCode: number, output = "context", error = "failure
 }
 
 describe("runBdPrime", () => {
+  test("refuses a cancelled invocation before spawn", async () => {
+    const abort = new AbortController();
+    abort.abort();
+    const spawn = mock(() => completedProcess(0));
+    await expect(runBd("/project", ["show", "task-1"], { signal: abort.signal, spawn })).rejects.toHaveProperty("name", "AbortError");
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
+  test("aborts the process tree and bounds draining without retrying an interrupted write", async () => {
+    const abort = new AbortController();
+    const killTree = mock(() => {});
+    const spawn = mock(() => ({
+      ...completedProcess(0),
+      stdout: new ReadableStream<Uint8Array>(),
+      exited: new Promise<number>(() => {}),
+      killTree,
+    }));
+    const pending = runBd("/project", ["update", "task-1", "--append-notes", "one\ntwo"], {
+      signal: abort.signal, spawn, drainTimeoutMs: 1,
+    });
+    abort.abort();
+    await expect(pending).rejects.toHaveProperty("name", "AbortError");
+    expect(killTree).toHaveBeenCalledWith("SIGKILL");
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
   test("returns stdout and cancels the timeout after success", async () => {
     let cancelled = false;
     const spawn = mock((_directory: string, _args: readonly string[]) =>

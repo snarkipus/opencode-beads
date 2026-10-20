@@ -28,6 +28,10 @@
 - This is an OpenCode V2 plugin integrating the beads issue tracker
 - Nothing is vendored from upstream Beads; see `docs/beads-artifact-policy.md`. Review each Beads release's upgrade notes against the surfaces listed there
 
+## Upstream responsibility boundary
+
+The installed Beads CLI owns its database, routing and consistency semantics. This plugin integrates normal supported CLI behavior; it does not repair, emulate or defensively compensate for speculative or broken upstream behavior. Do not introduce local upstream patches, routing/confinement frameworks or acceptance blockers for hypothetical upstream failures. Preserve our actual responsibilities: correct invocation/project context, OpenCode permissions, executor attribution, cancellation and honest outcomes. Normal permissioned CLI equivalence does not promise absolute filesystem confinement. Report demonstrated upstream defects with evidence and supported remedies; any downstream patch or stronger protective policy needs explicit scope.
+
 ## Beads execution identity and planning ownership
 
 This project-owned policy applies to commands in generated integration blocks too.

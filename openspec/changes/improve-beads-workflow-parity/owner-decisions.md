@@ -2,6 +2,12 @@
 
 Recorded 2026-10-18 UTC from Matt's direct response to the Opus review on published candidate e74b507 (review report published at acf5a68). These are owner planning selections, not implementation acceptance or release authority. Proposal/spec/design/task/inventory reconciliation is now recorded in [reconciliation.md](reconciliation.md); earlier unselected alternatives remain historical.
 
+## Operative upstream responsibility boundary — 2026-10-20
+
+Matt explicitly corrected the vuy.4 implementation scope: integrate normal supported permissioned Beads CLI behavior. Beads owns database, routing and consistency semantics; routing after a local miss is intended behavior, not an observed defect or a plugin confinement prerequisite. Remove speculative checkpoint/show refusals, backend restrictions, final-store attestation, upstream route-disable remedy requests and local repair/metadata/routing frameworks. Preserve actual invocation/project context, OpenCode permissions for the exact operation and explicit location access, executor attribution, cancellation, honest outcomes and the existing migration guard's config-only context probe. Normal CLI equivalence does not promise absolute filesystem confinement.
+
+This correction authorizes tasks 3.1/3.2 source continuation and the narrow current planning reconciliation, not other children, live 1.1 qualification, activation, acceptance, closure or publication. It supersedes stronger earlier implementation interpretations without rewriting historical reviews. The parent-added AGENTS.md upstream boundary must remain byte-identical during this work; prior setup custody statements below are historical. Keep the 17 requirement titles, 13 task IDs, nine-child ownership graph and 2.1.1 baseline unchanged; 3.1/3.2 markers stay unchecked until parent acceptance.
+
 ## Accepted direction
 
 1. **Parity reference: marketplace main.** Compare against the complete Claude Beads marketplace integration on upstream's default branch, resolved to immutable commits for each review/evaluation. A moving branch name alone is not evidence identity. Retain the release-pinned inventory as historical evidence, not the sole current parity target. Characterize the installed-vs-release append-notes change identified by Opus.

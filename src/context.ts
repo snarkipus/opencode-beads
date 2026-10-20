@@ -15,11 +15,12 @@ export const DEFAULT_IDLE_REFRESH_MS = 30 * 60_000;
 
 export type AgentMode = "primary" | "subagent" | "all";
 export type ContextAudience = "primary" | "task-agent";
-export type ContextDiagnostic = "agent_lookup_failed" | "prime_failed" | "prime_timeout";
+export type ContextDiagnostic = "agent_lookup_failed" | "guard_failed" | "prime_failed" | "prime_timeout";
+export type ContextStatus = "missing" | "withheld" | "failed" | "empty" | "ready";
 
 export interface ContextRuntime {
-  guard(directory: string): Promise<GuardResult>;
-  prime(directory: string): Promise<string>;
+  guard(directory: string, signal?: AbortSignal): Promise<GuardResult>;
+  prime(directory: string, signal?: AbortSignal): Promise<string>;
   /** Resolve an agent's mode; undefined when the agent is unknown. */
   agentMode(agentID: string): Promise<AgentMode | undefined>;
   diagnose?(code: ContextDiagnostic, sessionID: string): void;
@@ -39,9 +40,15 @@ export interface ContextController {
   invalidate(sessionID: string): void;
   /** Drop all state for a deleted session. */
   forget(sessionID: string): void;
+  /** Context state is distinct from an absent text part (including intentional empty prime). */
+  statusFor(sessionID: string, audience: ContextAudience): ContextStatus | undefined;
+  /** A write can affect every cached session in this location. */
+  invalidateAll(): void;
+  /** Abort owned loads and prevent late context injection after unload. */
+  dispose(): void;
 }
 
-type CacheEntry = { value: Promise<string | undefined>; expiresAt?: number; lastUsed: number };
+type CacheEntry = { value: Promise<string | undefined>; expiresAt?: number; lastUsed: number; abort: AbortController; status?: ContextStatus };
 
 /** Wrap prime output in the envelope and shared guidance for one audience. */
 export function renderBeadsContext(prime: string, audience: ContextAudience): string {
@@ -65,6 +72,7 @@ export function createContextController(
   const now = options.now ?? Date.now;
   const cache = new Map<string, CacheEntry>();
   const modes = new Map<string, Promise<AgentMode | undefined>>();
+  let disposed = false;
 
   async function audienceFor(
     sessionID: string,
@@ -97,34 +105,53 @@ export function createContextController(
 
     let guard: GuardResult;
     try {
-      guard = await runtime.guard(directory);
+      guard = await runtime.guard(directory, entry.abort.signal);
     } catch {
-      return retryLater(undefined);
+      if (entry.abort.signal.aborted) return undefined;
+      entry.status = "failed";
+      runtime.diagnose?.("guard_failed", sessionID);
+      return retryLater("<beads-notice>Beads workflow context failed during the store safety check. Store authority is unknown; do not bypass this failure with manual prime.</beads-notice>");
     }
-    if (guard.kind !== "ready") return retryLater(guardNotice(guard));
+    if (entry.abort.signal.aborted) return undefined;
+    if (guard.kind !== "ready") {
+      entry.status = guard.kind === "probe-failed" ? "failed" : guard.kind === "migration-pending" || guard.kind === "unsupported" ? "withheld" : "missing";
+      return retryLater(guardNotice(guard));
+    }
 
     let output: string;
     try {
-      output = (await runtime.prime(directory)).trim();
+      output = (await runtime.prime(directory, entry.abort.signal)).trim();
     } catch (error) {
+      if (entry.abort.signal.aborted) return undefined;
+      entry.status = "failed";
       const timedOut = error instanceof PrimeTimeoutError;
       runtime.diagnose?.(timedOut ? "prime_timeout" : "prime_failed", sessionID);
       return retryLater(primeFailureNotice(timedOut ? "timed out" : "failed"));
     }
-    if (!output) return retryLater(undefined);
+    if (entry.abort.signal.aborted) return undefined;
+    if (!output) {
+      entry.status = "empty";
+      return retryLater(undefined);
+    }
+    entry.status = "ready";
     return renderBeadsContext(output, audience);
   }
 
   function dropSession(sessionID: string): void {
+    modes.clear();
     for (const key of cache.keys()) {
-      if (key.startsWith(`${sessionID}\0`)) cache.delete(key);
+      if (key.startsWith(`${sessionID}\0`)) {
+        cache.get(key)?.abort.abort();
+        cache.delete(key);
+      }
     }
   }
 
   return {
     async systemFor(sessionID, agentID) {
+      if (disposed) return undefined;
       const audience = await audienceFor(sessionID, agentID);
-      if (!audience) return undefined;
+      if (!audience || disposed) return undefined;
 
       const key = `${sessionID}\0${audience}`;
       const current = now();
@@ -136,7 +163,8 @@ export function createContextController(
         return cached.value;
       }
 
-      const entry: CacheEntry = { value: Promise.resolve(undefined), lastUsed: current };
+      cached?.abort.abort();
+      const entry: CacheEntry = { value: Promise.resolve(undefined), lastUsed: current, abort: new AbortController() };
       entry.value = load(sessionID, audience, entry);
       cache.set(key, entry);
       return entry.value;
@@ -144,5 +172,16 @@ export function createContextController(
 
     invalidate: dropSession,
     forget: dropSession,
+    statusFor: (sessionID, audience) => cache.get(`${sessionID}\0${audience}`)?.status,
+    invalidateAll() {
+      for (const entry of cache.values()) entry.abort.abort();
+      cache.clear();
+    },
+    dispose() {
+      disposed = true;
+      for (const entry of cache.values()) entry.abort.abort();
+      cache.clear();
+      modes.clear();
+    },
   };
 }

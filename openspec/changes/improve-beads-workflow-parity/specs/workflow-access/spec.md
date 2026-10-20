@@ -113,7 +113,7 @@ The redesign SHALL use N1 with exact OpenCode 2.1.1 qualification and `>=2.1.1 <
 
 ### Requirement: Restricted-agent typed operation boundary
 
-Typed continuity tools SHALL inherit shell-based visibility/filtering and operation-specific allow/ask/deny behavior in direct and code-mode use. Assertions SHALL use actual invocation agent/session identity, canonical fixed-operation resources and narrowly scoped or absent saved grants. Effective location/external-access restrictions and guard holds SHALL be checked before process execution, including after approval waits. Unresolved equivalence SHALL prevent execution.
+Typed continuity tools SHALL inherit shell visibility and operation-specific allow/ask/deny in direct and code-mode use. Assertions SHALL use actual invocation identity, canonical resources and narrow or absent saved grants. Explicit location access, guard holds and cancellation SHALL be rechecked after approval and before execution. Beads SHALL own database/routing/consistency semantics; CLI equivalence SHALL NOT promise absolute final-store confinement.
 
 #### Scenario: Agent wholly denies shell
 
@@ -133,8 +133,11 @@ Typed continuity tools SHALL inherit shell-based visibility/filtering and operat
 
 #### Scenario: External target or held workspace
 
-- **WHEN** a redirected workspace requires external access or a guard withholds store access
-- **THEN** the operation preserves the applicable restriction and refuses before spawning unless the required authority and target are established
+- **WHEN** the explicit invocation/location requires external-directory access or the existing guard withholds store access
+- **THEN** the operation preserves that restriction and refuses before store-opening execution unless invocation context and the required OpenCode authority are established
+- **AND** Beads retains ownership of its internal routing; no final-store attestation or additional internal-route confinement is promised
+- **AND** normal intended routing is not a speculative blocker or a prerequisite for upstream routing-disable support or local repair logic
+- **AND** unresolved OpenCode permission equivalence prevents the affected execution
 
 #### Scenario: Agent claims and hands off tracked work
 

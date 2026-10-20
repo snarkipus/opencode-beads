@@ -22,7 +22,7 @@ function fixture(
     async (_directory: string): Promise<GuardResult> =>
       typeof options.guard === "function" ? options.guard() : (options.guard ?? { kind: "ready" })
   );
-  const prime = mock(async (_directory: string) => (options.prime ? options.prime() : "PRIME"));
+  const prime = mock(async (_directory: string, _signal?: AbortSignal) => (options.prime ? options.prime() : "PRIME"));
   const agentMode = mock(async (agentID: string) => options.modes?.[agentID]);
   const diagnose = mock((_code: string, _sessionID: string) => {});
   const runtime: ContextRuntime = { guard, prime, agentMode, diagnose };
@@ -44,13 +44,45 @@ function fixture(
 }
 
 describe("context controller", () => {
+  test("distinguishes missing, withheld, failed and intentionally empty context", async () => {
+    const missing = fixture({ guard: { kind: "uninitialized" } });
+    await missing.controller.systemFor("s1", "build");
+    expect(missing.controller.statusFor("s1", "primary")).toBe("missing");
+    const held = fixture({ guard: { kind: "migration-pending", installed: "1.3.1", store: "1.2.0" } });
+    await held.controller.systemFor("s1", "build");
+    expect(held.controller.statusFor("s1", "primary")).toBe("withheld");
+    const failed = fixture({ prime: async () => { throw new Error("failure"); } });
+    await failed.controller.systemFor("s1", "build");
+    expect(failed.controller.statusFor("s1", "primary")).toBe("failed");
+    const empty = fixture({ prime: async () => "" });
+    await empty.controller.systemFor("s1", "build");
+    expect(empty.controller.statusFor("s1", "primary")).toBe("empty");
+  });
+
+  test("aborts stale loads on invalidation and unload without leaking a late result", async () => {
+    let release: (value: string) => void = () => {};
+    let signal: AbortSignal | undefined;
+    const f = fixture();
+    f.prime.mockImplementation(async (_directory, abortSignal?: AbortSignal) => {
+      signal = abortSignal;
+      return new Promise<string>((resolve) => { release = resolve; });
+    });
+    const pending = f.controller.systemFor("s1", "build");
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    f.controller.invalidate("s1");
+    expect(signal?.aborted).toBeTrue();
+    release("STALE");
+    expect(await pending).toBeUndefined();
+    f.controller.dispose();
+    expect(await f.controller.systemFor("s1", "build")).toBeUndefined();
+  });
   test("renders prime for primary agents and caches it per session", async () => {
     const f = fixture({ modes: { build: "primary" } });
     const first = await f.controller.systemFor("s1", "build");
     expect(first).toBe(renderBeadsContext("PRIME", "primary"));
     expect(await f.controller.systemFor("s1", "build")).toBe(first);
     expect(f.prime).toHaveBeenCalledTimes(1);
-    expect(f.prime).toHaveBeenCalledWith("/project");
+    expect(f.prime).toHaveBeenCalledWith("/project", expect.any(AbortSignal));
     await f.controller.systemFor("s2", "build");
     expect(f.prime).toHaveBeenCalledTimes(2);
   });
@@ -124,13 +156,15 @@ describe("context controller", () => {
     expect(f.guard).toHaveBeenCalledTimes(2);
   });
 
-  test("treats guard exceptions as retryable absence", async () => {
+  test("reports guard exceptions as retryable failure without manual bypass advice", async () => {
     const f = fixture({
       guard: async () => {
         throw new Error("boom");
       },
     });
-    expect(await f.controller.systemFor("s1", "beads-task-agent")).toBeUndefined();
+    expect(await f.controller.systemFor("s1", "beads-task-agent")).toContain("do not bypass");
+    expect(f.controller.statusFor("s1", "task-agent")).toBe("failed");
+    expect(f.diagnose).toHaveBeenCalledWith("guard_failed", "s1");
     expect(f.prime).not.toHaveBeenCalled();
   });
 

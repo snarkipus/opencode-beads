@@ -16,6 +16,16 @@ Treat the injected \`bd prime\` output as the canonical workflow reference. Use 
 
 Run relevant validation before closing an issue. Do not commit, push, or run Dolt synchronization automatically; do so only when current instructions or repository policy explicitly require it.`;
 
+const BEADS_RECOVERY_GUIDANCE = `## Work continuity
+
+At the first eligible request after a fresh session, compaction, interruption, child handoff or important change, retrieve the assigned task and relevant reusable knowledge under the current permissions and guard. Re-read current state when external writers may have changed it; cached absence is not proof of absence. Missing, withheld, failed and intentionally empty workflow context are different outcomes; never bypass a hold with manual prime.
+
+Append task-specific attempts, measured outcomes, rationale, blockers and the next authorized action at meaningful transitions. Keep hypotheses qualified. Reusable project memory is for validated findings with scope and evidence: search or recall relevant existing knowledge before adding or correcting it. No redundant write quota applies.
+
+Only actual CLI results acknowledge persistence. A timeout or interrupted append/remember is uncertain: inspect durable state before another write, with no blind retry. A landed memory with failed or indeterminate commit retains its reference and qualified status; do not force it or automatically commit. Empty found memory differs from a missing key. Every authorized write uses the actual executor's explicit Beads actor, separate from the host permission agent; never use human Git identity or a model-supplied impersonation.
+
+Typed continuity activation is withheld pending host qualification. The installed Beads CLI owns database, routing and consistency semantics; the adapter invokes normal supported operations from the actual project context under OpenCode permissions. Typed writes derive a stable readable actor from the actual invocation session and agent. That attribution is not authentication and never transfers assignment: deliberate handoffs still require their own authorized claim/update and evidence. Where an authorized permission check uses save: [], an always reply grants this call only and ask may prompt again; existing shell grants remain subject to denies.`;
+
 const BEADS_DELEGATION_GUIDANCE = `## Delegation
 
 Delegate multi-command Beads work and issue-graph analysis to the \`beads-task-agent\` subagent through the \`subagent\` tool; perform only single atomic operations directly.`;
@@ -40,14 +50,14 @@ Beads workflow context could not be loaded: \`bd prime\` ${reason}. Beads may st
 
 /** Added to compaction requests so the summary keeps the Beads work in flight. */
 export const BEADS_COMPACTION_GUIDANCE = `<beads-compaction>
-This session tracks work in Beads (bd). In the summary, preserve every bead ID mentioned, which bead is claimed or in progress and its current status, discovered follow-up beads and how they were linked, blockers, and validation still pending. Fresh \`bd prime\` context is attached again after compaction, so do not restate the Beads workflow itself.
+This session tracks work in Beads (bd). Carry acknowledged durable task/memory references, current scope, attempts, blockers, pending validation and known unsaved or uncertain gaps into the summary or native-provider context. A summary is not a Beads write. Do not persist, wait for permission or a queued write, or request a recursive same-session checkpoint during compaction. Earlier meaningful checkpoints support recovery; no final-write guarantee applies. Fresh guarded context is requested after compaction. Preserve host-owned native replay, metadata.keepID and legacy metadata.recent; do not inject result.native.messages or a replacement result to add references.
 </beads-compaction>`;
 
 /** Build the single shared guidance layer for one injected audience. */
 export function beadsGuidance(
   audience: "primary" | "task-agent"
 ): string {
-  const sections = [BEADS_HOST_GUIDANCE];
+  const sections = [BEADS_HOST_GUIDANCE, BEADS_RECOVERY_GUIDANCE];
   if (audience === "primary") sections.push(BEADS_DELEGATION_GUIDANCE);
   return `<beads-guidance>\n${sections.join("\n\n")}\n</beads-guidance>`;
 }

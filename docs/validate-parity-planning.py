@@ -100,7 +100,8 @@ parsed_tasks = re.findall(r'^- \[([ xX])\] (\d+\.\d+) ', tasks, re.M)
 task_ids = [task_id for _, task_id in parsed_tasks]
 assert len(task_ids) == len(set(task_ids)) and task_ids
 # Source tasks have parent-accepted deterministic evidence; live gates remain unexecuted.
-assert {task_id for mark, task_id in parsed_tasks if mark.lower() == 'x'} == {'1.2', '2.1'}, 'Only accepted tasks 1.2 and 2.1 may be checked'
+accepted_tasks = {task_id for mark, task_id in parsed_tasks if mark.lower() == 'x'}
+assert accepted_tasks == {'1.2', '2.1', '3.1', '3.2'}, 'Only parent-accepted source tasks 1.2, 2.1, 3.1 and 3.2 may be checked'
 # Final review B1: stable task IDs with dependency/types preparation first.
 assert task_ids.index('1.2') < task_ids.index('1.1')
 task_text = dict(re.findall(r'^- \[[ xX]\] (\d+\.\d+) (.+)$', tasks, re.M))
@@ -267,5 +268,5 @@ print(f'PASS: {len(actual)} Claude files; 29 commands, 15 resources, 1 ADR; Git/
 print(f'PASS: {len(native["sources"])} native files / 21 source groups; 10 mechanisms, 9 candidates; links and availability anchors')
 print('PASS: npm tarball integrity, 2.0.26/2.0.32 declaration comparison, permission assertion and development-only listing distinctions')
 print(f'PASS: {len(current_actual)} marketplace-main files, complete dispositions and installed comparison when available')
-print(f'PASS: {len(task_ids)} unique tasks (2 accepted, 11 unchecked); {len(requirements)} normative requirements mapped; full corpus task coverage')
+print(f'PASS: {len(task_ids)} unique tasks ({len(accepted_tasks)} accepted, {len(task_ids) - len(accepted_tasks)} unchecked); {len(requirements)} normative requirements mapped; full corpus task coverage')
 print(f'PASS: {len(files)} planning files whitespace/local links/containment, including untracked artifacts; no tracker access')

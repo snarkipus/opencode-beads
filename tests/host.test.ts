@@ -5,6 +5,8 @@ import path from "node:path";
 import * as pluginModule from "../src/plugin";
 import { renderBeadsContext } from "../src/context";
 import { setupBeads, type HostContext } from "../src/host";
+import type { ContinuityHost } from "../src/continuity";
+import type { Info, ToolContext } from "@opencode/plugin/promise/tool";
 import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
 import { BEADS_COMPACTION_GUIDANCE, primeFailureNotice } from "../src/guidance";
 
@@ -100,6 +102,118 @@ describe("OpenCode V2 entry", () => {
 });
 
 describe("setupBeads", () => {
+  test("refreshes recovery state for external changes, isolates fork/move/audience and never restarts on interruption", async () => {
+    const f = fakeContext();
+    let directory = "/project";
+    let output = "FIRST";
+    Object.assign(f.ctx.session, { get: async () => ({ location: { directory } }) });
+    const prime = mock(async () => output);
+    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime } });
+    await f.request("s1", "build");
+    await f.request("s10", "build");
+    output = "EXTERNAL CHANGE";
+    f.events.push({ type: "session.execution.started", data: { sessionID: "s1" } });
+    await settle();
+    const recovered = await f.request("s1", "build");
+    expect(recovered[0]).toContain("EXTERNAL CHANGE");
+    expect(recovered[1]).toContain("Cached absence is not proof of absence");
+    expect((await f.request("s10", "build"))[0]).toContain("FIRST");
+    expect((await f.request("fork", "build"))[0]).toContain("EXTERNAL CHANGE");
+    const hidden: ContextEvent = { sessionID: "s1", agent: "explore", system: [] };
+    await f.hooks.get("compaction")!(hidden);
+    expect(hidden.system).toEqual([]);
+    f.events.push({ type: "session.execution.interrupted", data: { sessionID: "s1" } });
+    await settle();
+    const count = prime.mock.calls.length;
+    await settle();
+    expect(prime).toHaveBeenCalledTimes(count);
+    directory = "/elsewhere";
+    f.events.push({ type: "session.moved", data: { sessionID: "s1" } });
+    await settle();
+    expect(await f.request("s1", "build")).toEqual([]);
+    expect(prime).toHaveBeenCalledTimes(count);
+    cleanup();
+  });
+
+  test("normal adapter writes invalidate location caches once and compaction only carries acknowledged references/gaps", async () => {
+    const f = fakeContext();
+    const tools: Info[] = [];
+    let after: (event: any) => unknown = () => {};
+    const disposed = mock(async () => {});
+    Object.assign(f.ctx, { tool: { hook: async (_name: string, callback: typeof after) => { after = callback; return { dispose: disposed }; } } });
+    const host = {
+      location: { directory: "/project", project: { directory: "/project" } },
+      permission: { assert: mock(async () => {}) },
+      session: { get: async () => ({ location: { directory: "/project" } }) },
+      tool: { transform: async (callback: (editor: { add(tool: Info): void }) => void) => { callback({ add: (tool) => tools.push(tool) }); return { dispose: disposed }; } },
+    } as unknown as ContinuityHost & { tool: { transform: any } };
+    let output = "BEFORE";
+    const prime = mock(async () => output);
+    const acknowledged = mock(() => {});
+    const bd = mock(async (_cwd: string, args: readonly string[]) => {
+      if (args[0] === "version") return "1.3.1";
+      if (args[0] === "context") return '{"beads_dir":"/project/.beads","backend":"dolt","dolt_mode":"embedded","database":"beads"}';
+      return '{"key":"lesson","value":"validated finding","action":"remembered","committed":false,"commit_error":"not committed"}';
+    });
+    Object.assign(f.ctx, { location: host.location, permission: host.permission, tool: { ...f.ctx.tool, ...host.tool } });
+    Object.assign(f.ctx.session, host.session);
+    const cleanup = await setupBeads(f.ctx, {
+      runtime: { guard: async () => ({ kind: "ready" }), prime },
+      continuityQualified: true, continuity: {
+        bd, acknowledged, realpath: async (path) => path,
+        readText: async () => "1.3.1",
+      },
+    });
+    await f.request("s1", "build");
+    await f.request("s2", "build");
+    const tool = tools.find((tool) => tool.name === "beads_remember")!;
+    const context = { sessionID: "s1", agent: "worker", messageID: "m1", id: "c1", signal: new AbortController().signal, progress: async () => {} } as unknown as ToolContext;
+    const result = await tool.execute({ key: "lesson", text: "validated finding" }, context);
+    await after({ ...context, tool: "beads_remember", status: "completed", result });
+    await after({ ...context, tool: "execute", status: "completed", result });
+    expect(acknowledged).toHaveBeenCalledTimes(1);
+    expect(bd.mock.calls.filter(([, args]) => args[0] === "remember")).toHaveLength(1);
+    output = "AFTER";
+    expect((await f.request("s2", "build"))[0]).toContain("AFTER");
+    const count = bd.mock.calls.length;
+    const event: ContextEvent = { sessionID: "s1", agent: "build", system: [] };
+    await f.hooks.get("compaction")!(event);
+    expect(event.system[1]?.text).toContain("memory:lesson");
+    expect(event.system[1]?.text).toContain("landed-uncommitted");
+    expect(bd).toHaveBeenCalledTimes(count);
+    cleanup();
+    expect(disposed).toHaveBeenCalledTimes(2);
+  });
+
+  test("ordinary setup withholds privileged continuity registration", async () => {
+    const f = fakeContext();
+    const transform = mock(async () => ({ dispose: async () => {} }));
+    Object.assign(f.ctx, { tool: { transform, hook: mock(async () => ({ dispose: async () => {} })) } });
+    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" } });
+    expect(transform).not.toHaveBeenCalled();
+    cleanup();
+  });
+
+  test("compaction preserves native replay, keepID, legacy recent and model boundaries without I/O", async () => {
+    const f = fakeContext();
+    const prime = mock(async () => "PRIME");
+    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime } });
+    await f.request("s1", "build");
+    const hook = f.hooks.get("compaction")!;
+    for (const metadata of [{ keepID: "fork-remapped-id" }, { recent: "legacy retained tail" }]) {
+      for (const model of [{ providerID: "provider-a", id: "model-a" }, { providerID: "provider-b", id: "model-b" }]) {
+        const event = { sessionID: "s1", agent: "build", system: [], model,
+          messages: [{ role: "assistant", native: { messages: [{ opaque: true }] }, metadata }],
+          result: { summary: "host summary", metadata, native: { messages: [{ replacement: true }] } },
+        };
+        const before = JSON.stringify({ messages: event.messages, result: event.result, model });
+        await hook(event);
+        expect(JSON.stringify({ messages: event.messages, result: event.result, model: event.model })).toBe(before);
+      }
+    }
+    expect(prime).toHaveBeenCalledTimes(1);
+    cleanup();
+  });
   test("reports and skips setup for an unsupported OpenCode host", async () => {
     for (const appVersion of ["2.0.29", "2.1.0", "2.1.1-beta.1", "2.2.0", "unknown"]) {
       const f = fakeContext({ appVersion });
@@ -162,14 +276,14 @@ describe("setupBeads", () => {
     expect(await f.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary")]);
     expect(await f.request("s1", "explore")).toEqual([]);
     expect(prime).toHaveBeenCalledTimes(1);
-    expect(prime).toHaveBeenCalledWith("/project");
+    expect(prime).toHaveBeenCalledWith("/project", expect.any(AbortSignal));
     expect(f.agentGet).toHaveBeenCalledWith({ agentID: "build" });
     cleanup();
   });
 
   test("minimizes bd's full AGENTS.md block only when prime is attached", async () => {
     const block =
-      "<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:1 -->\nfull reference\n<!-- END BEADS INTEGRATION -->";
+      "<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:1 -->\nPRIME\n<!-- END BEADS INTEGRATION -->";
     let guard: { kind: "ready" } | { kind: "migration-pending"; installed: string; store: string } = {
       kind: "ready",
     };
@@ -184,7 +298,7 @@ describe("setupBeads", () => {
     const withPrime: ContextEvent = { sessionID: "s1", agent: "build", system: [{ type: "text", text: block }] };
     await hook(withPrime);
     expect(withPrime.system[0]?.text).toContain("provided by the opencode-beads plugin");
-    expect(withPrime.system[0]?.text).not.toContain("full reference");
+    expect(withPrime.system[0]?.text).not.toContain("BEGIN BEADS");
     expect(withPrime.system[1]?.text).toBe(renderBeadsContext("PRIME", "primary"));
 
     const subagent: ContextEvent = { sessionID: "s1", agent: "explore", system: [{ type: "text", text: block }] };
@@ -328,7 +442,7 @@ describe("setupBeads", () => {
     try {
       await writeFile(path.join(directory, ".local_version"), "1.2.2\n");
       const bd = mock(async (_cwd: string, args: readonly string[]) =>
-        args[0] === "version" ? "bd version 1.3.1 (abc)" : JSON.stringify({ path: directory })
+        args[0] === "version" ? "bd version 1.3.1 (abc)" : JSON.stringify({ beads_dir: directory })
       );
       const prime = mock(async (_directory: string) => "PRIME");
 
@@ -343,7 +457,7 @@ describe("setupBeads", () => {
       const optedIn = fakeContext({ directory, pluginOptions: { autoMigrate: true } });
       const cleanupOptedIn = await setupBeads(optedIn.ctx, { bd, runtime: { prime } });
       expect(await optedIn.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary")]);
-      expect(prime).toHaveBeenCalledWith(directory);
+      expect(prime).toHaveBeenCalledWith(directory, expect.any(AbortSignal));
       cleanupOptedIn();
     } finally {
       await rm(directory, { recursive: true, force: true });
