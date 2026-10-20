@@ -185,8 +185,66 @@ for name in native['declarations_identical_26_32']:
 assert 'readonly assert:' not in (scratch / 'npm26/package/dist/promise/permission.d.ts').read_text()
 assert 'readonly assert:' in (scratch / 'npm32/package/dist/promise/permission.d.ts').read_text()
 assert '| "list"' not in (scratch / 'npm32/package/dist/promise/session.d.ts').read_text()
-assert native['status'] == 'selected-planning' and native['runtime_qualification'] == 'not executed'
+assert native['status'] == 'historical-planning' and native['runtime_qualification'] == 'not executed'
 assert native['selected_minimum'] == '>=2.0.32 <3'
+
+# New baseline evidence is additive; never relabel historical 2.0.32 sources.
+new = data['host_baseline_211']
+assert new['commit'] == 'ba546ec1598a70db2570e9c6258028d955ba8f58'
+assert new['previous_commit'] == native['commit']
+assert new['admission_range'] == '>=2.1.1 <2.2' and new['exact_live_target'] == '2.1.1'
+assert new['runtime_qualification'] == 'not executed'
+cache = scratch / new['cache']
+assert json.loads((cache / 'tag.json').read_text())['object'] == {
+    'sha': new['commit'], 'type': 'commit',
+    'url': f"https://api.github.com/repos/anomalyco/opencode/git/commits/{new['commit']}"}
+new_tree = json.loads((cache / 'tree.json').read_text())
+assert not new_tree['truncated'] and new_tree['sha'] == new['commit']
+new_blobs = {e['path']: e for e in new_tree['tree'] if e['type'] == 'blob'}
+new_paths = [e['path'] for e in new['sources']]
+assert len(new_paths) == len(set(new_paths)) and source_paths <= set(new_paths)
+for entry in new['sources']:
+    path = entry['path']
+    verify_blob(cache / 'source' / path, entry, new_blobs[path])
+    assert entry['url'] == f"https://github.com/anomalyco/opencode/blob/{new['commit']}/{path}"
+    prior = tree.get(path)
+    assert entry['old_git_blob'] == (prior['sha'] if prior else None)
+    delta = 'added' if prior is None else 'unchanged' if prior['sha'] == entry['git_blob'] else 'modified'
+    assert entry['delta'] == delta
+    if prior:
+        old = (scratch / 'released' / path).read_bytes()
+        assert hashlib.sha1(b'blob ' + str(len(old)).encode() + b'\0' + old).hexdigest() == prior['sha']
+npm = json.loads((cache / 'npm.json').read_text())
+package = new['package']
+assert npm['name'] == package['name'] and npm['version'] == package['version'] == '2.1.1'
+assert npm['dist']['tarball'] == package['tarball'] and npm['dist']['integrity'] == package['integrity']
+tarball = (cache / 'plugin-2.1.1.tgz').read_bytes()
+assert hashlib.sha256(tarball).hexdigest() == package['sha256']
+assert 'sha512-' + base64.b64encode(hashlib.sha512(tarball).digest()).decode() == package['integrity']
+import io
+import tarfile
+with tarfile.open(fileobj=io.BytesIO(tarball)) as archive:
+    assert json.loads(archive.extractfile('package/package.json').read())['version'] == '2.1.1'
+    for entry in new['declarations']:
+        content = (cache / 'npm' / entry['path']).read_bytes()
+        assert content == archive.extractfile(entry['path']).read()
+        prior = (scratch / 'npm32' / entry['path']).read_bytes()
+        assert hashlib.sha256(content).hexdigest() == entry['sha256']
+        assert hashlib.sha256(prior).hexdigest() == entry['old_sha256']
+        assert entry['delta'] == ('unchanged' if content == prior else 'modified')
+for domain in ('effect', 'promise'):
+    source = (cache / f'source/packages/plugin/src/{domain}/session.ts').read_text()
+    declaration = (cache / f'npm/package/dist/{domain}/session.d.ts').read_text()
+    assert '| "list"' in source and 'native?:' in source and 'providerState?:' not in source
+    assert '"list"' in declaration and 'native?:' in declaration
+assert new['availability_overrides']['X09']['availability'] == 'released-public'
+assert new['availability_overrides']['X09']['disposition'] == 'reference-only'
+assert 'metadata.keepID' in (cache / 'source/packages/core/src/session/history.ts').read_text()
+assert 'tool.options?.permission ?? name' in (cache / 'source/packages/core/src/tool.ts').read_text()
+assert 'existing.request.save?.length' in (cache / 'source/packages/core/src/permission.ts').read_text()
+assert re.search(r'^## (v[^ ]+)', (cache / 'source/CHANGELOG.md').read_text(), re.M)[1] == 'v2.1.0'
+assert set(new['task_ids']) <= set(task_ids)
+print(f"PASS: 2.1.1 separate pin, {len(new_paths)} endpoint sources, published tarball/declarations, conservative admission; runtime unexecuted")
 
 files = [p for p in (repo / 'openspec/changes/improve-beads-workflow-parity').rglob('*') if p.is_file()]
 files += [repo / 'docs' / name for name in (
@@ -194,7 +252,7 @@ files += [repo / 'docs' / name for name in (
     'opencode-native-parity-assessment.md', 'validate-parity-planning.py',
     'claude-code-local-reference.md', 'beads-artifact-policy.md',
     'claude-code-parity.md', 'opencode-sdk-contract.md',
-    'reviews/opus-planning-review-50919ae.md')]
+    'reviews/opus-planning-review-50919ae.md', 'opencode-2.1.1-contract-delta.md')]
 for path in files:
     assert not path.is_symlink() and path.resolve().is_relative_to(repo)
     check = subprocess.run(['git', 'diff', '--no-index', '--check', '/dev/null', str(path)],

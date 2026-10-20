@@ -87,7 +87,12 @@ Selected workflows SHALL preserve the user's requested execution scope, distingu
 
 ### Requirement: Explicit native availability and fallback
 
-The redesign SHALL use N1 with a minimum OpenCode 2.0.32 within the V2 line, through opt-in beta/next delivery. It SHALL NOT silently migrate stable consumers, promise future-major compatibility, or replace selected guarantees with N0. Concrete incompatibilities SHALL block the affected path with diagnostics pending resolution. Exact version/tag publication remains separately authorized.
+The redesign SHALL use N1 with exact OpenCode 2.1.1 qualification and `>=2.1.1 <2.2` admission through opt-in beta/next delivery. It SHALL NOT silently migrate stable consumers, promise arbitrary minor/major compatibility or substitute N0. Concrete incompatibilities SHALL block the affected path with diagnostics. Publication remains separately authorized.
+
+#### Scenario: A different host version is considered
+
+- **WHEN** a future admitted patch or a version outside the declared range is considered
+- **THEN** an admitted patch is not described as tested without measured evidence, and an out-of-range host remains unsupported pending explicit contract review
 
 #### Scenario: Host cannot satisfy N1
 

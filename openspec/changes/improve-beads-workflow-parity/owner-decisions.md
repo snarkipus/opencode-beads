@@ -10,6 +10,12 @@ Recorded 2026-10-18 UTC from Matt's direct response to the Opus review on publis
 4. **Upstream alert sink: existing check pattern.** Reuse the scheduled contract/check mechanism rather than introduce GitHub issues as a second tracker. Compare selected source paths against marketplace main, resolve commits, make drift visible in check output with review links, and distinguish retrieval failure from drift/no drift. Baseline advancement remains human-reviewed. Do not add issue-write permissions. Beads owns any execution work selected after review. Update prior issue-alert language consistently.
 5. **Primary objective: overall harness-native DX.** Better note and memory behavior are examples, not the entire problem. Aim for a coherent, tightly integrated OpenCode experience across discovery, command/task flow, contextual guidance, recovery, persistence, delegation, approvals, diagnostics and lifecycle. Claude is the behavioral baseline, not the implementation blueprint. Exploit supported native and selectively adopted experimental capabilities where they improve observed DX. The user suspects Claude-harness optimization contributes to the difference; causality remains unproven.
 
+## Operative host selection — 2026-10-20
+
+Matt directly selected OpenCode **2.1.1**, superseding the earlier 2.0.32 minimum above while retaining all other product choices. Source pin: `ba546ec1598a70db2570e9c6258028d955ba8f58`. Engineering admission policy is `>=2.1.1 <2.2` because 2.1 changes public replay/compaction contracts; exact 2.1.1 is the unexecuted disposable qualification target, not a tested compatibility claim. Future patch candidates require normal qualification; no arbitrary minor compatibility. See [delta memo](../../../docs/opencode-2.1.1-contract-delta.md).
+
+Authority covers planning/docs/validator and existing scoped tracker updates only, followed by **PAUSED FOR REVIEW**. No implementation, dependency installation, host upgrade, dispatch or publication. Operator 2.0.29 remains untouched. AGENTS.md/.codex setup is now tracked at `907232a393443a0f0d59133ffb0e2612f3fd9026` and must remain identical; earlier dirty-setup descriptions are historical.
+
 ## Follow-up dispositions
 
 - **Ownership accepted with namespace below:** package-owned richer guidance and commands; leave the upstream-owned shared `beads` skill untouched and preserve explicit user customizations. Earlier name alternatives are superseded by `oc-beads`.

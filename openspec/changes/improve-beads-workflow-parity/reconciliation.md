@@ -1,13 +1,13 @@
 # Planning reconciliation — 2026-10-18
 
-**Verdict: READY for parent review and a separately authorized implementation workflow.** This is the planning agent's assessment, not independent reviewer approval, implementation acceptance or publication authority. Original baseline: `3dc2ea327ed490ceb9cf0b95c31af77631613287`; final correction candidate: `50919ae0f6b192bb8c2773398685c550fdaad22f`, branch `openspec/improve-beads-workflow-parity`. The planning bead `opencode-beads-d9n` remains open; no Beads commands were run.
+**Current verdict: READY for review of the 2.1.1 planning delta; PAUSED FOR REVIEW.** The older reconciliation and independent reviews below are historical evidence, not approval of this new baseline. This is the planning agent's assessment, not independent reviewer approval, implementation acceptance or publication authority. Original baseline: `3dc2ea327ed490ceb9cf0b95c31af77631613287`; final correction candidate: `50919ae0f6b192bb8c2773398685c550fdaad22f`, branch `openspec/improve-beads-workflow-parity`. The planning bead `opencode-beads-d9n` remains open; no Beads commands were run.
 
 ## Decisions applied
 
 | Owner selection | Operative artifacts |
 | --- | --- |
 | Complete marketplace-main reference | Proposal What Changes; analysis Selected marketplace-main reference; local-reference Reconciled comparison; inventory `marketplace_main`; upstream-review Relevant upstream source comparison |
-| N1, OpenCode >=2.0.32 within V2 | Design decisions 1/3/4; workflow-access Explicit native availability and fallback and Restricted-agent typed operation boundary; tasks 1.1–1.2, 3.1–3.2 |
+| N1, OpenCode >=2.1.1 <2.2; exact 2.1.1 target | Design decisions 1/3/4; workflow-access Explicit native availability and fallback and Restricted-agent typed operation boundary; tasks 1.1–1.2, 3.1–3.2 |
 | Opt-in beta/next, no stable migration | Proposal breaking-change disclosure; design Migration Plan; workflow-access availability requirement; task 1.2; exact version/tag still separate release authority |
 | Scope-bounded continuation | Design decision 5; workflow-access Authorized continuation without scope expansion; tasks 4.1–4.2 and 6.2 |
 | Package-owned oc-beads and complete corpus | Design decision 2; inventory every selected_mapping; workflow-access discovery/ownership requirements; tasks 2.1–2.2 and 3.3; shared skill and user files preserved |
@@ -89,3 +89,11 @@ The historical 73-member and current 74-member inventories/dispositions and all 
 Strict change validation passed; strict all-change validation reported 1 passed/0 failed. The planning validator passed all six groups: 73 historical files, 74 current files with complete dispositions, 45 pinned native files/21 groups, npm evidence, 13 unique unchecked tasks, all 17 requirement mappings, and whitespace/local links for 18 planning artifacts including the new untracked review. `git diff --check` passed. `openspec status --change improve-beads-workflow-parity` reports 4/4 artifact kinds complete; that is presence, not runtime acceptance.
 
 Exact SHA-256 comparison against `/opt/data/cache/scratch/opencode-beads-reconcile-preserved-files.json` passed for AGENTS.md, .codex/config.toml and .codex/hooks.json, with no additional .codex files. Review body comparison confirms all supplied review substance is retained. Full changed-file inspection found 12 planning artifacts (11 edits and the new review), plus only the preexisting AGENTS.md/.codex setup. No staged changes; HEAD remains 50919ae0f6b192bb8c2773398685c550fdaad22f. No implementation, product tests, host/model experiments, installs/upgrades, Beads operations, commits or publication occurred.
+
+## 2026-10-20 host-baseline delta
+
+The [contract-delta memo](../../../docs/opencode-2.1.1-contract-delta.md) supersedes only the operative host baseline: 2.1.1 `ba546ec1598a70db2570e9c6258028d955ba8f58`, proposed admission >=2.1.1 <2.2. Historical 2.0.32 identities, inventory and passed reviews remain intact. Provider replay/compaction fields and retained history need fixture adaptation (1.2/3.2/6.2); released session.list remains unnecessary. Permission, registration, stop and unload contracts retain bounded qualification. No new services, compatibility layer, tasks or owners.
+
+The 13-task/17-requirement map above remains exact. Existing epic vuy and .1–.9 remain blocked/unassigned/implementation_authorized=false; .6 owns deterministic evidence consumed by gated .8, and .9 still awaits complete live acceptance. Review URLs at 84ab18e/dd56cf1 are explicitly historical; this unpublished delta has a local content digest, not an invented commit. d9n remains open. Setup custody now uses committed 907232a, not the old dirty-file assumption.
+
+Source retrieval and artifact integrity establish a source-backed planning baseline only. No actual 2.1.1 host compatibility is claimed. Live environment/model authority and all implementation authority remain absent; pause for parent/owner review after static checks and scoped tracker readback.

@@ -1774,7 +1774,7 @@
   ],
   "native_assessment": {
     "document": "opencode-native-parity-assessment.md",
-    "status": "selected-planning",
+    "status": "historical-planning",
     "checked_on": "2026-10-17",
     "release": "2.0.32",
     "commit": "843a6c514e606b436a7fe713422ace0a93ad3d61",
@@ -3750,6 +3750,635 @@
           "reason": "On-demand workspace routing and ownership guidance; no automatic worktree creation or store initialization."
         }
       }
+    ]
+  },
+  "host_baseline_211": {
+    "version": "2.1.1",
+    "commit": "ba546ec1598a70db2570e9c6258028d955ba8f58",
+    "previous_commit": "843a6c514e606b436a7fe713422ace0a93ad3d61",
+    "admission_range": ">=2.1.1 <2.2",
+    "exact_live_target": "2.1.1",
+    "runtime_qualification": "not executed",
+    "status": "planning-awaiting-review",
+    "document": "opencode-2.1.1-contract-delta.md",
+    "cache": "baseline211",
+    "sources": [
+      {
+        "path": "CHANGELOG.md",
+        "git_blob": "c2fb8cff2765a3812a239759d4b5aa1d95c0d5d2",
+        "sha256": "3273cc84e8bda1b36dba4d24a9e34236fcb0c55ff36134b8caef8bbf67242943",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/CHANGELOG.md",
+        "old_git_blob": "69b05c60d020bdfa14dd7e1277d269b2fa96ffbf",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/app/src/composer/client-slash-command.ts",
+        "git_blob": "b149796de2fa6cd49fb3602ae7303c5dd486ea23",
+        "sha256": "8c43cfe2d81a9f954ab804e6144221af4614af74b2edf08243dc013c3c0b56ee",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/app/src/composer/client-slash-command.ts",
+        "old_git_blob": "b149796de2fa6cd49fb3602ae7303c5dd486ea23",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/app/src/composer/submit.ts",
+        "git_blob": "be339fdb72338fd8366018a650b71c05f1bb37d7",
+        "sha256": "0f1c10887b162a84700a539720f8abe4f35b4cfd6fc720ef632e4427bf2e4513",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/app/src/composer/submit.ts",
+        "old_git_blob": "be339fdb72338fd8366018a650b71c05f1bb37d7",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/client/src/effect/client.ts",
+        "git_blob": "c757acc80279aa9653858ad92be71492641519b5",
+        "sha256": "f7920d3e4c3e3c679fa617710c7944d7f20215b3886c1f84fcdcad4eceae1063",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/client/src/effect/client.ts",
+        "old_git_blob": "c757acc80279aa9653858ad92be71492641519b5",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/client/src/promise/client.ts",
+        "git_blob": "0db239d9cc5844256dff70940932a1c42a29b407",
+        "sha256": "3282074a27063679230d0ba9b9ac725228c473d8cfc7e7564082a9d18ec6a898",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/client/src/promise/client.ts",
+        "old_git_blob": "0db239d9cc5844256dff70940932a1c42a29b407",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/client/src/solid/connection.ts",
+        "git_blob": "01e6b75b28c1c84d705c74b5f5f31063cc03d6c0",
+        "sha256": "3b93c8ba83bd7b77bfb6901fa27d062f90e65007a8db0694731c0eab21c19d32",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/client/src/solid/connection.ts",
+        "old_git_blob": "01e6b75b28c1c84d705c74b5f5f31063cc03d6c0",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/bus.ts",
+        "git_blob": "97f1257a5565e9b8ea61b554e87f62704d824b4c",
+        "sha256": "2498d2675c99cf74c5e2b3dd6789e09f15bfdac3e7cfabfa0c43a2e9e7ca132c",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/bus.ts",
+        "old_git_blob": "30bf10a31363954c800f352ad844416aa9e0dfd1",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/command.ts",
+        "git_blob": "8cf1b06bcfbb9a704dd8f2964bfa4c78a081c037",
+        "sha256": "51e55a74a561d4e5e03e5435515dac1f367043238789dcbc0c4b364aca977b00",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/command.ts",
+        "old_git_blob": "8cf1b06bcfbb9a704dd8f2964bfa4c78a081c037",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/config/normalize.ts",
+        "git_blob": "35d702a051f73cafd985235e51b5b4531961a78d",
+        "sha256": "46bb80421d8b0d95c4ada1e3011942d586591dfb86a2d2c7858d08c7dd204190",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/config/normalize.ts",
+        "old_git_blob": "af50de40729c5869a2df5dd89ad0fe0fab1bab17",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/config/plugin/command.ts",
+        "git_blob": "a029fb8adeffbed8194be614af4ca793635c540a",
+        "sha256": "1732401ccab0a8ea3221a1d107fa7e29bf974cd38ba3460cd6a511e3661ba868",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/config/plugin/command.ts",
+        "old_git_blob": "a029fb8adeffbed8194be614af4ca793635c540a",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/config/plugin/skill-scan.ts",
+        "git_blob": "c955270c5d554004b73c1661fbd1df4bdd6e286d",
+        "sha256": "2af4ab4ca137e727d71bda2f480bbf38ba0def3ef6c216d4fcc067d536a01b0e",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/config/plugin/skill-scan.ts",
+        "old_git_blob": null,
+        "delta": "added"
+      },
+      {
+        "path": "packages/core/src/config/plugin/skill.ts",
+        "git_blob": "be62b9c60c1f6c2a789b1ec874d3e2e10e0c33bd",
+        "sha256": "d17e3ed5813fba597048c6c7dbb2e4e17caa7cbf21ea04d3835682c9304f680f",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/config/plugin/skill.ts",
+        "old_git_blob": "1338cab3400b81b42102807d3c80c7e40b07c5b6",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/file-access.ts",
+        "git_blob": "bae484d5d79b52abfae67b1d6e6524f54b06279b",
+        "sha256": "811ceafb0f9b2f89c169a5d1c1158311cfaca1e9ccb2c5140b486ddf6ba103e9",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/file-access.ts",
+        "old_git_blob": "bae484d5d79b52abfae67b1d6e6524f54b06279b",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/permission/saved.ts",
+        "git_blob": "78aa4124c84800a4982a2af06cf431a2325cb577",
+        "sha256": "ef7418f057b62d4e3e0abb365238eea3ca19d7411b2b25d6b47e6a2cbb01594a",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/permission/saved.ts",
+        "old_git_blob": "8ba50b16beb100b1d1b811699ef90e83a6fa3cd5",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/permission.ts",
+        "git_blob": "1dc798807b6c6a2bcc48741190388b02e9515dce",
+        "sha256": "d34a94cdd526cf74bb954506243e76cf498b07c8b9998fd472da7ea837bcd18f",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/permission.ts",
+        "old_git_blob": "2aecebb0ce347c9acfc7e8dbec0f6c1b7d5951b9",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/plugin/hooks.ts",
+        "git_blob": "1325837f9d5864b2619b795c2cd1493d291786d1",
+        "sha256": "2e475ccada7437c648d81c16403671deeb2de74517e4b05a397c5c2513cbbe48",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/plugin/hooks.ts",
+        "old_git_blob": "1325837f9d5864b2619b795c2cd1493d291786d1",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/plugin/host.ts",
+        "git_blob": "56f6afde336324ddf88bef4a0f785e2ac1e87781",
+        "sha256": "aa1e4e95770ad9bf01d4ef8b1284ac654e4d103331c8dbfeca7603b83c2b5efd",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/plugin/host.ts",
+        "old_git_blob": "8d40da4aa8b21f8a254bdbccd2a4158188fb26ae",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/plugin/internal.ts",
+        "git_blob": "a6738a1ebf9c5e7bcb0d0d7102ba774950e96083",
+        "sha256": "7cb539389868b90e6b0d7ac174c17d7329d9074a5dd94acb5d3fc99ed7eab0fc",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/plugin/internal.ts",
+        "old_git_blob": "f6239be4cbd122d97128404402594705f4c981ce",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/plugin/supervisor.ts",
+        "git_blob": "a1bdae8b3acd49b9c8177dd56327e1f62cf63a5f",
+        "sha256": "7c5b72503909c8dfb20c75315d8f2b4101a48da81f64e2565a330f75afc06666",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/plugin/supervisor.ts",
+        "old_git_blob": "a1bdae8b3acd49b9c8177dd56327e1f62cf63a5f",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/session/compaction.ts",
+        "git_blob": "b2f4599fd8ecefb9116cbcdf9b368981da96bf1b",
+        "sha256": "f6367aba30c3db4e6084f964645976b1b6105c6e4fe0f6fd11ff481d9dce54c4",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/compaction.ts",
+        "old_git_blob": "3cb52790295e7057d06573598a2928f3ea27b4cf",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/session/execution.ts",
+        "git_blob": "eeed241ae14e30645d4e0904c69d3ebfe919ef38",
+        "sha256": "f86c35f46c9bae634f955328979c3eade27d5df06e115d677eece7f4e4f1ce3a",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/execution.ts",
+        "old_git_blob": "eeed241ae14e30645d4e0904c69d3ebfe919ef38",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/session/history.ts",
+        "git_blob": "74159a27b2bbab988e520a65691e656c4b335950",
+        "sha256": "a204b24f425743d9ff01b7e2179a6b448d900672a461faaa421d6f1d43c7adb5",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/history.ts",
+        "old_git_blob": "aeb7cfc9f81b2d9b27d3e43ff656ed7eb4352a16",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/session/inbox.ts",
+        "git_blob": "052a15525a76c864805a7fd1eb761558a1b0ce65",
+        "sha256": "a27d04a9a1a6c3966d5e5c52d45b54f7301ad168a4a8963ed2bd822271640d19",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/inbox.ts",
+        "old_git_blob": "3688575e2e9333055c19b4c029c8de5ddd6df2fe",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/session/message.ts",
+        "git_blob": "5ced40fa7729798ccd59603cbcf1c1447bad02c4",
+        "sha256": "67cffbc5963ea2fc7c8f77b64cea661597a4258ecdf6a6185ef4910cb888e8b9",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/message.ts",
+        "old_git_blob": "5ced40fa7729798ccd59603cbcf1c1447bad02c4",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/session/model-request.ts",
+        "git_blob": "15c7949ade4a743b40cbaa9f95ceb412a8f5e6b1",
+        "sha256": "8c9f56b09c4d0f165fabc0d976b8eaabc5dbf19e89f41814b525ecf765cb3cc4",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/model-request.ts",
+        "old_git_blob": "293c93a5e61ce87b42d7e81ced5a06b3b7c0c30c",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/session/projector.ts",
+        "git_blob": "63ccbd79c5a03dc6eb81d0add4b87539e458330f",
+        "sha256": "028c3c19c592d0d4e389f6b595e405651f0082e82fd5cd11abf41054f4e34600",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/projector.ts",
+        "old_git_blob": "e007d6f4db86b5f8470076d3f7fb3c66588ab95e",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/session/prompt.ts",
+        "git_blob": "80878f354dd682311e518cac132f46b61df77523",
+        "sha256": "4a453f9e57d3cc48fc7d6ea23504d1437c751620d7b97bff795c090f2941fc99",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/prompt.ts",
+        "old_git_blob": "80878f354dd682311e518cac132f46b61df77523",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/session/recent-text.ts",
+        "git_blob": "21cf1710fe4ecff65509ec9a731e386c87800cb9",
+        "sha256": "3ecc8691774c22a2e20a0899a7a2c37b413b4ae53ee3b7b8dc0f8c49edf37716",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/recent-text.ts",
+        "old_git_blob": null,
+        "delta": "added"
+      },
+      {
+        "path": "packages/core/src/session/runner/to-llm-message.ts",
+        "git_blob": "bf6cd1413aaadecb6039458192eda263c77a97ea",
+        "sha256": "acc6b543c5d1629b4c537405135eb49a6345628806a43de156b03a9506debdef",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/runner/to-llm-message.ts",
+        "old_git_blob": "8d03c824eaafdd0c86244d67b36fa73de6782b75",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/session/session.ts",
+        "git_blob": "0e44a456b4f2c2452edb677e270812e4392ea652",
+        "sha256": "2cc1b9c0027640ee8430f9ec66aa08d47e4c987c01df9271246421bb1b0cf68a",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/session.ts",
+        "old_git_blob": "3cd130086ddd5561501c4b6bc0a348f32b8bc9be",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/session/subagent-completion.ts",
+        "git_blob": "79a00e112aa2f7b6141cef08efd83e3d14fb69d1",
+        "sha256": "76fd1bc8cde61470d79aa5144c05d08537b32aa2fd75980b5067270e8d364b03",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/subagent-completion.ts",
+        "old_git_blob": "79a00e112aa2f7b6141cef08efd83e3d14fb69d1",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/session/subagent-job.ts",
+        "git_blob": "c64cb04732471657e2550b25d60d7a2f7d08a56d",
+        "sha256": "fcecd0bc044e643ab749e98aeee08cb40c391bb692fbcf73001b2902f4b62fbd",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session/subagent-job.ts",
+        "old_git_blob": "c64cb04732471657e2550b25d60d7a2f7d08a56d",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/session.ts",
+        "git_blob": "46a6eb0b8e3cd533f01e701cd2701c444867ff80",
+        "sha256": "b4eb5aa67ca511ef901b97ec63b83632f4c6e5764e60f9215ca48bbc12848fac",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/session.ts",
+        "old_git_blob": "39f5f36d3a56e017a8b474a52f7d3863ee0effaf",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/shell/parse.ts",
+        "git_blob": "e94f2288eb4e0bdeece051e45374262c16377676",
+        "sha256": "80179fc5ceff8db1475b45b5be02cd9cd5d01321fe7f7370d64ddfc6bbaa83c9",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/shell/parse.ts",
+        "old_git_blob": "e94f2288eb4e0bdeece051e45374262c16377676",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/skill.ts",
+        "git_blob": "51cf0bc170ad6417c5cd533b4ea4acfee3565b85",
+        "sha256": "d3fc5e32ec5d0630edb2147c072ebb2a27655a1961f4b0cb1cc2968494aa2234",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/skill.ts",
+        "old_git_blob": "493d1aa2923c111ce84f8c51786c4158bad9edc1",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/core/src/state.ts",
+        "git_blob": "eafee2696e5645a215c19fdc4db341d283715359",
+        "sha256": "ffdaf9268a2cddec8f00870ed78a64031a148142e9c2497fad016e1c07cadea5",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/state.ts",
+        "old_git_blob": "eafee2696e5645a215c19fdc4db341d283715359",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/tool/plugin/shell.ts",
+        "git_blob": "af454a7d63391473d939436c87fff5c4b73eefb5",
+        "sha256": "043dbf4b6c90a4ce2c44d7bbfb2bc62f8bfcc7b0f8f244286e5bc4f2328162ec",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/tool/plugin/shell.ts",
+        "old_git_blob": "af454a7d63391473d939436c87fff5c4b73eefb5",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/tool/plugin/subagent.ts",
+        "git_blob": "87443f5e8a4b828eede4b632468511693f8ab9ee",
+        "sha256": "fc6e821262ea17c26e63f2955e6fc1ad17475894701ec79d79494318204ad74b",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/tool/plugin/subagent.ts",
+        "old_git_blob": "87443f5e8a4b828eede4b632468511693f8ab9ee",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/core/src/tool.ts",
+        "git_blob": "e637b8aa9cdb70924b0935f24f16067e6dde986c",
+        "sha256": "681fcd3128b05bb497bf3992e08a65ed8c1528438c37bee22eb724ecd3fcaa17",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/core/src/tool.ts",
+        "old_git_blob": "a07468a61e18d56be6aec0eb75d499db0ba684c9",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/plugin/src/effect/session.ts",
+        "git_blob": "91134aa451846c8e204655e1b33342c7738383fe",
+        "sha256": "7a858bb889e2c4b5484ed075c1857a7254688b6f96697cc6185f3064028cc56c",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/plugin/src/effect/session.ts",
+        "old_git_blob": "b9f19a6b7249ea901f093809530b8612eab9d178",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/plugin/src/permission.ts",
+        "git_blob": "73c854f075449e84a06383cb0c19098388cf0195",
+        "sha256": "03225ec8a50b9a77e06c74a12070898fa5edcb98fa5cfed4ba8e1518bca572ec",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/plugin/src/permission.ts",
+        "old_git_blob": "73c854f075449e84a06383cb0c19098388cf0195",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/plugin/src/promise/adapter.ts",
+        "git_blob": "f7088b4cfdc7715dbeaa6032eadc5e9f2eeb374f",
+        "sha256": "15de1c18718ca2acb574ff9d659e0f2755d4565b5d79999544b41628e8886068",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/plugin/src/promise/adapter.ts",
+        "old_git_blob": "aacf38893675a69f6d36b8766850d46ea371b388",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/plugin/src/promise/aisdk.ts",
+        "git_blob": "9516b306259e62750172c05586fd770e03b05ff0",
+        "sha256": "120000541b1ef008787bc3a7883f2b0fb9102476bf826502aa3bf1c9fdc02efb",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/plugin/src/promise/aisdk.ts",
+        "old_git_blob": "9516b306259e62750172c05586fd770e03b05ff0",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/plugin/src/promise/permission.ts",
+        "git_blob": "f7eff1a5eb961369e8f0379707d338d2cb82a759",
+        "sha256": "9209981180f6504ef337b31df333326ccfb33223e2934e2d434973e08656ede2",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/plugin/src/promise/permission.ts",
+        "old_git_blob": "f7eff1a5eb961369e8f0379707d338d2cb82a759",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/plugin/src/promise/plugin.ts",
+        "git_blob": "3bb8ddf4effa2616593641d5178cf7be28cb14b9",
+        "sha256": "3990c2a177ebe917dcd8c94c25c4368d0e293c09e15ef9f8fdc7ce66bd86d081",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/plugin/src/promise/plugin.ts",
+        "old_git_blob": "3bb8ddf4effa2616593641d5178cf7be28cb14b9",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/plugin/src/promise/session.ts",
+        "git_blob": "e83a0e1e4cf9881c357cc47d296c7c328827d1ac",
+        "sha256": "33a0a1d2323850cfbd4c5aa9b887377038b6ca9d8263b3f7d9fe70e59579ee57",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/plugin/src/promise/session.ts",
+        "old_git_blob": "9794147461d67a5ac7694eb02c309ead5400a0b4",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/plugin/src/promise/shell.ts",
+        "git_blob": "d0e6ae71ed7afef83385782b097a3502f836f52f",
+        "sha256": "dc3608b631d2b6600209a465b1d8d7e286a3a812ed57ba307e227ddb4ef16dc6",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/plugin/src/promise/shell.ts",
+        "old_git_blob": "d0e6ae71ed7afef83385782b097a3502f836f52f",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/plugin/src/promise/tool.ts",
+        "git_blob": "5eb814e39807fa416dcfaed47e6213922c677113",
+        "sha256": "1b6146b59b90f097fe0f8135b15ac4c51908b2e984b6186548bb8f649cad74b6",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/plugin/src/promise/tool.ts",
+        "old_git_blob": "5eb814e39807fa416dcfaed47e6213922c677113",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/schema/src/command.ts",
+        "git_blob": "e1984a0e6af632b14aef77e4fc524ccf522b7335",
+        "sha256": "6091f667ccf353e2ec7ac93902cd2c58b951236823f9411fb88174f9494932ab",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/schema/src/command.ts",
+        "old_git_blob": "e1984a0e6af632b14aef77e4fc524ccf522b7335",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/schema/src/config/experimental.ts",
+        "git_blob": "515cc77db0741dedad34865007d964024d69292f",
+        "sha256": "d7bf95cbb14a0f0ae2ceede2d7b8b62cd9708da4d717c9aa0e52116eca22f338",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/schema/src/config/experimental.ts",
+        "old_git_blob": "be9134feeb0d63403bdb0dd7b41149c951a318cc",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/schema/src/permission-saved.ts",
+        "git_blob": "29a31d0ca4b5f995ee500a9baa6988f0fcc88917",
+        "sha256": "8a3496277caf55bcb4c60127b611d9b3172d48225af21a93a15b999c9f44fbc4",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/schema/src/permission-saved.ts",
+        "old_git_blob": "29a31d0ca4b5f995ee500a9baa6988f0fcc88917",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/schema/src/session-event.ts",
+        "git_blob": "cf26e0543aeb15d04b5fe0262c992e68bd0a7658",
+        "sha256": "08ad60990a86f6bd21055f1857eef9bcfa5b2f480eb45b8bd92455aeb6290ff7",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/schema/src/session-event.ts",
+        "old_git_blob": "0cffae27ad631740c4b7b59c09c01440b4b603a6",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/schema/src/session-legacy.ts",
+        "git_blob": "434e55b2d81725295a1890945bb6ab726143de59",
+        "sha256": "de9ef8673d3510c953cde52e05b7850a51e752310ff7d5c7137c0c54e364cb46",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/schema/src/session-legacy.ts",
+        "old_git_blob": null,
+        "delta": "added"
+      },
+      {
+        "path": "packages/schema/src/session-message.ts",
+        "git_blob": "8c06c0eed092433589cacd13aca127faabb34e35",
+        "sha256": "dff8db1a0624739684b7697b2e575e5ea942f72b71f4eddab2aa79559cb35408",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/schema/src/session-message.ts",
+        "old_git_blob": "cc3d2104a1f9a73ca3a9da6a66ef5f166eec0d89",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/schema/src/session.ts",
+        "git_blob": "9f6cd0d71b0caecfb11ef42b50883fa342b841e0",
+        "sha256": "3a7d100a8627b62d8530cd99af835cbb756881651382c1461a89eec2746ddcb5",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/schema/src/session.ts",
+        "old_git_blob": "b94f0eb2eb6b85886edc78afd73e4b590569fc0e",
+        "delta": "modified"
+      },
+      {
+        "path": "packages/tui/src/context/client.tsx",
+        "git_blob": "cedd8b92118e7686cc83f3b054b7a374964a4a64",
+        "sha256": "714c7f71f6073d27a1cfd52a421f3940a476eb4749e343925507ab5d8c4a4ea6",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/tui/src/context/client.tsx",
+        "old_git_blob": "cedd8b92118e7686cc83f3b054b7a374964a4a64",
+        "delta": "unchanged"
+      },
+      {
+        "path": "packages/tui/src/mini/stream-v2.transport.ts",
+        "git_blob": "52117b21d55ccf486f8a69361d0a73f06f8d22a4",
+        "sha256": "2f9c77680b79c3421212dcd4643411d3668fa046eb8d943ced25bdda504f9dc8",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/packages/tui/src/mini/stream-v2.transport.ts",
+        "old_git_blob": "896da03839f06251bb0000d94c6f25db5b6cc965",
+        "delta": "modified"
+      },
+      {
+        "path": "services/www/src/docs/content/build/plugins/index.mdx",
+        "git_blob": "d16028d8c9a996d5e271ab7a75200105c1254e91",
+        "sha256": "1aeb99eace53da31e893b537dd2eecff523013c0e1781064c58d657c7bb34649",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/services/www/src/docs/content/build/plugins/index.mdx",
+        "old_git_blob": "80705a86f947d8ba215591b094c69029793e1808",
+        "delta": "modified"
+      },
+      {
+        "path": "services/www/src/docs/content/build/plugins/migrate-v1.mdx",
+        "git_blob": "7c1b5e143d67d5a48785babb3b4181242565c4e9",
+        "sha256": "e51b691816a29c3fd868b100af7e13e6661fb3828a41c96d4fd1f01c3c5fde77",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/services/www/src/docs/content/build/plugins/migrate-v1.mdx",
+        "old_git_blob": "7c1b5e143d67d5a48785babb3b4181242565c4e9",
+        "delta": "unchanged"
+      },
+      {
+        "path": "services/www/src/docs/content/commands.mdx",
+        "git_blob": "a20d04f6fb301133603743d1bfe18ce6da2f1e89",
+        "sha256": "ad9e1902d1d09823f3773f6628252ff3ce37fa9307bd118206a56a1114df55df",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/services/www/src/docs/content/commands.mdx",
+        "old_git_blob": "a20d04f6fb301133603743d1bfe18ce6da2f1e89",
+        "delta": "unchanged"
+      },
+      {
+        "path": "services/www/src/docs/content/compaction.mdx",
+        "git_blob": "aa9c7f6bc101384db4189f3888e35fea38eb5af5",
+        "sha256": "ac01393c86a17602375fae7048c77497b2c54d50501464f44530da90b216232b",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/services/www/src/docs/content/compaction.mdx",
+        "old_git_blob": "a22c87e508023b493df005d49931d14a2600b6ee",
+        "delta": "modified"
+      },
+      {
+        "path": "services/www/src/docs/content/permissions.mdx",
+        "git_blob": "e9c997253a159384884e59586460f542c51bdcf2",
+        "sha256": "68dfdc206ca010d78b0e8695dbc4220bdda8ddacea015b9be306aee23be2f4eb",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/services/www/src/docs/content/permissions.mdx",
+        "old_git_blob": "e9c997253a159384884e59586460f542c51bdcf2",
+        "delta": "unchanged"
+      },
+      {
+        "path": "services/www/src/docs/content/skills.mdx",
+        "git_blob": "4281110e0f15e6cde1af0868e73add8f441d82ee",
+        "sha256": "931b5425fffc7339913327fbd5f54416397d664311407eeaaae9e349300da27b",
+        "url": "https://github.com/anomalyco/opencode/blob/ba546ec1598a70db2570e9c6258028d955ba8f58/services/www/src/docs/content/skills.mdx",
+        "old_git_blob": "2301c68629cd05a7ccb82e47b7952f8e0610fce5",
+        "delta": "modified"
+      }
+    ],
+    "package": {
+      "name": "@opencode/plugin",
+      "version": "2.1.1",
+      "tarball": "https://registry.npmjs.org/@opencode/plugin/-/plugin-2.1.1.tgz",
+      "integrity": "sha512-wvbvx/GeFNL7lb2Aj0IlXxPN01J6L1qJ2IbkUE5FaLmnC78aLjibzFP+wuzb28yUAM65dYw7WJRvHv+5GZRL8Q==",
+      "sha256": "13855b3b7d8eb1110b18d0c1ee34dbd4c0581429c8948a9d294470f5af7ee84d"
+    },
+    "declarations": [
+      {
+        "path": "package/dist/promise/session.d.ts",
+        "sha256": "786d80d5b61e56b481d017ae2b6f44c3eaa8ffa721dde9e0cbacf765ae5413bf",
+        "old_sha256": "08f5c8728a15839df02f505e38c4cf1b586ccd2de3885eb4f0e471730680b48b",
+        "delta": "modified"
+      },
+      {
+        "path": "package/dist/promise/tool.d.ts",
+        "sha256": "14ead93a2c03136af9768f9f02447c5fb357d1bce12a4b38a5e9fe31a0e91eff",
+        "old_sha256": "14ead93a2c03136af9768f9f02447c5fb357d1bce12a4b38a5e9fe31a0e91eff",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/promise/skill.d.ts",
+        "sha256": "2b300e44c466b6e8fd209309943c73f94795332f3dee4bda13a4ef4ab8c0aa53",
+        "old_sha256": "2b300e44c466b6e8fd209309943c73f94795332f3dee4bda13a4ef4ab8c0aa53",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/promise/command.d.ts",
+        "sha256": "7011d6c2bf16fde75786130b5e80269c0e27bec8a8c793ab3ef964b16b3a4205",
+        "old_sha256": "7011d6c2bf16fde75786130b5e80269c0e27bec8a8c793ab3ef964b16b3a4205",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/promise/agent.d.ts",
+        "sha256": "462ccafdb0e1809f775366f0a4cf4f4ed195add0d15ecfb8fc1b56b6a49b24a1",
+        "old_sha256": "462ccafdb0e1809f775366f0a4cf4f4ed195add0d15ecfb8fc1b56b6a49b24a1",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/promise/permission.d.ts",
+        "sha256": "bc939cc6e47ea0ba50c015c71bf1067556ef9a05580422e20effe0bace5fe190",
+        "old_sha256": "bc939cc6e47ea0ba50c015c71bf1067556ef9a05580422e20effe0bace5fe190",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/promise/plugin.d.ts",
+        "sha256": "185cc3ae44209aa3ba4b09c0d0d0624afbfd35e02194bc38a255a7fc61090ab1",
+        "old_sha256": "185cc3ae44209aa3ba4b09c0d0d0624afbfd35e02194bc38a255a7fc61090ab1",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/effect/session.d.ts",
+        "sha256": "25835c81c0fc9f48d48d5d6d4c9f70ca6c930488ea84c5868f5617de8bff3392",
+        "old_sha256": "8367d6e1b154e6bc86cdf57b3ddfc6de2c7c4d46d3cc8ac363dd7692594805f2",
+        "delta": "modified"
+      },
+      {
+        "path": "package/dist/effect/tool.d.ts",
+        "sha256": "84a4655b80d5dce02b55939dd4937d267b469e4aeb1a86d7bbbce88c1671cb2e",
+        "old_sha256": "84a4655b80d5dce02b55939dd4937d267b469e4aeb1a86d7bbbce88c1671cb2e",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/effect/skill.d.ts",
+        "sha256": "f9aeb3d79b3758a88367b670357b756ce3cf88c979f50e8c53dcd6e227ec717a",
+        "old_sha256": "f9aeb3d79b3758a88367b670357b756ce3cf88c979f50e8c53dcd6e227ec717a",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/effect/command.d.ts",
+        "sha256": "2b19c1f0aaa022725b738745d21b261244251fa3c8bcb9086e2ebfc47d6cc0a2",
+        "old_sha256": "2b19c1f0aaa022725b738745d21b261244251fa3c8bcb9086e2ebfc47d6cc0a2",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/effect/agent.d.ts",
+        "sha256": "4924df50a026e0dd2a69ec5b5efbfd7904eedfacd29ede5e2f42ad516090f2da",
+        "old_sha256": "4924df50a026e0dd2a69ec5b5efbfd7904eedfacd29ede5e2f42ad516090f2da",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/effect/permission.d.ts",
+        "sha256": "fe27d2a6f0d84dec10cdf93980559d521d5d7912058a8e510ed67f62fd4347ca",
+        "old_sha256": "fe27d2a6f0d84dec10cdf93980559d521d5d7912058a8e510ed67f62fd4347ca",
+        "delta": "unchanged"
+      },
+      {
+        "path": "package/dist/effect/plugin.d.ts",
+        "sha256": "9cede9ff6900c8b954c26592b491a7a2bc924856f85b90cbc6630dc4df3b191e",
+        "old_sha256": "9cede9ff6900c8b954c26592b491a7a2bc924856f85b90cbc6630dc4df3b191e",
+        "delta": "unchanged"
+      }
+    ],
+    "availability_overrides": {
+      "X09": {
+        "availability": "released-public",
+        "disposition": "reference-only",
+        "reason": "Paginated Effect/Promise list is now released; known-session recovery needs no inventory scan."
+      }
+    },
+    "task_ids": [
+      "1.2",
+      "1.1",
+      "2.2",
+      "3.1",
+      "3.2",
+      "3.3",
+      "4.2",
+      "6.1",
+      "6.2",
+      "6.3"
     ]
   }
 }

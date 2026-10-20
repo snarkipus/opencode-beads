@@ -2,11 +2,15 @@
 
 Source assessment from 2026-10-17, reconciled 2026-10-18. **Owner selections complete; implementation and runtime qualification unexecuted.** This is part of the [full packet](claude-code-integration-analysis.md). The inventory preserves 73 historical release files separately from 74 current marketplace-main files. Claude supplies desired behavior, not the architecture.
 
-## Selected bundle and historical alternatives
+## Operative baseline update — 2026-10-20
+
+The owner now selects **2.1.1**, with conservative admission **>=2.1.1 <2.2**. See [the bounded contract delta](opencode-2.1.1-contract-delta.md) for new immutable evidence and adaptations. All S01–S21 source identities and tables below remain the historical 2.0.32 assessment; they are not relabeled 2.1.1. X09 session.list is now released but remains unused in the minimal design. New runtime qualification is unexecuted.
+
+## Historical selected bundle and alternatives (2.0.32)
 
 **N1 + D01 + D04 is selected:** narrow typed checkpoint/recovery/memory operations, awaited context/tool hooks, reference-only compaction, observational events, package-owned `oc-beads` skill/resources and `oc-beads:<command>` entries. All corpus members have engineering dispositions under the accepted groups. bd remains executable/database owner; preserve the shared skill and customizations. See [design decisions 2–5](../openspec/changes/improve-beads-workflow-parity/design.md) for concrete delivery and authority boundaries.
 
-Selected minimum is **OpenCode >=2.0.32 <3**, delivered through opt-in beta/next with separately authorized publication. Released permission assertion is the reason for the minimum; no runtime/dependency change occurs here. N0 on 2.0.26 was an evaluated lower-cost alternative, including the Opus review's N0-first advice; Matt selected N1. A failed N1 guarantee is a bounded stop/qualification gate, not an implicit downgrade to N0.
+The superseded selected minimum was **OpenCode >=2.0.32 <3**, delivered through opt-in beta/next with separately authorized publication. Released permission assertion is the reason for the minimum; no runtime/dependency change occurs here. N0 on 2.0.26 was an evaluated lower-cost alternative, including the Opus review's N0-first advice; Matt selected N1. A failed N1 guarantee is a bounded stop/qualification gate, not an implicit downgrade to N0.
 
 Scope-bounded continuation is selected: atomic claims and per-bead validation, exact assignment stopping, authorized batch/goal continuation and no discovery-driven scope expansion. Normal blocking child return is the base native mechanism. N2 background completion, nested-depth changes and auxiliary checkpoint/compaction automation are deferred engineering mechanisms; they are unnecessary to implement authorized sequential continuation and carry stop/wake risks. No plugin synthetic restart, command-count delegation mandate or new orchestration service. Optional one-bead mode and opt-in Luna remain.
 

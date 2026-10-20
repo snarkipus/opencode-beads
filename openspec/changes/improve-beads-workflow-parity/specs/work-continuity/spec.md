@@ -90,6 +90,12 @@ The selected integration SHALL distinguish awaited interception from observation
 - **THEN** the integration does not automatically restart work or approve the blocked operation to manufacture a final checkpoint
 - **AND** recovery uses earlier durable checkpoints and reports known gaps
 
+#### Scenario: Host retains and replays compacted history
+
+- **WHEN** 2.1.1 summary/native history is recovered or forked, or its provider/model changes
+- **THEN** the integration preserves host-owned native replay and metadata.keepID/legacy metadata.recent semantics without substituting a provider replacement window for a summary
+- **AND** tool execution state and UI metadata are not treated as renamed provider replay payloads
+
 ### Requirement: Honest persistence acknowledgement
 
 N1 operations SHALL acknowledge only evidenced outcomes and distinguish failure, uncertain completion and a landed but uncommitted write. They SHALL NOT blindly retry an ambiguous append, force a rejected write or imply a compaction summary is durable Beads state.

@@ -142,7 +142,7 @@ The [V2 command documentation](https://opencode.ai/v2/docs/commands/) explicitly
 | D05: supplemental skill in native discovery directories | Explicit resource tree and user-controlled customization | Shared `beads` ID collisions can shadow content. Historical alternative; selected design uses distinct `oc-beads` and does not install shared files; duplicate discovery prompts may confuse models. Upgrades/removal need ownership discipline. |
 | D06: lean shared skill plus runtime guidance only | Minimal asset/installer maintenance | Can add checkpoint/recovery triggers but lacks the rich progressive resource experience unless references are actually reachable. Must demonstrate outcome and discoverability rather than assume prime alone suffices. |
 
-Selected bundle: **N1 with D01+D04**, `oc-beads`, OpenCode `>=2.0.32 <3`, opt-in beta/next. N0 and D02/D03/D05/D06 are evaluated historical alternatives, not pending choices or silent fallback. Package registration supplies all selected assets and commands; no installer restoration or dependency change happens in this planning turn.
+Selected bundle: **N1 with D01+D04**, `oc-beads`, OpenCode `>=2.1.1 <2.2`, opt-in beta/next. N0 and D02/D03/D05/D06 are evaluated historical alternatives, not pending choices or silent fallback. Package registration supplies all selected assets and commands; no installer restoration or dependency change happens in this planning turn.
 
 The [pinned skill docs](https://github.com/anomalyco/opencode/blob/843a6c514e606b436a7fe713422ace0a93ad3d61/services/www/src/docs/content/skills.mdx) describe description-based advertisement, explicit tool loading, relative resource paths, and permission checks. They document later-source wins by ID, with `.agents` after `.claude` and project `.opencode` later still. A copied rich Claude skill can therefore be shadowed by the lean shared `beads` skill. Supporting file contents are not automatically loaded. Test actual selected content and resource access, not just file existence.
 
@@ -183,3 +183,5 @@ OpenSpec 1.14.2 strict validation passes for `improve-beads-workflow-parity`; `-
 ### Native revision evidence
 
 The repository-owned [planning evidence validator](validate-parity-planning.py) preserves the original corpus identity/coverage checks and adds pinned native-source and published-declaration checks, without asserting the intentionally removed freeze marker. See the [native assessment](opencode-native-parity-assessment.md) for exact release distinctions, recommendation and unexecuted material probes. Strict OpenSpec and whitespace results for this revision are recorded in the handoff; source inspection is not implementation or behavioral qualification.
+
+Operative host selection now targets exact 2.1.1; the [contract delta](opencode-2.1.1-contract-delta.md) preserves historical evidence and separates source admission from unexecuted runtime acceptance. No product or shared-skill changes occur in this pass.
