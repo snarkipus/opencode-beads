@@ -28,6 +28,17 @@
 - This is an OpenCode V2 plugin integrating the beads issue tracker
 - Nothing is vendored from upstream Beads; see `docs/beads-artifact-policy.md`. Review each Beads release's upgrade notes against the surfaces listed there
 
+## Beads execution identity and planning ownership
+
+This project-owned policy applies to commands in generated integration blocks too.
+
+- Supply explicit command-scoped `BEADS_ACTOR` or `--actor` for every agent-authored write, claim and heartbeat. Never inherit the human Git identity or set a shared user-global actor. Hermes uses `snarkimedes`; delegated executors use readable identities such as `codex:9c2e1` or `claude:7edcc`, with short unambiguous session suffixes when needed. Keep full session IDs in evidence, not actor names; model names alone are not executor identities.
+- Carry the actual executor actor into delegated instructions and commands. The executing worker claims explicitly authorized work atomically and keeps that actor through updates/heartbeats. Parent coordination/review does not transfer ownership; record deliberate handoffs.
+- Leave new work unassigned unless assignment is intentional; assign Matt only for explicitly human-owned work. Read back `created_by` (audit author), `owner` (record/account ownership) and `assignee` (executor) separately. Actor attribution is not authentication or permission. Preserve historical authorship, including unknown values; record provenance corrections in notes rather than rewriting audit history.
+- A quick OpenSpec draft does not require its own ticket. Substantial multi-session/delegated planning does: use one bounded planning Bead, separate from the implementation epic, with artifact revisions, decisions and pending acceptance. This effort uses `opencode-beads-d9n`.
+- Give a substantive independently owned review one bounded review Bead linked to its planning work and exact candidate. Reuse it through correction/recheck cycles; do not create a ticket per document, invocation, transient retry or minor nit. Record the actual reviewer actor/session, verdict, findings and evidence. Do not invent retroactive claims or timestamps for reviews already performed.
+- OpenSpec owns intended behavior; committed docs own detailed rationale/evidence; Beads owns execution, assignment and acceptance status. Close planning/review from their own evidence and owner acceptance, not from implementation completion. Their closure does not authorize implementation, release or deployment. Readiness alone is never dispatch permission.
+
 ## Releasing a New Version
 
 **Triggers**: User says "bump the version", "cut a new release", "release a new version", "let's do a release", or similar.

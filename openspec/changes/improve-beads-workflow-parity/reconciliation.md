@@ -1,5 +1,11 @@
 # Planning reconciliation — 2026-10-18
 
+## Owner-approved process correction
+
+After the 2.1.1 READY review, Matt approved adopting Docker Lab's explicit executor-attribution policy and proportionate tracking of substantive planning/independent review work. Project-owned AGENTS.md now carries that policy outside generated blocks. Existing task IDs 3.1, 4.1 and 6.2 cover typed-write actor propagation, delegation/claim guidance and actual audit/assignment readback; the existing restricted-agent requirement includes an attribution scenario. There are still 13 tasks and 17 requirements; this correction is not implementation or live qualification.
+
+`opencode-beads-8vg` tracks this bounded policy/plan correction; `opencode-beads-d9n` remains the ongoing planning record. Completed review reports remain historical evidence without invented retroactive reviewer claims. The existing epic/children's `created_by: unknown` is preserved; known Codex planner provenance is documented in notes rather than rewriting audit authorship. Docker Lab clarification is filed separately as `docker-lab-stc5`; only filing was authorized there. The earlier Opus READY verdict applies to 510c332, not this later amendment.
+
 **Current verdict: READY for review of the 2.1.1 planning delta; PAUSED FOR REVIEW.** The older reconciliation and independent reviews below are historical evidence, not approval of this new baseline. This is the planning agent's assessment, not independent reviewer approval, implementation acceptance or publication authority. Original baseline: `3dc2ea327ed490ceb9cf0b95c31af77631613287`; final correction candidate: `50919ae0f6b192bb8c2773398685c550fdaad22f`, branch `openspec/improve-beads-workflow-parity`. The planning bead `opencode-beads-d9n` remains open; no Beads commands were run.
 
 ## Decisions applied

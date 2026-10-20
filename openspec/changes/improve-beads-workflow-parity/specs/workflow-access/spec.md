@@ -136,6 +136,12 @@ Typed continuity tools SHALL inherit shell-based visibility/filtering and operat
 - **WHEN** a redirected workspace requires external access or a guard withholds store access
 - **THEN** the operation preserves the applicable restriction and refuses before spawning unless the required authority and target are established
 
+#### Scenario: Agent claims and hands off tracked work
+
+- **WHEN** a selected workflow writes, claims or renews tracked work, or delegates execution
+- **THEN** it supplies the actual executor's explicit actor consistently and verifies audit author, account owner and assignee separately
+- **AND** coordination or review does not silently transfer a claim, actor naming does not grant authority, and historical authorship is not rewritten
+
 ### Requirement: Authorized continuation without scope expansion
 
 Canonical execution SHALL allow continuation within an already-authorized batch or goal while retaining atomic claims and per-bead validation. Exact assignments SHALL stop without substitution. Discovery alone SHALL NOT authorize executing follow-up work. Cancellation, denied authority, exhausted scope or a blocker requiring a decision SHALL stop continuation; plugin events SHALL NOT restart it.
