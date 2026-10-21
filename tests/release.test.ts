@@ -7,6 +7,7 @@ import {
   inspectReleaseArchive,
   prepareReleaseArchive,
   releaseOutputPath,
+  releaseChannel,
   validateReleaseMetadata,
   verifyReleaseArchive,
 } from "../scripts/release";
@@ -67,6 +68,34 @@ describe("release artifact identity", () => {
     await expect(validateReleaseMetadata(readme, "v1.2.3")).rejects.toThrow(
       "expected 1.2.3"
     );
+  });
+
+  test("routes stable and beta releases explicitly and refuses conflicting channel metadata", async () => {
+    expect(releaseChannel("1.2.3")).toEqual({ distTag: "latest", prerelease: false });
+    expect(releaseChannel("1.1.0-beta.1")).toEqual({ distTag: "next", prerelease: true });
+    const directory = await metadataFixture();
+    await expect(validateReleaseMetadata(directory, "v1.2.3", { distTag: "latest", prerelease: false })).resolves.toMatchObject({ version: "1.2.3" });
+    await expect(validateReleaseMetadata(directory, "v1.2.3", { distTag: "next", prerelease: true })).rejects.toThrow("channel");
+    await fs.writeFile(join(directory, "package.json"), JSON.stringify({ name: "@scope/package", version: "1.1.0-beta.1" }));
+    await fs.writeFile(join(directory, "CHANGELOG.md"), "## [1.1.0-beta.1]\n");
+    await fs.writeFile(join(directory, "README.md"), "install @scope/package@1.1.0-beta.1 or @scope/package@next\n");
+    await expect(validateReleaseMetadata(directory, "v1.1.0-beta.1", { distTag: "next", prerelease: true })).resolves.toMatchObject({ version: "1.1.0-beta.1" });
+    for (const metadata of [{ distTag: "latest", prerelease: true }, { distTag: "next", prerelease: false }]) {
+      await expect(validateReleaseMetadata(directory, "v1.1.0-beta.1", metadata)).rejects.toThrow("channel");
+    }
+    await fs.writeFile(join(directory, "package.json"), JSON.stringify({ name: "@scope/package", version: "1.1.0-rc.1" }));
+    await expect(validateReleaseMetadata(directory, "v1.1.0-rc.1")).rejects.toThrow("Unsupported release channel");
+  });
+
+  test("CLI refuses missing or ambiguous prerelease flags before producing an archive", async () => {
+    const directory = await metadataFixture();
+    for (const flag of [[], ["--prerelease", "yes"], ["--prerelease", "true"]]) {
+      const child = Bun.spawn([process.execPath, join(projectDirectory, "scripts/release.ts"), "prepare", "--tag", "v1.2.3", "--output", "out", ...flag], { cwd: directory, stdout: "pipe", stderr: "pipe" });
+      const error = await new Response(child.stderr).text();
+      expect(await child.exited).toBe(1);
+      expect(error).toMatch(/prerelease|channel/);
+      expect(await fs.exists(join(directory, "out"))).toBeFalse();
+    }
   });
 
   test("allows only the pinned 0.8.0 removal command as a legacy README reference", async () => {
@@ -213,7 +242,10 @@ describe("release artifact identity", () => {
     expect(workflow).toContain("id-token: write");
     expect(workflow).not.toContain("NPM_TOKEN");
     expect(workflow).not.toContain("NODE_AUTH_TOKEN");
-    expect(workflow).toContain('npm publish "$ARCHIVE" --access public');
+    expect(workflow).toContain('npm publish "$ARCHIVE" --access public --tag "$DIST_TAG"');
+    expect(workflow).toContain('DIST_TAG: ${{ steps.package.outputs.dist_tag }}');
+    expect(workflow).toContain('RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}');
+    expect(workflow).toContain('--prerelease "$RELEASE_PRERELEASE"');
     expect(workflow).not.toMatch(/npm publish\s*(?:\n|$)/);
   });
 

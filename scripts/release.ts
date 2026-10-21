@@ -72,22 +72,47 @@ function requireIdentity(manifest: PackageManifest): { name: string; version: st
   if (typeof manifest.name !== "string" || !manifest.name) {
     throw new Error("package.json name must be a non-empty string");
   }
-  if (
-    typeof manifest.version !== "string" ||
-    !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(manifest.version)
-  ) {
+  if (typeof manifest.version !== "string") {
     throw new Error("package.json version must be a valid semver release");
   }
+  releaseChannel(manifest.version);
   return { name: manifest.name, version: manifest.version };
+}
+
+export interface ReleaseChannel {
+  distTag: string;
+  prerelease: boolean;
+}
+
+/** Support stable/latest and the explicitly opted-in beta/next channel only. */
+export function releaseChannel(version: string): ReleaseChannel {
+  const numeric = "(?:0|[1-9]\\d*)";
+  if (new RegExp(`^${numeric}\\.${numeric}\\.${numeric}$`).test(version)) {
+    return { distTag: "latest", prerelease: false };
+  }
+  if (new RegExp(`^${numeric}\\.${numeric}\\.${numeric}-beta\\.[1-9]\\d*$`).test(version)) {
+    return { distTag: "next", prerelease: true };
+  }
+  throw new Error(`Unsupported release channel/version: ${version}`);
+}
+
+/** Refuse contradictory npm and GitHub channel metadata before building or publishing. */
+function validateChannel(version: string, metadata: ReleaseChannel): void {
+  const expected = releaseChannel(version);
+  if (metadata.distTag !== expected.distTag || metadata.prerelease !== expected.prerelease) {
+    throw new Error(`Release channel mismatch: ${version} requires --tag ${expected.distTag} and prerelease=${expected.prerelease}`);
+  }
 }
 
 /** Validate release identity across the Git tag and checked-in user-facing metadata. */
 export async function validateReleaseMetadata(
   projectDirectory: string,
-  releaseTag: string
+  releaseTag: string,
+  channel?: ReleaseChannel
 ): Promise<{ name: string; version: string }> {
   const manifest = await readManifest(projectDirectory);
   const identity = requireIdentity(manifest);
+  if (channel) validateChannel(identity.version, channel);
   const expectedTag = `v${identity.version}`;
   if (releaseTag !== expectedTag) {
     throw new Error(`Release tag ${releaseTag} does not match package version ${expectedTag}`);
@@ -112,8 +137,8 @@ export async function validateReleaseMetadata(
   const documentedVersions = [...releaseReferences.matchAll(referencePattern)].map(
     (match) => match[1]
   );
-  if (documentedVersions.length === 0) {
-    throw new Error(`README.md has no versioned ${identity.name} installation example`);
+  if (!documentedVersions.includes(identity.version)) {
+    throw new Error(`README.md has no versioned ${identity.name} installation example; expected ${identity.version}`);
   }
   const staleVersion = documentedVersions.find((version) => version !== identity.version);
   if (staleVersion) {
@@ -174,9 +199,10 @@ export async function inspectReleaseArchive(
 export async function prepareReleaseArchive(
   projectDirectory: string,
   releaseTag: string,
-  outputDirectory: string
+  outputDirectory: string,
+  channel?: ReleaseChannel
 ): Promise<ReleaseArchive> {
-  await validateReleaseMetadata(projectDirectory, releaseTag);
+  await validateReleaseMetadata(projectDirectory, releaseTag, channel);
   const output = path.resolve(projectDirectory, outputDirectory);
   await fs.mkdir(output, { recursive: true });
   if ((await fs.readdir(output)).length !== 0) {
@@ -215,25 +241,38 @@ function argument(args: string[], name: string): string {
   return value;
 }
 
+/** Require an explicit GitHub prerelease boolean instead of treating missing values as false. */
+function prereleaseArgument(args: string[]): boolean {
+  const value = argument(args, "--prerelease");
+  if (value !== "true" && value !== "false") throw new Error("--prerelease must be true or false");
+  return value === "true";
+}
+
 async function main(args: string[]): Promise<void> {
   const command = args[0];
   if (command === "prepare") {
+    const identity = requireIdentity(await readManifest(process.cwd()));
+    const channel = { ...releaseChannel(identity.version), prerelease: prereleaseArgument(args) };
     const result = await prepareReleaseArchive(
       process.cwd(),
       argument(args, "--tag"),
-      argument(args, "--output")
+      argument(args, "--output"),
+      channel
     );
     const archiveOutput = releaseOutputPath(process.cwd(), result.path);
     console.log(`Validated release archive ${archiveOutput} (${result.sha256})`);
     if (process.env.GITHUB_OUTPUT) {
       await fs.appendFile(
         process.env.GITHUB_OUTPUT,
-        `archive=${archiveOutput}\nsha256=${result.sha256}\n`
+        `archive=${archiveOutput}\nsha256=${result.sha256}\ndist_tag=${channel.distTag}\n`
       );
     }
     return;
   }
   if (command === "verify") {
+    await validateReleaseMetadata(process.cwd(), argument(args, "--tag"), {
+      distTag: argument(args, "--dist-tag"), prerelease: prereleaseArgument(args),
+    });
     const result = await verifyReleaseArchive(
       process.cwd(),
       argument(args, "--archive"),
@@ -245,7 +284,7 @@ async function main(args: string[]): Promise<void> {
     return;
   }
   throw new Error(
-    "Usage: bun scripts/release.ts prepare --tag <tag> --output <dir> | verify --archive <tgz> --sha256 <digest>"
+    "Usage: bun scripts/release.ts prepare --tag <tag> --prerelease <true|false> --output <dir> | verify --archive <tgz> --sha256 <digest> --tag <tag> --dist-tag <next|latest> --prerelease <true|false>"
   );
 }
 

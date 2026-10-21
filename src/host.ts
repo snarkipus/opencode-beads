@@ -34,9 +34,9 @@ export interface HostDependencies {
   diagnosticIntervalMs?: number;
   now?: () => number;
   retryMs?: number;
-  /** Internal qualification seam for tests; production remains false pending successful 1.1. */
+  /** Enable the accepted code-mode registration; public beta entrypoint supplies true. Tests may omit it. */
   continuityQualified?: boolean;
-  /** Overrides the same adapter dependencies used after qualification. */
+  /** Test overrides for the accepted adapter dependencies; public setup uses production defaults. */
   continuity?: ContinuityDependencies;
   /** Override package reads only; no user-facing activation or installation option. */
   workflowAssets?: SkillLoadDependencies;
@@ -138,7 +138,7 @@ export async function setupBeads(
   const references = new Map<string, Set<string>>();
   const gaps = new Map<string, Set<string>>();
   const requestCapabilities = new Map<string, { agent: string; capabilities: RequestCapabilities }>();
-  let typedRegistration = deps.continuityQualified === true ? "unavailable: host tool/permission/session interface missing" : "withheld pending 1.1";
+  let typedRegistration = deps.continuityQualified === true ? "unavailable: host tool/permission/session interface missing" : "disabled: registration not requested";
 
   /** Retain distinct unresolved outcomes without a read, success or lifecycle cue erasing them. */
   function recordGap(sessionID: string, detail: string): void {
@@ -254,7 +254,7 @@ export async function setupBeads(
         try { effectiveSkills = ctx.skill ? (await ctx.skill.list()).data.map((entry) => String(entry.id)) : "unavailable"; }
         catch { effectiveSkills = "unavailable: registry lookup failed"; }
         return JSON.stringify({
-          host: hostVersion, admission: SUPPORTED_OPENCODE_RANGE, liveQualification: "not executed",
+          host: hostVersion, admission: SUPPORTED_OPENCODE_RANGE, liveQualification: "not measured by status; see release acceptance evidence",
           commands: {
             registration: commandRegistration,
             lookup: effectiveCommands ? "available" : "failed",
@@ -269,7 +269,7 @@ export async function setupBeads(
             ownership: "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
           },
           skill: { failure: skillFailure, effective: effectiveSkills },
-          typedContinuity: deps.continuityQualified === true ? "internal qualification fixture" : "withheld pending 1.1",
+          typedContinuity: deps.continuityQualified === true ? "enabled: qualified beta registration" : "disabled: registration not requested",
           typedRegistration,
           requestCapability: requestCapabilities.get(sessionID) ?? "unknown: no actual request observation",
           leafAvailability: "unknown until native catalog discovery and per-operation permission checks; execute visibility alone does not prove leaf availability",
@@ -316,8 +316,7 @@ export async function setupBeads(
       }
     }
 
-    // 1.1 remains unexecuted: ordinary setup has no product option that enables this path.
-    // Tests supply the qualification dependency and the same public host/runner interfaces.
+    // The public beta entrypoint enables this path; registration still requires native interfaces.
     if (deps.continuityQualified === true && ctx.tool && ctx.permission && ctx.session.get) {
       registrations.push(await ctx.tool.transform((editor) => {
         if (abort.signal.aborted) return;

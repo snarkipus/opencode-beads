@@ -1,3 +1,4 @@
+import type { Info } from "@opencode/plugin/promise/tool";
 import { createHash } from "node:crypto";
 import type { CommandDefinition, CommandInvocation } from "@opencode/plugin/promise/command";
 import * as fs from "node:fs/promises";
@@ -206,7 +207,7 @@ try {
     throw new Error("Packed package unexpectedly contains the companion CLI source");
   }
 
-  // Exercise setup against a minimal V2 context; the context hook is registered but not invoked.
+  // Exercise the ordinary public default setup with native interfaces and no dependency injection.
   type PackedAgent = {
     name?: string;
     mode?: string;
@@ -217,6 +218,8 @@ try {
   };
   async function setupPacked(options: Record<string, unknown>) {
     const registeredHooks: string[] = [];
+    const tools: Info[] = [];
+    const namespaces: Array<{ name: string }> = [];
     const agents = new Map<string, PackedAgent>();
     const skills = new Map<string, { id: string; name: string; content: string; path: string }>();
     const userSkill = { id: "beads", name: "beads", content: "USER SHARED SKILL", path: "/user/SKILL.md" };
@@ -235,7 +238,7 @@ try {
     let invoking = false;
     const cleanup = await (plugin!.setup as (ctx: unknown) => Promise<unknown>)({
       app: { name: "OpenCode", version: "2.1.1", channel: "stable" },
-      location: { directory: consumerDir },
+      location: { directory: consumerDir, project: { directory: consumerDir } },
       options,
       agent: {
         get: async () => ({ data: { mode: "primary" } }),
@@ -264,7 +267,16 @@ try {
           return own("skill");
         },
       },
+      permission: { assert: async () => {} },
+      tool: {
+        hook: async () => own("tool:execute.after"),
+        transform: async (callback: (editor: { namespace(value: { name: string }): void; add(tool: Info): void }) => void) => {
+          callback({ namespace: (value) => namespaces.push(value), add: (tool) => tools.push(tool) });
+          return own("tool:transform");
+        },
+      },
       session: {
+        get: async () => ({ location: { directory: consumerDir } }),
         prompt: async (input: Record<string, unknown>) => {
           if (!invoking) throw new Error("Setup must not submit a prompt");
           prompts.push(input);
@@ -280,6 +292,12 @@ try {
       },
     });
     if (typeof cleanup !== "function") throw new Error("Packed plugin setup returned no cleanup");
+    const expectedTools = ["find", "get", "edges", "memories", "recall", "claim", "note", "update", "close", "create", "remember"].sort();
+    if (namespaces.length !== 1 || namespaces[0]?.name !== "beads"
+      || tools.map(tool => tool.name).sort().join("\0") !== expectedTools.join("\0")
+      || !tools.every(tool => tool.options?.codemode === true && tool.options.namespace === "beads" && tool.options.permission === "shell")) {
+      throw new Error("Public packed setup did not register the eleven qualified code-mode operations");
+    }
     const richSkill = skills.get("oc-beads");
     if (richSkill?.path !== installedSkillPath || richSkill.content !== installedSkill.content) throw new Error("Installed skill registration differs from packed asset");
     if (skills.get("beads") !== userSkill) throw new Error("Shared user skill was changed");
@@ -304,14 +322,16 @@ try {
       if (definition.name === "oc-beads:status") {
         const status = JSON.parse(submitted.text.split("\n")[1]!);
         if (status.commands.registration !== "registered" || status.commands.lookup !== "available"
-          || !status.commands.ownership.includes("identical-description") || status.liveQualification !== "not executed") {
+          || !status.commands.ownership.includes("identical-description") || status.liveQualification !== "not measured by status; see release acceptance evidence"
+          || status.typedContinuity !== "enabled: qualified beta registration"
+          || status.typedRegistration !== "registered: beads namespace, code-mode-only") {
           throw new Error("Packed status did not report observed registration and qualification limits");
         }
       } else if (!submitted.text.includes(JSON.stringify(installedSkillPath))) throw new Error("Packed command uses the wrong JSON-quoted installed guidance base");
     }
     if (prompts.length !== commands.size) throw new Error("Packed native commands did not each submit one prompt");
     await cleanup();
-    const expectedOwned = ["agent", "skill", "command", ...registeredHooks.map((name) => `hook:${name}`)].sort();
+    const expectedOwned = ["agent", "skill", "command", "tool:execute.after", "tool:transform", ...registeredHooks.map((name) => `hook:${name}`)].sort();
     if ([...owned].sort().join("\0") !== expectedOwned.join("\0")
       || [...disposed].sort().join("\0") !== expectedOwned.join("\0")) {
       throw new Error("Owned native registrations were not all disposed");
