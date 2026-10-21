@@ -6,6 +6,8 @@ The historical comparison established setup-lifecycle parity, not the complete C
 
 ## What Changes
 
+- Require Beads CLI `>=1.3.1`, explicitly replacing the former 1.3.0 floor. Qualify 1.3.1 as both minimum and current target; preserve earlier 1.3.0 observations as historical, with no further compatibility work or operator upgrade.
+
 - Adopt the complete marketplace-main integration as the behavioral reference, resolved for this evaluation to `4a67d0d0288c1b4ee23e17fc896f47616931ba2d`. Preserve the separate 73-file v1.3.1 inventory and characterize installed/release/current differences.
 - Deliver N1: an eleven-operation typed daily-loop namespace, awaited context/tool hooks, reference-only compaction guidance, observational events, package-owned `oc-beads` skill/resources and `oc-beads:<command>` commands. Supply all selected surfaces from npm; bd remains the external executable/database owner.
 - Adapt core daily workflows, expose all advanced guidance on demand without enabling automation, make supported admin workflows accessible under normal permissions, and replace obsolete/host-specific/broken content with documented native equivalents. The inventory maps every member.

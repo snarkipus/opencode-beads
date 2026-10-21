@@ -11,9 +11,21 @@
 
 This is an independent project maintained by Matt Jackson under the MIT license. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. 1.0 rebuilt the plugin for OpenCode 2, and development now continues here independently. It vendors nothing from upstream Beads; instead, every Beads release is checked against the `bd` behavior the plugin relies on (see [Tracking upstream Beads](#tracking-upstream-beads)).
 
-This branch contains an unfinished **beta/next source candidate**, separate from the published 1.0.2 behavior described below. Its package includes `assets/oc-beads/` and explicitly registers the `oc-beads` skill at the installed package path, with all 15 resources and ADR linked from that base. No manual skill copy is needed. The external `bd` CLI and project initialization remain prerequisites; the plugin does not install or upgrade them.
+This branch contains an unfinished **beta/next source candidate**, separate from the published 1.0.2 behavior described below. Its package includes `assets/oc-beads/` and explicitly registers the `oc-beads` skill at the installed package path, with all 15 corpus resources plus CODE_MODE and ADR (17 links) linked from that base. No manual skill copy is needed. The external `bd` CLI and project initialization remain prerequisites; the plugin does not install or upgrade them.
 
 The candidate registers all 29 selected `oc-beads:<stem>` workflows and `oc-beads:status` through one ordinary native command transform. Ordinary user configuration/file commands run later and win on initial load and rebuild; removing an override restores the package definition. Other plugin conflicts follow native ordering, with initial collisions diagnosed rather than withheld. Status reports registration and effective name/description mismatches; public owner identity and identical-description overrides are unobservable, and matching descriptions do not prove ownership. Typed continuity execution remains withheld pending separate live task 1.1. These source/package fixtures do not qualify live discovery, namespace dispatch or model behavior. No activation option, version bump or publication is supplied by this source work.
+
+The source candidate defines eleven fixed operations in the native `beads`
+code-mode namespace: find, get, edges, memories, recall, claim, note, selected-field
+update, close, create and remember. They declare structured results, preserve
+per-operation shell permissions and report partial, failed or uncertain outcomes.
+Native shell is direct-only; it cannot be called inside execute. Request guidance
+reports observed execute/shell capability and the actual session-and-agent Beads
+actor; direct shell writes use that same actor. Catalog discovery and leaf
+permissions still determine which operations can run. Status reports unknown
+capability when no request has been observed. Read [CODE_MODE.md](assets/oc-beads/resources/CODE_MODE.md)
+for composition and recovery. Production typed activation remains withheld
+pending the separate native and installed acceptance gates.
 
 ## Design
 
@@ -27,7 +39,7 @@ The beta/next candidate uses scope-bounded task execution:
 
 ## Installation
 
-This plugin requires OpenCode 2 and `bd` 1.3.0 or later. This source branch prepares an opt-in beta/next candidate for OpenCode `>=2.1.1 <2.2`; only the exact 2.1.1 development types are pinned, and runtime qualification has not been executed. The published stable package remains separately qualified against OpenCode 2.0.26.
+This plugin requires OpenCode 2 and `bd` 1.3.1 or later. This source branch prepares an opt-in beta/next candidate for OpenCode `>=2.1.1 <2.2`; only the exact 2.1.1 development types are pinned, and runtime qualification has not been executed. The published stable package remains separately qualified against OpenCode 2.0.26.
 
 1. Install the [`bd` CLI](https://github.com/gastownhall/beads/blob/main/docs/getting-started/installation.md) once on the host, then initialize each project:
 
@@ -94,7 +106,7 @@ The [Claude Code parity matrix](docs/claude-code-parity.md) records every `bd se
 
 ## Context injection
 
-The plugin runs `bd prime --full` in the project directory and attaches its output to each model request through OpenCode's session context hook. The output is cached per session, so prime runs once per session rather than per request. It runs again after compaction (automatic or manual), when a session resumes after `refreshAfterIdleMinutes` of inactivity, and when the plugin reloads, mirroring the `startup`, `resume`, `clear`, and `compact` sources of Claude Code's `SessionStart` hook. Steady work keeps the same text, which keeps provider prompt caches warm. Attached context is not stored in the conversation, so compaction cannot drop it. `--full` matters: without it, `bd` switches to brief MCP reminders whenever Claude Code's settings list a Beads MCP server, and OpenCode has no Beads MCP tool. Prime supplies the canonical current workflow, command guidance, and persistent memories; the plugin adds only compact OpenCode-specific safety and delegation guidance.
+The plugin runs `bd prime --full` in the project directory and attaches its output to each model request through OpenCode's session context hook. Guarded prime is cached per session, while actual actor and request-capability guidance is rendered for each request. Prime runs once per session rather than per request. It runs again after compaction (automatic or manual), when a session resumes after `refreshAfterIdleMinutes` of inactivity, and when the plugin reloads, mirroring the `startup`, `resume`, `clear`, and `compact` sources of Claude Code's `SessionStart` hook. Steady work keeps the same text, which keeps provider prompt caches warm. Attached context is not stored in the conversation, so compaction cannot drop it. `--full` matters: without it, `bd` switches to brief MCP reminders whenever Claude Code's settings list a Beads MCP server, and OpenCode has no Beads MCP tool. Prime supplies the canonical current workflow, command guidance, and persistent memories; the plugin adds only compact OpenCode-specific safety and delegation guidance.
 
 While prime is attached, two bd-managed `AGENTS.md` blocks only repeat it: the full-profile section `bd setup opencode` writes, and the Codex section `bd init` writes. The plugin replaces those marked blocks in the outgoing request with a one-line pointer, matching the minimal `CLAUDE.md` pointer Beads uses for Claude Code. `bd init`'s minimal section is left as is. Your `AGENTS.md` file and any text outside those markers are not changed, and nothing is replaced when prime is withheld or unavailable.
 
@@ -106,7 +118,7 @@ If `bd` is unavailable or the project is uninitialized, nothing is added. If `bd
 
 Beads 1.3 migrates an embedded store in place, irreversibly, the first time any command opens it, and `bd --readonly` does not prevent that. Because this plugin runs `bd prime` automatically, it would otherwise be the unattended first command after you upgrade `bd`.
 
-Before running prime, the plugin checks `bd version` and the configuration-only `bd context --json` probe, which do not open the store, and reads `.beads/.local_version`. If the installed `bd` is older than 1.3.0, or the store was last opened by an older `bd`, the plugin withholds prime and gives the agent a notice telling it not to run `bd` and to ask you to act. To proceed, back up the `.beads` directory and run `bd migrate schema`; the plugin picks up the change on its next retry. Setting the `autoMigrate` option skips the store-version check.
+Before running prime, the plugin checks `bd version` and the configuration-only `bd context --json` probe, which do not open the store, and reads `.beads/.local_version`. If the installed `bd` is older than 1.3.1, or the store was last opened by an older `bd`, the plugin withholds prime and gives the agent a notice telling it not to run `bd` and to ask you to act. To proceed, back up the `.beads` directory and run `bd migrate schema`; the plugin picks up the change on its next retry. Setting the `autoMigrate` option skips the store-version check.
 
 `bd prime` itself does not update `.beads/.local_version`. A store migrated only by prime keeps the old marker until you run `bd migrate schema` (or any ordinary `bd` command), which is safe and idempotent.
 
@@ -157,7 +169,7 @@ The package vendors nothing from upstream. It depends on the installed `bd` CLI 
 | --- | --- | --- |
 | OpenCode (beta/next candidate) | `>=2.1.1 <2.2` | None (exact 2.1.1 target not qualified) |
 | OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |
-| `bd` CLI | 1.3.0 through 1.x | 1.3.1 |
+| `bd` CLI | 1.3.1 through 1.x | 1.3.1 |
 | Bun (OpenCode host runtime) | >=1.3.14 | 1.4.2 |
 
 The beta/next candidate type-checks against `@opencode/plugin` 2.1.1 and declares an optional peer range of `>=2.1.1 <2.2`. It checks `ctx.app.version` at startup and reports an unsupported-host diagnostic before registering Beads agents or hooks. This source guard does not qualify the host range; the exact 2.1.1 target remains untested, and future 2.1 patches are admitted candidates rather than tested versions. The stable 1.0.2 qualification on 2.0.26 is historical. See the [OpenCode V2 contract](docs/opencode-sdk-contract.md). The `bd` baseline was reviewed against Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`).
@@ -166,7 +178,7 @@ The beta/next candidate type-checks against `@opencode/plugin` 2.1.1 and declare
 
 - **No Beads context:** Run `bd prime`. Install `bd` if missing or run `bd init` if the project has no Beads workspace.
 - **Agent reports that `bd prime` failed or timed out:** Run `bd prime` in the project to see the error; the plugin retries every 30 seconds.
-- **Agent reports a Beads notice instead of context:** The schema migration guard withheld prime. Back up `.beads`, run `bd migrate schema`, and continue; or upgrade `bd` if the notice says it is older than 1.3.0.
+- **Agent reports a Beads notice instead of context:** The schema migration guard withheld prime. Back up `.beads`, run `bd migrate schema`, and continue; or upgrade `bd` if the notice says it is older than 1.3.1.
 - **Canonical skill missing:** For a new workspace, run `bd init`. For an existing workspace, follow current upstream Beads guidance; this plugin does not install or repair skills.
 - **Task agent asks before committing or pushing:** This is intentional; see [Task agent](#task-agent). Approve the command, or set the agent's `permissions` in OpenCode configuration.
 - **Unexpected definition:** Check OpenCode configuration for a colliding `beads-task-agent` definition. Explicit configuration wins.

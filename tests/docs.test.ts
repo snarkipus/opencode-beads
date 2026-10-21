@@ -141,16 +141,17 @@ describe("documentation contracts", () => {
       "| OpenCode (beta/next candidate) | `>=2.1.1 <2.2` | None (exact 2.1.1 target not qualified) |"
     );
     expect(readme).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
-    expect(readme).toContain("| `bd` CLI | 1.3.0 through 1.x | 1.3.1 |");
+    expect(readme).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.1 |");
     expect(readme).not.toContain("@opencode-ai/");
   });
 
   test("keeps the Beads compatibility range in one place", () => {
     const { minimum, validated } = packageManifest.beads;
+    expect(minimum).toBe("1.3.1");
     expect(minimum).toBe(MINIMUM_BD_VERSION);
     expect(readme).toContain(`| \`bd\` CLI | ${minimum} through 1.x | ${validated} |`);
     expect(readme).toContain(`reviewed against Beads v${validated}`);
-    expect(readme).toContain("`bd` 1.3.0 or later");
+    expect(readme).toContain("`bd` 1.3.1 or later");
     expect(readme).toContain("beads-contract");
     expect(artifactPolicy).toContain("scripts/bd-contract.ts");
     expect(artifactPolicy).toContain("REASSESS:");

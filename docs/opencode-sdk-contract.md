@@ -1,13 +1,143 @@
 # OpenCode V2 Plugin Contract
 
-## Current planning correction — Opus S1–S5 / P1–P3
+## Task 7.1–7.3 source candidate — 2026-10-21
+
+Executor `codex:oc-loop`, assigned only `opencode-beads-vuy.10`, based on published plan `f2d6617619e2c3a35e4aeadd5be0092259b9979c`. This section records a working-tree candidate, not parent acceptance, a source commit, installed qualification or activation. Earlier planning and accepted five-operation/170-test evidence below retains its historical scope. The product now declares eleven operations in one native `beads` namespace with code-mode-only registration; ordinary setup still withholds that registration pending the separate native/installed gates. The owner explicitly raised the Beads support floor to >=1.3.1 during this source work; package release version, dependencies, operator installation and host admission remain unchanged. The published planning baseline now has a parent-owned local support-policy delta.
+
+### Owner support correction and CLI contract ledger
+
+Owner decision: “1.3.1 should be the minimum beads version not 1.3.0.”
+The supported minimum and current qualification target now coincide at **1.3.1**.
+Package `beads.minimum`, runtime `MINIMUM_BD_VERSION`, README and positive fixtures
+use that floor; 1.3.0 is refused before any store/context lookup, even with
+`autoMigrate`. Older captures below remain failed historical evidence, neither
+current qualification nor a current blocker. No compatibility branch or further
+1.3.0 execution follows. This supersedes the old dual-version/support/blocker
+statements in the historical planning sections below.
+
+Existing `scripts/install-bd.sh` installed official checksum-verified Linux amd64 releases only into `/opt/data/cache/scratch/oc-loop-implementation/bin-1.3.0` and `bin-1.3.1`. Binary identities:
+
+| Role | Actual version/source reported by binary | Binary SHA-256 |
+| --- | --- | --- |
+| Historical retired minimum (not supported) | `1.3.0 (f45b249ce: HEAD@f45b249ce6b4)` | `fb387d28410390eb9f0ef81f242a0c789c632f0024f58fe6a8b02d3f06ea20ef` |
+| Supported minimum/current target | `1.3.1 (c1c4b642a: HEAD@c1c4b642ac1c)` | `a8f48d771b9e11eccfced4aed72923b59eda746f7a9b425e7ca1af7a51251653` |
+
+Historical provisioning and initial commands executed once per then-selected version, from the repository (the 1.3.0 commands are records, not instructions to repeat):
+
+```sh
+./scripts/install-bd.sh 1.3.0 /opt/data/cache/scratch/oc-loop-implementation/bin-1.3.0
+./scripts/install-bd.sh 1.3.1 /opt/data/cache/scratch/oc-loop-implementation/bin-1.3.1
+PATH=/opt/data/cache/scratch/oc-loop-implementation/bin-1.3.0:/opt/data/.npm/_npx/60c3515df86f25b1/node_modules/@oven/bun-linux-x64-baseline/bin:$PATH BEADS_ACTOR=codex:oc-loop bun run test:bd-contract
+PATH=/opt/data/cache/scratch/oc-loop-implementation/bin-1.3.1:/opt/data/.npm/_npx/60c3515df86f25b1/node_modules/@oven/bun-linux-x64-baseline/bin:$PATH BEADS_ACTOR=codex:oc-loop bun run test:bd-contract
+```
+
+The existing script creates finite disposable Git repositories and a separate HOME/XDG, clears inherited BEADS_DIR, uses explicit `cwd`, 60-second process bounds, `--sandbox` on every CLI call and the real executor actor on mutations, then removes those repositories. `fixture-owner` is an intentionally assigned fixture assignee, never the command author. No real tracker is a fixture. The script now captures every exact argv, cwd, stdout, exit and failure stderr in `observed` JSON lines. This ledger cites those captures rather than introducing another generator.
+
+Full captures: `/opt/data/cache/scratch/oc-loop-implementation/contract-1.3.0.log` (SHA-256 `84d76a88b653a545fb3b78f5acef229783011d2a3dabb757ba668e83dc9f2373`) and `contract-1.3.1.log` (SHA-256 `5855393ab67de6d750489974be832cebe2f6a779103a544d06663d6eaa97182d`). **Historical 1.3.0 exited1 (59 checks passed, five fixture assertions failed); supported 1.3.1 exited0 (63 checks passed).** The assertions were corrected before the 1.3.1 run. The owner retired 1.3.0 support; its old failure remains failed and requires no further qualification or fixture work. Supported 1.3.1 has positive blocked-filter evidence and no demonstrated unsupported core behavior. Only the explicit owner-selected floor changed; no upstream repair was made.
+
+In the table, `I/C/P/O` identify the historical retired-floor issue `repo-g57`, child `repo-an5.1`, parent `repo-an5`, occupied issue `repo-cmo`; current equivalents are `repo-aa0`, `repo-3up.1`, `repo-3up`, `repo-ki3`. `A` is exactly `codex:oc-loop`. Substituting these aliases reconstructs the recorded argv; multiline text and full outputs remain in the captures. All listed successful calls exited 0 unless stated otherwise. Product permission resources render their exact fixed subcommand-first argv; writes insert `--actor A --sandbox` before any `--` terminator, reads insert `--sandbox` there. Product actors derive from actual host session/agent, not this implementation worker's actor.
+
+| Surface | Runtime argv/evidence in both captures | Observed contract and product decision |
+| --- | --- | --- |
+| Ready/list/search | `<view> --limit 2 --json` and filtered variants; ready: `--parent P --label contract-label`; list additionally `--status open`; search: `--label contract-label --status open -- --assignee=x`; assignee calls use `--assignee A --limit 2 --json` (search adds `-- contract`) | Arrays, filtered child C, limit 2 enforced. Ready assignee query returns `[]` because I is in_progress; list/search return I. Product defaults 20/max50 and fetches limit+1 where supported. Ready/list completeness is query-scoped; search stays unknown when not demonstrably truncated, because a short filtered response does not prove absence of CLI truncation. Search parent, ready status and blocked assignee/status are not advertised. No version branching. |
+| Blocked | `blocked --parent P --label contract-label --json --sandbox` | Historical 1.3.0 returned `[]`; supported 1.3.1 returned C with ordinary issue fields plus blocker fields. The retired 1.3.0 positive case was unverified because its fixture blocker was not created successfully; supported 1.3.1 has positive filter evidence. Product reports bounded returned rows with completeness unknown (false when capped), never claims empty implies globally unblocked. No unsupported `--limit` flag is sent. |
+| Single-ID get | `show I --json --sandbox`; `show contract-not-found --json --sandbox` | Success is a one-record array preserving notes/acceptance/design and separate audit/owner/assignee. Unknown ID exits 1 with error JSON and stderr, never a synthetic missing record. Product get is sequential, at most25 unique IDs, one approval listing all exact resources and fresh checks before every spawn. Partial success preserves per-ID failures; all failed stays failed. |
+| Direct edges | `dep list C --direction down --type parent-child --json --sandbox`; `dep list P --direction up --type parent-child --json --sandbox`; unfiltered down call | Typed issue arrays: down yields P, up yields C. Unfiltered output preserves discovered-from and parent-child. Current additionally evidences a blocks edge. Product allows one optional qualified CLI type per call, caps after normalizing, preserves unknown status and returns unknown completeness unless capped; no transitive graph or unblocked inference. |
+| Claim | `update I --claim --json --actor A --sandbox` | One-record array with `assignee=A,status=in_progress`; later show confirms author and assignee separately. This is required for acknowledged. Exit0/malformed/wrong actor/state is uncertain, with target and actor. No hidden show or second approval. |
+| Claim conflict | `update O --claim --json --actor A --sandbox` | Both exit1, empty stdout. Stderr includes a human diagnostic then JSON `{"error":"1 of 1 issues failed to update","failed":[{"id":O,"error":"updating issue: issue already claimed: already assigned to …"}],"schema_version":1}`. Product not-claimed requires this single-target structured evidence; arbitrary errors remain uncertain. |
+| Append note | `update I --append-notes <exact multiline checkpoint> --json --actor A --sandbox` | One-record array retains prior notes plus newline and exact appended text; fresh show confirms retention. Product requires matching target and appended suffix. Notification failure appends detail without erasing the original diagnostic. |
+| Selected update | `update C --status blocked --priority 3 --add-label added --remove-label contract-label --json --actor A --sandbox`, then separate deferred/open/in_progress status calls | Returned records evidence status, priority3 and labels `["added"]`; all four nonclosed statuses observed. Product rejects empty updates, closed/ownership/claim changes, conflicting label sets and unknown fields. Requested fields must be evidenced for acknowledgement. |
+| Close | `close I --reason contract --json --actor A --sandbox` | Returned one-record array has exact target and status closed. Caller still owns authority and acceptance judgment. |
+| Create | `create --title --assignee=x --type task --priority 1 --description "contract-marker description" --acceptance "contract acceptance" --design "contract design" --parent P --deps discovered-from:I --labels contract-label --json --actor A --sandbox` | Generated child ID C; literal title `--assignee=x`, no assignee, actual created_by A, exact selected fields. Other calls establish bug/feature/chore/epic types. Product uses supported `--title`, never a free option-like positional, and never auto-assigns. Uncertain creation preserves its identifying query/title; caller searches/gets before considering another write. |
+| Memories/recall/remember | `memories --json --sandbox [-- contract-marker]`; `recall contract-knowledge --json --sandbox`; `remember --key contract-knowledge --json --actor A --sandbox -- <exact text>` | Version1 metadata plus key→value map; no matches is a successful empty map. Recall found has exact value; missing exits1 with key/value empty/found=false; empty remember exits1 with error, not an empty stored row. Remember actions remembered/updated preserve exact content. Product retains empty-found versus missing fixtures and landed-uncommitted/commit_error/commit_indeterminate branches, without claiming those commit failures were induced in these real runs. |
+| Full prime | `prime --full --sandbox` before and after issue writes | Both bounded comparisons were equal; this does not establish independence across all supported project policies/content. Keep full prime and conservative location invalidation for possible issue/memory writes. Existing guard, migration-marker, default-install and setup contracts also ran in disposable repositories. |
+
+Historical 1.3.0 fixture failures: adding blocks to a pair already linked discovered-from was correctly refused, causing two downstream positive-blocker assertions to fail; the claim test incorrectly expected `[]` stdout and different text; the ready test incorrectly expected an in_progress issue. The captures preserve all five failures. Corrections use a separate blocker, the observed conflict diagnostic and ready's actual actionable scope. These historical 1.3.0 failures are not relabeled passing. The now-selected 1.3.1 minimum/current run establishes the positive blocked-filter behavior and passes the aggregate; no obsolete-target repair or inference from help is required. Help/source was discovery only.
+
+### Final verification after the owner floor correction
+
+The new floor is implemented in `src/guard.ts` and `package.json` only; release
+version1.0.2, validated1.3.1, dependencies and lockfile remain unchanged. Focused
+RED `minimum131-red.log` records26 pass/four failures (old binary admitted,
+old notice, old README and manifest assertions). GREEN `minimum131-green.log`
+records30 pass/zero failures, including 1.3.0 refusal after version alone and
+1.3.1 readiness. Positive supported fixtures use1.3.1; retired1.3.0 appears only
+in rejection fixtures and historical evidence.
+
+One supported1.3.1 contract rerun was justified by the changed runtime floor,
+using the same command above and unchanged extended script, captured separately
+as `/opt/data/cache/scratch/oc-loop-implementation/minimum131-contract.log`:
+exit0, **63 passed**, SHA-256
+`8b28e3069fbf0bab8051fe28ce47008d7a509a1e7f37020a7d72e1accaa9dfe4`.
+The positive blocked query was exactly
+`bd blocked --parent repo-a5a --label contract-label --json --sandbox`, exit0;
+its returned child `repo-a5a.1` has `status:open`,
+`labels:["contract-label"]`, `blocked_by_count:1`, `blocked_by:["repo-6oi"]`.
+No1.3.1 core/blocked-filter gap remains from the retired fixture failure. No
+1.3.0 command or compatibility repair ran after the owner correction.
+
+Final branch review also tightened declared issue-field normalization and omits
+optional undefined values so output and readable JSON content agree. These are
+normalizer corrections in the same module, not a schema validator framework.
+Their RED `minimum131-normalization-red.log` is31 pass/one failure; the combined
+focused GREEN is62/0. Existing operation table cases now check malformed-output
+branches as well as success; no additional version or permission matrix.
+
+Final cheap checks use new captures `minimum131-final-tests.log` (**190/0**,
+1895 assertions), `minimum131-final-typecheck.log` (exit0), and
+`minimum131-package.log` (exit0; archive SHA-256
+`86f781ba6a17949665448e0603ad696afb7eeb6be95311b68ca6e26c105766d7`).
+That is still20 added tests over170; floor rejection/manifest checks retarget
+existing cases. Package smoke checks all30 command callbacks and17 installed
+links. Status records registration-plus-execute visibility as observed evidence,
+with leaf availability explicitly unknown; it never treats execute alone as
+proof every typed leaf exists. User/repository policy and actual permission
+identity remain distinct from audit attribution.
+
+### Actual native output executor/catalog scratch rerun
+
+A single new scratch adaptation of the existing two probes supplied the initial check:
+
+```sh
+PATH=/opt/data/.npm/_npx/60c3515df86f25b1/node_modules/@oven/bun-linux-x64-baseline/bin:$PATH bun /opt/data/cache/scratch/oc-loop-implementation/native/candidate-probe.ts
+```
+
+Initial exit0. Pre-floor candidate `src/continuity.ts` SHA-256 `ef9e28be509f35499a183e6a84108d777a3a16236491301a2025ac0b3fac0a8e`. All11 actual definitions supply their own input/output schemas through `definition`, without synthetic schema replacement. Native catalog search returns structured union signatures at `tools.beads.get`/`tools.beads.note`. The actual `packages/core/src/tool/runtime.ts` executor runs inside the copied code-mode result bridge: get acknowledges two separate issue reads, note acknowledges one fixture update and its actual derived actor. These are fixture CLI calls, not real mutations. There is no fallback string/null output schema and no direct-method-only success claim.
+
+Source pin independently checked against the complete cached 2.1.1 tree (`ba546ec1598a70db2570e9c6258028d955ba8f58`, truncated=false): executed core tool/runtime blob `d1c5e29caf157fce941024570bc1fe9d5727621e`, code-mode tool-runtime blob `9c179bbfe070959704bc6e750e6e2d0045da2b6a`, tool-schema `900556191ca454318de25710df038be96a422035`. The copied tool/namespace/tool-error and Promise adapter inputs also match that tree. Original probes are untouched; all copies and this adaptation live only under the new scratch directory. Results `/opt/data/cache/scratch/oc-loop-implementation/native/results.json`, SHA-256 `eaef8c953bd3df7e9671a0aefe01fe87e7761a34aca7d49b5350fb6847fb217c`; stderr is empty. Product tests import no host executor and add no dependency or maintained runtime seam. This is a native schema/catalog bridge check, **not** interpreter, installed-host, model, permission-matcher or lifecycle qualification; .2/.6/.9 retain their acceptance scope.
+
+The same scratch adaptation was rerun after the changed guard floor, then after
+final normalizer corrections, preserving separate `minimum131-results.json` and
+`minimum131-final-results.json` captures. Final exit0 on continuity SHA-256
+`0bb76279663fd865ba99247a3f1f71b5442c39b4fbcea7eeac875da21d37515c`,
+guard SHA-256
+`ebfca3c54960d527c7cdca8193c6310714e408240e01b74db249e15bec10ba18`.
+Final native result bytes are unchanged (SHA-256
+`eaef8c953bd3df7e9671a0aefe01fe87e7761a34aca7d49b5350fb6847fb217c`),
+and final stderr is empty. Exact final dependency hashes and actual worker
+session are in `native/minimum131-final-inputs.json`. These reruns check the
+changed candidate through the same single scratch seam; they do not create a
+maintained test/runtime dependency or qualify the installed host. Earlier
+results and original historical probes are preserved.
+
+### Context, guidance and deterministic verification
+
+Guarded full prime is cached separately from per-request actor/capability rendering. Actual request session/agent drives the same executorActor function as typed writes; permission assertions independently retain actual invocation context.agent. Status uses observed request identity/capabilities or unknown, discloses unknown leaf availability and effective registry ownership limits, and never opens a store to invent capability. Native shell remains direct-only. Every possible issue/memory write conservatively invalidates relevant location prime; acknowledged outcomes avoid a redundant generic readback cue. Failed/uncertain/partial outcomes retain targets, actor, original diagnostics and recovery gaps. Task and memory references remain distinct; ordinary unrelated tool errors no longer cause a generic prime refresh, while child/important recovery and external changes retain freshness checks. Owned cleanup clears request observations with the existing session/reference state.
+
+The scope/ownership/stop policy remains in the task-agent prompt; its repeated executor section is removed only from that agent's injected guidance. Detailed project planning/review elaboration moves on demand to existing WORKFLOWS; distinct user/repository policy minimization is unchanged. All30 commands and native override precedence remain, with capability-neutral workflow prompts. CODE_MODE is explicitly linked and packaged: 16 resources plus ADR, 17 links.
+
+Evidence directory `/opt/data/cache/scratch/oc-loop-implementation`: declaration RED `operations-red.log` (15 pass/1 fail), first GREEN (16/0), final operation suite (32/0), request-context RED `context-red.log` (16/1), integrated GREEN (111/0), final full `bun test` **190 pass/0 fail**, `bun run typecheck` exit0 and `bun run test:package` exit0. This adds20 tests over the accepted170-test baseline, largely operation-specific table cases and representative request states, not an operations×versions×permissions matrix. Package archive SHA-256 `afae8906f44d534a352e8d0fb86469b0ab59b4051e5f5a5e205cb8ef72f658ba`; unpacked callbacks and all17 links passed. Strict OpenSpec change/all, planning validator and whitespace checks passed. Worker task markers, review reports, shared/operator integrations and activation remain untouched; the seven active-plan edits are the separately recorded parent support-policy delta. Historical 1.3.0 aggregate failure remains failed and retired; supported 1.3.1 minimum/current qualification passes.
+
+
+
+## Historical planning correction — Opus S1–S5 / P1–P3
 
 The [original REVISE review](reviews/opus-code-mode-plan-review-wgv.md) remains immutable. The [correction map](../openspec/changes/improve-beads-workflow-parity/reconciliation.md) records the new local candidate, not independent acceptance. All typed argv/resources preserve subcommand-first prefixes and --sandbox on reads/writes, with actual derived write actor inserted after operation arguments but before any -- terminator. Pre-spawn input/identity/hold/location refusals stay thrown; permission rejection/cancellation remain unchanged and started-write uncertainty survives. Actors derive from actual request/invocation session and agent; audit attribution grants no permission and assertions separately use context.agent.
 
 Future task7.1 authority must explicitly cover existing install-bd.sh into disposable directories and existing bd-contract.ts once per1.3.0/1.3.1 for runtime JSON/mutation/claim/create/close/prime-dependence facts. The SDK ledger will be a table citing captured existing-contract output; help/source is discovery, not passing evidence. No installation or contract run occurred in this correction. Task7.2 reruns existing scratch executor/catalog probes once against the actual candidate and records exact pin/commands/results here; there is no maintained product executor seam. Product tests assert declared outputs/branch invariants and bounded table/shared negatives. Task7.3 uses four representative capability states plus the existing cheap suite/typecheck/package gates. .6 consumes deterministic evidence and adds its own Stop/handoff observation; installed catalog/executor/model confirmation remains .2/.9. No graph/ownership change, implementation, activation, publication or closure follows.
 
 
-## Current planning correction — broader code-mode architecture (2026-10-21)
+## Historical planning correction — broader code-mode architecture (2026-10-21)
 
 The [broader Opus assessment](reviews/opus-code-mode-architecture-wgv.md) and parent pinned-blob verification supersede six-tool sufficiency and the earlier narrow READY. Exact 2.1.1 shell.ts:195 declares native shell codemode:false; tool.ts:236–262 splits direct/code-mode inventories and removes code-mode-only tools when execute is wholly denied. Ordinary shell is a direct model-turn fallback only. Historical direct/code-mode fixture references below describe host hook/permission seams, not proof that the default plugin tools have direct exposure.
 

@@ -15,7 +15,7 @@ For status or graph analysis, never claim, update, close, or modify a bead. Retu
 
 An exact assignment or explicit one-bead mode ends with that bead: report completion or a blocker and return without substitution. A single authorized operation ends with that operation; it does not authorize claiming ownership or selecting ready work. Only an already-authorized batch or goal allows continuation to another actionable bead within its stated scope. Readiness is not dispatch permission. If execution scope is missing or ambiguous, obtain it before claiming work.
 
-For each bead authorized for task execution, first run \`bd show <id> --json\`; confirm it is open, actionable, within scope and appropriate; then claim atomically with \`bd update <id> --claim --actor='<executor-actor>' --json\` and read back assignment. If the claim fails or readback does not confirm your assignment, stop. If an assigned bead is closed, blocked, unsuitable, missing, or otherwise not actionable, report and return without mutation or substitution.
+For each bead authorized for task execution, first read the exact issue (typed get when available; direct shell equivalent \`bd show <id> --json --sandbox\`); confirm it is open, actionable, within scope and appropriate; then claim atomically (typed claim when available; direct shell equivalent \`bd update <id> --claim --json --actor='<executor-actor>' --sandbox\`) and read back assignment. If the claim fails or readback does not confirm your assignment, stop. If an assigned bead is closed, blocked, unsuitable, missing, or otherwise not actionable, report and return without mutation or substitution.
 
 Implement within scope and run relevant authorized validation. Append per-bead checkpoints with \`--append-notes\`, preserving attempts, measured outcomes, rationale, validation, references, blockers and the next authorized action. Close only with acceptance evidence and closure authority; unresolved acceptance or failed validation remains incomplete. If the parent owns acceptance or closure, return evidence and leave the bead open. Continue within an authorized batch only after recording the current bead's outcome and confirming that continuation meets its acceptance and authority gates.
 
@@ -25,15 +25,13 @@ Stop on permission denial, cancellation, deliberate stop, exhausted scope or a b
 
 const BEADS_EXECUTOR_GUIDANCE = `## Executor and work ownership
 
-Use the actual executor actor from the authorized invocation or handoff on every agent-authored write, claim, update and heartbeat, with command-scoped \`BEADS_ACTOR\` or \`--actor\`. Replace '<executor-actor>' with that identity; if unavailable, establish it before writes. Never fall back to human Git identity, a shared user-global actor, a model name alone or another executor's identity. Keep full session IDs in evidence and readable unambiguous actor names in commands. Actor attribution grants no permission and is separate from the actual invoking host agent used for permission evaluation.
+Use the actual executor actor from the authorized invocation or handoff on every agent-authored write, claim, update and heartbeat, with command-scoped \`BEADS_ACTOR\` or \`--actor\`. Replace '<executor-actor>' with that identity; if unavailable, refuse writes until the host supplies it. Never fall back to human Git identity, a shared user-global actor, a model name alone or another executor's identity. Keep full session IDs in evidence and readable unambiguous actor names in commands. Actor attribution grants no permission and is separate from the actual invoking host agent used for permission evaluation.
 
-Read back \`created_by\` (audit author), \`owner\` (record/account ownership) and \`assignee\` (executor) separately. Preserve historical authorship, including unknown values; put provenance corrections in notes. A deliberate handoff records the change and authorized ownership update; parent coordination or review alone does not transfer the worker's claim. Delegated instructions carry the actual executor actor; the executing worker claims its own authorized work and retains that actor through updates and heartbeats.
-
-Keep substantive multi-session or delegated planning in one bounded planning item, separate from implementation; a quick draft need not get its own ticket. Give substantive independently owned review one bounded review item linked to planning and the exact candidate. Reuse the same review item through corrections and rechecks, not a ticket per document, invocation or retry. Record the actual reviewer actor/session, verdict, findings and evidence without retroactive claims. Planning/review closure requires its own evidence and owner acceptance; implementation completion or readiness does not supply that acceptance or authorize dispatch, release or deployment.`;
+Read back \`created_by\` (audit author), \`owner\` (record/account ownership) and \`assignee\` (executor) separately. Preserve historical authorship, including unknown values; put provenance corrections in notes. A deliberate handoff records the change and authorized ownership update; parent coordination or review alone does not transfer the worker's claim. Delegated instructions carry the actual executor actor; the executing worker claims its own authorized work and retains that actor through updates and heartbeats.`;
 
 const BEADS_HOST_GUIDANCE = `## CLI Safety
 
-There is no native \`bd\` or Beads MCP tool in OpenCode. Run \`bd\` through the \`shell\` tool.
+Use actual request capabilities below. Native shell is direct-only and cannot be called inside execute.
 Treat the injected \`bd prime\` output as the canonical workflow reference. Use \`bd --help\` to discover commands, \`bd <command> --help\` for current syntax, and \`--json\` when structured output improves reliability. Distinguish command failures from output parsing failures.
 
 Run relevant validation before closing an issue. Do not commit, push, or run Dolt synchronization automatically; do so only when current instructions or repository policy explicitly require it.`;
@@ -46,7 +44,7 @@ Append task-specific attempts, measured outcomes, rationale, blockers and the ne
 
 Only actual CLI results acknowledge persistence. A timeout or interrupted append/remember is uncertain: inspect durable state before another write, with no blind retry. A landed memory with failed or indeterminate commit retains its reference and qualified status; do not force it or automatically commit. Empty found memory differs from a missing key. Every authorized write uses the actual executor's explicit Beads actor, separate from the host permission agent; never use human Git identity or a model-supplied impersonation.
 
-Typed continuity activation is withheld pending host qualification. The installed Beads CLI owns database, routing and consistency semantics; the adapter invokes normal supported operations from the actual project context under OpenCode permissions. Typed writes derive a stable readable actor from the actual invocation session and agent. That attribution is not authentication and never transfers assignment: deliberate handoffs still require their own authorized claim/update and evidence. Where an authorized permission check uses save: [], an always reply grants this call only and ask may prompt again; existing shell grants remain subject to denies.`;
+The installed Beads CLI owns database, routing and consistency semantics; the adapter invokes normal supported operations from the actual project context under OpenCode permissions. Typed writes derive a stable readable actor from the actual invocation session and agent. That attribution is not authentication and never transfers assignment: deliberate handoffs still require their own authorized claim/update and evidence. Where an authorized permission check uses save: [], an always reply grants this call only and ask may prompt again; existing shell grants remain subject to denies.`;
 
 const BEADS_DELEGATION_GUIDANCE = `## Delegation
 
@@ -57,7 +55,7 @@ Reconcile the child's scope, actor/session, attempts, outcomes, rationale, valid
 /** Project-owned system prompt for the scope-bounded task agent. */
 export const BEADS_TASK_AGENT_PROMPT = `## Beads Task Agent
 
-Full \`bd prime\` workflow context is injected with each request. Use \`bd\` via the \`shell\` tool; rerun prime if context is missing or stale.
+Full \`bd prime\` workflow context is injected with each request. Use the request capability block and native beads namespace catalog when available; repository validation runs in the direct \`shell\` tool. Refresh missing or stale context only when authorized and no hold applies.
 
 ${BEADS_SCOPE_GUIDANCE}
 
@@ -77,11 +75,29 @@ export const BEADS_COMPACTION_GUIDANCE = `<beads-compaction>
 This session tracks work in Beads (bd). Carry acknowledged durable task/memory references, current scope, attempts, blockers, pending validation and known unsaved or uncertain gaps into the summary or native-provider context. A summary is not a Beads write. Do not persist, wait for permission or a queued write, or request a recursive same-session checkpoint during compaction. Earlier meaningful checkpoints support recovery; no final-write guarantee applies. Fresh guarded context is requested after compaction. Preserve host-owned native replay, metadata.keepID and legacy metadata.recent; do not inject result.native.messages or a replacement result to add references.
 </beads-compaction>`;
 
+/** Observed after native request filtering; selective operation permission remains per call. */
+export interface RequestCapabilities {
+  typed: "registered-execute-visible" | "unavailable" | "unknown";
+  execute: boolean | null;
+  shell: boolean | null;
+}
+export const UNKNOWN_CAPABILITIES: RequestCapabilities = { typed: "unknown", execute: null, shell: null };
+
+/** Capability statements describe observations, never a permission grant. */
+export function capabilityGuidance(capabilities: RequestCapabilities): string {
+  if (capabilities.typed === "registered-execute-visible") return "Beads namespace is registered and execute is visible. Discover current signatures with native search({namespace: \"beads\"}); compose only operations found in the native catalog. Some or all leaves may be filtered out. Each leaf still checks its own permissions; visibility grants no authority. Native shell is direct-only; run repository work and validation in direct shell turns. Do not call tools.shell inside execute.";
+  if (capabilities.shell === true) return "Typed Beads composition is unavailable for this request. Use permissioned bd through the direct shell tool only when authorized and no hold applies. Shell cannot run inside execute.";
+  if (capabilities.execute !== null && capabilities.shell === false) return "Neither typed Beads composition nor direct shell access is available for this request. Report unavailable capability and stop the affected work; do not route around it.";
+  return "Beads request capability is unknown. Check actual native catalog/tools before choosing typed composition or direct shell; do not infer permission or bypass a hold.";
+}
+
 /** Build the single shared guidance layer for one injected audience. */
 export function beadsGuidance(
-  audience: "primary" | "task-agent"
+  audience: "primary" | "task-agent",
+  capabilities: RequestCapabilities = UNKNOWN_CAPABILITIES
 ): string {
-  const sections = [BEADS_HOST_GUIDANCE, BEADS_RECOVERY_GUIDANCE, BEADS_EXECUTOR_GUIDANCE];
+  const sections = [BEADS_HOST_GUIDANCE, capabilityGuidance(capabilities), BEADS_RECOVERY_GUIDANCE];
+  if (audience === "primary") sections.push(BEADS_EXECUTOR_GUIDANCE);
   if (audience === "primary") sections.push(BEADS_SCOPE_GUIDANCE, BEADS_DELEGATION_GUIDANCE);
   return `<beads-guidance>\n${sections.join("\n\n")}\n</beads-guidance>`;
 }

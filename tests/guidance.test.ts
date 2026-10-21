@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import { beadsAgents } from "../src/agents";
 import {
@@ -27,8 +28,8 @@ describe("project-owned task-agent contract", () => {
     expect(prompt).toContain("An exact assignment or explicit one-bead mode ends with that bead");
     expect(prompt).toContain("already-authorized batch or goal");
     expect(prompt).toContain("Readiness is not dispatch permission");
-    const showIndex = prompt.indexOf("`bd show <id> --json`");
-    const claimIndex = prompt.indexOf("`bd update <id> --claim --actor='<executor-actor>' --json`");
+    const showIndex = prompt.indexOf("`bd show <id> --json --sandbox`");
+    const claimIndex = prompt.indexOf("`bd update <id> --claim --json --actor='<executor-actor>' --sandbox`");
     expect(showIndex).toBeGreaterThanOrEqual(0);
     expect(claimIndex).toBeGreaterThan(showIndex);
     expect(prompt).toContain(
@@ -47,7 +48,7 @@ describe("project-owned task-agent contract", () => {
   });
 
   test("carries executor attribution and separates planning/review acceptance", () => {
-    for (const text of [BEADS_TASK_AGENT_PROMPT, beadsGuidance("primary"), beadsGuidance("task-agent")]) {
+    for (const text of [BEADS_TASK_AGENT_PROMPT, beadsGuidance("primary"), BEADS_TASK_AGENT_PROMPT + beadsGuidance("task-agent")]) {
       expect(text).toContain("command-scoped");
       expect(text).toContain("heartbeat");
       expect(text).toContain("created_by");
@@ -55,10 +56,13 @@ describe("project-owned task-agent contract", () => {
       expect(text).toContain("assignee");
       expect(text).toContain("human Git identity");
       expect(text).toContain("deliberate handoff");
-      expect(text).toContain("planning");
-      expect(text).toContain("review");
-      expect(text).toContain("same review item");
+
     }
+    const planning = readFileSync(new URL("../assets/oc-beads/resources/WORKFLOWS.md", import.meta.url), "utf8");
+    expect(planning).toContain("same review item");
+    expect(planning).toContain("owner acceptance");
+    expect(beadsGuidance("primary")).not.toContain("same review item");
+    expect(beadsGuidance("task-agent")).not.toContain("## Executor and work ownership");
   });
 
   test("shares one guidance layer and adds delegation only for primary agents", () => {
@@ -66,7 +70,7 @@ describe("project-owned task-agent contract", () => {
     const taskAgent = beadsGuidance("task-agent");
     for (const guidance of [primary, taskAgent]) {
       expect(guidance).toMatch(/^<beads-guidance>\n[\s\S]*\n<\/beads-guidance>$/);
-      expect(guidance).toContain("Run `bd` through the `shell` tool");
+      expect(guidance).toContain("Native shell is direct-only");
       expect(guidance).toContain("Do not commit, push, or run Dolt synchronization automatically");
     }
     expect(primary).toContain("through the `subagent` tool");
@@ -79,7 +83,7 @@ describe("project-owned task-agent contract", () => {
 
   test("names OpenCode V2's `shell` tool, not V1's `bash`", () => {
     for (const text of [BEADS_TASK_AGENT_PROMPT, beadsGuidance("primary"), beadsGuidance("task-agent")]) {
-      expect(text).toContain("`shell` tool");
+      expect(text).toContain("shell");
       expect(text).not.toContain("`bash`");
     }
   });

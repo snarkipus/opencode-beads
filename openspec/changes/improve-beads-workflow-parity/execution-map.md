@@ -37,7 +37,7 @@ Nine original checked identities/status remain accepted; 1.1/4.2/6.2/6.3 stay un
 
 ## Preserved scope and evidence boundaries
 
-Exact host 2.1.1 source `ba546ec1598a70db2570e9c6258028d955ba8f58`, admission `>=2.1.1 <2.2`; operator 2.0.29 untouched. Beads minimum >=1.3.0 and installed1.3.1 unchanged. The immutable historical/current corpus remains 73/74 members with all dispositions; new CODE_MODE delivery augments it: 16 resources plus ADR, 17 explicit links, all 30 human names and overrides. No inventory history is rewritten.
+Exact host 2.1.1 source `ba546ec1598a70db2570e9c6258028d955ba8f58`, admission `>=2.1.1 <2.2`; operator 2.0.29 untouched. Beads minimum >=1.3.1 and installed1.3.1; prior 1.3.0 support/qualification is retired by explicit owner decision. The immutable historical/current corpus remains 73/74 members with all dispositions; new CODE_MODE delivery augments it: 16 resources plus ADR, 17 explicit links, all 30 human names and overrides. No inventory history is rewritten.
 
 Native shell is direct-only; execute-denied agents lose typed code-mode exposure. Actual invocation permission identity is separate from the rendered audit actor. Keep guard/hold, location access, after-approval/pre-spawn rechecks, cancellation, sole acknowledgement and upstream CLI ownership. No upstream patch, routing/confinement framework, runtime install, model experiment or new datastore.
 

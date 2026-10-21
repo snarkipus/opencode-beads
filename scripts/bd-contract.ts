@@ -83,7 +83,7 @@ if (isolatedRoot === undefined) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "bd-contract-"));
   const home = path.join(root, "home");
   await fs.mkdir(home);
-  const env: Record<string, string | undefined> = { ...process.env, HOME: home, BD_CONTRACT_ROOT: root };
+  const env: Record<string, string | undefined> = { ...process.env, HOME: home, XDG_CONFIG_HOME: path.join(home, ".config"), XDG_DATA_HOME: path.join(home, ".local/share"), BD_CONTRACT_ROOT: root };
   delete env.BEADS_DIR;
   const child = Bun.spawn([process.execPath, import.meta.path], { env, stdio: ["ignore", "inherit", "inherit"] });
   const exitCode = await child.exited;
@@ -94,8 +94,20 @@ const root = isolatedRoot;
 
 try {
   const actor = process.env.BEADS_ACTOR ?? "bd-contract";
-  const bd = (cwd: string, args: readonly string[]) =>
-    runBd(cwd, ["--sandbox", "--actor", actor, ...args], { timeoutMs: 60_000 });
+  const bd = async (cwd: string, args: readonly string[]): Promise<string> => {
+    const argv = [...args];
+    const write = ["init", "create", "update", "close", "remember", "setup", "migrate", "dep"].includes(argv[0] ?? "") && !(argv[0] === "dep" && argv[1] === "list");
+    const terminator = argv.indexOf("--");
+    argv.splice(terminator < 0 ? argv.length : terminator, 0, ...(write ? ["--actor", actor] : []), "--sandbox");
+    try {
+      const stdout = await runBd(cwd, argv, { timeoutMs: 60_000 });
+      console.log(`observed ${JSON.stringify({ cwd, argv, exitCode: 0, stdout })}`);
+      return stdout;
+    } catch (error) {
+      console.log(`observed ${JSON.stringify({ cwd, argv, exitCode: error instanceof PrimeProcessError ? error.exitCode : null, stdout: error instanceof PrimeProcessError ? error.stdout : undefined, stderr: error instanceof PrimeProcessError ? error.stderr : undefined, error: String(error) })}`);
+      throw error;
+    }
+  };
   const guardRuntime = createGuardRuntime(bd);
   const repo = path.join(root, "repo");
   const bare = path.join(root, "bare");
@@ -144,6 +156,8 @@ try {
     "guard reports a current store as ready"
   );
 
+  const initialFullPrime = await attempt("prime before issue writes", () => bd(repo, ["prime", "--full"]));
+
   // Commands named by the task-agent prompt and guidance.
   const priorNotes = "Prior attempt failed; retain this evidence.\nNext action: verify append.";
   const created = json(
@@ -172,6 +186,65 @@ try {
       "a fresh show retains both prior notes and the appended checkpoint");
     check(Array.isArray(recovered) && recovered[0]?.assignee === actor && recovered[0]?.status === "in_progress" && recovered[0]?.created_by === actor,
       `created_by and claimed assignee use the explicit test executor (${actor})`);
+    // Daily-loop contracts: exact supported argv, returned records and bounded query shapes.
+    const rows = (value: unknown): Array<Record<string, unknown>> => Array.isArray(value) ? value as Array<Record<string, unknown>> : [];
+    const parent = issueId(json(await attempt("create parent", () => bd(repo, ["create", "--title", "contract parent", "--type", "epic", "--priority", "2", "--json"]))));
+    const child = json(await attempt("create option-like title and selected fields", () => bd(repo, ["create", "--title", "--assignee=x", "--type", "task", "--priority", "1", "--description", "contract-marker description", "--acceptance", "contract acceptance", "--design", "contract design", "--parent", parent!, "--deps", `discovered-from:${id}`, "--labels", "contract-label", "--json"])));
+    const childId = issueId(child);
+    const childRecord = (Array.isArray(child) ? child[0] : child) as Record<string, unknown> | undefined;
+    check(childId && childRecord?.title === "--assignee=x" && !childRecord.assignee && childRecord.created_by === actor && childRecord.acceptance_criteria === "contract acceptance" && childRecord.design === "contract design", "create preserves flag-like title as data, generated ID, selected fields and no auto-assignee");
+    for (const type of ["bug", "feature", "chore"]) {
+      const value = json(await attempt(`create ${type}`, () => bd(repo, ["create", "--title", `contract ${type}`, "--type", type, "--priority", "2", "--json"])));
+      check(issueId(value), `create supports ${type}`);
+    }
+    if (childId && parent) {
+      for (const [view, flags] of [
+        ["ready", ["--parent", parent, "--label", "contract-label"]],
+        ["list", ["--parent", parent, "--label", "contract-label", "--status", "open"]],
+        ["search", ["--label", "contract-label", "--status", "open", "--", "--assignee=x"]],
+      ] as const) {
+        const args = [view, "--limit", "2", "--json", ...flags];
+        const value = json(await attempt(`find ${view} filtered`, () => bd(repo, args)));
+        check(rows(value).length === 1 && rows(value)[0]?.id === childId, `${view} supports declared filters, terminator and bounded array result`);
+      }
+      for (const view of ["ready", "list", "search"]) {
+        const text = view === "search" ? ["--", "contract"] : [];
+        const value = json(await attempt(`${view} limit`, () => bd(repo, [view, "--limit", "2", "--json", ...text])));
+        check(rows(value).length === 2, `${view} enforces limit for limit+1 projection`);
+      }
+      for (const direction of ["down", "up"]) {
+        const value = json(await attempt(`dep list ${direction}`, () => bd(repo, ["dep", "list", direction === "down" ? childId : parent, "--direction", direction, "--type", "parent-child", "--json"])));
+        check(rows(value).some(r => r.id === (direction === "down" ? parent : childId) && r.dependency_type === "parent-child"), `dep list ${direction} preserves typed direct edge direction`);
+      }
+      const blocker = issueId(json(await attempt("create independent blocker", () => bd(repo, ["create", "--title", "contract blocker", "--json"]))));
+      await attempt("add blocker", () => bd(repo, ["dep", "add", childId, blocker!, "--type", "blocks", "--json"]));
+      const blocked = json(await attempt("blocked filters", () => bd(repo, ["blocked", "--parent", parent, "--label", "contract-label", "--json"])));
+      check(rows(blocked).some(r => r.id === childId), "blocked returns scoped array (no limit supported; completeness unknown)");
+      const allEdges = json(await attempt("dep list all", () => bd(repo, ["dep", "list", childId, "--direction", "down", "--json"])));
+      check(rows(allEdges).some(r => r.id === blocker && r.dependency_type === "blocks"), "dep list without type retains dependency_type");
+      const changed = rows(json(await attempt("selected update fields", () => bd(repo, ["update", childId, "--status", "blocked", "--priority", "3", "--add-label", "added", "--remove-label", "contract-label", "--json"]))))[0];
+      check(changed?.status === "blocked" && changed.priority === 3 && Array.isArray(changed.labels) && changed.labels.includes("added") && !changed.labels.includes("contract-label"), "selected update returns requested status, priority and labels");
+      for (const status of ["deferred", "open", "in_progress"]) {
+        const changed = rows(json(await attempt(`update status ${status}`, () => bd(repo, ["update", childId, "--status", status, "--json"]))))[0];
+        check(changed?.status === status, `update status ${status} is evidenced`);
+      }
+    }
+    // Intentional fixture assignment is distinct from the actual executor/audit author.
+    const occupied = issueId(json(await attempt("create occupied fixture", () => bd(repo, ["create", "--title", "occupied fixture", "--assignee", "fixture-owner", "--json"]))));
+    if (occupied) {
+      try { await bd(repo, ["update", occupied, "--claim", "--json"]); check(false, "claim conflict refuses another assignee"); }
+      catch (error) {
+        check(error instanceof PrimeProcessError && error.exitCode === 1 && error.stdout.trim() === "" && error.stderr.includes("issue already claimed: already assigned to") && error.stderr.includes("fixture-owner"), "claim conflict has exit 1, empty stdout and explicit already-assigned diagnostic");
+      }
+    }
+    try { await bd(repo, ["show", "contract-not-found", "--json"]); check(false, "missing show refuses unknown ID"); }
+    catch (error) { check(error instanceof PrimeProcessError && error.exitCode !== 0, "unknown single-ID show remains a failure, never synthetic missing"); }
+    for (const view of ["ready", "list", "search"]) {
+      const value = json(await attempt(`${view} assignee`, () => bd(repo, [view, "--assignee", actor, "--limit", "2", "--json", ...(view === "search" ? ["--", "contract"] : [])])));
+      check(view === "ready" ? rows(value).length === 0 : rows(value).some(r => r.id === id), `${view} filters by actual assignee (ready excludes in_progress)`);
+    }
+    const issuePrime = await attempt("prime after issue updates", () => bd(repo, ["prime", "--full"]));
+    console.log(`observed prime issue comparison: ${JSON.stringify({ equal: initialFullPrime === issuePrime, conclusion: "bounded observation only; retain conservative issue-write invalidation" })}`);
     const discovered = issueId(
       json(
         await attempt("bd create --deps discovered-from", () =>
@@ -180,10 +253,8 @@ try {
       )
     );
     check(discovered, "bd create --deps discovered-from:<id> succeeds");
-    check(
-      (await attempt("bd close --reason", () => bd(repo, ["close", id, "--reason", "contract", "--json"]))) !== undefined,
-      "bd close <id> --reason --json succeeds"
-    );
+    const closed = rows(json(await attempt("bd close --reason", () => bd(repo, ["close", id, "--reason", "contract", "--json"]))))[0];
+    check(closed?.id === id && closed.status === "closed", "close acknowledges exact target in closed state");
   }
 
   // Real supported memory results, without injecting empty rows or manufacturing commit outcomes.

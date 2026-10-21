@@ -13,7 +13,7 @@ import { executorActor } from "../src/continuity";
 import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
 import { BEADS_COMPACTION_GUIDANCE, primeFailureNotice } from "../src/guidance";
 
-type ContextEvent = { sessionID: string; agent: string; system: Array<{ type: "text"; text: string }> };
+type ContextEvent = { tools?: Record<string, unknown>; sessionID: string; agent: string; system: Array<{ type: "text"; text: string }> };
 type ToolAfterEvent = Extract<Parameters<Parameters<ToolDomain["hook"]>[1]>[0], { status: string }>;
 
 /** A controllable server event stream. */
@@ -86,8 +86,8 @@ function fakeContext(options: {
     },
   } as unknown as HostContext;
 
-  async function request(sessionID: string, agent: string): Promise<string[]> {
-    const event: ContextEvent = { sessionID, agent, system: [{ type: "text", text: "HOST" }] };
+  async function request(sessionID: string, agent: string, tools?: Record<string, unknown>): Promise<string[]> {
+    const event: ContextEvent = { sessionID, agent, ...(tools ? { tools } : {}), system: [{ type: "text", text: "HOST" }] };
     const hook = hooks.get("context");
     if (!hook) throw new Error("context hook not registered");
     await hook(event);
@@ -100,17 +100,18 @@ function fakeContext(options: {
 /** Capture public hook/registration callbacks, without simulating host child transport. */
 function toolFixture(f: ReturnType<typeof fakeContext>) {
   const tools: Info[] = [];
+  const namespaces: unknown[] = [];
   let after: (event: ToolAfterEvent) => Promise<void> | void = () => {};
   const hook: ToolDomain["hook"] = async (name, callback) => {
     if (name === "execute.after") after = callback as typeof after;
     return { dispose: async () => {} };
   };
   const transform: ToolDomain["transform"] = async (callback) => {
-    callback({ add: (tool: Info) => { tools.push(tool); } } as unknown as Parameters<typeof callback>[0]);
+    callback({ namespace: (value: unknown) => { namespaces.push(value); }, add: (tool: Info) => { tools.push(tool); } } as unknown as Parameters<typeof callback>[0]);
     return { dispose: async () => {} };
   };
   Object.assign(f.ctx, { tool: { hook, transform } });
-  return { tools, after: (event: ToolAfterEvent) => after(event) };
+  return { tools, namespaces, after: (event: ToolAfterEvent) => after(event) };
 }
 
 /** Cast only host-branded IDs at the fixture boundary. */
@@ -172,7 +173,7 @@ describe("setupBeads", () => {
       location: { directory: "/project", project: { directory: "/project" } },
       permission: { assert: mock(async () => {}) },
       session: { get: async () => ({ location: { directory: "/project" } }) },
-      tool: { transform: async (callback: (editor: { add(tool: Info): void }) => void) => { callback({ add: (tool) => tools.push(tool) }); return { dispose: disposed }; } },
+      tool: { transform: async (callback: (editor: { namespace(input: unknown): void; add(tool: Info): void }) => void) => { callback({ namespace: () => {}, add: (tool) => tools.push(tool) }); return { dispose: disposed }; } },
     } as unknown as ContinuityHost & { tool: { transform: any } };
     let output = "BEFORE";
     const prime = mock(async () => output);
@@ -193,7 +194,7 @@ describe("setupBeads", () => {
     });
     await f.request("s1", "build");
     await f.request("s2", "build");
-    const tool = tools.find((tool) => tool.name === "beads_remember")!;
+    const tool = tools.find((tool) => tool.name === "remember")!;
     const context = { sessionID: "s1", agent: "worker", messageID: "m1", id: "c1", signal: new AbortController().signal, progress: async () => {} } as unknown as ToolContext;
     const result = await tool.execute({ key: "lesson", text: "validated finding" }, context);
     await after({ ...context, tool: "beads_remember", status: "completed", result });
@@ -210,6 +211,114 @@ describe("setupBeads", () => {
     expect(bd).toHaveBeenCalledTimes(count);
     cleanup();
     expect(disposed).toHaveBeenCalledTimes(2);
+  });
+
+  test("retains unresolved write identities across partial reads, interruption and recovery", async () => {
+    const f = fakeContext(); const t = toolFixture(f);
+    const stopped = new AbortController();
+    const writer = invocation("s1", "build", stopped.signal);
+    const otherWriter = invocation("s1", "worker");
+    const bd = mock(async (_cwd: string, args: readonly string[]) => {
+      if (args[0] === "version") return "1.3.1";
+      if (args[0] === "context") return '{"beads_dir":"/project/.beads"}';
+      if (args[0] === "update" && args[3] === "started note") {
+        stopped.abort(new Error("fixture write interrupted"));
+        throw stopped.signal.reason;
+      }
+      if (args[0] === "update") return JSON.stringify([{ id: args[1], notes: args[3] }]);
+      if (args[0] === "remember") return JSON.stringify({ key: "lesson-uncommitted", value: "finding", action: "remembered", committed: false, commit_error: "fixture commit failed" });
+      if (args[0] === "list") return JSON.stringify(["read-1", "read-2"].map(id => ({ id, title: id, status: "open", priority: 2, issue_type: "task" })));
+      throw new Error("fixture read failed");
+    });
+    Object.assign(f.ctx, { location: { directory: "/project", project: { directory: "/project" } }, permission: { assert: async () => {} } });
+    Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
+    const cleanup = await setupBeads(f.ctx, {
+      continuityQualified: true, runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" },
+      continuity: { bd, realpath: async p => p, readText: async () => "1.3.1" },
+    });
+    try {
+      await f.request("s1", "build");
+      await expect(t.tools.find(tool => tool.name === "note")!.execute({ id: "task-first", text: "started note" }, writer)).rejects.toThrow("fixture write interrupted");
+      expect((await t.tools.find(tool => tool.name === "remember")!.execute({ key: "lesson-uncommitted", text: "finding" }, otherWriter)).output.status).toBe("landed-uncommitted");
+      const read = invocation("s1", "build");
+      expect((await t.tools.find(tool => tool.name === "find")!.execute({ view: "list", limit: 1 }, read)).output).toMatchObject({ status: "acknowledged", complete: false });
+      expect((await t.tools.find(tool => tool.name === "get")!.execute({ ids: ["unavailable-task"] }, read)).output.status).toBe("failed");
+      // Even a later acknowledged write to the same target does not resolve the earlier append.
+      expect((await t.tools.find(tool => tool.name === "note")!.execute({ id: "task-first", text: "later note" }, read)).output.status).toBe("acknowledged");
+      f.events.push({ type: "session.execution.interrupted", data: { sessionID: "s1" } });
+      await settle();
+      const summary: ContextEvent = { sessionID: "s1", agent: "build", system: [] };
+      const beforeCompaction = bd.mock.calls.length;
+      await f.hooks.get("compaction")!(summary);
+      expect(bd).toHaveBeenCalledTimes(beforeCompaction);
+      const gap = JSON.parse(summary.system[1]!.text.replace(/^<beads-references>|<\/beads-references>$/g, "")).gap;
+      const expected = [
+        `note "task-first" actor=${executorActor(writer)}: uncertain; fixture write interrupted`,
+        `remember "lesson-uncommitted" actor=${executorActor(otherWriter)}: landed-uncommitted`,
+      ];
+      const recovery = (await f.request("s1", "build")).join("\n");
+      const later = (await f.request("s1", "build")).join("\n");
+      for (const detail of expected) {
+        expect(gap).toContain(detail);
+        expect(recovery).toContain(detail);
+        expect(later).toContain(detail);
+      }
+      expect(gap).toContain("no final checkpoint is guaranteed");
+      expect(bd.mock.calls.filter(([, args]) => args[0] === "update")).toHaveLength(2);
+      expect(bd.mock.calls.filter(([, args]) => args[0] === "remember")).toHaveLength(1);
+      expect((await f.request("other-session", "build")).join("\n")).not.toContain("task-first");
+      f.events.push({ type: "session.moved", data: { sessionID: "s1" } });
+      await settle();
+      expect((await f.request("s1", "build")).join("\n")).not.toContain("lesson-uncommitted");
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test("renders actual filtered request capability and actor, preserving guard holds", async () => {
+    const f = fakeContext(); const t = toolFixture(f);
+    let guard: any = { kind: "ready" };
+    const prime = mock(async () => "FULL PRIME");
+    Object.assign(f.ctx, { permission: { assert: async () => {} } });
+    Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" }, agent: "session-default" }) });
+    const cleanup = await setupBeads(f.ctx, { continuityQualified: true, runtime: { guard: async () => guard, prime } });
+    expect(t.namespaces).toEqual([{ name: "beads", description: expect.any(String) }]);
+    expect(t.tools).toHaveLength(11);
+    expect(t.tools.every(tool => tool.options?.namespace === "beads" && tool.options.codemode === true)).toBeTrue();
+    const typed = (await f.request("actual", "build", { execute: {}, shell: {} }))[0]!;
+    expect(typed).toContain(executorActor({ sessionID: "actual", agent: "build" }));
+    expect(typed).toContain("Beads namespace is registered and execute is visible");
+    const shell = (await f.request("actual", "review", { shell: {} }))[0]!;
+    expect(shell).toContain(executorActor({ sessionID: "actual", agent: "review" }));
+    expect(shell).not.toContain(executorActor({ sessionID: "actual", agent: "build" }));
+    expect(shell).toContain("direct shell tool");
+    expect((await f.request("actual", "review", {}))[0]).toContain("Neither");
+    expect(prime).toHaveBeenCalledTimes(1);
+    guard = { kind: "migration-pending", installed: "1.3.1", store: "1.2.0" };
+    f.events.push({ type: "session.compaction.ended", data: { sessionID: "actual" } }); await settle();
+    const held = (await f.request("actual", "build", { execute: {}, shell: {} }))[0]!;
+    expect(held).not.toContain("Beads namespace is registered");
+    expect(held).not.toContain("direct shell tool");
+    await cleanup();
+  });
+  test("acknowledged task writes retain task references without a redundant cue; unrelated errors do not refresh prime", async () => {
+    const f = fakeContext(); const t = toolFixture(f);
+    const prime = mock(async () => "PRIME");
+    Object.assign(f.ctx, { location: { directory: "/project", project: { directory: "/project" } }, permission: { assert: async () => {} } });
+    Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
+    const cleanup = await setupBeads(f.ctx, { continuityQualified: true, runtime: { guard: async () => ({ kind: "ready" }), prime }, continuity: { realpath: async p => p, readText: async () => "1.3.1", bd: async (_cwd, args) => args[0] === "version" ? "1.3.1" : args[0] === "context" ? '{"beads_dir":"/project/.beads"}' : '[{"id":"task-1","notes":"evidence"}]' } });
+    await f.request("s1", "build");
+    await t.after({ ...invocation("s1", "build"), tool: "shell", input: {}, status: "error", error: new ToolError({ message: "test failed" }) });
+    expect(await f.request("s1", "build")).toHaveLength(1);
+    expect(prime).toHaveBeenCalledTimes(1);
+    await t.tools.find(tool => tool.name === "note")!.execute({ id: "task-1", text: "evidence" }, invocation("s1", "build"));
+    expect(await f.request("s1", "build")).toHaveLength(1);
+    expect(prime).toHaveBeenCalledTimes(2);
+    const event: ContextEvent = { sessionID: "s1", agent: "build", system: [] };
+    await f.hooks.get("compaction")!(event);
+    expect(event.system[1]?.text).toContain("task:task-1");
+    expect(event.system[1]?.text).not.toContain("memory:task-1");
+    await cleanup();
   });
 
   test("ordinary setup withholds privileged continuity registration", async () => {
@@ -281,7 +390,7 @@ describe("setupBeads", () => {
     expect(agent?.name).toBe("beads-task-agent");
     expect(agent?.model).toBeUndefined();
     expect(String(agent?.system)).toContain("An exact assignment or explicit one-bead mode ends with that bead");
-    expect(String(agent?.system)).toContain("bd update <id> --claim --actor='<executor-actor>' --json");
+    expect(String(agent?.system)).toContain("bd update <id> --claim --json --actor='<executor-actor>' --sandbox");
     expect(typeof agent?.description).toBe("string");
     expect(agent?.permissions).toEqual([...TASK_AGENT_PERMISSIONS]);
     expect(agent?.steps).toBe(DEFAULT_TASK_AGENT_STEPS);
@@ -303,8 +412,8 @@ describe("setupBeads", () => {
     const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime } });
 
     expect([...f.hooks.keys()]).toEqual(["context", "compaction"]);
-    expect(await f.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary")]);
-    expect(await f.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary")]);
+    expect(await f.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" })]);
+    expect(await f.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" })]);
     expect(await f.request("s1", "explore")).toEqual([]);
     expect(prime).toHaveBeenCalledTimes(1);
     expect(prime).toHaveBeenCalledWith("/project", expect.any(AbortSignal));
@@ -330,7 +439,7 @@ describe("setupBeads", () => {
     await hook(withPrime);
     expect(withPrime.system[0]?.text).toContain("provided by the opencode-beads plugin");
     expect(withPrime.system[0]?.text).not.toContain("BEGIN BEADS");
-    expect(withPrime.system[1]?.text).toBe(renderBeadsContext("PRIME", "primary"));
+    expect(withPrime.system[1]?.text).toBe(renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" }));
 
     const subagent: ContextEvent = { sessionID: "s1", agent: "explore", system: [{ type: "text", text: block }] };
     await hook(subagent);
@@ -360,7 +469,7 @@ describe("setupBeads", () => {
     await hook(event);
     expect(event.system).toEqual([
       { type: "text", text: instructions },
-      { type: "text", text: renderBeadsContext("PRIME", "primary") },
+      { type: "text", text: renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" }) },
     ]);
     cleanup();
   });
@@ -487,7 +596,7 @@ describe("setupBeads", () => {
 
       const optedIn = fakeContext({ directory, pluginOptions: { autoMigrate: true } });
       const cleanupOptedIn = await setupBeads(optedIn.ctx, { bd, runtime: { prime } });
-      expect(await optedIn.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary")]);
+      expect(await optedIn.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" })]);
       expect(prime).toHaveBeenCalledWith(directory, expect.any(AbortSignal));
       cleanupOptedIn();
     } finally {
@@ -597,7 +706,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     expect(synthetic).not.toHaveBeenCalled();
     const recovered = await f.request("parent", "build");
     expect(prime).toHaveBeenCalledTimes(3);
-    expect(recovered[1]).toContain(outcome === "failed" || outcome === "cancelled" ? "actual failure, attempted approach and next action" : "Reconcile its scope, attempts, validation, durable references and incomplete work");
+    expect(recovered[1]).toContain("Reconcile its scope, attempts, validation, durable references and incomplete work");
     // Child context is isolated; a parent-side result does not change its actor/cache.
     expect(await f.request("child", "beads-task-agent")).toHaveLength(1);
     expect(prime).toHaveBeenCalledTimes(3);
@@ -663,7 +772,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     });
     await f.request(String(child.sessionID), String(child.agent));
     await f.request(String(parent.sessionID), String(parent.agent));
-    const checkpoint = t.tools.find((tool) => tool.name === "beads_checkpoint")!;
+    const checkpoint = t.tools.find((tool) => tool.name === "note")!;
     await checkpoint.execute({ id: "fixture-1", text: handoff }, child);
     await checkpoint.execute({ id: "fixture-1", text: "Parent review only; no ownership transfer or closure." }, parent);
     const writes = bd.mock.calls.filter(([, args]) => args[0] === "update");
@@ -691,7 +800,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     });
     const recovery = await fresh.request("fresh", "build");
     expect(recovery[0]).toContain("retrieve the assigned task and relevant reusable knowledge");
-    const result = await recoveredTools.tools.find((tool) => tool.name === "beads_show")!.execute({ id: "fixture-1" }, invocation("fresh", "build"));
+    const result = await recoveredTools.tools.find((tool) => tool.name === "get")!.execute({ ids: ["fixture-1"] }, invocation("fresh", "build"));
     expect(JSON.stringify(result.output)).toContain(handoff);
     expect(JSON.stringify(result.output)).toContain("Earlier attempt failed");
     expect(JSON.stringify(result.output)).toContain('"created_by":"unknown"');
@@ -717,7 +826,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     await f.request("child", "beads-task-agent");
     const abort = new AbortController();
     const context = invocation("child", "beads-task-agent", abort.signal);
-    const pending = t.tools.find((tool) => tool.name === "beads_checkpoint")!.execute({ id: "fixture-1", text: "unsaved partial result" }, context);
+    const pending = t.tools.find((tool) => tool.name === "note")!.execute({ id: "fixture-1", text: "unsaved partial result" }, context);
     const outcome = pending.then(() => undefined, (error: unknown) => error);
     await settle();
     expect(permission).toHaveBeenCalledWith(expect.objectContaining({ agent: context.agent, sessionID: context.sessionID, save: [], source: { type: "tool", messageID: context.messageID, id: context.id } }));
@@ -959,7 +1068,9 @@ test("registered status distinguishes missing, held, failed, loading and uncerta
     await status.execute(c.invocation);
     return JSON.parse(String(c.prompt.mock.calls.at(-1)![0].text).split("\n")[1]!);
   };
-  expect((await report()).context).toBe("missing: not loaded");
+  const initial = await report();
+  expect(initial.context).toBe("missing: not loaded");
+  expect(initial.requestCapability).toBe("unknown: no actual request observation");
   await f.request("s1", "build");
   expect((await report()).context).toBe("missing");
   version = "1.2.0"; time += 2;
@@ -977,7 +1088,11 @@ test("registered status distinguishes missing, held, failed, loading and uncerta
   expect((await report()).context).toBe("uncertain: context refresh in progress");
   release("PRIME");
   await pending;
-  expect((await report()).context).toBe("ready");
+  const observed = await report();
+  expect(observed.context).toBe("ready");
+  expect(observed.requestCapability.agent).toBe("build");
+  expect(observed.requestCapability.capabilities.typed).toBe("unknown");
+  expect(observed.leafAvailability).toContain("unknown");
   expect(prime).toHaveBeenCalledTimes(1);
   f.events.push({ type: "session.execution.interrupted", data: { sessionID: "s1" } });
   await settle();

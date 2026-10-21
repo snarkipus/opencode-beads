@@ -183,7 +183,7 @@ describe("oc-beads guidance assets", () => {
 		const shellBlocks = [...guidance.matchAll(/```(?:sh|bash)\n([\s\S]*?)```/g)].map((match) => match[1] ?? "")
 		const unquotedShell = shellBlocks.join("\n").replace(/'[^']*'|"[^"]*"/g, "")
 		expect(unquotedShell).not.toMatch(/<[^>\n]+>/)
-		expect(readFileSync(skillPath, "utf8")).toMatch(/actor[\s\S]{0,80}assignment/i)
+		expect(readFileSync(skillPath, "utf8")).toMatch(/host-rendered actor[\s\S]{0,100}request session and agent/i)
 		expect(readResource("ASYNC_GATES")).toMatch(/(?:human[^.]*runs|run by[^.]*human)/i)
 	})
 
@@ -282,14 +282,14 @@ describe("packaged native workflows", () => {
     }
   });
 
-  test("loads the rich skill at its installed path with all 16 explicit links, beyond a sampled ten", async () => {
+  test("loads the rich skill at its installed path with all 17 explicit links, beyond a sampled ten", async () => {
     const skill = await loadBeadsSkill();
     expect(String(skill.id)).toBe("oc-beads");
     expect(String(skill.name)).toBe("oc-beads");
     expect(String(skill.path)).toBe(fileURLToPath(new URL("../assets/oc-beads/SKILL.md", import.meta.url)));
     expect(skill.content).toContain("### Advanced");
     const links = [...skill.content.matchAll(/\]\(((?:resources|adr)\/[^)]+)\)/g)].map((match) => match[1]!);
-    expect(new Set(links).size).toBe(16);
+    expect(new Set(links).size).toBe(17);
     for (const link of links) expect(await readFile(new URL(link, `file://${skill.path}`), "utf8")).not.toBeEmpty();
   });
 
@@ -325,8 +325,8 @@ test("explicit installed skill base survives ignored/hidden roots beyond the hos
     const reloaded = await loadBeadsSkill({ skillPath: path });
     expect(reloaded.content).toContain("Reloaded package fixture.");
     // Explicit registration supplies SKILL.md; it never asks a recursive scanner or
-    // resource watcher to discover the other 16 files. Reads still use host permissions.
-    expect(reloaded.content.match(/\]\((?:resources|adr)\//g)).toHaveLength(16);
+    // resource watcher to discover the other 17 files. Reads still use host permissions.
+    expect(reloaded.content.match(/\]\((?:resources|adr)\//g)).toHaveLength(17);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

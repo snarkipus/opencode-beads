@@ -175,7 +175,7 @@ try {
   if (installedSkill.path !== installedSkillPath) throw new Error("Skill path escaped the installed package base");
   const links = [...installedSkill.content.matchAll(/\]\(((?:resources|adr)\/[^)]+)\)/g)]
     .map((match) => (match as RegExpMatchArray)[1]!);
-  if (new Set(links).size !== 16) throw new Error("Packed skill must explicitly link all 16 supporting resources");
+  if (new Set(links).size !== 17) throw new Error("Packed skill must explicitly link all 17 supporting resources");
   for (const link of links) {
     const resource = path.resolve(path.dirname(installedSkillPath), link);
     const relative = path.relative(packageDir, resource);
@@ -331,7 +331,7 @@ try {
   if (
     taskAgentPrompt.includes("Agent Delegation") ||
     !taskAgentPrompt.includes("Full `bd prime` workflow context is injected") ||
-    !taskAgentPrompt.includes("bd update <id> --claim --actor='<executor-actor>' --json") ||
+    !taskAgentPrompt.includes("bd update <id> --claim --json --actor='<executor-actor>' --sandbox") ||
     !taskAgentPrompt.includes("An exact assignment or explicit one-bead mode ends with that bead") ||
     !taskAgentPrompt.includes("already-authorized batch or goal") ||
     !taskAgentPrompt.includes("Discovery does not add execution authority") ||

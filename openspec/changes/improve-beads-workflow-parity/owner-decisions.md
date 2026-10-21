@@ -2,6 +2,12 @@
 
 Recorded 2026-10-18 UTC from Matt's direct response to the Opus review on published candidate e74b507 (review report published at acf5a68). These are owner planning selections, not implementation acceptance or release authority. Proposal/spec/design/task/inventory reconciliation is now recorded in [reconciliation.md](reconciliation.md); earlier unselected alternatives remain historical.
 
+## Operative Beads minimum — owner correction during implementation
+
+Matt explicitly selected: “1.3.1 should be the minimum beads version not 1.3.0.” Beads 1.3.1 is both the supported minimum and current qualification target for this opt-in release. Reconcile package metadata, the runtime minimum guard, user guidance and affected assertions to that floor; reject older binaries normally. Remove further 1.3.0 compatibility work from task 7.1 and the source acceptance gate. Preserve already captured 1.3.0 successes/failures as historical evidence, neither passing nor blocking the new supported target; do not repair its fixtures or add compatibility branches. No operator binary/store change is authorized or needed. All other code-mode, permission, attribution, cancellation and truthful-outcome guarantees remain selected.
+
+The already-authorized same Sol/high .10 worker continues source tasks 7.1–7.3 under this correction. Parent reconciles this narrow active-spec/tracker policy change; worker updates package/guard/docs/tests and verifies 1.3.1. The previous Opus plan verdicts retain their exact historical candidates; this correction narrows compatibility scope rather than changing the architecture or adding a review campaign.
+
 ## Operative code-mode planning reconciliation — 2026-10-21
 
 Matt authorized Astra/medium to reconcile the broader Opus recommendations into this active change and Beads. Actual planning executor: `codex:oc-plan`, bounded record `opencode-beads-wgv`. The selected planning direction is the [broader architecture memo](../../../docs/reviews/opus-code-mode-architecture-wgv.md), including its parent verification; the six-tool recommendation and narrow READY remain historical only. This local unpublished revision is based on published HEAD `072429f1a7723ade23e756a921924d9d0acacf31`, not a new published candidate or independent approval.

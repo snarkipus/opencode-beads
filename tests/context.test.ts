@@ -44,6 +44,21 @@ function fixture(
 }
 
 describe("context controller", () => {
+  test("renders actual request actors and capabilities without caching one agent identity", async () => {
+    const f = fixture();
+    const typed = { typed: "registered-execute-visible", execute: true, shell: true } as const;
+    const a = await f.controller.systemFor("s1", "build", typed);
+    const b = await f.controller.systemFor("s1", "review", { typed: "unavailable", execute: false, shell: true });
+    expect(a).toContain("opencode:build:");
+    expect(a).toContain("namespace");
+    expect(b).toContain("opencode:review:");
+    expect(b).not.toContain("opencode:build:");
+    expect(b).toContain("direct shell");
+    expect(await f.controller.systemFor("s1", "review", { typed: "unavailable", execute: false, shell: false })).toContain("Neither");
+    expect(f.prime).toHaveBeenCalledTimes(1);
+    const held = fixture({ guard: { kind: "migration-pending", installed: "1.3.1", store: "1.2.0" } });
+    expect(await held.controller.systemFor("s1", "build", typed)).not.toContain("direct shell");
+  });
   test("distinguishes missing, withheld, failed and intentionally empty context", async () => {
     const missing = fixture({ guard: { kind: "uninitialized" } });
     await missing.controller.systemFor("s1", "build");
@@ -79,7 +94,7 @@ describe("context controller", () => {
   test("renders prime for primary agents and caches it per session", async () => {
     const f = fixture({ modes: { build: "primary" } });
     const first = await f.controller.systemFor("s1", "build");
-    expect(first).toBe(renderBeadsContext("PRIME", "primary"));
+    expect(first).toBe(renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" }));
     expect(await f.controller.systemFor("s1", "build")).toBe(first);
     expect(f.prime).toHaveBeenCalledTimes(1);
     expect(f.prime).toHaveBeenCalledWith("/project", expect.any(AbortSignal));
@@ -90,10 +105,10 @@ describe("context controller", () => {
   test("gives task agents the task-agent audience without an agent lookup", async () => {
     const f = fixture();
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toBe(
-      renderBeadsContext("PRIME", "task-agent")
+      renderBeadsContext("PRIME", "task-agent", { sessionID: "s1", agent: "beads-task-agent" })
     );
     expect(await f.controller.systemFor("s2", "beads-task-agent-luna")).toBe(
-      renderBeadsContext("PRIME", "task-agent")
+      renderBeadsContext("PRIME", "task-agent", { sessionID: "s2", agent: "beads-task-agent-luna" })
     );
     expect(f.agentMode).not.toHaveBeenCalled();
   });
@@ -101,8 +116,8 @@ describe("context controller", () => {
   test("excludes regular subagents and fails open for unknown agents", async () => {
     const f = fixture({ modes: { explore: "subagent", custom: "all" } });
     expect(await f.controller.systemFor("s1", "explore")).toBeUndefined();
-    expect(await f.controller.systemFor("s1", "custom")).toBe(renderBeadsContext("PRIME", "primary"));
-    expect(await f.controller.systemFor("s2", "mystery")).toBe(renderBeadsContext("PRIME", "primary"));
+    expect(await f.controller.systemFor("s1", "custom")).toBe(renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "custom" }));
+    expect(await f.controller.systemFor("s2", "mystery")).toBe(renderBeadsContext("PRIME", "primary", { sessionID: "s2", agent: "mystery" }));
   });
 
   test("fails open and diagnoses when the agent lookup throws, then retries the lookup", async () => {
@@ -110,7 +125,7 @@ describe("context controller", () => {
     f.agentMode.mockImplementationOnce(async () => {
       throw new Error("lookup failed");
     });
-    expect(await f.controller.systemFor("s1", "build")).toBe(renderBeadsContext("PRIME", "primary"));
+    expect(await f.controller.systemFor("s1", "build")).toBe(renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" }));
     expect(f.diagnose).toHaveBeenCalledWith("agent_lookup_failed", "s1");
     await f.controller.systemFor("s2", "build");
     expect(f.agentMode).toHaveBeenCalledTimes(2);
@@ -141,7 +156,7 @@ describe("context controller", () => {
     guard = { kind: "ready" };
     f.advance(1_001);
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toBe(
-      renderBeadsContext("PRIME", "task-agent")
+      renderBeadsContext("PRIME", "task-agent", { sessionID: "s1", agent: "beads-task-agent" })
     );
     expect(f.prime).toHaveBeenCalledTimes(1);
   });
@@ -192,7 +207,7 @@ describe("context controller", () => {
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toBeUndefined();
     f.advance(1_001);
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toBe(
-      renderBeadsContext("PRIME", "task-agent")
+      renderBeadsContext("PRIME", "task-agent", { sessionID: "s1", agent: "beads-task-agent" })
     );
   });
 

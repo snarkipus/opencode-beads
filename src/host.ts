@@ -1,7 +1,7 @@
 import type { Plugin } from "@opencode/plugin";
 import { applyBeadsSkill, createBeadsCommands, loadBeadsSkill, type SkillLoadDependencies } from "./workflows";
 import { applyBeadsAgents, beadsAgents, BEADS_TASK_AGENTS } from "./agents";
-import { BEADS_COMPACTION_GUIDANCE } from "./guidance";
+import { BEADS_COMPACTION_GUIDANCE, UNKNOWN_CAPABILITIES, type RequestCapabilities } from "./guidance";
 import {
   createContextController,
   type AgentMode,
@@ -136,7 +136,22 @@ export async function setupBeads(
   const beadsSessions = new Map<string, Set<string>>();
   const recoveryCues = new Map<string, string>();
   const references = new Map<string, Set<string>>();
-  const gaps = new Map<string, string>();
+  const gaps = new Map<string, Set<string>>();
+  const requestCapabilities = new Map<string, { agent: string; capabilities: RequestCapabilities }>();
+  let typedRegistration = deps.continuityQualified === true ? "unavailable: host tool/permission/session interface missing" : "withheld pending 1.1";
+
+  /** Retain distinct unresolved outcomes without a read, success or lifecycle cue erasing them. */
+  function recordGap(sessionID: string, detail: string): void {
+    const known = gaps.get(sessionID) ?? new Set<string>();
+    if (known.size < 32) known.add(detail);
+    else if (!known.has(detail)) known.add("Additional persistence gaps exceed the retained detail limit; earlier unresolved details remain. Inspect tool outcomes before further writes.");
+    gaps.set(sessionID, known);
+  }
+
+  /** Render bounded persistence state independently of the next-request recovery cue. */
+  function gapFor(sessionID: string): string | undefined {
+    return [...(gaps.get(sessionID) ?? [])].join("\n") || undefined;
+  }
 
   /** Drop every location-bound reference together before another request can reuse it. */
   function forgetSession(sessionID: string): void {
@@ -145,6 +160,7 @@ export async function setupBeads(
     references.delete(sessionID);
     recoveryCues.delete(sessionID);
     gaps.delete(sessionID);
+    requestCapabilities.delete(sessionID);
     for (const key of diagnosticTimes.keys()) {
       if (key.endsWith(`:${sessionID}`)) diagnosticTimes.delete(key);
     }
@@ -161,6 +177,7 @@ export async function setupBeads(
     recoveryCues.clear();
     references.clear();
     gaps.clear();
+    requestCapabilities.clear();
     diagnosticTimes.clear();
     const pending = registrations.splice(0).reverse().map((registration) => {
       try { return registration.dispose(); } catch (error) { return Promise.reject(error); }
@@ -218,7 +235,8 @@ export async function setupBeads(
               context = "withheld: session location changed";
             } else {
               locationKnown = true;
-              const audience = BEADS_TASK_AGENTS.has(String(info.agent)) ? "task-agent" : "primary";
+              const observedAgent = requestCapabilities.get(sessionID)?.agent;
+              const audience = observedAgent && BEADS_TASK_AGENTS.has(observedAgent) ? "task-agent" : "primary";
               const cached = controller.statusFor(sessionID, audience);
               context = cached === "loading" ? "uncertain: context refresh in progress" : cached ?? "missing: not loaded";
             }
@@ -252,7 +270,10 @@ export async function setupBeads(
           },
           skill: { failure: skillFailure, effective: effectiveSkills },
           typedContinuity: deps.continuityQualified === true ? "internal qualification fixture" : "withheld pending 1.1",
-          context, guard, persistence: gaps.get(sessionID) ?? "uncertain: no final-write guarantee",
+          typedRegistration,
+          requestCapability: requestCapabilities.get(sessionID) ?? "unknown: no actual request observation",
+          leafAvailability: "unknown until native catalog discovery and per-operation permission checks; execute visibility alone does not prove leaf availability",
+          context, guard, persistence: gapFor(sessionID) ?? "uncertain: no final-write guarantee",
         });
       }, deps.workflowAssets?.skillPath, abort.signal);
       let existing: string[];
@@ -276,16 +297,23 @@ export async function setupBeads(
 
     function rememberResult(sessionID: string, result: ContinuityResult): void {
       if (abort.signal.aborted) return;
-      controller.invalidateAll();
-      if (result.reference) {
-        const values = references.get(sessionID) ?? new Set<string>();
-        values.add(`${result.operation === "checkpoint" ? "task" : "memory"}:${result.reference}`);
-        // Only bounded invocation references, never transcripts or extracted semantic memory.
-        if (values.size > 32) values.delete(values.values().next().value!);
-        references.set(sessionID, values);
+      const write = ["claim", "note", "update", "close", "create", "remember"].includes(result.operation);
+      // Full prime can depend on issue state. 7.1 does not establish safe narrowing.
+      if (write && result.status !== "not-claimed") controller.invalidateAll();
+      const values = references.get(sessionID) ?? new Set<string>();
+      const memory = ["remember", "recall", "memories"].includes(result.operation);
+      if (["acknowledged", "found", "landed-uncommitted"].includes(result.status)) {
+        if (result.reference) values.add(`${memory ? "memory" : "task"}:${result.reference}`);
+        if (result.operation === "get") for (const id of Object.keys(result.issues ?? {})) values.add(`task:${id}`);
+        if (result.operation === "find") for (const row of result.records ?? []) values.add(`task:${row.id}`);
       }
-      if (result.status !== "acknowledged") gaps.set(sessionID, `${result.status}: ${result.detail ?? "commit not confirmed"}`);
-      recoveryCues.set(sessionID, "Re-read the affected task and relevant memory before relying on cached state. Do not retry an uncertain write blindly.");
+      while (values.size > 32) values.delete(values.values().next().value!);
+      if (values.size) references.set(sessionID, values);
+      if (["uncertain", "failed", "landed-uncommitted"].includes(result.status) || result.complete === false) {
+        const detail = `${result.operation} ${JSON.stringify(result.target)}${result.actor ? ` actor=${result.actor}` : ""}: ${result.status}; ${result.detail ?? (result.complete === false ? "partial result; inspect failed IDs/completeness" : "commit not confirmed")}`;
+        if (write) recordGap(sessionID, detail);
+        else recoveryCues.set(sessionID, `Inspect current ${memory ? "memory" : "task"} state before relying on this outcome: ${detail}. Do not retry an uncertain write blindly.`);
+      }
     }
 
     // 1.1 remains unexecuted: ordinary setup has no product option that enables this path.
@@ -293,6 +321,7 @@ export async function setupBeads(
     if (deps.continuityQualified === true && ctx.tool && ctx.permission && ctx.session.get) {
       registrations.push(await ctx.tool.transform((editor) => {
         if (abort.signal.aborted) return;
+        editor.namespace({ name: "beads", description: "Permissioned Beads daily-loop reads and writes. Search this namespace for current signatures; inspect outcome and completeness before dependent work." });
         for (const tool of createContinuityTools({ location: ctx.location, permission: ctx.permission!, session: { get: ctx.session.get! } }, {
           ...deps.continuity, signal: abort.signal,
           acknowledged(sessionID, result) {
@@ -300,6 +329,7 @@ export async function setupBeads(
             deps.continuity?.acknowledged?.(sessionID, result);
           },
         })) editor.add(tool);
+        typedRegistration = "registered: beads namespace, code-mode-only";
       }));
     }
 
@@ -318,7 +348,13 @@ export async function setupBeads(
           return;
         }
       }
-      const text = await controller.systemFor(event.sessionID, event.agent);
+      const knownTools = event.tools && typeof event.tools === "object";
+      const capabilities: RequestCapabilities = knownTools ? {
+        execute: Object.hasOwn(event.tools, "execute"), shell: Object.hasOwn(event.tools, "shell"),
+        typed: typedRegistration.startsWith("registered") && Object.hasOwn(event.tools, "execute") ? "registered-execute-visible" : "unavailable",
+      } : { ...UNKNOWN_CAPABILITIES };
+      requestCapabilities.set(event.sessionID, { agent: event.agent, capabilities });
+      const text = await controller.systemFor(event.sessionID, event.agent, capabilities);
       if (!text || abort.signal.aborted) return;
       if (text.startsWith("<beads-context")) {
         const eligible = beadsSessions.get(event.sessionID) ?? new Set<string>();
@@ -329,8 +365,10 @@ export async function setupBeads(
       }
       event.system.push({ type: "text", text });
       const cue = recoveryCues.get(event.sessionID);
-      if (cue) {
-        event.system.push({ type: "text", text: `<beads-recovery>${cue}</beads-recovery>` });
+      const gap = gapFor(event.sessionID);
+      if (cue || gap) {
+        const recovery = [cue, gap && `Known persistence gaps: inspect durable state before another write; do not blindly retry.\n${gap}`].filter(Boolean).join("\n");
+        event.system.push({ type: "text", text: `<beads-recovery>${recovery}</beads-recovery>` });
         recoveryCues.delete(event.sessionID);
       }
     }));
@@ -339,7 +377,7 @@ export async function setupBeads(
       if (!abort.signal.aborted && beadsSessions.get(event.sessionID)?.has(event.agent)) {
         event.system.push({ type: "text", text: BEADS_COMPACTION_GUIDANCE });
         const known = references.get(event.sessionID);
-        const gap = gaps.get(event.sessionID);
+        const gap = gapFor(event.sessionID);
         if (known?.size || gap) event.system.push({ type: "text", text: `<beads-references>${JSON.stringify({ references: [...(known ?? [])], gap: gap ?? "No final-write guarantee; only earlier acknowledgements are known." })}</beads-references>` });
       }
     }));
@@ -347,11 +385,9 @@ export async function setupBeads(
     if (ctx.tool) registrations.push(await ctx.tool.hook("execute.after", (event) => {
       // Typed inner calls acknowledge in their executor. The outer code-mode result adds nothing.
       if (abort.signal.aborted || event.tool === "execute" || event.tool.startsWith("beads_") || !beadsSessions.has(event.sessionID)) return;
-      if (event.status === "error" || event.tool === "subagent") {
+      if (event.tool === "subagent") {
         controller.invalidate(event.sessionID);
-        recoveryCues.set(event.sessionID, event.status === "error"
-          ? "A tool failed. Preserve the actual failure, attempted approach and next action in task context when authorized; a failed invocation is not a saved checkpoint."
-          : "A child returned. Reconcile its scope, attempts, validation, durable references and incomplete work before proceeding within the existing authorization.");
+        recoveryCues.set(event.sessionID, "A child returned. Reconcile its scope, attempts, validation, durable references and incomplete work before proceeding within the existing authorization.");
       }
     }));
 
@@ -369,7 +405,7 @@ export async function setupBeads(
             controller.invalidate(sessionID);
             recoveryCues.set(sessionID, "Recovery requires current task state and relevant memory: re-read attempts, decisions, blockers and the next authorized action. Cached absence is not proof of absence; preserve any guard hold.");
             if (type === "session.execution.interrupted" || type === "session.execution.failed" || type === "session.compaction.failed") {
-              gaps.set(sessionID, "Execution or compaction stopped; no final checkpoint is guaranteed. Recover from earlier acknowledged records.");
+              recordGap(sessionID, "Execution or compaction stopped; no final checkpoint is guaranteed. Recover from earlier acknowledged records.");
             }
           }
         }

@@ -51,3 +51,14 @@ new discoveries never expand it.
 When context is held or a required guarantee is missing, stop the affected path
 and state the limitation. Do not switch to a manual prime, unregistered tool,
 automatic setup, sync, or permission change to complete it.
+
+## Planning and independently owned review
+
+Follow project-owned planning and review policy. Track substantive multi-session
+or delegated planning in one bounded planning item, separate from implementation;
+a quick draft need not get its own ticket. Give substantive independently owned
+review one bounded review item linked to planning and the exact candidate. Reuse
+the same review item through corrections and rechecks. Record actual reviewer
+actor/session, verdict, findings and evidence without retroactive claims.
+Planning/review closure needs its own evidence and owner acceptance; readiness
+alone never authorizes dispatch, implementation, release or deployment.

@@ -1,13 +1,53 @@
 # Native OpenCode architecture assessment
 
-## Current planning correction — Opus S1–S5 / P1–P3
+## Task 7.1–7.3 working source candidate — 2026-10-21
+
+The authorized `.10` worker (`codex:oc-loop`) prepared the eleven-operation native
+beads namespace, declared outputs, actual-request actor/capability guidance,
+operation-aware references, conservative full-prime freshness and CODE_MODE
+resource. See the [CLI/native bridge ledger](opencode-sdk-contract.md#task-7173-source-candidate--2026-10-21)
+for exact binaries, commands, captures, candidate hash and limits. Historical
+five-tool sufficiency and tools.shell-in-execute statements are superseded;
+native shell is direct-only. All30 human command names, native user overrides
+and advanced/admin coverage remain; the package now resolves17 explicit links.
+
+Current deterministic evidence:190 tests pass, typecheck and packed-package smoke
+pass; the new scratch copy of the exact2.1.1 output executor/catalog bridge passes
+using actual candidate schemas. The owner subsequently selected **Beads >=1.3.1**;
+minimum and current qualification target now coincide. Its existing contract run
+passes63, including positive blocked-filter evidence. The earlier1.3.0 run remains
+historical failed evidence (59 pass/five fixture failures), neither passing nor a
+current blocker; no further1.3.0 work is authorized. Package/guard/current guidance
+now use1.3.1 and reject older binaries before store access. Host admission remains
+>=2.1.1<2.2, with no release/dependency/operator change. This explicitly supersedes
+older support and blocker statements in the historical sections below.
+
+Focused guard/manifest RED→GREEN records26/4 then30/0. A final supported1.3.1
+CLI rerun after the runtime floor change also passes63, including exact positive
+blocked query `blocked --parent repo-a5a --label contract-label --json --sandbox`.
+Final source checks pass190 tests, typecheck and package smoke (archive
+`86f781ba6a17949665448e0603ad696afb7eeb6be95311b68ca6e26c105766d7`).
+The same scratch executor/catalog seam was rerun on final continuity SHA-256
+`0bb76279663fd865ba99247a3f1f71b5442c39b4fbcea7eeac875da21d37515c`;
+its structured get/note outcomes still pass. New policy-specific captures are
+separate from the earlier captures. No retired-target rerun, compatibility
+branch, host provisioning or model experiment occurred.
+
+This is a reviewable uncommitted source candidate, not task acceptance, installed
+qualification, activation or publication. `.10` stays in_progress with its worker;
+parent owns markers and acceptance. `.2` retains installed native inventory and
+permissions, `.6` consumes deterministic results and adds Stop/handoff, and `.9`
+retains installed/model workflows and lifecycle. Ordinary continuity activation
+remains withheld; operator2.0.29, shared integrations, plans and reports are intact.
+
+## Historical planning correction — Opus S1–S5 / P1–P3
 
 The [original REVISE review](reviews/opus-code-mode-plan-review-wgv.md) remains immutable. The [correction map](../openspec/changes/improve-beads-workflow-parity/reconciliation.md) records the new local candidate, not independent acceptance. All typed argv/resources preserve subcommand-first prefixes and --sandbox on reads/writes, with actual derived write actor inserted after operation arguments but before any -- terminator. Pre-spawn input/identity/hold/location refusals stay thrown; permission rejection/cancellation remain unchanged and started-write uncertainty survives. Actors derive from actual request/invocation session and agent; audit attribution grants no permission and assertions separately use context.agent.
 
 Future task7.1 authority must explicitly cover existing install-bd.sh into disposable directories and existing bd-contract.ts once per1.3.0/1.3.1 for runtime JSON/mutation/claim/create/close/prime-dependence facts. The SDK ledger will be a table citing captured existing-contract output; help/source is discovery, not passing evidence. No installation or contract run occurred in this correction. Task7.2 reruns existing scratch executor/catalog probes once against the actual candidate and records exact pin/commands/results here; there is no maintained product executor seam. Product tests assert declared outputs/branch invariants and bounded table/shared negatives. Task7.3 uses four representative capability states plus the existing cheap suite/typecheck/package gates. .6 consumes deterministic evidence and adds its own Stop/handoff observation; installed catalog/executor/model confirmation remains .2/.9. No graph/ownership change, implementation, activation, publication or closure follows.
 
 
-## Current planning correction — broader code-mode architecture (2026-10-21)
+## Historical planning correction — broader code-mode architecture (2026-10-21)
 
 The [broader Opus assessment](reviews/opus-code-mode-architecture-wgv.md) and parent pinned-blob verification supersede six-tool sufficiency and the earlier narrow READY. Exact 2.1.1 shell.ts:195 declares native shell codemode:false; tool.ts:236–262 splits direct/code-mode inventories and removes code-mode-only tools when execute is wholly denied. Ordinary shell is a direct model-turn fallback only. Historical direct/code-mode fixture references below describe host hook/permission seams, not proof that the default plugin tools have direct exposure.
 

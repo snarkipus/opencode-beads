@@ -22,9 +22,14 @@ Use the current Beads context when the host provides it. If it is absent, retrie
 current workflow context through the permissioned CLI only when that operation is
 authorized and no hold is active. Distinguish context that is missing, failed to
 load, or deliberately withheld. A migration or permission hold is a stop signal;
-do not bypass it by manually running `bd prime`. If a typed operation is not
-actually registered, use the supported CLI through normal host permissions. Do
+do not bypass it by manually running `bd prime`. If execute is unavailable, use direct shell only when separately available and
+authorized. Native shell is direct-only and cannot be called inside execute. Do
 not assume an unstated tool name, approval, or setup step.
+
+When typed composition is available, discover current signatures through native
+`search({namespace: "beads"})`; each leaf retains its own permission checks.
+Follow [code-mode composition](resources/CODE_MODE.md) for bounded reads,
+projection, ordered writes, completeness, uncertainty and decline/Stop semantics.
 
 ## Work within the assigned scope
 
@@ -42,9 +47,9 @@ not assume an unstated tool name, approval, or setup step.
   bd heartbeat '<id>' --actor='<executor-actor>' --sandbox --json
   ```
 
-  Use the actual actor from your assignment; `opencode:<suffix>` is only an
-  illustrative OpenCode example. If unspecified, ask to establish an explicit
-  assignment actor; never copy a sample or impersonate another executor. Use a
+  Use the host-rendered actor derived from your actual request session and agent,
+  matching typed write results. If unavailable, refuse writes until the host
+  supplies it; never copy a sample or impersonate another executor. Use a
   readable, unambiguous identity, not the human Git identity or a model name.
   Give delegated instructions the delegate's real actor and have the
   executing worker claim its own authorized work. A deliberate handoff changes

@@ -82,13 +82,14 @@ describe("checkBeadsStore", () => {
     expect(fake.readText).not.toHaveBeenCalled();
   });
 
-  test("rejects binaries older than the supported minimum before locating the store", async () => {
-    const fake = runtime({ version: "bd version 1.2.2 (6c124203e)", context: CONTEXT, marker: "1.2.2" });
+  test("rejects 1.3.0 before locating or opening the store, even with autoMigrate", async () => {
+    const fake = runtime({ version: "bd version 1.3.0 (f45b249ce)", context: CONTEXT, marker: "1.3.0" });
     expect(await checkBeadsStore("/project", fake, { autoMigrate: true })).toEqual({
       kind: "unsupported",
-      installed: "1.2.2",
+      installed: "1.3.0",
     });
-    expect(fake.bd).toHaveBeenCalledTimes(1);
+    expect(fake.bd.mock.calls.map(call => call[1])).toEqual([["version"]]);
+    expect(fake.readText).not.toHaveBeenCalled();
   });
 
   test("treats a missing workspace as uninitialized", async () => {
@@ -175,9 +176,9 @@ describe("guardNotice", () => {
   });
 
   test("names the minimum version for unsupported binaries", () => {
-    const notice = guardNotice({ kind: "unsupported", installed: "1.2.2" });
-    expect(notice).toContain("bd 1.2.2");
-    expect(notice).toContain("1.3.0");
+    const notice = guardNotice({ kind: "unsupported", installed: "1.3.0" });
+    expect(notice).toContain("bd 1.3.0");
+    expect(notice).toContain("1.3.1, the minimum");
   });
 
   test("adds nothing for ready, uninitialized, or unavailable states", () => {

@@ -1,7 +1,8 @@
+import { executorActor } from "./continuity";
 import { BEADS_TASK_AGENTS } from "./agents";
 import { guardNotice, type GuardResult } from "./guard";
 import { PrimeTimeoutError } from "./prime";
-import { beadsGuidance, primeFailureNotice } from "./guidance";
+import { beadsGuidance, primeFailureNotice, type RequestCapabilities } from "./guidance";
 
 /** Retry window for withheld or failed context, so model steps do not respawn `bd` each time. */
 export const DEFAULT_CONTEXT_RETRY_MS = 30_000;
@@ -35,7 +36,7 @@ export interface ContextControllerOptions {
 
 export interface ContextController {
   /** System text for one model request, or undefined when nothing should be added. */
-  systemFor(sessionID: string, agentID: string): Promise<string | undefined>;
+  systemFor(sessionID: string, agentID: string, capabilities?: RequestCapabilities): Promise<string | undefined>;
   /** Refresh prime on the next request, e.g. after compaction changed the session. */
   invalidate(sessionID: string): void;
   /** Drop all state for a deleted session. */
@@ -51,16 +52,17 @@ export interface ContextController {
 type CacheEntry = { value: Promise<string | undefined>; expiresAt?: number; lastUsed: number; abort: AbortController; status?: ContextStatus };
 
 /** Wrap prime output in the envelope and shared guidance for one audience. */
-export function renderBeadsContext(prime: string, audience: ContextAudience): string {
-  return `<beads-context audience="${audience}">\n${prime}\n</beads-context>\n\n${beadsGuidance(audience)}`;
+export function renderBeadsContext(prime: string, audience: ContextAudience, request?: { sessionID: string; agent: string; capabilities?: RequestCapabilities }): string {
+  const identity = request ? `\nYour Beads executor actor: ${executorActor(request)}. Use this exact actor for every direct shell write, claim and heartbeat (command-scoped --actor or BEADS_ACTOR); children use their own actual request actor. Attribution grants no permission.\n` : "";
+  return `<beads-context audience="${audience}">\n${prime}\n</beads-context>\n${identity}\n${beadsGuidance(audience, request?.capabilities)}`;
 }
 
 /**
  * Supply Beads context through the per-request session context hook.
  *
  * OpenCode V2 attaches system parts to every model request without storing them, so context
- * survives compaction on its own. The rendered text is cached per session to keep it stable
- * across requests; compaction invalidates it so persistent memories can refresh.
+ * survives compaction on its own. Guarded prime is cached separately from per-request actor/capability rendering;
+ * compaction invalidates it so persistent memories can refresh.
  */
 export function createContextController(
   runtime: ContextRuntime,
@@ -134,7 +136,7 @@ export function createContextController(
       return retryLater(undefined);
     }
     entry.status = "ready";
-    return renderBeadsContext(output, audience);
+    return output;
   }
 
   function dropSession(sessionID: string): void {
@@ -148,7 +150,7 @@ export function createContextController(
   }
 
   return {
-    async systemFor(sessionID, agentID) {
+    async systemFor(sessionID, agentID, capabilities) {
       if (disposed) return undefined;
       const audience = await audienceFor(sessionID, agentID);
       if (!audience || disposed) return undefined;
@@ -160,14 +162,18 @@ export function createContextController(
       const resumed = cached && idleRefreshMs > 0 && current - cached.lastUsed > idleRefreshMs;
       if (cached && fresh && !resumed) {
         cached.lastUsed = current;
-        return cached.value;
+        const output = await cached.value;
+        if (disposed || cached.abort.signal.aborted) return undefined;
+        return cached.status === "ready" ? renderBeadsContext(output!, audience, { sessionID, agent: agentID, capabilities }) : output;
       }
 
       cached?.abort.abort();
       const entry: CacheEntry = { value: Promise.resolve(undefined), lastUsed: current, abort: new AbortController(), status: "loading" };
       entry.value = load(sessionID, audience, entry);
       cache.set(key, entry);
-      return entry.value;
+      const output = await entry.value;
+      if (disposed || entry.abort.signal.aborted) return undefined;
+      return entry.status === "ready" ? renderBeadsContext(output!, audience, { sessionID, agent: agentID, capabilities }) : output;
     },
 
     invalidate: dropSession,

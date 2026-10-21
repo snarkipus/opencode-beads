@@ -112,7 +112,7 @@ N1 operations SHALL acknowledge only evidenced outcomes and distinguish failure,
 
 ### Requirement: Typed daily-loop composition
 
-The integration SHALL expose the eleven-operation beads daily-loop namespace with declared discriminated outputs and fixed supported argv in the accepted subcommand-first canonical form with --sandbox. It SHALL preserve CLI state/claim ownership, per-operation permissions, executor attribution, partial/uncertain outcomes and sole acknowledgement. It SHALL NOT expose generic argv or workflow macros, infer authority from readiness, or retry ambiguous writes.
+The integration SHALL require Beads 1.3.1 or later and expose the eleven-operation beads daily-loop namespace with declared discriminated outputs and fixed supported argv in the accepted subcommand-first canonical form with --sandbox. It SHALL preserve CLI state/claim ownership, per-operation permissions, executor attribution, partial/uncertain outcomes and sole acknowledgement. It SHALL NOT expose generic argv or workflow macros, infer authority from readiness, or retry ambiguous writes.
 
 #### Scenario: Bounded discovery is incomplete
 

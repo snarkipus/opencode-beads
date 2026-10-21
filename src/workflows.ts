@@ -60,7 +60,7 @@ export async function loadBeadsSkill(deps: SkillLoadDependencies = {}): Promise<
   }
   const content = markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "").trim();
   const links = new Set([...content.matchAll(/\]\(((?:resources|adr)\/[^)]+)\)/g)].map((match) => match[1]!));
-  if (links.size !== 16) throw new Error("resource-links-invalid: expected 16 explicit supporting links");
+  if (links.size !== 17) throw new Error("resource-links-invalid: expected 17 explicit supporting links");
   for (const link of links) {
     try {
       if (!(await readText(resolve(dirname(skillPath), link))).trim()) throw new Error("empty");
@@ -96,8 +96,8 @@ export function createBeadsCommands(
 ): CommandDefinition[] {
   const common = [
     "Follow repository/user authority and the exact requested scope. Do not bypass a hold with manual prime or other store access.",
-    "Use available permissioned tools and current CLI help; no assumed MCP tool or typed tool. Advanced guidance does not enable automation.",
-    "Every agent-authored write, claim and heartbeat needs the actual executor's command-scoped BEADS_ACTOR or --actor. Preserve authorship; read created_by, owner and assignee separately.",
+    "Use actual request capabilities: discover the native beads namespace and compose supported daily operations in code mode when present. Native shell is direct-only; advanced/admin workflows use permissioned direct shell and current CLI help. Do not call tools.shell inside execute. Advanced guidance does not enable automation.",
+    "Every agent-authored write, claim and heartbeat needs the host-rendered actual executor's command-scoped BEADS_ACTOR or --actor. Preserve authorship; read created_by, owner and assignee separately.",
     "Distinguish task checkpoints from reusable memory. Report failed, partial and uncertain outcomes; never blindly retry an ambiguous write.",
     `Load skill oc-beads (installed file ${JSON.stringify(skillPath)}). If guidance is missing or permission denies access, report it honestly without bypass.`,
   ].join("\n");

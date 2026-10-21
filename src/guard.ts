@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { PrimeProcessError } from "./prime";
 
 /** Oldest Beads release this adapter supports. */
-export const MINIMUM_BD_VERSION = "1.3.0";
+export const MINIMUM_BD_VERSION = "1.3.1";
 
 export type Version = readonly [number, number, number];
 
