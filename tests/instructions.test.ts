@@ -27,9 +27,13 @@ const MINIMAL_BLOCK = [
 const USER_AFTER = "## Release process\n\nUser-owned section.";
 
 describe("minimizeBeadsInstructions", () => {
+  test("preserves unique local policy inside managed markers", () => {
+    const customized = FULL_BLOCK.replace("Long command reference duplicated by bd prime.", "Never push without Matt's approval.");
+    expect(minimizeBeadsInstructions(customized, "canonical prime")).toEqual({ text: customized, replaced: 0 });
+  });
   test("collapses bd's full-profile and Codex blocks into one pointer", () => {
     const text = [USER_BEFORE, FULL_BLOCK, CODEX_BLOCK, USER_AFTER].join("\n\n");
-    const result = minimizeBeadsInstructions(text);
+    const result = minimizeBeadsInstructions(text, text);
     expect(result.replaced).toBe(2);
     expect(result.text).toBe([USER_BEFORE, MINIMAL_BEADS_POINTER, "", USER_AFTER].join("\n\n"));
     expect(result.text.match(/opencode-beads plugin/g)).toHaveLength(1);
@@ -55,7 +59,7 @@ describe("minimizeSystemParts", () => {
       { type: "text", text: `Instructions from: /repo/AGENTS.md\n${FULL_BLOCK}` },
       { type: "image" },
     ];
-    expect(minimizeSystemParts(parts)).toBe(1);
+    expect(minimizeSystemParts(parts, FULL_BLOCK)).toBe(1);
     expect(parts[0]?.text).toBe("You are an AI agent running in OpenCode.");
     expect(parts[1]?.text).toBe(`Instructions from: /repo/AGENTS.md\n${MINIMAL_BEADS_POINTER}`);
   });

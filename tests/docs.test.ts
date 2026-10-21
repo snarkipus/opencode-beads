@@ -13,6 +13,9 @@ const packageManifest = JSON.parse(await fs.readFile("package.json", "utf8")) as
   version: string;
   contributors?: Array<{ name?: string; url?: string }>;
   beads: { minimum: string; validated: string };
+  peerDependencies: Record<string, string>;
+  peerDependenciesMeta: Record<string, { optional?: boolean }>;
+  devDependencies: Record<string, string>;
 };
 const packageIdentity = `${packageManifest.name}@${packageManifest.version}`;
 
@@ -67,7 +70,7 @@ describe("documentation contracts", () => {
       "bd init",
       "creates the canonical shared Beads skill",
       "`.agents/skills/beads`",
-      "This plugin has no separate skill lifecycle",
+      "The beta/next source candidate additionally owns its packaged `oc-beads` skill",
       "does not write startup files",
       "Update the pin explicitly when upgrading",
       "**Do not run `bd setup opencode`.**",
@@ -123,23 +126,32 @@ describe("documentation contracts", () => {
     }
   });
 
-  test("keeps the compatibility record on the supported OpenCode V2 baseline", () => {
+  test("keeps the compatibility record on the selected beta/next OpenCode baseline", () => {
     expect(sdkContract).toContain("# OpenCode V2 Plugin Contract");
-    expect(sdkContract).toContain("`@opencode/plugin` `>=2.0.26 <3`");
+    expect(packageManifest.peerDependencies["@opencode/plugin"]).toBe(">=2.1.1 <2.2");
+    expect(packageManifest.peerDependenciesMeta["@opencode/plugin"]?.optional).toBeTrue();
+    expect(packageManifest.devDependencies["@opencode/plugin"]).toBe("2.1.1");
+    expect(sdkContract).toContain("`@opencode/plugin` `>=2.1.1 <2.2`");
+    expect(sdkContract).toContain("`@opencode/plugin` `2.1.1` for development typing only");
     expect(sdkContract).toContain("`<name>/server`, then `<name>`");
     expect(sdkContract).toContain("`session.compaction.ended`");
+    expect(sdkContract).toContain("The exact 2.1.1 runtime target has not been qualified");
     expect(sdkContract).not.toContain("1.18.");
-    expect(readme).toContain("| OpenCode | 2.0.26 through 2.x | 2.0.26 |");
-    expect(readme).toContain("| `bd` CLI | 1.3.0 through 1.x | 1.3.1 |");
+    expect(readme).toContain(
+      "| OpenCode (beta/next candidate) | `>=2.1.1 <2.2` | None (exact 2.1.1 target not qualified) |"
+    );
+    expect(readme).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
+    expect(readme).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.1 |");
     expect(readme).not.toContain("@opencode-ai/");
   });
 
   test("keeps the Beads compatibility range in one place", () => {
     const { minimum, validated } = packageManifest.beads;
+    expect(minimum).toBe("1.3.1");
     expect(minimum).toBe(MINIMUM_BD_VERSION);
     expect(readme).toContain(`| \`bd\` CLI | ${minimum} through 1.x | ${validated} |`);
     expect(readme).toContain(`reviewed against Beads v${validated}`);
-    expect(readme).toContain("`bd` 1.3.0 or later");
+    expect(readme).toContain("`bd` 1.3.1 or later");
     expect(readme).toContain("beads-contract");
     expect(artifactPolicy).toContain("scripts/bd-contract.ts");
     expect(artifactPolicy).toContain("REASSESS:");
@@ -147,7 +159,7 @@ describe("documentation contracts", () => {
 
   test("records Claude Code parity with live evidence and explicit divergences", () => {
     expect(readme).toContain("[Claude Code parity matrix](docs/claude-code-parity.md)");
-    expect(parity).toContain("Validated on **OpenCode 2.0.26** with **bd 1.3.1**");
+    expect(parity).toContain("validated on **OpenCode 2.0.26** with **bd 1.3.1**");
     for (const source of ["`startup`", "`resume`", "`clear`", "`compact`"]) {
       expect(parity).toContain(`\`SessionStart\` (${source})`);
     }
@@ -175,7 +187,7 @@ describe("documentation contracts", () => {
   test("documents upstream-aligned full-prime context boundaries", () => {
     expect(readme).toContain("runs `bd prime --full`");
     expect(readme).not.toContain("runs `bd prime --memories-only`");
-    expect(readme).toContain("bounded standalone quick reference");
+    expect(readme).toContain("standalone guidance for authorized scope");
     expect(sdkContract).toContain('Bun.spawn(["bd", "prime"]');
     expect(artifactPolicy).toContain("Claude Code plugin manifests both run full `bd prime`");
     expect(artifactPolicy).toContain(
@@ -218,10 +230,12 @@ describe("documentation contracts", () => {
     expect(artifactPolicy).toContain("local repository commit `e51b8fe`");
   });
 
-  test("documents context-preserving atomic delegation and runtime provenance", () => {
-    expect(readme).toContain("context-preserving atomic delegation");
+  test("documents scope-bounded task execution and runtime provenance", () => {
+    expect(readme).toContain("scope-bounded task execution");
     expect(readme).not.toContain("Autonomous issue completion");
-    expect(readme).toContain("exactly one Bead per invocation");
+    expect(readme).toContain("An exact assignment or explicit one-bead mode stops with that item");
+    expect(readme).toContain("already-authorized batch or goal may continue within scope");
+    expect(readme).toContain("Discovery does not expand that authority");
     expect(readme).toContain("primary OpenCode thread retains planning context, decisions, and control");
     expect(readme).toContain("unknown custom primary agents");
     expect(readme).toContain("Known regular subagents remain excluded");

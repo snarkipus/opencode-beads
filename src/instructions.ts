@@ -3,8 +3,8 @@
  *
  * `bd setup claude` writes only a short pointer into CLAUDE.md because its hooks run `bd prime`.
  * OpenCode projects instead get bd's full-profile AGENTS.md section (and often a Codex section),
- * which repeats what injected prime already provides on every request. When this plugin attaches
- * prime, those bd-managed blocks are replaced in the outgoing system text only; files are untouched.
+ * which can repeat injected prime. Only demonstrably duplicated complete bodies are replaced in
+ * outgoing system text; customized blocks and files are untouched.
  */
 
 /** Replaces bd-managed blocks whose content duplicates injected prime. */
@@ -14,17 +14,20 @@ export const MINIMAL_BEADS_POINTER =
 // bd's full-profile integration block and its Codex setup block. Minimal-profile blocks are already
 // equivalent to Claude Code's pointer and are left alone.
 const DUPLICATE_BLOCKS: readonly RegExp[] = [
-  /<!-- BEGIN BEADS INTEGRATION\b[^>]*\bprofile:full\b[^>]*-->[\s\S]*?<!-- END BEADS INTEGRATION -->/g,
-  /<!-- BEGIN BEADS CODEX SETUP\b[^>]*-->[\s\S]*?<!-- END BEADS CODEX SETUP -->/g,
+  /<!-- BEGIN BEADS INTEGRATION\b[^>]*\bprofile:full\b[^>]*-->([\s\S]*?)<!-- END BEADS INTEGRATION -->/g,
+  /<!-- BEGIN BEADS CODEX SETUP\b[^>]*-->([\s\S]*?)<!-- END BEADS CODEX SETUP -->/g,
 ];
 
 /** Return `text` with duplicate bd blocks collapsed into one pointer, and how many were replaced. */
-export function minimizeBeadsInstructions(text: string): { text: string; replaced: number } {
+export function minimizeBeadsInstructions(text: string, suppliedContext = ""): { text: string; replaced: number } {
   let replaced = 0;
   let pointerPlaced = false;
   let result = text;
   for (const pattern of DUPLICATE_BLOCKS) {
-    result = result.replace(pattern, () => {
+    result = result.replace(pattern, (block: string, body: string) => {
+      // Markers prove ownership, not duplication. Keep customized policy unless the complete
+      // body is already present in the context actually attached to this request.
+      if (!body.trim() || !suppliedContext.includes(body.trim())) return block;
       replaced++;
       if (pointerPlaced) return "";
       pointerPlaced = true;
@@ -35,11 +38,11 @@ export function minimizeBeadsInstructions(text: string): { text: string; replace
 }
 
 /** Apply {@link minimizeBeadsInstructions} to each text system part in place. */
-export function minimizeSystemParts(parts: Array<{ type: string; text?: string }>): number {
+export function minimizeSystemParts(parts: Array<{ type: string; text?: string }>, suppliedContext = ""): number {
   let replaced = 0;
   for (const part of parts) {
     if (part.type !== "text" || typeof part.text !== "string") continue;
-    const minimized = minimizeBeadsInstructions(part.text);
+    const minimized = minimizeBeadsInstructions(part.text, suppliedContext);
     if (minimized.replaced > 0) {
       part.text = minimized.text;
       replaced += minimized.replaced;

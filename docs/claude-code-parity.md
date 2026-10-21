@@ -1,6 +1,6 @@
 # Claude Code Parity
 
-Status: parity with Beads' Claude Code integration established by epic `opencode-beads-unh`. Validated on **OpenCode 2.0.26** with **bd 1.3.1**.
+Status: historical **setup-lifecycle** comparison recorded by epic `opencode-beads-unh`, validated on **OpenCode 2.0.26** with **bd 1.3.1**. This did not establish full Claude Code Beads experience parity. The marketplace skill/resources, command catalog, autonomous task agent, and durable knowledge outcomes are now assessed in the [full integration analysis and owner decision packet](claude-code-integration-analysis.md); that broader work is planning only, with owner selections recorded and implementation/behavioral acceptance unexecuted.
 
 ## Target
 

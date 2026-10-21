@@ -1,8 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { PrimeProcessError } from "./prime";
 
 /** Oldest Beads release this adapter supports. */
-export const MINIMUM_BD_VERSION = "1.3.0";
+export const MINIMUM_BD_VERSION = "1.3.1";
 
 export type Version = readonly [number, number, number];
 
@@ -11,6 +12,7 @@ export type GuardResult =
   | { kind: "ready" }
   | { kind: "uninitialized" }
   | { kind: "unavailable" }
+  | { kind: "probe-failed" }
   | { kind: "unsupported"; installed: string }
   | { kind: "migration-pending"; installed: string; store: string | undefined };
 
@@ -24,6 +26,35 @@ export interface GuardRuntime {
 export interface GuardOptions {
   /** Let automatic prime apply pending schema migrations instead of withholding context. */
   autoMigrate?: boolean;
+}
+
+export interface BeadsWorkspace {
+  path: string;
+}
+
+/** Config-only context avoids `where`'s opportunistic embedded-store prefix lookup. */
+export async function probeBeadsWorkspace(directory: string, runtime: GuardRuntime): Promise<BeadsWorkspace | undefined> {
+  let output: string;
+  try {
+    output = await runtime.bd(directory, ["context", "--json"]);
+  } catch (error) {
+    if (!(error instanceof PrimeProcessError) || error.exitCode !== 1) throw error;
+    // bd 1.3.1 reports absence through this versioned error rather than a successful context.
+    const response: unknown = JSON.parse(error.stdout);
+    if (typeof response === "object" && response !== null && !Array.isArray(response)) {
+      const data = response as Record<string, unknown>;
+      if (data.schema_version === 1 && data.error === "cannot resolve repo context: no .beads directory found") {
+        return undefined;
+      }
+    }
+    throw error;
+  }
+  const location: unknown = JSON.parse(output);
+  if (typeof location !== "object" || location === null) throw new Error("Invalid bd context response");
+  const data = location as Record<string, unknown>;
+  if (typeof data.beads_dir !== "string") throw new Error("Unsupported bd context response");
+  if (!data.beads_dir) return undefined;
+  return { path: data.beads_dir };
 }
 
 /** Parse the leading `major.minor.patch` triple; pre-release suffixes are ignored. */
@@ -59,8 +90,9 @@ async function readTextIfPresent(path: string): Promise<string | undefined> {
  * Decide whether automatic `bd prime` is safe without opening the store.
  *
  * Beads 1.3+ migrates an embedded store in place, irreversibly, on the first command that opens
- * it, and `--readonly` does not prevent that. `bd version` and `bd where --json` do not open the
- * store. `.beads/.local_version` records the newest binary that opened the store through an
+ * it, and `--readonly` does not prevent that. `bd version` and `bd context --json` skip store
+ * initialization; `where` can open storage to recover a missing prefix and is not used here.
+ * `.beads/.local_version` records the newest binary that opened the store through an
  * ordinary command (but not `bd prime`), so an older or missing value means a migration may be
  * pending. `bd migrate schema` is idempotent and updates it, clearing a stale marker.
  */
@@ -82,17 +114,14 @@ export async function checkBeadsStore(
     return { kind: "unsupported", installed: formatVersion(installed) };
   }
 
-  let location: unknown;
+  let location: BeadsWorkspace | undefined;
   try {
-    location = JSON.parse(await runtime.bd(directory, ["where", "--json"]));
+    location = await probeBeadsWorkspace(directory, runtime);
   } catch {
-    // `bd where` exits non-zero without a workspace; treat every failure as no usable store.
-    return { kind: "uninitialized" };
+    // Never substitute `where` or silently treat an unsupported/failed safety probe as absence.
+    return { kind: "probe-failed" };
   }
-  const beadsPath =
-    typeof location === "object" && location !== null && "path" in location
-      ? (location as { path: unknown }).path
-      : undefined;
+  const beadsPath = location?.path;
   if (typeof beadsPath !== "string" || !beadsPath) return { kind: "uninitialized" };
 
   if (options.autoMigrate) return { kind: "ready" };
@@ -122,6 +151,10 @@ export function createGuardRuntime(bd: GuardRuntime["bd"]): GuardRuntime {
 /** Explain withheld context to the agent so it neither migrates the store nor guesses. */
 export function guardNotice(result: GuardResult): string | undefined {
   switch (result.kind) {
+    case "probe-failed":
+      return `<beads-notice>
+Beads workflow context was withheld: the config-only \`bd context --json\` safety probe failed or returned an unsupported result. Store authority is unknown. Do not substitute \`bd where\` or manual prime; report the CLI contract failure to the user.
+</beads-notice>`;
     case "unsupported":
       return `<beads-notice>
 Beads workflow context was not loaded: the installed bd ${result.installed} is older than ${MINIMUM_BD_VERSION}, the minimum this OpenCode integration supports. Tell the user to upgrade bd before relying on Beads in this session.

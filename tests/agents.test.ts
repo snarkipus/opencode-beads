@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { TASK_AGENT_PERMISSIONS } from "../src/agents";
+import { beadsAgents, DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
 
 type Rule = { action: string; resource: string; effect: string };
 
@@ -30,6 +30,18 @@ const rules: Rule[] = [{ action: "*", resource: "*", effect: "allow" }, ...TASK_
 const decide = (command: string) => evaluate("shell", command, rules);
 
 describe("task-agent permission decisions", () => {
+  test("keeps IDs, inherited model, optional Luna and interruption caps independent of scope", () => {
+    const defaults = beadsAgents();
+    expect(Object.keys(defaults)).toEqual(["beads-task-agent"]);
+    expect(defaults["beads-task-agent"]?.model).toBeUndefined();
+    expect(defaults["beads-task-agent"]?.steps).toBe(DEFAULT_TASK_AGENT_STEPS);
+    const capped = beadsAgents({ luna: true, steps: 12 });
+    expect(Object.keys(capped)).toEqual(["beads-task-agent", "beads-task-agent-luna"]);
+    expect(capped["beads-task-agent-luna"]?.system).toBe(capped["beads-task-agent"]?.system);
+    expect(capped["beads-task-agent-luna"]?.system).toContain("already-authorized batch or goal");
+    expect(capped["beads-task-agent-luna"]?.steps).toBe(12);
+    expect(beadsAgents({ steps: 0 })["beads-task-agent"]?.steps).toBeUndefined();
+  });
   test.each([
     "git commit",
     "git commit -m done",

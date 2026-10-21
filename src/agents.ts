@@ -8,7 +8,7 @@ export const BEADS_TASK_AGENTS: ReadonlySet<string> = new Set([
   BEADS_TASK_AGENT_LUNA,
 ]);
 
-/** Default hard cap on worker steps; a backstop for "one bead, then return", not a target. */
+/** Default interruption cap on worker steps; never a completion target or authority to continue. */
 export const DEFAULT_TASK_AGENT_STEPS = 100;
 
 /**
@@ -45,7 +45,7 @@ export interface BeadsAgentDefinition {
 export interface BeadsAgentOptions {
   /** Register the Luna Max profile alongside the default task agent. */
   luna?: boolean;
-  /** Hard cap on worker steps; 0 removes the cap. */
+  /** Interruption cap on worker steps; 0 removes the cap, never the assignment's scope limits. */
   steps?: number;
 }
 

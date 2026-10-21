@@ -126,7 +126,7 @@ export async function validateReleaseMetadata(
 
 async function expectedArchiveInventory(projectDirectory: string): Promise<string[]> {
   const expected = ["LICENSE", "README.md", "package.json"];
-  for (const directory of ["src"]) {
+  for (const directory of ["src", "assets/oc-beads"]) {
     expected.push(
       ...(await filesBelow(path.join(projectDirectory, directory))).map(
         (file) => `${directory}/${file}`

@@ -9,16 +9,17 @@ import {
   parseVersion,
   type GuardRuntime,
 } from "../src/guard";
+import { PrimeProcessError } from "../src/prime";
 
-const WHERE = JSON.stringify({ path: "/project/.beads", database_path: "/project/.beads/embeddeddolt" });
+const CONTEXT = JSON.stringify({ beads_dir: "/project/.beads" });
 
 function runtime(options: {
   version?: string | Error;
-  where?: string | Error;
+  context?: string | Error;
   marker?: string | Error;
 }): GuardRuntime & { bd: ReturnType<typeof mock>; readText: ReturnType<typeof mock> } {
   const bd = mock(async (_directory: string, args: readonly string[]) => {
-    const value = args[0] === "version" ? options.version : options.where;
+    const value = args[0] === "version" ? options.version : options.context;
     if (value instanceof Error) throw value;
     return value ?? "";
   });
@@ -40,22 +41,22 @@ describe("parseVersion", () => {
 
 describe("checkBeadsStore", () => {
   test("is ready when the store marker matches the installed binary", async () => {
-    const fake = runtime({ version: "bd version 1.3.1 (abc)", where: WHERE, marker: "1.3.1\n" });
+    const fake = runtime({ version: "bd version 1.3.1 (abc)", context: CONTEXT, marker: "1.3.1\n" });
     expect(await checkBeadsStore("/project", fake)).toEqual({ kind: "ready" });
     expect(fake.bd).toHaveBeenCalledWith("/project", ["version"]);
-    expect(fake.bd).toHaveBeenCalledWith("/project", ["where", "--json"]);
+    expect(fake.bd).toHaveBeenCalledWith("/project", ["context", "--json"]);
     expect(fake.readText).toHaveBeenCalledWith(path.join("/project/.beads", ".local_version"));
   });
 
   test("never invokes a command that opens the store", async () => {
-    const fake = runtime({ version: "bd version 1.3.1", where: WHERE, marker: "1.2.2" });
+    const fake = runtime({ version: "bd version 1.3.1", context: CONTEXT, marker: "1.2.2" });
     await checkBeadsStore("/project", fake);
     const commands = fake.bd.mock.calls.map((call) => (call[1] as string[])[0]);
-    expect(commands).toEqual(["version", "where"]);
+    expect(commands).toEqual(["version", "context"]);
   });
 
   test("reports a pending migration for an older store marker", async () => {
-    const fake = runtime({ version: "bd version 1.3.1", where: WHERE, marker: "1.2.2" });
+    const fake = runtime({ version: "bd version 1.3.1", context: CONTEXT, marker: "1.2.2" });
     expect(await checkBeadsStore("/project", fake)).toEqual({
       kind: "migration-pending",
       installed: "1.3.1",
@@ -65,42 +66,79 @@ describe("checkBeadsStore", () => {
 
   test("treats a missing or unreadable marker as possibly pending", async () => {
     expect(
-      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", where: WHERE }))
+      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: CONTEXT }))
     ).toEqual({ kind: "migration-pending", installed: "1.3.1", store: undefined });
     expect(
       await checkBeadsStore(
         "/p",
-        runtime({ version: "bd version 1.3.1", where: WHERE, marker: new Error("EACCES") })
+        runtime({ version: "bd version 1.3.1", context: CONTEXT, marker: new Error("EACCES") })
       )
     ).toEqual({ kind: "migration-pending", installed: "1.3.1", store: undefined });
   });
 
   test("lets autoMigrate opt out of the marker check", async () => {
-    const fake = runtime({ version: "bd version 1.3.1", where: WHERE, marker: "1.2.2" });
+    const fake = runtime({ version: "bd version 1.3.1", context: CONTEXT, marker: "1.2.2" });
     expect(await checkBeadsStore("/project", fake, { autoMigrate: true })).toEqual({ kind: "ready" });
     expect(fake.readText).not.toHaveBeenCalled();
   });
 
-  test("rejects binaries older than the supported minimum before locating the store", async () => {
-    const fake = runtime({ version: "bd version 1.2.2 (6c124203e)", where: WHERE, marker: "1.2.2" });
+  test("rejects 1.3.0 before locating or opening the store, even with autoMigrate", async () => {
+    const fake = runtime({ version: "bd version 1.3.0 (f45b249ce)", context: CONTEXT, marker: "1.3.0" });
     expect(await checkBeadsStore("/project", fake, { autoMigrate: true })).toEqual({
       kind: "unsupported",
-      installed: "1.2.2",
+      installed: "1.3.0",
     });
-    expect(fake.bd).toHaveBeenCalledTimes(1);
+    expect(fake.bd.mock.calls.map(call => call[1])).toEqual([["version"]]);
+    expect(fake.readText).not.toHaveBeenCalled();
   });
 
   test("treats a missing workspace as uninitialized", async () => {
-    const noWorkspace = JSON.stringify({ error: "no_beads_directory", schema_version: 1 });
+    const noWorkspace = JSON.stringify({ beads_dir: "" });
     expect(
-      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", where: noWorkspace }))
+      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: noWorkspace }))
     ).toEqual({ kind: "uninitialized" });
     expect(
-      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", where: new Error("exit 1") }))
-    ).toEqual({ kind: "uninitialized" });
+      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: new Error("exit 1") }))
+    ).toEqual({ kind: "probe-failed" });
     expect(
-      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", where: "not json" }))
-    ).toEqual({ kind: "uninitialized" });
+      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: "not json" }))
+    ).toEqual({ kind: "probe-failed" });
+  });
+
+  test("recognizes the supported exit-1 no-workspace context response without reading a store", async () => {
+    const fake = runtime({
+      version: "bd version 1.3.1",
+      context: new PrimeProcessError(1, "", "bd context --json", JSON.stringify({
+        error: "cannot resolve repo context: no .beads directory found", schema_version: 1,
+      })),
+    });
+    expect(await checkBeadsStore("/project", fake)).toEqual({ kind: "uninitialized" });
+    expect(fake.bd.mock.calls.map((call) => call[1])).toEqual([["version"], ["context", "--json"]]);
+    expect(fake.readText).not.toHaveBeenCalled();
+  });
+
+  test("keeps unrelated context errors, unsupported errors and interruption as probe failures", async () => {
+    const absent = { error: "cannot resolve repo context: no .beads directory found", schema_version: 1 };
+    for (const error of [
+      new PrimeProcessError(1, "", "bd context --json", JSON.stringify({ ...absent, error: "unsafe location" })),
+      new PrimeProcessError(2, "", "bd context --json", JSON.stringify(absent)),
+      new PrimeProcessError(1, "", "bd context --json", JSON.stringify({ ...absent, schema_version: 2 })),
+      new DOMException(absent.error, "AbortError"),
+    ]) {
+      const fake = runtime({ version: "bd version 1.3.1", context: error });
+      expect(await checkBeadsStore("/project", fake)).toEqual({ kind: "probe-failed" });
+      expect(fake.bd.mock.calls.map((call) => call[1])).toEqual([["version"], ["context", "--json"]]);
+      expect(fake.readText).not.toHaveBeenCalled();
+    }
+  });
+
+  test("reports an unsupported no-open probe without falling back to where or opening a marker", async () => {
+    const fake = runtime({ version: "1.3.1", context: '{"path":"/legacy/where-result"}' });
+    const result = await checkBeadsStore("/project", fake);
+    expect(result).toEqual({ kind: "probe-failed" });
+    expect(fake.bd.mock.calls.map((call) => (call[1] as string[])[0])).toEqual(["version", "context"]);
+    expect(fake.readText).not.toHaveBeenCalled();
+    expect(guardNotice(result)).toContain("Do not substitute");
   });
 
   test("treats a missing or unparsable bd as unavailable", async () => {
@@ -138,9 +176,9 @@ describe("guardNotice", () => {
   });
 
   test("names the minimum version for unsupported binaries", () => {
-    const notice = guardNotice({ kind: "unsupported", installed: "1.2.2" });
-    expect(notice).toContain("bd 1.2.2");
-    expect(notice).toContain("1.3.0");
+    const notice = guardNotice({ kind: "unsupported", installed: "1.3.0" });
+    expect(notice).toContain("bd 1.3.0");
+    expect(notice).toContain("1.3.1, the minimum");
   });
 
   test("adds nothing for ready, uninitialized, or unavailable states", () => {
