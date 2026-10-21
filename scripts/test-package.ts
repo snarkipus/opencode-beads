@@ -307,7 +307,7 @@ try {
           || !status.commands.ownership.includes("identical-description") || status.liveQualification !== "not executed") {
           throw new Error("Packed status did not report observed registration and qualification limits");
         }
-      } else if (!submitted.text.includes(installedSkillPath)) throw new Error("Packed command uses the wrong installed guidance base");
+      } else if (!submitted.text.includes(JSON.stringify(installedSkillPath))) throw new Error("Packed command uses the wrong JSON-quoted installed guidance base");
     }
     if (prompts.length !== commands.size) throw new Error("Packed native commands did not each submit one prompt");
     await cleanup();
