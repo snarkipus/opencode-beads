@@ -4,7 +4,7 @@
 
 Preserve meaningful work context so authorized work can resume across compaction, session changes and delegation without reconstructing failed approaches or asking the user to repeat known context.
 
-These are the selected N1 outcome contracts. Owner selections are complete; implementation and behavioral acceptance remain unexecuted. See design and tasks for qualified delivery boundaries.
+These are the selected N1 outcome contracts. Historical source acceptance remains intact; new code-mode source tasks and behavioral acceptance remain unexecuted. See design and tasks for qualified delivery boundaries.
 
 ## ADDED Requirements
 
@@ -109,3 +109,45 @@ N1 operations SHALL acknowledge only evidenced outcomes and distinguish failure,
 
 - **WHEN** cancellation or timeout prevents confirmation of an append
 - **THEN** recovery checks current durable state before another write and exposes the uncertainty
+
+### Requirement: Typed daily-loop composition
+
+The integration SHALL expose the eleven-operation beads daily-loop namespace with declared discriminated outputs and fixed supported argv in the accepted subcommand-first canonical form with --sandbox. It SHALL preserve CLI state/claim ownership, per-operation permissions, executor attribution, partial/uncertain outcomes and sole acknowledgement. It SHALL NOT expose generic argv or workflow macros, infer authority from readiness, or retry ambiguous writes.
+
+#### Scenario: Bounded discovery is incomplete
+
+- **WHEN** a bounded query, batch get or direct-edge read is incomplete or partly fails
+- **THEN** results identify query scope, per-ID failures and exact or unknown completeness
+- **AND** unknown or failed data is not reported as missing, empty or unblocked
+
+#### Scenario: Claim or create outcome is uncertain
+
+- **WHEN** a started claim or create lacks authoritative acknowledgement
+- **THEN** the result or recovery state preserves operation, target/query, actual actor and uncertainty
+- **AND** claim acknowledgement requires the actual executor as assignee in the actionable state; not-claimed requires evidenced non-claim rather than guessed CLI error text
+- **AND** an uncertain create requires search/readback before any caller-considered retry
+
+#### Scenario: Dependent writes compose
+
+- **WHEN** authorized work sequences claim, checkpoint and optional closure
+- **THEN** each operation uses its own canonical permission resources and post-approval/pre-spawn guard, location, actor and cancellation checks
+- **AND** dependent writes are ordered and stop on rejection or non-acknowledgement, with no transaction or exactly-once promise
+- **AND** closure still requires caller authority and acceptance evidence
+
+#### Scenario: Canonical execution preserves permission and sync policy
+
+- **WHEN** a typed read or write is prepared
+- **THEN** its resource exactly renders qualified subcommand-first argv with --sandbox on all operations and derived --actor on writes, inserted after operation arguments and before any -- free-text terminator
+- **AND** no automatic sync or additional permission rules compensate for changed prefixes
+
+#### Scenario: Execution is refused before spawn
+
+- **WHEN** input is invalid, actual identity is unavailable, a guard hold applies or location changes
+- **THEN** the accepted pre-spawn refusal remains thrown; permission rejection and cancellation also propagate unchanged
+- **AND** no executed:false result branch replaces the refusal; a started interrupted write retains recovery uncertainty even without a returned normal value
+
+#### Scenario: CLI contract is unsupported
+
+- **WHEN** a proposed filter, argv or output shape is not established on supported minimum/current Beads
+- **THEN** the schema does not advertise that unsupported contract and the affected core operation stops for review if no supported mapping exists
+- **AND** no implicit version bump, routing repair or invented conflict response supplies the missing contract

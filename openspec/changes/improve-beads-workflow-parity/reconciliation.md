@@ -1,4 +1,41 @@
-# Planning reconciliation — 2026-10-18
+# Planning reconciliation
+
+## Bounded Opus correction pass — S1–S5 and P1–P3
+
+Matt authorized incorporation of the [plan review findings](../../../docs/reviews/opus-code-mode-plan-review-wgv.md). Original REVISE and frozen candidate/reports remain historical and immutable; this is a corrected local candidate awaiting parent finding-scoped recheck, not a new review verdict. Executor codex:oc-plan, session 01a15ee8-9655-7f02-b8dd-3b8541d3e42f. Eleven operations, 16 task IDs, nine accepted task texts/marks, seven unchecked IDs, ownership and dependency graph are unchanged.
+
+| Finding | Correction and artifact | Tracker scope |
+| --- | --- | --- |
+| S1 HIGH | Design7 ledger and work-continuity guarantee restore subcommand-first exact resources, --sandbox on ALL reads/writes, derived actor on writes after operation arguments but before any -- terminator; no automatic sync or compensating permission rules. Task7.2 owns table verification. | .10; epic/planning current decision |
+| S2 MODERATE | Design7 and work-continuity retain thrown invalid-input/identity/hold/location refusals and unchanged permission rejection/cancellation; no executed:false branch. Started-write recovery uncertainty survives absent normal return. | .10 |
+| S3 MODERATE | Workflow-access actor scenario, design7 and7.3 derive matching context/tool/shell actor from actual request/invocation session AND agent; audit identity grants no permission, assertions separately use actual context.agent. | .10; .6/.9 consume actor evidence |
+| S4 MODERATE | Task7.1/design7 specify future-authorized existing install-bd.sh disposable binaries and existing bd-contract.ts once per1.3.0/1.3.1 for JSON/mutation/claim/create/close/prime facts; SDK ledger cites captured output. Help is discovery only. No per-command reapproval within that future exact assignment, no install/contract authority now. | .10; d9n/vuy gate |
+| S5 LOW | Task7.2/design7 replace nonexistent product executor seam with one rerun of existing scratch probes against actual candidate definitions, durable SDK pin/commands/results; product tests check declared outputs and branch invariants; installed evidence stays .2/.9. | .10, .2, .9 |
+| P1 MODERATE | Task7.3/design7 use four representative capability states, retaining actor isolation and request correctness without cross-product testing. | .10 |
+| P2 LOW | Task7.2/design7 use per-operation table cases plus shared negatives once across representative multi-spawn get/write, while production rechecks every child spawn. Necessary partial/completeness/uncertain cases and cheap full regression gates remain. | .10 |
+| P3 LOW | Task4.2/design7/execution-map make .6 consume7.2/7.3 deterministic evidence and add its own Stop/handoff observation, not duplicate identity/abort suites. Cancellation must still prevent later dispatch. | .6, .10, .9 |
+
+Tiny optional ambiguities resolved: memories retains the accepted key→value map; uncertain claim returns target/actor for caller-explicit get rather than hiding a second approval. No dependency change for the optional .2 ordering observation. No new tasks, framework, maintained upstream runtime seam or implementation. Correction custody/output uses new correction-prefixed files under `/opt/data/cache/scratch/opencode-codemode-astra-planning/`; original manifests and verification remain intact. All source/qualification stays blocked pending parent acceptance and explicit dispatch.
+
+
+## Current local unpublished revision — 2026-10-21
+
+Broader Opus direction supersedes six-tool sufficiency and narrow READY. See design section 7 and owner decisions for selected direction, CLI gates and parent review. Historical sections below retain their dated scope. Nine accepted markers are preserved; tasks 7.1–7.3 add one cohesive source delta, independent of host activation. There are now 16 tasks and 19 requirements; counts are derived by the validator. Existing 1.1/4.2/6.2/6.3 stay unchecked. The historical 73/74-member corpus remains unchanged; planned delivery adds CODE_MODE, yielding 16 resources plus ADR and 17 explicit links. No runtime asset or source is authored here.
+
+| Broader recommendation | Owning artifact and tasks |
+| --- | --- |
+| D1 daily-loop schema/argv/results | design section 7; work-continuity Typed daily-loop composition; 7.1, 7.2; installed 6.2 |
+| D2 actual host actor, optional delegation | owner decisions; workflow-access capability requirement; 7.2, 7.3; 4.2, 6.2 |
+| D3 namespace/code-mode-only; direct shell fallback | design native boundary; restricted-agent requirement; 7.2, 7.3; 1.1 |
+| D4 deduplicated guidance/CODE_MODE | design guidance; workflow-access; 7.3; 6.2 |
+| D5 targeted freshness/refs | design freshness and CLI ledger; 7.1, 7.3; 4.2, 6.2 |
+| D6 full prime pending measurement | owner decisions/design; 7.3, 6.2; no reduction authorized |
+| D7 all 30 human names and overrides | proposal/design/workflow-access; 7.3, 6.2 |
+| Accepted nested decline versus explicit Stop | existing owner correction preserved; 1.1, 4.2, 6.2 |
+
+Parent review is needed for compatibility-visible tool-name replacement/command wording before dispatch; CLI specifics remain bounded engineering qualification, not invented contracts. This reconciliation grants no implementation, resumed qualification, publication, activation or closure authority.
+
+## Historical reconciliation — 2026-10-18
 
 ## 2026-10-20 owner correction — upstream responsibility
 
@@ -70,9 +107,11 @@ The validator checks exact requirement titles, unique task IDs and complete mapp
 | work-continuity | Recovery from durable state | 3.2, 4.2, 6.2 |
 | work-continuity | Delegated knowledge and closure evidence | 4.1, 4.2, 6.2 |
 | work-continuity | Native trigger and semantic responsibility separation | 3.2, 4.2, 6.2 |
-| work-continuity | Honest persistence acknowledgement | 3.1, 3.2, 6.1, 6.2 |
+| work-continuity | Honest persistence acknowledgement | 3.1, 3.2, 6.1, 6.2, 7.1, 7.2 |
+| work-continuity | Typed daily-loop composition | 7.1, 7.2, 6.2 |
 | workflow-access | Discoverable selected workflows | 1.1, 2.1, 2.2, 6.2 |
-| workflow-access | Coherent context and authority | 2.1, 3.1, 3.2, 6.2 |
+| workflow-access | Coherent context and authority | 2.1, 3.1, 3.2, 6.2, 7.3 |
+| workflow-access | Capability-aware actor and context guidance | 7.1, 7.2, 7.3, 4.2, 6.2 |
 | workflow-access | Owned installation and user customization | 2.2, 3.3, 6.1, 6.2 |
 | workflow-access | Scope-preserving execution and visible failure | 3.1, 4.1, 4.2, 6.2 |
 | workflow-access | Explicit native availability and fallback | 1.2, 1.1, 3.3, 6.1 |

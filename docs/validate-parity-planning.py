@@ -99,6 +99,13 @@ tasks = (change / 'tasks.md').read_text()
 parsed_tasks = re.findall(r'^- \[([ xX])\] (\d+\.\d+) ', tasks, re.M)
 task_ids = [task_id for _, task_id in parsed_tasks]
 assert len(task_ids) == len(set(task_ids)) and task_ids
+# The active execution map must own every task exactly once, including new source deltas.
+execution_map = (change / 'execution-map.md').read_text()
+owner_rows = re.findall(r'^\| `(opencode-beads-vuy\.\d+)` \| ([0-9., ]+) \|', execution_map, re.M)
+owned_ids = [task_id for _, ids in owner_rows for task_id in ids.strip().split(', ')]
+assert len(owned_ids) == len(set(owned_ids)) and set(owned_ids) == set(task_ids)
+assert len(owner_rows) == len({owner for owner, _ in owner_rows})
+
 # Source tasks and 6.1 have parent-accepted deterministic/CLI evidence; live gates remain unexecuted.
 accepted_tasks = {task_id for mark, task_id in parsed_tasks if mark.lower() == 'x'}
 assert accepted_tasks == {'1.2', '2.1', '2.2', '3.1', '3.2', '3.3', '4.1', '5.1', '6.1'}, 'Only parent-accepted source tasks and deterministic/CLI task 6.1 may be checked; 1.1, composite 4.2 and installed/final 6.2/6.3 await live qualification'
