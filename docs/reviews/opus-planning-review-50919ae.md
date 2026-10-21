@@ -1,6 +1,6 @@
 # Independent review of planning candidate `50919ae` (branch `openspec/improve-beads-workflow-parity`)
 
-Attribution: supplied independent Claude review of `50919ae0f6b192bb8c2773398685c550fdaad22f`; trace model `claude-opus-5-5`. The parent reports an explicit medium invocation; effort was not introspectable by the reviewer. Original verdict and review substance are retained below, including its source interpretation; the planning agent’s corrections are recorded separately in [reconciliation](../../openspec/changes/improve-beads-workflow-parity/reconciliation.md). Only the unrelated connector-advertisement footer is omitted.
+Attribution: supplied independent Claude review of `50919ae0f6b192bb8c2773398685c550fdaad22f`; trace model `claude-opus-5-5`. The parent reports an explicit medium invocation; effort was not introspectable by the reviewer. Original verdict and review substance are retained below, including its source interpretation; the planning agent’s corrections are recorded separately in [reconciliation](../../openspec/changes/archive/2026-10-21-improve-beads-workflow-parity/reconciliation.md). Only the unrelated connector-advertisement footer is omitted.
 
 ## Verdict: **REVISE**
 

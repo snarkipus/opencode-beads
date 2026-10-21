@@ -95,6 +95,9 @@ if installed.is_dir():
         assert hashlib.sha256((installed / path).read_bytes()).hexdigest() == entry['sha256'], path
 
 change = repo / 'openspec/changes/improve-beads-workflow-parity'
+if not change.exists():
+    change = repo / 'openspec/changes/archive/2026-10-21-improve-beads-workflow-parity'
+assert change.is_dir(), 'Expected active or accepted archived packet'
 tasks = (change / 'tasks.md').read_text()
 parsed_tasks = re.findall(r'^- \[([ xX])\] (\d+\.\d+) ', tasks, re.M)
 task_ids = [task_id for _, task_id in parsed_tasks]
@@ -274,7 +277,7 @@ assert re.search(r'^## (v[^ ]+)', (cache / 'source/CHANGELOG.md').read_text(), r
 assert set(new['task_ids']) <= set(task_ids)
 print(f"PASS: 2.1.1 separate pin, {len(new_paths)} endpoint sources, published tarball/declarations, conservative admission; runtime unexecuted")
 
-files = [p for p in (repo / 'openspec/changes/improve-beads-workflow-parity').rglob('*') if p.is_file()]
+files = [p for p in change.rglob('*') if p.is_file()]
 files += [repo / 'docs' / name for name in (
     'claude-code-integration-analysis.md', 'claude-code-integration-inventory.json',
     'opencode-native-parity-assessment.md', 'validate-parity-planning.py',

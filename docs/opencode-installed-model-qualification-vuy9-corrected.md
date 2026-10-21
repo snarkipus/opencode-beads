@@ -2,7 +2,7 @@
 
 **Actual plugin-scope cleanup/removal/reactivation passed its controlled native observation. Task 6.2 remains incomplete: existing OpenAI access is expired, so the remaining genuine-model evaluation was not run. Task 6.3 was not started.** One final command-restoration snapshot also remains inconclusive, as detailed below. No passing analyzer exit substitutes for these selected gaps.
 
-The owner clarification in [owner decisions](../openspec/changes/improve-beads-workflow-parity/owner-decisions.md) authorizes this corrected probe boundary. The [original location-reload failure](opencode-installed-model-qualification-vuy9.md), [lifetime diagnosis](opencode-unload-lifetime-investigation-vuy9.md) and both prior raw evidence trees remain byte-identical. Their historical failure is not relabeled passing.
+The owner clarification in [owner decisions](../openspec/changes/archive/2026-10-21-improve-beads-workflow-parity/owner-decisions.md) authorizes this corrected probe boundary. The [original location-reload failure](opencode-installed-model-qualification-vuy9.md), [lifetime diagnosis](opencode-unload-lifetime-investigation-vuy9.md) and both prior raw evidence trees remain byte-identical. Their historical failure is not relabeled passing.
 
 ## Identity, artifact and credential gate
 

@@ -172,7 +172,7 @@ A small representative set can combine these scenarios. Record host, Beads relea
 
 ## Selected contract and evidence layers
 
-The [owner record](../openspec/changes/improve-beads-workflow-parity/owner-decisions.md) resolves marketplace-main, N1/minimum host, beta/next, scope-bounded execution, full corpus groups, package ownership/namespace and check-based drift. The [design](../openspec/changes/improve-beads-workflow-parity/design.md) resolves technical mappings and the [reconciliation record](../openspec/changes/improve-beads-workflow-parity/reconciliation.md) maps findings and requirements to tasks. Earlier recommendations remain historical alternatives, not another owner gate.
+The [owner record](../openspec/changes/archive/2026-10-21-improve-beads-workflow-parity/owner-decisions.md) resolves marketplace-main, N1/minimum host, beta/next, scope-bounded execution, full corpus groups, package ownership/namespace and check-based drift. The [design](../openspec/changes/archive/2026-10-21-improve-beads-workflow-parity/design.md) resolves technical mappings and the [reconciliation record](../openspec/changes/archive/2026-10-21-improve-beads-workflow-parity/reconciliation.md) maps findings and requirements to tasks. Earlier recommendations remain historical alternatives, not another owner gate.
 
 Source qualification is completed evidence, deterministic fixtures are future implementation work, and installed-host/model behavior is future acceptance. Only a demonstrated contract-changing incompatibility returns to the owner. OpenSpec owns touched intended behavior, docs evidence, and Beads later execution; no tracker/store access is needed here.
 

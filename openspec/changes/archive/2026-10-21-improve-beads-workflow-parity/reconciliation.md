@@ -2,7 +2,7 @@
 
 ## Bounded Opus correction pass — S1–S5 and P1–P3
 
-Matt authorized incorporation of the [plan review findings](../../../docs/reviews/opus-code-mode-plan-review-wgv.md). Original REVISE and frozen candidate/reports remain historical and immutable; this is a corrected local candidate awaiting parent finding-scoped recheck, not a new review verdict. Executor codex:oc-plan, session 01a15ee8-9655-7f02-b8dd-3b8541d3e42f. Eleven operations, 16 task IDs, nine accepted task texts/marks, seven unchecked IDs, ownership and dependency graph are unchanged.
+Matt authorized incorporation of the [plan review findings](../../../../docs/reviews/opus-code-mode-plan-review-wgv.md). Original REVISE and frozen candidate/reports remain historical and immutable; this is a corrected local candidate awaiting parent finding-scoped recheck, not a new review verdict. Executor codex:oc-plan, session 01a15ee8-9655-7f02-b8dd-3b8541d3e42f. Eleven operations, 16 task IDs, nine accepted task texts/marks, seven unchecked IDs, ownership and dependency graph are unchanged.
 
 | Finding | Correction and artifact | Tracker scope |
 | --- | --- | --- |
@@ -84,7 +84,7 @@ F01–F12, D01–D06, E01–E06 and M01–M10/X01–X09 have explicit dispositio
 
 ## Opus review disposition
 
-The [original review](../../../docs/reviews/opus-planning-review-e74b507.md) is preserved unchanged as a review of e74b507. Its REVISE verdict is not rewritten or claimed as approval of this reconciliation.
+The [original review](../../../../docs/reviews/opus-planning-review-e74b507.md) is preserved unchanged as a review of e74b507. Its REVISE verdict is not rewritten or claimed as approval of this reconciliation.
 
 | Finding | Resolution and evidence | Acceptance still required |
 | --- | --- | --- |
@@ -136,7 +136,7 @@ At the original reconciliation (published as 50919ae), executed: `openspec valid
 
 ## Final review corrections — candidate 50919ae
 
-The [supplied independent review](../../../docs/reviews/opus-planning-review-50919ae.md) retains its **REVISE** verdict. Actual trace model: `claude-opus-5-5`; explicit medium invocation is parent-reported, not introspectable by the reviewer. The following is the planning agent’s correction assessment, not a second independent approval. No second full review was requested or required by that review.
+The [supplied independent review](../../../../docs/reviews/opus-planning-review-50919ae.md) retains its **REVISE** verdict. Actual trace model: `claude-opus-5-5`; explicit medium invocation is parent-reported, not introspectable by the reviewer. The following is the planning agent’s correction assessment, not a second independent approval. No second full review was requested or required by that review.
 
 | Finding / recommendation | Exact correction evidence | Future acceptance boundary |
 | --- | --- | --- |
@@ -160,7 +160,7 @@ Exact SHA-256 comparison against `/opt/data/cache/scratch/opencode-beads-reconci
 
 ## 2026-10-20 host-baseline delta
 
-The [contract-delta memo](../../../docs/opencode-2.1.1-contract-delta.md) supersedes only the operative host baseline: 2.1.1 `ba546ec1598a70db2570e9c6258028d955ba8f58`, proposed admission >=2.1.1 <2.2. Historical 2.0.32 identities, inventory and passed reviews remain intact. Provider replay/compaction fields and retained history need fixture adaptation (1.2/3.2/6.2); released session.list remains unnecessary. Permission, registration, stop and unload contracts retain bounded qualification. No new services, compatibility layer, tasks or owners.
+The [contract-delta memo](../../../../docs/opencode-2.1.1-contract-delta.md) supersedes only the operative host baseline: 2.1.1 `ba546ec1598a70db2570e9c6258028d955ba8f58`, proposed admission >=2.1.1 <2.2. Historical 2.0.32 identities, inventory and passed reviews remain intact. Provider replay/compaction fields and retained history need fixture adaptation (1.2/3.2/6.2); released session.list remains unnecessary. Permission, registration, stop and unload contracts retain bounded qualification. No new services, compatibility layer, tasks or owners.
 
 The 13-task/17-requirement map above remains exact. Existing epic vuy and .1–.9 remain blocked/unassigned/implementation_authorized=false; .6 owns deterministic evidence consumed by gated .8, and .9 still awaits complete live acceptance. Review URLs at 84ab18e/dd56cf1 are explicitly historical; this unpublished delta has a local content digest, not an invented commit. d9n remains open. Setup custody now uses committed 907232a, not the old dirty-file assumption.
 

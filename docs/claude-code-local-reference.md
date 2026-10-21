@@ -37,7 +37,7 @@ Compared with the historical release `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`,
 | `cmd/bd/setup/claude.go`, `cmd/bd/setup/codex.go` | Adds output-directed installation wrappers; does not change ownership of integrations. |
 | added `plugins/beads/BUILD.bazel` | Build/layout metadata only; reference evidence, no OpenCode runtime payload. |
 
-The remaining **57 selected files** are unchanged from release (including all 29 command bodies, rich skill, agent and ADR); unchanged bytes may still contain obsolete MCP/TodoWrite/setup advice. `--append-notes` already exists in historical CLI source (`cmd/bd/cli_fast_test.go`), so the guidance correction alone does not require a runtime upgrade. Current-source memory/prime changes are not claims about the installed executable. See the separate `marketplace_main` inventory and [design](../openspec/changes/improve-beads-workflow-parity/design.md) for the selected acknowledgement and authority contract.
+The remaining **57 selected files** are unchanged from release (including all 29 command bodies, rich skill, agent and ADR); unchanged bytes may still contain obsolete MCP/TodoWrite/setup advice. `--append-notes` already exists in historical CLI source (`cmd/bd/cli_fast_test.go`), so the guidance correction alone does not require a runtime upgrade. Current-source memory/prime changes are not claims about the installed executable. See the separate `marketplace_main` inventory and [design](../openspec/changes/archive/2026-10-21-improve-beads-workflow-parity/design.md) for the selected acknowledgement and authority contract.
 
 ## Observed component discovery
 

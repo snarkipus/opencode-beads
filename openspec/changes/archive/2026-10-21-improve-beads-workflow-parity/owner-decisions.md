@@ -14,7 +14,7 @@ The already-authorized same Sol/high .10 worker continues source tasks 7.1–7.3
 
 ## Operative code-mode planning reconciliation — 2026-10-21
 
-Matt authorized Astra/medium to reconcile the broader Opus recommendations into this active change and Beads. Actual planning executor: `codex:oc-plan`, bounded record `opencode-beads-wgv`. The selected planning direction is the [broader architecture memo](../../../docs/reviews/opus-code-mode-architecture-wgv.md), including its parent verification; the six-tool recommendation and narrow READY remain historical only. This local unpublished revision is based on published HEAD `072429f1a7723ade23e756a921924d9d0acacf31`, not a new published candidate or independent approval.
+Matt authorized Astra/medium to reconcile the broader Opus recommendations into this active change and Beads. Actual planning executor: `codex:oc-plan`, bounded record `opencode-beads-wgv`. The selected planning direction is the [broader architecture memo](../../../../docs/reviews/opus-code-mode-architecture-wgv.md), including its parent verification; the six-tool recommendation and narrow READY remain historical only. This local unpublished revision is based on published HEAD `072429f1a7723ade23e756a921924d9d0acacf31`, not a new published candidate or independent approval.
 
 Adopt the eleven-operation daily-loop namespace, host-derived executor actor visible to the model, capability-aware deduplicated guidance, operation-aware references and conservative targeted freshness. Retain all 30 human command names/user overrides, full advanced/admin coverage and full prime initially. Canonical actor means the actual host-derived executor identity, not the literal `beads-task-agent` name or mandatory delegation. Primary agents keep their own actor; delegated workers receive their own. Permission identity remains actual invocation `context.agent`.
 
@@ -42,7 +42,7 @@ Design, workflow-access scenarios, task 2.2 and operative vuy.5 acceptance inclu
 
 ## Upstream test gap resolutions — accepted acceptance refinements
 
-Matt approved folding the bounded upstream plugin test comparison into existing acceptance. Add correction-with-feedback and explicit-decline outcomes to task 1.1 (`opencode-beads-vuy.2`), with no rejected target execution, false success or automatic retry. Add one actual installed unload/reactivate round trip to task 6.2 (`opencode-beads-vuy.9`), checking owned removal/restoration, native user-override precedence, one context injection and no late old-generation result. See [the source assessment](../../../docs/reviews/upstream-plugin-test-gap-assessment.md).
+Matt approved folding the bounded upstream plugin test comparison into existing acceptance. Add correction-with-feedback and explicit-decline outcomes to task 1.1 (`opencode-beads-vuy.2`), with no rejected target execution, false success or automatic retry. Add one actual installed unload/reactivate round trip to task 6.2 (`opencode-beads-vuy.9`), checking owned removal/restoration, native user-override precedence, one context injection and no late old-generation result. See [the source assessment](../../../../docs/reviews/upstream-plugin-test-gap-assessment.md).
 
 These are acceptance-case refinements, not demonstrated product defects or new tasks. Preserve the 13 task IDs, their checkmarks, exclusive child ownership and dependencies. Both live cases remain unexecuted; this approval authorizes the bounded planning/tracker reconciliation, not host installation, model experiments, source implementation, dispatch, publication or activation. Existing host-owned supervisor, loader, permission-conversion and background-notification suites are not downstream implementation requirements.
 
@@ -56,7 +56,7 @@ These are acceptance-case refinements, not demonstrated product defects or new t
 
 ## Operative host selection — 2026-10-20
 
-Matt directly selected OpenCode **2.1.1**, superseding the earlier 2.0.32 minimum above while retaining all other product choices. Source pin: `ba546ec1598a70db2570e9c6258028d955ba8f58`. Engineering admission policy is `>=2.1.1 <2.2` because 2.1 changes public replay/compaction contracts; exact 2.1.1 is the unexecuted disposable qualification target, not a tested compatibility claim. Future patch candidates require normal qualification; no arbitrary minor compatibility. See [delta memo](../../../docs/opencode-2.1.1-contract-delta.md).
+Matt directly selected OpenCode **2.1.1**, superseding the earlier 2.0.32 minimum above while retaining all other product choices. Source pin: `ba546ec1598a70db2570e9c6258028d955ba8f58`. Engineering admission policy is `>=2.1.1 <2.2` because 2.1 changes public replay/compaction contracts; exact 2.1.1 is the unexecuted disposable qualification target, not a tested compatibility claim. Future patch candidates require normal qualification; no arbitrary minor compatibility. See [delta memo](../../../../docs/opencode-2.1.1-contract-delta.md).
 
 Authority covers planning/docs/validator and existing scoped tracker updates only, followed by **PAUSED FOR REVIEW**. No implementation, dependency installation, host upgrade, dispatch or publication. Operator 2.0.29 remains untouched. AGENTS.md/.codex setup is now tracked at `907232a393443a0f0d59133ffb0e2612f3fd9026` and must remain identical; earlier dirty-setup descriptions are historical.
 
@@ -68,7 +68,7 @@ Authority covers planning/docs/validator and existing scoped tracker updates onl
 
 ## Review corrections to reconcile
 
-The original Opus verdict was REVISE. The reconciliation record addresses F1–F5 with source evidence and exact artifact/task mappings: installed/release/main differences, typed-tool visibility/agent/save/external-access, reference-only compaction and check-based drift. This is the planning agent’s reconciliation, not new independent reviewer approval. The [50919ae review](../../../docs/reviews/opus-planning-review-50919ae.md) is preserved with its REVISE verdict. Final B1/recommendation corrections are mapped in reconciliation; no owner selection is reopened. Dependency preparation now precedes host probes, with separately authorized disposable live-host prerequisites. Runtime and behavioral acceptance remain unexecuted; no new infrastructure or wholesale analysis restart is required.
+The original Opus verdict was REVISE. The reconciliation record addresses F1–F5 with source evidence and exact artifact/task mappings: installed/release/main differences, typed-tool visibility/agent/save/external-access, reference-only compaction and check-based drift. This is the planning agent’s reconciliation, not new independent reviewer approval. The [50919ae review](../../../../docs/reviews/opus-planning-review-50919ae.md) is preserved with its REVISE verdict. Final B1/recommendation corrections are mapped in reconciliation; no owner selection is reopened. Dependency preparation now precedes host probes, with separately authorized disposable live-host prerequisites. Runtime and behavioral acceptance remain unexecuted; no new infrastructure or wholesale analysis restart is required.
 
 ## Authority
 
