@@ -219,6 +219,36 @@ describe("oc-beads guidance assets", () => {
 })
 
 describe("packaged native workflows", () => {
+  test("forwards exact scope and partial-handoff authority cues without selecting or claiming work", async () => {
+    const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
+    const commands = createBeadsCommands({ prompt }, async () => "STATUS");
+    // These are literal caller instructions, not a mock model or a scope interpreter.
+    const scenarios = [
+      ["ready", "Execute exact fixture-1 only; stop without substitution; closure belongs to parent."],
+      ["ready", "Authorized batch fixture-1 and fixture-2 only; claim each atomically; validate and append evidence before continuing."],
+      ["create", "Record discovered-from:fixture-1 follow-up when authorized; this does not authorize its execution or assignment."],
+      ["list", "Read-only graph overview; do not claim or write."],
+      ["close", "Permission denied and acceptance incomplete; preserve partial status, do not close. Actor worker:fixture; full session fixture-session; tried A; result failed; because B; validation pending; reference task:fixture-1; next parent review."],
+    ] as const;
+    for (const [stem, text] of scenarios) {
+      const input = { sessionID: "parent", delivery: "queue", prompt: { text } } as unknown as CommandInvocation;
+      await commands.find((command) => command.name === `oc-beads:${stem}`)!.execute(input);
+      const sent = prompt.mock.calls.at(-1)![0] as Record<string, unknown>;
+      expect(sent.sessionID).toBe("parent");
+      expect(sent.delivery).toBe("queue");
+      expect(sent.text).toContain(text);
+      expect(sent.text).toContain(WORKFLOWS[stem][0]);
+    }
+    expect(prompt).toHaveBeenCalledTimes(scenarios.length);
+    // The established rich assets agree with the new canonical scope guidance.
+    const skill = readFileSync(skillPath, "utf8");
+    const workflows = readResource("WORKFLOWS");
+    expect(skill).toContain("An assignment to one specific item is an exact assignment");
+    expect(workflows).toContain("Explicitly authorized batches may continue within their stated scope");
+    expect(workflows).toContain("If a parent or human owns acceptance");
+    expect(workflows).toContain("new discoveries never expand it");
+  });
+
   test("defines exactly the selected inventory's 29 command stems plus status", async () => {
     const inventory = await Bun.file("docs/claude-code-integration-inventory.json").json();
     const selected = inventory.marketplace_main.files

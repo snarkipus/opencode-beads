@@ -101,7 +101,7 @@ task_ids = [task_id for _, task_id in parsed_tasks]
 assert len(task_ids) == len(set(task_ids)) and task_ids
 # Source tasks have parent-accepted deterministic evidence; live gates remain unexecuted.
 accepted_tasks = {task_id for mark, task_id in parsed_tasks if mark.lower() == 'x'}
-assert accepted_tasks == {'1.2', '2.1', '2.2', '3.1', '3.2', '3.3'}, 'Only parent-accepted source tasks 1.2, 2.1, 2.2, 3.1, 3.2 and 3.3 may be checked'
+assert accepted_tasks == {'1.2', '2.1', '2.2', '3.1', '3.2', '3.3', '4.1'}, 'Only parent-accepted source tasks 1.2, 2.1, 2.2, 3.1, 3.2, 3.3 and 4.1 may be checked; composite 4.2 awaits live qualification'
 # Final review B1: stable task IDs with dependency/types preparation first.
 assert task_ids.index('1.2') < task_ids.index('1.1')
 task_text = dict(re.findall(r'^- \[[ xX]\] (\d+\.\d+) (.+)$', tasks, re.M))
@@ -146,8 +146,13 @@ for entry in native['sources']:
     verify_blob(scratch / 'released' / path, entry, tree[path])
     assert entry['url'] == f"https://github.com/anomalyco/opencode/blob/{native['commit']}/{path}"
     assert entry['url'] in assessment and entry['id'] in assessment
-assert set(re.findall(r'https://github.com/anomalyco/opencode/blob/[a-f0-9]{40}/[^)\s]+', assessment)) == {
-    e['url'] for e in native['sources']}
+assessment_source_urls = set(re.findall(r'https://github.com/anomalyco/opencode/blob/[a-f0-9]{40}/[^)\s]+', assessment))
+historical_source_urls = {e['url'] for e in native['sources']}
+current_source_urls = {e['url'] for e in data['host_baseline_211']['sources']}
+# Preserve complete historical source membership while allowing cited 2.1.1 evidence.
+# Both inventories' blobs/hashes are independently verified; unknown source URLs still fail.
+assert historical_source_urls <= assessment_source_urls
+assert assessment_source_urls <= historical_source_urls | current_source_urls
 assert {e['id'] for e in native['sources']} == {f'S{i:02}' for i in range(1, 22)}
 mechanisms = native['mechanisms'] + native['candidates']
 assert {e['id'] for e in mechanisms} == {f'M{i:02}' for i in range(1, 11)} | {f'X{i:02}' for i in range(1, 10)}

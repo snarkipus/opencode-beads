@@ -7,11 +7,14 @@ import { renderBeadsContext } from "../src/context";
 import { setupBeads, type HostContext } from "../src/host";
 import type { CommandDefinition, CommandInvocation } from "@opencode/plugin/promise/command";
 import type { ContinuityHost } from "../src/continuity";
-import type { Info, ToolContext } from "@opencode/plugin/promise/tool";
+import { Error as ToolError, type Info, type ToolContext, type ToolDomain } from "@opencode/plugin/promise/tool";
+import type { SessionCompaction } from "@opencode/plugin/promise/session";
+import { executorActor } from "../src/continuity";
 import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
 import { BEADS_COMPACTION_GUIDANCE, primeFailureNotice } from "../src/guidance";
 
 type ContextEvent = { sessionID: string; agent: string; system: Array<{ type: "text"; text: string }> };
+type ToolAfterEvent = Extract<Parameters<Parameters<ToolDomain["hook"]>[1]>[0], { status: string }>;
 
 /** A controllable server event stream. */
 function eventStream() {
@@ -92,6 +95,29 @@ function fakeContext(options: {
   }
 
   return { ctx, hooks, events, agentGet, agents, request };
+}
+
+/** Capture public hook/registration callbacks, without simulating host child transport. */
+function toolFixture(f: ReturnType<typeof fakeContext>) {
+  const tools: Info[] = [];
+  let after: (event: ToolAfterEvent) => Promise<void> | void = () => {};
+  const hook: ToolDomain["hook"] = async (name, callback) => {
+    if (name === "execute.after") after = callback as typeof after;
+    return { dispose: async () => {} };
+  };
+  const transform: ToolDomain["transform"] = async (callback) => {
+    callback({ add: (tool: Info) => { tools.push(tool); } } as unknown as Parameters<typeof callback>[0]);
+    return { dispose: async () => {} };
+  };
+  Object.assign(f.ctx, { tool: { hook, transform } });
+  return { tools, after: (event: ToolAfterEvent) => after(event) };
+}
+
+/** Cast only host-branded IDs at the fixture boundary. */
+function invocation(sessionID: string, agent: string, signal = new AbortController().signal): ToolContext {
+  return { sessionID, agent, messageID: `message-${sessionID}`, id: `call-${sessionID}`, signal,
+    progress: async () => {},
+  } as unknown as ToolContext;
 }
 
 describe("OpenCode V2 entry", () => {
@@ -201,16 +227,20 @@ describe("setupBeads", () => {
     const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime } });
     await f.request("s1", "build");
     const hook = f.hooks.get("compaction")!;
-    for (const metadata of [{ keepID: "fork-remapped-id" }, { recent: "legacy retained tail" }]) {
-      for (const model of [{ providerID: "provider-a", id: "model-a" }, { providerID: "provider-b", id: "model-b" }]) {
-        const event = { sessionID: "s1", agent: "build", system: [], model,
-          messages: [{ role: "assistant", native: { messages: [{ opaque: true }] }, metadata }],
-          result: { summary: "host summary", metadata, native: { messages: [{ replacement: true }] } },
-        };
-        const before = JSON.stringify({ messages: event.messages, result: event.result, model });
-        await hook(event);
-        expect(JSON.stringify({ messages: event.messages, result: event.result, model: event.model })).toBe(before);
-      }
+    // Representative public payloads, not a provider/history implementation or cross-product.
+    const cases = [
+      { model: { providerID: "provider-a", id: "model-a" } },
+      { model: { providerID: "provider-a", id: "model-a" }, result: { summary: "host summary", metadata: { keepID: "fork-remapped-id" } } },
+      { model: { providerID: "provider-b", id: "model-b" }, result: { summary: "host fallback", metadata: { recent: "legacy retained tail" }, native: { messages: [{ opaque: true }] } } },
+    ];
+    for (const fields of cases) {
+      const event = { sessionID: "s1", agent: "build", system: [], messages: [], options: {}, tools: {}, ...fields } as unknown as SessionCompaction;
+      const before = JSON.stringify(event);
+      await hook(event);
+      const { system, ...preserved } = event;
+      expect(system).toEqual([{ type: "text", text: BEADS_COMPACTION_GUIDANCE }]);
+      expect({ ...preserved, system: [] }).toEqual({ ...JSON.parse(before), system: [] });
+      expect(event.result).toBe(fields.result);
     }
     expect(prime).toHaveBeenCalledTimes(1);
     cleanup();
@@ -250,8 +280,8 @@ describe("setupBeads", () => {
     expect(agent?.mode).toBe("subagent");
     expect(agent?.name).toBe("beads-task-agent");
     expect(agent?.model).toBeUndefined();
-    expect(String(agent?.system)).toContain("process exactly one bead");
-    expect(String(agent?.system)).toContain("bd update <id> --claim --json");
+    expect(String(agent?.system)).toContain("An exact assignment or explicit one-bead mode ends with that bead");
+    expect(String(agent?.system)).toContain("bd update <id> --claim --actor='<executor-actor>' --json");
     expect(typeof agent?.description).toBe("string");
     expect(agent?.permissions).toEqual([...TASK_AGENT_PERMISSIONS]);
     expect(agent?.steps).toBe(DEFAULT_TASK_AGENT_STEPS);
@@ -532,6 +562,182 @@ function commandFixture(f: ReturnType<typeof fakeContext>) {
     omit: (name?: string) => { omitted = name; },
   };
 }
+
+describe("child handoff plugin boundary (not live host qualification)", () => {
+  test.each(["failed", "cancelled", "NO_TEXT", "partial"] as const)("preserves %s child outcome and adds only a next-request recovery cue", async (outcome) => {
+    const f = fakeContext();
+    const t = toolFixture(f);
+    const prompt = mock(async () => ({}));
+    const synthetic = mock(async () => ({}));
+    Object.assign(f.ctx.session, { prompt, synthetic, get: async () => ({ agent: "human-default", location: { directory: "/project" } }) });
+    const prime = mock(async () => "CURRENT");
+    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime } });
+    await f.request("parent", "build");
+    await f.request("child", "beads-task-agent");
+    const parent = invocation("parent", "build");
+    const child = invocation("child", "beads-task-agent");
+    const handoff = `Task fixture-1 only; actor ${executorActor(child)}; session child; tried A; failed validation; because B; reference task:fixture-1; candidate fixture-rev; blocker acceptance; next authorized action C; partial.`;
+    const input = { agent: "beads-task-agent", description: "bounded fixture", prompt: handoff };
+    const base = { tool: "subagent", sessionID: parent.sessionID, agent: parent.agent, messageID: parent.messageID, id: parent.id, input };
+    // Pinned subagent.ts:245–268: failure/cancellation are Tool.Error; NO_TEXT is
+    // a completed tool result. There is no execute.after status="cancelled".
+    const event: ToolAfterEvent = outcome === "failed" || outcome === "cancelled"
+      ? { ...base, status: "error", error: new ToolError({ message: outcome === "failed" ? "Subagent failed (sessionID: child): fixture failure" : "Subagent cancelled (sessionID: child)" }) }
+      : { ...base, status: "completed", result: {
+        output: { sessionID: "child", status: "completed", output: outcome === "NO_TEXT" ? "Subagent completed without a text response." : handoff },
+        content: `<subagent sessionID="child" state="completed">\n${outcome === "NO_TEXT" ? "Subagent completed without a text response." : handoff}\n</subagent>`,
+        metadata: { sessionID: "child", status: "completed" },
+      } };
+    const before = JSON.stringify(event);
+    await t.after(event);
+    expect(JSON.stringify(event)).toBe(before);
+    expect(event.input).toBe(input);
+    expect(prime).toHaveBeenCalledTimes(2);
+    expect(prompt).not.toHaveBeenCalled();
+    expect(synthetic).not.toHaveBeenCalled();
+    const recovered = await f.request("parent", "build");
+    expect(prime).toHaveBeenCalledTimes(3);
+    expect(recovered[1]).toContain(outcome === "failed" || outcome === "cancelled" ? "actual failure, attempted approach and next action" : "Reconcile its scope, attempts, validation, durable references and incomplete work");
+    // Child context is isolated; a parent-side result does not change its actor/cache.
+    expect(await f.request("child", "beads-task-agent")).toHaveLength(1);
+    expect(prime).toHaveBeenCalledTimes(3);
+    await cleanup();
+  });
+
+  test("a late child return and execution success after deliberate stop do not restart or imply a final checkpoint", async () => {
+    const f = fakeContext();
+    const t = toolFixture(f);
+    const prompt = mock(async () => ({}));
+    const synthetic = mock(async () => ({}));
+    Object.assign(f.ctx.session, { prompt, synthetic });
+    const prime = mock(async () => "CURRENT");
+    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime } });
+    await f.request("parent", "build");
+    f.events.push({ type: "session.execution.interrupted", data: { sessionID: "parent", reason: "user" } });
+    await settle();
+    const context = invocation("parent", "build");
+    const event: ToolAfterEvent = { tool: "subagent", sessionID: context.sessionID, agent: context.agent, messageID: context.messageID, id: context.id,
+      input: { agent: "beads-task-agent", prompt: "exact fixture-1" }, status: "completed",
+      result: { output: { sessionID: "child", status: "completed", output: "late partial evidence" }, metadata: { sessionID: "child", status: "completed" } },
+    };
+    const before = JSON.stringify(event);
+    await t.after(event);
+    f.events.push({ type: "session.execution.succeeded", data: { sessionID: "parent" } });
+    await settle();
+    expect(JSON.stringify(event)).toBe(before);
+    expect(prime).toHaveBeenCalledTimes(1);
+    expect(prompt).not.toHaveBeenCalled();
+    expect(synthetic).not.toHaveBeenCalled();
+    const summary: ContextEvent = { sessionID: "parent", agent: "build", system: [] };
+    await f.hooks.get("compaction")!(summary);
+    expect(summary.system[1]?.text).toContain("no final checkpoint");
+    expect(prime).toHaveBeenCalledTimes(1);
+    // Only a caller-initiated request asks for fresh recovery; the test does not run a model.
+    expect((await f.request("parent", "build"))[1]).toContain("incomplete work");
+    await cleanup();
+    const calls = prime.mock.calls.length;
+    await t.after(event);
+    expect(await f.request("parent", "build")).toEqual([]);
+    expect(prime).toHaveBeenCalledTimes(calls);
+  });
+
+  test("preserves parent/child checkpoint actors and partial handoff on fresh-session/fork recovery", async () => {
+    const f = fakeContext();
+    const t = toolFixture(f);
+    const permission = mock(async (_input: unknown) => {});
+    Object.assign(f.ctx, { permission: { assert: permission }, location: { directory: "/project", project: { directory: "/project" } } });
+    Object.assign(f.ctx.session, { get: async () => ({ agent: "human-default", location: { directory: "/project" } }) });
+    const child = invocation("child-full-session", "beads-task-agent");
+    const parent = invocation("parent-full-session", "build");
+    const notes = [`Earlier attempt failed; rationale retained.`];
+    const handoff = `Scope fixture-1; executor ${executorActor(child)}; full session ${child.sessionID}; tried alternative; result partial; validation unit pass/live unexecuted; because source only; reference task:fixture-1; candidate fixture-rev; blocker live gate; next authorized action parent review.`;
+    const bd = mock(async (_cwd: string, args: readonly string[]) => {
+      if (args[0] === "version") return "1.3.1";
+      if (args[0] === "context") return '{"beads_dir":"/project/.beads"}';
+      if (args[0] === "update") notes.push(String(args[args.indexOf("--append-notes") + 1]));
+      return JSON.stringify([{ id: "fixture-1", created_by: "unknown", owner: "account-owner", assignee: executorActor(child), notes: notes.join("\n") }]);
+    });
+    const prime = mock(async () => "CURRENT");
+    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime }, continuityQualified: true,
+      continuity: { bd, realpath: async (value) => value, readText: async () => "1.3.1" },
+    });
+    await f.request(String(child.sessionID), String(child.agent));
+    await f.request(String(parent.sessionID), String(parent.agent));
+    const checkpoint = t.tools.find((tool) => tool.name === "beads_checkpoint")!;
+    await checkpoint.execute({ id: "fixture-1", text: handoff }, child);
+    await checkpoint.execute({ id: "fixture-1", text: "Parent review only; no ownership transfer or closure." }, parent);
+    const writes = bd.mock.calls.filter(([, args]) => args[0] === "update");
+    expect(writes.map(([, args]) => args[args.indexOf("--actor") + 1])).toEqual([executorActor(child), executorActor(parent)]);
+    expect(writes[0]?.[1]).toContain(handoff);
+    expect(permission.mock.calls.map(([input]) => (input as { agent: string }).agent)).toEqual([child.agent, parent.agent]);
+    const compact = async (sessionID: string, agent: string) => {
+      const event: ContextEvent = { sessionID, agent, system: [] };
+      await f.hooks.get("compaction")!(event);
+      return event.system;
+    };
+    expect((await compact(String(parent.sessionID), String(parent.agent)))[1]?.text).toContain("task:fixture-1");
+    f.events.push({ type: "session.forked", data: { sessionID: "fork", parentID: parent.sessionID, boundary: { type: "through", messageID: parent.messageID } } });
+    await settle();
+    await f.request("fork", "build");
+    expect(await compact("fork", "build")).toHaveLength(1);
+    expect((await compact(String(parent.sessionID), String(parent.agent)))[1]?.text).toContain("task:fixture-1");
+    await cleanup();
+    const fresh = fakeContext();
+    const recoveredTools = toolFixture(fresh);
+    Object.assign(fresh.ctx, { location: f.ctx.location, permission: f.ctx.permission });
+    Object.assign(fresh.ctx.session, { get: f.ctx.session.get });
+    const freshCleanup = await setupBeads(fresh.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime }, continuityQualified: true,
+      continuity: { bd, realpath: async (value) => value, readText: async () => "1.3.1" },
+    });
+    const recovery = await fresh.request("fresh", "build");
+    expect(recovery[0]).toContain("retrieve the assigned task and relevant reusable knowledge");
+    const result = await recoveredTools.tools.find((tool) => tool.name === "beads_show")!.execute({ id: "fixture-1" }, invocation("fresh", "build"));
+    expect(JSON.stringify(result.output)).toContain(handoff);
+    expect(JSON.stringify(result.output)).toContain("Earlier attempt failed");
+    expect(JSON.stringify(result.output)).toContain('"created_by":"unknown"');
+    expect(JSON.stringify(result.output)).toContain('"owner":"account-owner"');
+    expect(JSON.stringify(result.output)).toContain(`"assignee":"${executorActor(child)}"`);
+    expect(bd.mock.calls.filter(([, args]) => args[0] === "update")).toHaveLength(2);
+    await freshCleanup();
+  });
+
+  test("a permission wait neither writes nor checkpoints during compaction; stop rejects a later approval", async () => {
+    const f = fakeContext();
+    const t = toolFixture(f);
+    let release: () => void = () => {};
+    const permission = mock(async (_input: unknown) => new Promise<void>((resolve) => { release = resolve; }));
+    const prompt = mock(async () => ({}));
+    const synthetic = mock(async () => ({}));
+    Object.assign(f.ctx, { permission: { assert: permission }, location: { directory: "/project", project: { directory: "/project" } } });
+    Object.assign(f.ctx.session, { prompt, synthetic, get: async () => ({ agent: "human-default", location: { directory: "/project" } }) });
+    const bd = mock(async (_cwd: string, args: readonly string[]) => args[0] === "version" ? "1.3.1" : '{"beads_dir":"/project/.beads"}');
+    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "CURRENT" }, continuityQualified: true,
+      continuity: { bd, realpath: async (value) => value, readText: async () => "1.3.1" },
+    });
+    await f.request("child", "beads-task-agent");
+    const abort = new AbortController();
+    const context = invocation("child", "beads-task-agent", abort.signal);
+    const pending = t.tools.find((tool) => tool.name === "beads_checkpoint")!.execute({ id: "fixture-1", text: "unsaved partial result" }, context);
+    const outcome = pending.then(() => undefined, (error: unknown) => error);
+    await settle();
+    expect(permission).toHaveBeenCalledWith(expect.objectContaining({ agent: context.agent, sessionID: context.sessionID, save: [], source: { type: "tool", messageID: context.messageID, id: context.id } }));
+    const count = bd.mock.calls.length;
+    const summary: ContextEvent = { sessionID: "child", agent: "beads-task-agent", system: [] };
+    await f.hooks.get("compaction")!(summary);
+    expect(summary.system).toEqual([{ type: "text", text: BEADS_COMPACTION_GUIDANCE }]);
+    expect(bd).toHaveBeenCalledTimes(count);
+    expect(permission).toHaveBeenCalledTimes(1);
+    abort.abort();
+    expect(await outcome).toHaveProperty("name", "AbortError");
+    release();
+    await settle();
+    expect(bd).toHaveBeenCalledTimes(count);
+    expect(bd.mock.calls.every(([, args]) => ["version", "context"].includes(args[0] ?? ""))).toBe(true);
+    expect(prompt).not.toHaveBeenCalled();
+    expect(synthetic).not.toHaveBeenCalled();
+    await cleanup();
+  });
+});
 
 describe("owned workflow registration", () => {
   test("registers all commands despite initial collisions; config wins on rebuild, removal restores and disposal preserves config", async () => {

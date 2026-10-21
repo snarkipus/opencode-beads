@@ -329,10 +329,14 @@ try {
     throw new Error("Packed plugin did not register the task agent as a subagent");
   }
   if (
-    taskAgentPrompt.length >= 1_000 ||
     taskAgentPrompt.includes("Agent Delegation") ||
     !taskAgentPrompt.includes("Full `bd prime` workflow context is injected") ||
-    !taskAgentPrompt.includes("bd update <id> --claim --json")
+    !taskAgentPrompt.includes("bd update <id> --claim --actor='<executor-actor>' --json") ||
+    !taskAgentPrompt.includes("An exact assignment or explicit one-bead mode ends with that bead") ||
+    !taskAgentPrompt.includes("already-authorized batch or goal") ||
+    !taskAgentPrompt.includes("Discovery does not add execution authority") ||
+    !taskAgentPrompt.includes("If the parent owns acceptance or closure, return evidence and leave the bead open") ||
+    taskAgentPrompt.includes("otherwise choose one highest-priority ready bead")
   ) {
     throw new Error("Packed task-agent prompt lacks the bounded workflow fallback");
   }

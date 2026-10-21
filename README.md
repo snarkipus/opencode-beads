@@ -7,7 +7,7 @@
 
 [Beads](https://github.com/gastownhall/beads) issue tracker integration for [OpenCode](https://opencode.ai).
 
-`@snarkipus/opencode-beads` is a maintained OpenCode adapter that gives OpenCode 2 the integration `bd setup claude` gives Claude Code: `bd prime` workflow context on every request, refreshed after compaction and when a session resumes, plus a bounded task agent that completes one Bead per invocation. It does not replace Beads: the installed `bd` CLI remains authoritative for issues, project initialization, skills, migrations, backups, and Dolt synchronization.
+`@snarkipus/opencode-beads` is a maintained OpenCode adapter that gives OpenCode 2 the integration `bd setup claude` gives Claude Code: `bd prime` workflow context on every request, refreshed after compaction and when a session resumes, plus a bounded task agent. Published 1.0.2 completes one Bead per invocation; the beta/next candidate below follows the authorized scope. It does not replace Beads: the installed `bd` CLI remains authoritative for issues, project initialization, skills, migrations, backups, and Dolt synchronization.
 
 This is an independent project maintained by Matt Jackson under the MIT license. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. 1.0 rebuilt the plugin for OpenCode 2, and development now continues here independently. It vendors nothing from upstream Beads; instead, every Beads release is checked against the `bd` behavior the plugin relies on (see [Tracking upstream Beads](#tracking-upstream-beads)).
 
@@ -17,12 +17,13 @@ The candidate registers all 29 selected `oc-beads:<stem>` workflows and `oc-bead
 
 ## Design
 
-The plugin's primary design is **context-preserving atomic delegation**:
+The beta/next candidate uses scope-bounded task execution:
 
 - The primary OpenCode thread retains planning context, decisions, and control.
-- `beads-task-agent` processes exactly one Bead per invocation, then closes, blocks, or returns.
-- Without an external orchestrator, this intentionally trades broad autonomy for Bead atomicity and context preservation.
-- An orchestrator may repeat `select → delegate one Bead → verify → select next`, but should not weaken the worker boundary.
+- An exact assignment or explicit one-bead mode stops with that item; read-only graph requests never authorize claims or writes.
+- An already-authorized batch or goal may continue within scope, with an atomic claim, append checkpoints, validation and acceptance evidence for each Bead. Discovery does not expand that authority.
+- Direct work or normal blocking delegation is chosen for the task. The actual executor actor follows claims, updates and heartbeats; handoffs are deliberate. Parent-owned acceptance and closure remain with the parent.
+- Denied authority, cancellation, permission waits, blockers and incomplete acceptance remain visible stops. Child results do not restart work. These are guidance contracts; deterministic tests do not qualify model obedience or live host delivery. See the [source evidence and remaining live checks](docs/opencode-native-parity-assessment.md).
 
 ## Installation
 
@@ -68,7 +69,7 @@ Plugin options use the object form:
 | --- | --- | --- |
 | `luna` | `false` | Also register the `beads-task-agent-luna` profile. |
 | `stealth` | `false` | Add `--stealth` to `bd prime` (no git operations in the session-close protocol), like `bd setup claude --stealth`. `bd config set no-git-ops true` is the project-level equivalent. |
-| `taskAgentSteps` | `100` | Hard cap on task-agent steps per invocation, a backstop for "one bead, then return". `0` removes the cap. |
+| `taskAgentSteps` | `100` | Interruption cap on task-agent steps per invocation. `0` removes the cap; neither value changes authorized scope or establishes completion. |
 | `refreshAfterIdleMinutes` | `30` | Re-run `bd prime` when a session resumes after this much inactivity, as Claude Code does on resume. `0` disables idle refresh. |
 | `autoMigrate` | `false` | Let automatic `bd prime` open a store that may need a schema migration. See [Schema migration guard](#schema-migration-guard). |
 
@@ -99,7 +100,7 @@ While prime is attached, two bd-managed `AGENTS.md` blocks only repeat it: the f
 
 Known regular subagents remain excluded, including `explore` and `general`, while `beads-task-agent` and `beads-task-agent-luna` remain eligible. If agent lookup fails, context injection fails open to preserve compatibility with unknown custom primary agents.
 
-If `bd` is unavailable or the project is uninitialized, nothing is added. If `bd prime` fails or times out, the agent gets a short `<beads-notice>` saying context is unavailable and to run `bd prime`, as Beads' Codex hooks report refresh failures. Either way the plugin retries after 30 seconds, and failures are also logged as `[opencode-beads]` warnings. The task agent retains a bounded standalone quick reference for `ready`, `show`, atomic claim, discovered follow-up, validate before closure, and close.
+If `bd` is unavailable or the project is uninitialized, nothing is added. If `bd prime` fails or times out, the agent gets a short `<beads-notice>` saying context is unavailable and to run `bd prime`, as Beads' Codex hooks report refresh failures. Either way the plugin retries after 30 seconds, and failures are also logged as `[opencode-beads]` warnings. The task agent retains standalone guidance for authorized scope, atomic claim, append checkpoints, validate before closure, and partial handoff under the caller's acceptance authority.
 
 ## Schema migration guard
 
@@ -125,9 +126,9 @@ Entries under `agents` in OpenCode configuration override the plugin's task-agen
 
 ## Task agent
 
-`beads-task-agent` supports read-only status and graph analysis or one-Bead completion. Analysis requests never mutate Beads. Completion requests inspect and process one caller-selected or highest-priority ready Bead, quarantine work discovered during that invocation, validate before closure, and return after closing or blocking the selected Bead.
+The beta/next `beads-task-agent` supports read-only status and graph analysis or execution within an assigned task, batch or goal. Analysis requests never mutate Beads. Exact assignments stop without substitution. Authorized batches may continue only within scope, with an explicit executor actor, atomic claim/readback, append checkpoints and relevant validation for each Bead. Discoveries do not authorize their execution; unresolved acceptance remains incomplete, and parent-owned closure stays with the parent.
 
-Its prompt and description are owned by this project. Upstream Beads ships a task agent only in its Claude Code marketplace plugin, as an autonomous multi-task loop; this adapter deliberately keeps the bounded one-Bead contract instead.
+Its prompt and description are owned by this project. Direct work and normal blocking delegation depend on the task, without a command-count threshold. The worker returns scope, actor/session, attempts, rationale, validation, durable references, blockers and next action. The caller reconciles acceptance; NO_TEXT, failure, cancellation, late results and step-cap interruption do not establish completion or authorize a restart.
 
 OpenCode lets the plugin enforce parts of that contract, beyond what Claude Code's hooks can do:
 
@@ -138,7 +139,7 @@ OpenCode lets the plugin enforce parts of that contract, beyond what Claude Code
 
 ### Opt-in Luna Max profile
 
-The default `beads-task-agent` leaves its model unset, so a subagent inherits the parent session's model. Set the plugin option `"luna": true` to also register `beads-task-agent-luna`, which uses `openai/gpt-6-luna#max` with exactly the same prompt, subagent mode, step cap, and permissions. Per-agent overrides remain independent: customizations to `beads-task-agent` are not copied to Luna. Both profiles receive full prime context and retain the same exact-one-Bead workflow.
+The default `beads-task-agent` leaves its model unset, so a subagent inherits the parent session's model. Set the plugin option `"luna": true` to also register `beads-task-agent-luna`, which uses `openai/gpt-6-luna#max` with exactly the same prompt, subagent mode, step cap, and permissions. Per-agent overrides remain independent: customizations to `beads-task-agent` are not copied to Luna. Both profiles receive full prime context and use the same scope and acceptance boundaries, including explicit one-bead mode when assigned. The profile makes no model-quality guarantee.
 
 Ask the primary agent to delegate to `beads-task-agent-luna` by name through the `subagent` tool. Default delegation guidance still names `beads-task-agent`; enabling Luna does not reroute existing calls or change the primary agent's model. Remove the option to unregister the profile.
 

@@ -186,7 +186,7 @@ describe("documentation contracts", () => {
   test("documents upstream-aligned full-prime context boundaries", () => {
     expect(readme).toContain("runs `bd prime --full`");
     expect(readme).not.toContain("runs `bd prime --memories-only`");
-    expect(readme).toContain("bounded standalone quick reference");
+    expect(readme).toContain("standalone guidance for authorized scope");
     expect(sdkContract).toContain('Bun.spawn(["bd", "prime"]');
     expect(artifactPolicy).toContain("Claude Code plugin manifests both run full `bd prime`");
     expect(artifactPolicy).toContain(
@@ -229,10 +229,12 @@ describe("documentation contracts", () => {
     expect(artifactPolicy).toContain("local repository commit `e51b8fe`");
   });
 
-  test("documents context-preserving atomic delegation and runtime provenance", () => {
-    expect(readme).toContain("context-preserving atomic delegation");
+  test("documents scope-bounded task execution and runtime provenance", () => {
+    expect(readme).toContain("scope-bounded task execution");
     expect(readme).not.toContain("Autonomous issue completion");
-    expect(readme).toContain("exactly one Bead per invocation");
+    expect(readme).toContain("An exact assignment or explicit one-bead mode stops with that item");
+    expect(readme).toContain("already-authorized batch or goal may continue within scope");
+    expect(readme).toContain("Discovery does not expand that authority");
     expect(readme).toContain("primary OpenCode thread retains planning context, decisions, and control");
     expect(readme).toContain("unknown custom primary agents");
     expect(readme).toContain("Known regular subagents remain excluded");
