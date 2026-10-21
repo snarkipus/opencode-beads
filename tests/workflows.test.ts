@@ -303,10 +303,10 @@ describe("packaged native workflows", () => {
     }
   });
 
-  test("package manifest includes owned assets without a version or dependency change", async () => {
+  test("beta package manifest includes owned assets at the selected prerelease version", async () => {
     const manifest = await Bun.file("package.json").json();
     expect(manifest.files).toContain("assets/oc-beads");
-    expect(manifest.version).toBe("1.0.2");
+    expect(manifest.version).toBe("1.1.0-beta.1");
   });
 });
 

@@ -39,7 +39,8 @@ jobs:
         id: package
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: bun scripts/release.ts prepare --tag "$RELEASE_TAG" --output release-artifacts
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: bun scripts/release.ts prepare --tag "$RELEASE_TAG" --prerelease "$RELEASE_PRERELEASE" --output release-artifacts
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
@@ -70,6 +71,9 @@ jobs:
         env:
           ARCHIVE: ${{ steps.package.outputs.archive }}
           ARCHIVE_SHA256: ${{ steps.package.outputs.sha256 }}
+          DIST_TAG: ${{ steps.package.outputs.dist_tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
         run: |
-          bun scripts/release.ts verify --archive "$ARCHIVE" --sha256 "$ARCHIVE_SHA256"
-          npm publish "$ARCHIVE" --access public
+          bun scripts/release.ts verify --archive "$ARCHIVE" --sha256 "$ARCHIVE_SHA256" --tag "$RELEASE_TAG" --dist-tag "$DIST_TAG" --prerelease "$RELEASE_PRERELEASE"
+          npm publish "$ARCHIVE" --access public --tag "$DIST_TAG"

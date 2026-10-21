@@ -129,6 +129,45 @@ describe("OpenCode V2 entry", () => {
   });
 });
 
+describe("public beta entrypoint", () => {
+  test("does not register typed operations when native permission or session interfaces are unavailable", async () => {
+    for (const missing of ["permission", "session"]) {
+      const f = fakeContext();
+      const t = toolFixture(f);
+      if (missing === "session") Object.assign(f.ctx, { permission: { assert: async () => {} } });
+      else Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
+      const cleanup = await pluginModule.default.setup(f.ctx as Parameters<typeof pluginModule.default.setup>[0]);
+      expect(t.tools).toEqual([]);
+      await cleanup!();
+    }
+  });
+
+  test("registers the eleven code-mode operations without injected dependencies and disposes owned tools", async () => {
+    const f = fakeContext();
+    const tools: Info[] = [];
+    const namespaces: unknown[] = [];
+    const dispose = mock(async () => {});
+    Object.assign(f.ctx, {
+      permission: { assert: async () => {} },
+      tool: {
+        hook: async () => ({ dispose }),
+        transform: async (callback: Parameters<ToolDomain["transform"]>[0]) => {
+          callback({ list: () => [], get: () => undefined, update: () => {}, remove: () => {},
+            namespace: (namespace) => { namespaces.push(namespace); }, add: (tool) => { tools.push(tool); } });
+          return { dispose };
+        },
+      },
+    });
+    Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
+    const cleanup = await pluginModule.default.setup(f.ctx as Parameters<typeof pluginModule.default.setup>[0]);
+    expect(namespaces).toEqual([expect.objectContaining({ name: "beads" })]);
+    expect(tools.map(tool => tool.name).sort()).toEqual(["find", "get", "edges", "memories", "recall", "claim", "note", "update", "close", "create", "remember"].sort());
+    expect(tools.every(tool => tool.options?.codemode === true && tool.options.namespace === "beads")).toBeTrue();
+    await cleanup!();
+    expect(dispose).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("setupBeads", () => {
   test("refreshes recovery state for external changes, isolates fork/move/audience and never restarts on interruption", async () => {
     const f = fakeContext();

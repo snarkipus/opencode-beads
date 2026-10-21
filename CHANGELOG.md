@@ -18,6 +18,18 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [1.1.0-beta.1]
+
+### Added
+
+- Opt-in beta for OpenCode >=2.1.1 <2.2 and Beads >=1.3.1: the normal public plugin entrypoint registers the eleven accepted native Beads code-mode operations, 30 workflows and packaged guidance with 17 resource links. Native permissions, executor attribution, store guard, cancellation and structured partial/uncertain outcomes are preserved.
+- Scope-bounded task execution, actor-owned checkpoints and recovery guidance from the accepted workflow-parity implementation. Plain nested permission decline can allow a later independent operation to ask again; explicit Stop/Cancel stops the composition. No cross-provider portability or multi-hour reliability claim is made.
+
+### Changed
+
+- Release preparation validates beta/next versus stable/latest and the GitHub prerelease flag. Publication uses the exact prepared and digest-verified archive with an explicit npm dist-tag; beta publication leaves stable latest unchanged.
+- README documents exact beta and next-channel opt-in, prerequisites and stable opt-out. Publication and stable promotion still require separate approval.
+
 ### Fixed
 
 - The release tooling and its tests now work on Windows: archive paths use `/`, archive listings with CRLF line endings are parsed, and the workflow assertion no longer requires LF line endings. CI now also runs the tests, typecheck, and package smoke test on Windows; the bd contract check stays Linux-only.
@@ -321,7 +333,7 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.0.2...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.1.0-beta.1...HEAD
 [1.0.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.2
 [1.0.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.1
 [1.0.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.0
@@ -351,3 +363,5 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 [0.5.5]: https://github.com/joshuadavidthomas/opencode-beads/releases/tag/v0.5.5
 [0.6.0]: https://github.com/joshuadavidthomas/opencode-beads/releases/tag/v0.6.0
 [0.7.0]: https://github.com/joshuadavidthomas/opencode-beads/releases/tag/v0.7.0
+
+[1.1.0-beta.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.1

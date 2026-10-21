@@ -30,15 +30,24 @@ describe("documentation contracts", () => {
 
     const documentedVersions = [
       ...readme.matchAll(
-        new RegExp(`${packageManifest.name.replace("/", "\\/")}@(\\d+\\.\\d+\\.\\d+)`, "g")
+        new RegExp(`${packageManifest.name.replace("/", "\\/")}@(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)`, "g")
       ),
     ].map((match) => match[1]);
     expect(documentedVersions.length).toBeGreaterThan(0);
     expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version]));
   });
 
+  test("documents beta opt-in, normal public registration, stable opt-out and known Stop limits", () => {
+    expect(readme).toContain(`${packageManifest.name}@next`);
+    expect(readme).toContain(`${packageManifest.name}@latest`);
+    expect(readme).toContain("normal public entrypoint enables the eleven qualified operations");
+    expect(readme).toContain("Use explicit Stop/Cancel");
+    expect(readme).not.toContain("typed activation remains withheld");
+    expect(readme).not.toContain("Ordinary typed continuity execution remains withheld");
+  });
+
   test("presents the 1.x contract and credits the original project", () => {
-    expect(packageManifest.version).toMatch(/^1\.\d+\.\d+$/);
+    expect(packageManifest.version).toMatch(/^1\.\d+\.\d+(?:-beta\.[1-9]\d*)?$/);
     expect(readme).not.toContain("This plugin is intentionally small in scope");
     expect(readme).not.toContain("limits its scope to bug fixes");
     expect(readme).toContain("maintained OpenCode adapter");
@@ -70,7 +79,7 @@ describe("documentation contracts", () => {
       "bd init",
       "creates the canonical shared Beads skill",
       "`.agents/skills/beads`",
-      "The beta/next source candidate additionally owns its packaged `oc-beads` skill",
+      "The beta additionally owns its packaged `oc-beads` skill",
       "does not write startup files",
       "Update the pin explicitly when upgrading",
       "**Do not run `bd setup opencode`.**",
@@ -138,7 +147,7 @@ describe("documentation contracts", () => {
     expect(sdkContract).toContain("The exact 2.1.1 runtime target has not been qualified");
     expect(sdkContract).not.toContain("1.18.");
     expect(readme).toContain(
-      "| OpenCode (beta/next candidate) | `>=2.1.1 <2.2` | None (exact 2.1.1 target not qualified) |"
+      "| OpenCode (beta/next candidate) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |"
     );
     expect(readme).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
     expect(readme).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.1 |");
