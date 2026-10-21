@@ -197,6 +197,28 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
     expect(f.bd.mock.calls.filter(([, args]) => args[0] === "update")).toHaveLength(1);
   });
 
+  test("accepts versioned memory lists without treating schema metadata as memory", async () => {
+    for (const entries of [{}, { lesson: "first\nsecond" }]) {
+      const f = fixture();
+      f.output(JSON.stringify({ ...entries, schema_version: 1 }));
+      const result = await f.execute("memories", {});
+      expect(result.output).toMatchObject({ status: "acknowledged" });
+      expect(result.output.data).toEqual(entries);
+    }
+  });
+
+  test("rejects unsupported memory metadata and non-string memory values", async () => {
+    for (const payload of [
+      { schema_version: 2, lesson: "text" },
+      { schema_version: 1, lesson: 42 },
+      { schema_version: 1, lesson: "text", other_metadata: 1 },
+    ]) {
+      const f = fixture();
+      f.output(JSON.stringify(payload));
+      expect((await f.execute("memories", {})).output).toMatchObject({ status: "failed" });
+    }
+  });
+
   test("distinguishes empty found memory, missing-key exit and CLI failure", async () => {
     const f = fixture();
     f.output('{"key":"lesson","value":"","found":true}');

@@ -66,6 +66,13 @@ Selected integration surfaces SHALL document who installs, updates and removes t
 - **AND** registers all selected namespaced commands without setup-time withholding; same-name conflicts with other plugin transforms follow native order, with detectable conflicts diagnosed rather than a promise of universal collision prevention
 - **AND** removing a user override restores the package entry through native rebuild; skill candidate collisions use the public per-rebuild editor check rather than a permanent setup-time gate
 
+#### Scenario: Installed package is unloaded and reactivated
+
+- **WHEN** the installed package is unloaded and subsequently reactivated on the qualified disposable host
+- **THEN** owned entries disappear on unload and the expected commands and skill return once under native user-override precedence
+- **AND** an eligible request receives one Beads context injection, without a late result from work pending in the unloaded generation
+- **AND** acceptance records actual host lifecycle results rather than treating fixture disposal or registry rebuilds as installed reactivation evidence
+
 ### Requirement: Scope-preserving execution and visible failure
 
 Selected workflows SHALL preserve the user's requested execution scope, distinguish inspection from mutation, and report unsuccessful or partial operations accurately. Optional extensions SHALL expose their scope and constraints without silently replacing base workflows or authorizing unrelated actions.
@@ -131,6 +138,12 @@ Typed continuity tools SHALL inherit shell visibility and operation-specific all
 - **WHEN** a typed operation requests approval with `save: []`
 - **THEN** even an “always” response installs no new saved grant and guidance explains possible repeat prompts
 - **AND** existing shell `bd *` grants may authorize equivalent typed operations, while configured denies retain precedence
+
+#### Scenario: User corrects or declines a typed operation
+
+- **WHEN** the host permission assertion returns user correction with feedback or explicit decline
+- **THEN** the integration preserves that outcome and any correction feedback without executing the rejected target operation
+- **AND** it does not convert the rejection into success or automatically retry the operation
 
 #### Scenario: External target or held workspace
 

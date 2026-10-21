@@ -14,6 +14,12 @@ Matt approved normal namespaced OpenCode precedence, then requested Opus review 
 
 Design, workflow-access scenarios, task 2.2 and operative vuy.5 acceptance include these corrections. After incorporation, Matt authorized the same Sol High worker to implement them. Parent reviewed the corrected source and independently verified 150 tests, typecheck and package smoke; task 2.2/3.3 source is accepted. Actual callback membership/invocation, override/rebuild/removal, status limits and disposal replace zero-registration success fixtures. Pinned package/config ordering remains distinct from unpinned suffix-reactivation evidence; no live qualification is implied. The original Opus report/verdict is preserved in docs/reviews/opus-registration-resolution-review-vuy5.md; parent acceptance is not a new independent READY verdict. Live activation and later children remain separately gated.
 
+## Upstream test gap resolutions — accepted acceptance refinements
+
+Matt approved folding the bounded upstream plugin test comparison into existing acceptance. Add correction-with-feedback and explicit-decline outcomes to task 1.1 (`opencode-beads-vuy.2`), with no rejected target execution, false success or automatic retry. Add one actual installed unload/reactivate round trip to task 6.2 (`opencode-beads-vuy.9`), checking owned removal/restoration, native user-override precedence, one context injection and no late old-generation result. See [the source assessment](../../../docs/reviews/upstream-plugin-test-gap-assessment.md).
+
+These are acceptance-case refinements, not demonstrated product defects or new tasks. Preserve the 13 task IDs, their checkmarks, exclusive child ownership and dependencies. Both live cases remain unexecuted; this approval authorizes the bounded planning/tracker reconciliation, not host installation, model experiments, source implementation, dispatch, publication or activation. Existing host-owned supervisor, loader, permission-conversion and background-notification suites are not downstream implementation requirements.
+
 ## Accepted direction
 
 1. **Parity reference: marketplace main.** Compare against the complete Claude Beads marketplace integration on upstream's default branch, resolved to immutable commits for each review/evaluation. A moving branch name alone is not evidence identity. Retain the release-pinned inventory as historical evidence, not the sole current parity target. Characterize the installed-vs-release append-notes change identified by Opus.

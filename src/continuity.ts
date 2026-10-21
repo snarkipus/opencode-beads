@@ -98,8 +98,13 @@ function acknowledge(operation: Operation, data: Record<string, unknown>, output
       return { status: "acknowledged", reference: String(data.id), data: issue };
     }
   } else if (operation === "memories") {
-    if (record(result) && Object.values(result).every((value) => typeof value === "string")) {
-      return { status: "acknowledged", data: result };
+    if (record(result)) {
+      const memories = { ...result };
+      // The supported CLI adds versioned envelope metadata to the memory map.
+      if (memories.schema_version === 1) delete memories.schema_version;
+      if (Object.values(memories).every((value) => typeof value === "string")) {
+        return { status: "acknowledged", data: memories };
+      }
     }
   } else if (record(result) && result.key === data.key) {
     if (operation === "recall" && typeof result.found === "boolean" && typeof result.value === "string") {

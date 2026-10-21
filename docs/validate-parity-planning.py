@@ -99,9 +99,9 @@ tasks = (change / 'tasks.md').read_text()
 parsed_tasks = re.findall(r'^- \[([ xX])\] (\d+\.\d+) ', tasks, re.M)
 task_ids = [task_id for _, task_id in parsed_tasks]
 assert len(task_ids) == len(set(task_ids)) and task_ids
-# Source tasks have parent-accepted deterministic evidence; live gates remain unexecuted.
+# Source tasks and 6.1 have parent-accepted deterministic/CLI evidence; live gates remain unexecuted.
 accepted_tasks = {task_id for mark, task_id in parsed_tasks if mark.lower() == 'x'}
-assert accepted_tasks == {'1.2', '2.1', '2.2', '3.1', '3.2', '3.3', '4.1', '5.1'}, 'Only parent-accepted source tasks 1.2, 2.1, 2.2, 3.1, 3.2, 3.3, 4.1 and 5.1 may be checked; composite 4.2 awaits live qualification'
+assert accepted_tasks == {'1.2', '2.1', '2.2', '3.1', '3.2', '3.3', '4.1', '5.1', '6.1'}, 'Only parent-accepted source tasks and deterministic/CLI task 6.1 may be checked; 1.1, composite 4.2 and installed/final 6.2/6.3 await live qualification'
 # Final review B1: stable task IDs with dependency/types preparation first.
 assert task_ids.index('1.2') < task_ids.index('1.1')
 task_text = dict(re.findall(r'^- \[[ xX]\] (\d+\.\d+) (.+)$', tasks, re.M))

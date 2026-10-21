@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { PrimeProcessError } from "./prime";
 
 /** Oldest Beads release this adapter supports. */
 export const MINIMUM_BD_VERSION = "1.3.0";
@@ -33,7 +34,22 @@ export interface BeadsWorkspace {
 
 /** Config-only context avoids `where`'s opportunistic embedded-store prefix lookup. */
 export async function probeBeadsWorkspace(directory: string, runtime: GuardRuntime): Promise<BeadsWorkspace | undefined> {
-  const location: unknown = JSON.parse(await runtime.bd(directory, ["context", "--json"]));
+  let output: string;
+  try {
+    output = await runtime.bd(directory, ["context", "--json"]);
+  } catch (error) {
+    if (!(error instanceof PrimeProcessError) || error.exitCode !== 1) throw error;
+    // bd 1.3.1 reports absence through this versioned error rather than a successful context.
+    const response: unknown = JSON.parse(error.stdout);
+    if (typeof response === "object" && response !== null && !Array.isArray(response)) {
+      const data = response as Record<string, unknown>;
+      if (data.schema_version === 1 && data.error === "cannot resolve repo context: no .beads directory found") {
+        return undefined;
+      }
+    }
+    throw error;
+  }
+  const location: unknown = JSON.parse(output);
   if (typeof location !== "object" || location === null) throw new Error("Invalid bd context response");
   const data = location as Record<string, unknown>;
   if (typeof data.beads_dir !== "string") throw new Error("Unsupported bd context response");

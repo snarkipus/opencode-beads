@@ -9,6 +9,7 @@ import {
   parseVersion,
   type GuardRuntime,
 } from "../src/guard";
+import { PrimeProcessError } from "../src/prime";
 
 const CONTEXT = JSON.stringify({ beads_dir: "/project/.beads" });
 
@@ -101,6 +102,33 @@ describe("checkBeadsStore", () => {
     expect(
       await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: "not json" }))
     ).toEqual({ kind: "probe-failed" });
+  });
+
+  test("recognizes the supported exit-1 no-workspace context response without reading a store", async () => {
+    const fake = runtime({
+      version: "bd version 1.3.1",
+      context: new PrimeProcessError(1, "", "bd context --json", JSON.stringify({
+        error: "cannot resolve repo context: no .beads directory found", schema_version: 1,
+      })),
+    });
+    expect(await checkBeadsStore("/project", fake)).toEqual({ kind: "uninitialized" });
+    expect(fake.bd.mock.calls.map((call) => call[1])).toEqual([["version"], ["context", "--json"]]);
+    expect(fake.readText).not.toHaveBeenCalled();
+  });
+
+  test("keeps unrelated context errors, unsupported errors and interruption as probe failures", async () => {
+    const absent = { error: "cannot resolve repo context: no .beads directory found", schema_version: 1 };
+    for (const error of [
+      new PrimeProcessError(1, "", "bd context --json", JSON.stringify({ ...absent, error: "unsafe location" })),
+      new PrimeProcessError(2, "", "bd context --json", JSON.stringify(absent)),
+      new PrimeProcessError(1, "", "bd context --json", JSON.stringify({ ...absent, schema_version: 2 })),
+      new DOMException(absent.error, "AbortError"),
+    ]) {
+      const fake = runtime({ version: "bd version 1.3.1", context: error });
+      expect(await checkBeadsStore("/project", fake)).toEqual({ kind: "probe-failed" });
+      expect(fake.bd.mock.calls.map((call) => call[1])).toEqual([["version"], ["context", "--json"]]);
+      expect(fake.readText).not.toHaveBeenCalled();
+    }
   });
 
   test("reports an unsupported no-open probe without falling back to where or opening a marker", async () => {

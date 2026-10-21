@@ -16,7 +16,7 @@ import {
   parseVersion,
 } from "../src/guard";
 import { minimizeBeadsInstructions } from "../src/instructions";
-import { runBd } from "../src/prime";
+import { PrimeProcessError, runBd } from "../src/prime";
 
 const failures: string[] = [];
 function check(condition: unknown, message: string, failureHint?: string): void {
@@ -32,7 +32,13 @@ async function attempt<T>(label: string, run: () => Promise<T>): Promise<T | und
   try {
     return await run();
   } catch (error) {
-    check(false, `${label}: ${error instanceof Error ? error.message : String(error)}`);
+    check(
+      false,
+      `${label}: ${error instanceof Error ? error.message : String(error)}`,
+      error instanceof PrimeProcessError
+        ? [error.stderr.trim(), error.stdout.trim()].filter(Boolean).join("\n     ")
+        : undefined
+    );
     return undefined;
   }
 }
@@ -87,7 +93,9 @@ if (isolatedRoot === undefined) {
 const root = isolatedRoot;
 
 try {
-  const bd = (cwd: string, args: readonly string[]) => runBd(cwd, args, { timeoutMs: 60_000 });
+  const actor = process.env.BEADS_ACTOR ?? "bd-contract";
+  const bd = (cwd: string, args: readonly string[]) =>
+    runBd(cwd, ["--sandbox", "--actor", actor, ...args], { timeoutMs: 60_000 });
   const guardRuntime = createGuardRuntime(bd);
   const repo = path.join(root, "repo");
   const bare = path.join(root, "bare");
@@ -107,10 +115,14 @@ try {
     `bd ${installed?.join(".")} meets the supported minimum ${MINIMUM_BD_VERSION}`
   );
 
+  const bareGuard = await checkBeadsStore(bare, guardRuntime);
   check(
-    (await checkBeadsStore(bare, guardRuntime)).kind === "uninitialized",
-    "guard reports a repository without a workspace as uninitialized"
+    bareGuard.kind === "uninitialized",
+    `guard reports a repository without a workspace as uninitialized (actual: ${bareGuard.kind})`
   );
+  if (bareGuard.kind !== "uninitialized") {
+    await attempt("bd context --json (uninitialized diagnostic)", () => bd(bare, ["context", "--json"]));
+  }
 
   await attempt("bd init", () => bd(repo, ["init", "--skip-agents", "-q"]));
   const where = json(await attempt("bd where --json", () => bd(repo, ["where", "--json"]))) as
@@ -133,8 +145,9 @@ try {
   );
 
   // Commands named by the task-agent prompt and guidance.
+  const priorNotes = "Prior attempt failed; retain this evidence.\nNext action: verify append.";
   const created = json(
-    await attempt("bd create", () => bd(repo, ["create", "contract probe", "-t", "task", "-p", "2", "--json"]))
+    await attempt("bd create", () => bd(repo, ["create", "contract probe", "-t", "task", "-p", "2", "--notes", priorNotes, "--json"]))
   );
   const id = issueId(created);
   check(id, "bd create --json returns an issue id");
@@ -145,6 +158,20 @@ try {
       json(await attempt("bd update --claim", () => bd(repo, ["update", id, "--claim", "--json"]))) !== undefined,
       "bd update <id> --claim --json succeeds"
     );
+    const checkpoint = "Validated append contract.\nLiteral '$ARGUMENTS' $(no-shell) `text`.";
+    const appended = json(await attempt("bd update --append-notes", () =>
+      bd(repo, ["update", id, "--append-notes", checkpoint, "--json"])
+    )) as Array<{ id?: unknown; notes?: unknown }> | undefined;
+    const expectedNotes = `${priorNotes}\n${checkpoint}`;
+    check(Array.isArray(appended) && appended[0]?.id === id && appended[0]?.notes === expectedNotes,
+      "append acknowledgement retains prior notes and exact multiline checkpoint");
+    const recovered = json(await attempt("bd show appended notes", () =>
+      bd(repo, ["show", id, "--json"])
+    )) as Array<{ id?: unknown; notes?: unknown; assignee?: unknown; status?: unknown; created_by?: unknown }> | undefined;
+    check(Array.isArray(recovered) && recovered[0]?.id === id && recovered[0]?.notes === expectedNotes,
+      "a fresh show retains both prior notes and the appended checkpoint");
+    check(Array.isArray(recovered) && recovered[0]?.assignee === actor && recovered[0]?.status === "in_progress" && recovered[0]?.created_by === actor,
+      `created_by and claimed assignee use the explicit test executor (${actor})`);
     const discovered = issueId(
       json(
         await attempt("bd create --deps discovered-from", () =>
@@ -158,6 +185,64 @@ try {
       "bd close <id> --reason --json succeeds"
     );
   }
+
+  // Real supported memory results, without injecting empty rows or manufacturing commit outcomes.
+  const initialMemories = json(await attempt("bd memories (empty)", () => bd(repo, ["memories", "--json"])));
+  check(initialMemories !== null && typeof initialMemories === "object" && !Array.isArray(initialMemories) &&
+    "schema_version" in initialMemories && initialMemories.schema_version === 1 && Object.keys(initialMemories).length === 1,
+    "a fresh store returns versioned metadata with no memory entries", `Observed JSON: ${JSON.stringify(initialMemories)}`);
+  const emptyKey = "contract-empty";
+  try {
+    await bd(repo, ["remember", "--key", emptyKey, "--json", "--", ""]);
+    check(false, "bd remember rejects empty content");
+  } catch (error) {
+    const response = json(error instanceof PrimeProcessError ? error.stdout : undefined) as { error?: unknown } | undefined;
+    check(error instanceof PrimeProcessError && error.exitCode === 1 && response?.error === "memory content cannot be empty",
+      "bd remember rejects empty content with exit 1 and its JSON diagnostic");
+    if (error instanceof PrimeProcessError) console.log(`observed empty remember: ${error.stdout.trim()}`);
+  }
+  for (const key of [emptyKey, "contract-missing"]) {
+    try {
+      await bd(repo, ["recall", key, "--json"]);
+      check(false, `bd recall ${key} exits 1 for a missing memory`);
+    } catch (error) {
+      const response = json(error instanceof PrimeProcessError ? error.stdout : undefined) as
+        { key?: unknown; value?: unknown; found?: unknown } | undefined;
+      check(error instanceof PrimeProcessError && error.exitCode === 1 && response?.key === key && response.value === "" && response.found === false,
+        `bd recall ${key} reports missing with empty value, found=false and exit 1`);
+      if (error instanceof PrimeProcessError) console.log(`observed missing recall: ${error.stdout.trim()}`);
+    }
+  }
+  const memoryKey = "contract-knowledge";
+  const memory = "Reusable contract-marker knowledge.\nLiteral '$ARGUMENTS' $(no-shell) `text`.";
+  const remembered = json(await attempt("bd remember", () =>
+    bd(repo, ["remember", "--key", memoryKey, "--json", "--", memory])
+  )) as { key?: unknown; value?: unknown; action?: unknown } | undefined;
+  check(remembered?.key === memoryKey && remembered.value === memory && remembered.action === "remembered",
+    "bd remember returns the explicit key, exact content and remembered action");
+  console.log(`observed remember: ${JSON.stringify(remembered)}`);
+  const recalled = json(await attempt("bd recall (found)", () => bd(repo, ["recall", memoryKey, "--json"]))) as
+    { key?: unknown; value?: unknown; found?: unknown } | undefined;
+  check(recalled?.key === memoryKey && recalled.value === memory && recalled.found === true,
+    "bd recall finds the exact stored multiline memory");
+  const updatedMemory = `${memory}\nUpdated contract-marker evidence.`;
+  const updated = json(await attempt("bd remember (update)", () =>
+    bd(repo, ["remember", "--key", memoryKey, "--json", "--", updatedMemory])
+  )) as { key?: unknown; value?: unknown; action?: unknown } | undefined;
+  check(updated?.key === memoryKey && updated.value === updatedMemory && updated.action === "updated",
+    "remembering the same key updates it in place with the updated action");
+  console.log(`observed updated remember: ${JSON.stringify(updated)}`);
+  for (const args of [["memories", "--json"], ["memories", "--json", "--", "contract-marker"]]) {
+    const memories = json(await attempt(`bd ${args.join(" ")}`, () => bd(repo, args))) as Record<string, unknown> | undefined;
+    check(memories && !Array.isArray(memories) && memories.schema_version === 1 && Object.keys(memories).length === 2 && memories[memoryKey] === updatedMemory,
+      `${args.join(" ")} returns versioned metadata and only the updated memory, with no empty or duplicate record`, `Observed JSON: ${JSON.stringify(memories)}`);
+  }
+  const noMatches = json(await attempt("bd memories (no match)", () =>
+    bd(repo, ["memories", "--json", "--", "absent-contract-marker"])
+  ));
+  check(noMatches !== null && typeof noMatches === "object" && !Array.isArray(noMatches) &&
+    "schema_version" in noMatches && noMatches.schema_version === 1 && Object.keys(noMatches).length === 1,
+    "a successful memory search with no matches returns versioned metadata and no memory entries", `Observed JSON: ${JSON.stringify(noMatches)}`);
 
   // Install shape: the plugin assumes plain `bd init` and never `bd setup opencode` (Claude Code parity).
   const setupRepo = path.join(root, "setup");
@@ -206,7 +291,12 @@ try {
       agentsFile.includes("<!-- END BEADS INTEGRATION -->"),
     "bd setup opencode writes a full-profile block with the expected markers"
   );
-  const minimized = minimizeBeadsInstructions(agentsFile);
+  const preserved = minimizeBeadsInstructions(agentsFile);
+  check(
+    preserved.replaced === 0 && preserved.text === agentsFile,
+    "the plugin preserves managed instructions when their body is not supplied in context"
+  );
+  const minimized = minimizeBeadsInstructions(agentsFile, agentsFile);
   check(
     minimized.replaced > 0 && !minimized.text.includes("profile:full"),
     `the plugin replaces bd's duplicate AGENTS.md blocks (${minimized.replaced} block(s), ${agentsFile.length} -> ${minimized.text.length} chars)`
