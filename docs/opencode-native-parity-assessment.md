@@ -1,5 +1,9 @@
 # Native OpenCode architecture assessment
 
+## Current accepted flow mechanics — task 4.2
+
+Parent accepted the bounded [live Stop/handoff qualification](opencode-stop-handoff-qualification-vuy6.md) after independent inspection and 74 offline raw-trace checks. Actual accepted source ran in isolated released OpenCode 2.1.1 through the existing internal qualification dependency: Stop prevented later composed writes during a started mutation and approval wait, late approval spawned nothing, and actual native children preserved error/cancelled/NO_TEXT/partial outcomes. Primary/child shell and typed actors agreed; durable fresh readback, summary compaction and real fork were measured. Historical deterministic cases supply explicitly identified interleavings, not fabricated live observations. Full scenario map and cleanup/protection evidence are in that report. Real-model semantic/provider-replay and installed lifecycle acceptance remain task 6.2; no multi-hour reliability certification or product activation is claimed. Earlier candidate/pending labels below retain historical scope.
+
 ## Task 7.1–7.3 working source candidate — 2026-10-21
 
 The authorized `.10` worker (`codex:oc-loop`) prepared the eleven-operation native
