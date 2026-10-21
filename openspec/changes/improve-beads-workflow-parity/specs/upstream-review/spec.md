@@ -19,12 +19,19 @@ The maintenance workflow SHALL compare selected upstream integration source path
 
 ### Requirement: Check-based review notification
 
-The workflow SHALL reuse the existing scheduled contract/check pattern and fail a distinct check/job for unreviewed source drift, with immutable review links and a drift `::error::` diagnostic. Retrieval/comparison failure SHALL fail with a distinct retrieval-error diagnostic rather than report no change. It SHALL NOT create GitHub issues or request issue-write permission. Source review SHALL remain separate from stable CLI release checks; Beads owns any later execution work.
+The workflow SHALL report completed main comparisons as successful informational evidence, not compatibility failures or product/release gates. It SHALL distinguish unavailable comparisons from no change and isolate collector failures from product/release gates. Tagged CLI compatibility SHALL remain separate. It SHALL NOT create GitHub issues, request issue-write permission or require adoption; Beads owns later selected work.
 
 #### Scenario: Repeated detection
 
 - **WHEN** the same candidate remains unreviewed across scheduled checks
-- **THEN** each check fails while reporting the same baseline/candidate scope and review links without creating duplicate external tracking records
+- **THEN** each completed comparison succeeds and reports the same informational baseline/candidate scope and review links without repeated warning/error annotations or duplicate external tracking records
+
+#### Scenario: Default branch advances ahead of a tagged release
+
+- **WHEN** ordinary work changes selected paths on main while the supported tagged CLI release is unchanged
+- **THEN** the source comparison succeeds and labels the changes development-source information, not released behavior or proven incompatibility
+- **AND** it does not fail product checks, block release, require immediate review/adoption or change the supported CLI version
+- **AND** a reviewed change needing an unreleased CLI feature may be deferred until verified inclusion in a supported tagged release
 
 ### Requirement: Explicit baseline disposition
 
