@@ -112,7 +112,10 @@ historical_accepted = {'1.2', '2.1', '2.2', '3.1', '3.2', '3.3', '4.1', '5.1', '
 source_delta = {'7.1', '7.2', '7.3'}
 source_evidence = repo / 'docs/code-mode-source-acceptance-vuy10.md'
 assert historical_accepted <= accepted_tasks
-assert accepted_tasks <= historical_accepted | source_delta, 'Live 1.1, composite 4.2 and installed/final 6.2/6.3 require their own acceptance'
+host_evidence = repo / 'docs/opencode-host-codemode-qualification-vuy2.md'
+assert accepted_tasks <= historical_accepted | source_delta | {'1.1'}, 'Composite 4.2 and installed/final 6.2/6.3 require their own acceptance'
+if '1.1' in accepted_tasks:
+    assert host_evidence.is_file(), 'Native host acceptance requires its parent-reviewed observation record'
 if accepted_tasks & source_delta:
     assert source_delta <= accepted_tasks and source_evidence.is_file(), 'Source delta acceptance requires its parent evidence record'
 # Final review B1: stable task IDs with dependency/types preparation first.

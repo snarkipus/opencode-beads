@@ -1,5 +1,9 @@
 # OpenCode V2 Plugin Contract
 
+## Current acceptance boundary — native task 1.1
+
+Source tasks 7.1–7.3 were accepted and published at `8831169d3c83c333fdf13d4a4efc743eaf495e2b`; see [source acceptance](code-mode-source-acceptance-vuy10.md). Parent subsequently accepted task 1.1 using the [15-case native follow-up](opencode-host-codemode-qualification-vuy2.md), retaining applicable historical host evidence and the explicitly accepted nested plain-decline limitation. Real released OpenCode 2.1.1 observed all eleven namespace signatures/results, execute and shell filtering, canonical permission resources, actual invoking identity and rejected-target nonexecution/no retries. Controlled provider responses establish host mechanics, not real-model judgment or installed product behavior. Explicit Stop/handoff (4.2), installed/model/lifecycle (6.2) and final integration (6.3) remain unchecked. Ordinary product activation is still withheld. Older candidate/unexecuted wording below is historical evidence, not the current native-host acceptance status.
+
 ## Task 7.1–7.3 source candidate — 2026-10-21
 
 Executor `codex:oc-loop`, assigned only `opencode-beads-vuy.10`, based on published plan `f2d6617619e2c3a35e4aeadd5be0092259b9979c`. This section records a working-tree candidate, not parent acceptance, a source commit, installed qualification or activation. Earlier planning and accepted five-operation/170-test evidence below retains its historical scope. The product now declares eleven operations in one native `beads` namespace with code-mode-only registration; ordinary setup still withholds that registration pending the separate native/installed gates. The owner explicitly raised the Beads support floor to >=1.3.1 during this source work; package release version, dependencies, operator installation and host admission remain unchanged. The published planning baseline now has a parent-owned local support-policy delta.
