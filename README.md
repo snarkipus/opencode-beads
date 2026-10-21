@@ -11,9 +11,9 @@
 
 This is an independent project maintained by Matt Jackson under the MIT license. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. 1.0 rebuilt the plugin for OpenCode 2, and development now continues here independently. It vendors nothing from upstream Beads; instead, every Beads release is checked against the `bd` behavior the plugin relies on (see [Tracking upstream Beads](#tracking-upstream-beads)).
 
-This branch contains an unfinished **beta/next source candidate**, separate from the published 1.0.2 behavior described below. Its package includes `assets/oc-beads/` and explicitly registers the `oc-beads` skill at the installed package path, with all 15 corpus resources plus CODE_MODE and ADR (17 links) linked from that base. No manual skill copy is needed. The external `bd` CLI and project initialization remain prerequisites; the plugin does not install or upgrade them.
+This branch contains an unpublished **beta/next source candidate**, separate from the published 1.0.2 behavior described below. The [bounded installed/model evaluation](docs/opencode-installed-model-continuation-vuy9.md) now passes on worker evidence for exact OpenCode 2.1.1/Beads 1.3.1 and genuine OpenAI Sol/high; parent acceptance is complete for all 16 implementation tasks. See [final acceptance and beta release gates](docs/code-mode-final-acceptance-vuy9.md). All 19 requirements and the selected corpus plus CODE_MODE have evidence mappings. Its package includes `assets/oc-beads/` and explicitly registers the `oc-beads` skill at the installed package path, with all 15 corpus resources plus CODE_MODE and ADR (17 links) linked from that base. No manual skill copy is needed. The external `bd` CLI and project initialization remain prerequisites; the plugin does not install or upgrade them.
 
-The candidate registers all 29 selected `oc-beads:<stem>` workflows and `oc-beads:status` through one ordinary native command transform. Ordinary user configuration/file commands run later and win on initial load and rebuild; removing an override restores the package definition. Other plugin conflicts follow native ordering, with initial collisions diagnosed rather than withheld. Status reports registration and effective name/description mismatches; public owner identity and identical-description overrides are unobservable, and matching descriptions do not prove ownership. Typed continuity execution remains withheld pending separate live task 1.1. These source/package fixtures do not qualify live discovery, namespace dispatch or model behavior. No activation option, version bump or publication is supplied by this source work.
+The candidate registers all 29 selected `oc-beads:<stem>` workflows and `oc-beads:status` through one ordinary native command transform. Ordinary user configuration/file commands run later and win on initial load and rebuild; removing an override restores the package definition. Other plugin conflicts follow native ordering, with initial collisions diagnosed rather than withheld. Status reports registration and effective name/description mismatches; public owner identity and identical-description overrides are unobservable, and matching descriptions do not prove ownership. Ordinary typed continuity execution remains withheld. Live typed qualification used the existing internal dependency through a scratch-only bootstrap importing the unchanged actual installed package; it supplies no operator activation switch. The current report separates actual semantic/provider-native observations, reused cleanup/resource/Stop evidence, historical failed probes and unmeasured cross-route or long-duration behavior. No activation option, version bump or publication is supplied by this source work.
 
 The source candidate defines eleven fixed operations in the native `beads`
 code-mode namespace: find, get, edges, memories, recall, claim, note, selected-field
@@ -25,7 +25,7 @@ actor; direct shell writes use that same actor. Catalog discovery and leaf
 permissions still determine which operations can run. Status reports unknown
 capability when no request has been observed. Read [CODE_MODE.md](assets/oc-beads/resources/CODE_MODE.md)
 for composition and recovery. Production typed activation remains withheld
-pending the separate native and installed acceptance gates.
+pending separate owner approval after acceptance review.
 
 ## Design
 
@@ -35,11 +35,11 @@ The beta/next candidate uses scope-bounded task execution:
 - An exact assignment or explicit one-bead mode stops with that item; read-only graph requests never authorize claims or writes.
 - An already-authorized batch or goal may continue within scope, with an atomic claim, append checkpoints, validation and acceptance evidence for each Bead. Discovery does not expand that authority.
 - Direct work or normal blocking delegation is chosen for the task. The actual executor actor follows claims, updates and heartbeats; handoffs are deliberate. Parent-owned acceptance and closure remain with the parent.
-- Denied authority, cancellation, permission waits, blockers and incomplete acceptance remain visible stops. Child results do not restart work. These are guidance contracts; deterministic tests do not qualify model obedience or live host delivery. See the [source evidence and remaining live checks](docs/opencode-native-parity-assessment.md).
+- Denied authority, cancellation, permission waits, blockers and incomplete acceptance remain visible stops. Child results do not restart work. The [current bounded semantic evidence](docs/opencode-installed-model-continuation-vuy9.md) measures these outcomes, with failed validation and partial work preserved; broader model quality and multi-hour reliability remain unmeasured.
 
 ## Installation
 
-This plugin requires OpenCode 2 and `bd` 1.3.1 or later. This source branch prepares an opt-in beta/next candidate for OpenCode `>=2.1.1 <2.2`; only the exact 2.1.1 development types are pinned, and runtime qualification has not been executed. The published stable package remains separately qualified against OpenCode 2.0.26.
+This plugin requires OpenCode 2 and `bd` 1.3.1 or later. This source branch prepares an opt-in beta/next candidate for OpenCode `>=2.1.1 <2.2`; the exact 2.1.1 released host now has bounded source/native/Stop and installed/model evidence, with final parent acceptance pending. Other 2.1 patches are not inferred qualified. The published stable package remains separately qualified against OpenCode 2.0.26.
 
 1. Install the [`bd` CLI](https://github.com/gastownhall/beads/blob/main/docs/getting-started/installation.md) once on the host, then initialize each project:
 

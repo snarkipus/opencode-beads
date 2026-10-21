@@ -114,7 +114,9 @@ source_evidence = repo / 'docs/code-mode-source-acceptance-vuy10.md'
 assert historical_accepted <= accepted_tasks
 host_evidence = repo / 'docs/opencode-host-codemode-qualification-vuy2.md'
 flow_evidence = repo / 'docs/opencode-stop-handoff-qualification-vuy6.md'
-assert accepted_tasks <= historical_accepted | source_delta | {'1.1', '4.2'}, 'Installed/final 6.2/6.3 require their own acceptance'
+assert accepted_tasks <= set(task_ids)
+if accepted_tasks & {'6.2', '6.3'}:
+    assert accepted_tasks == set(task_ids) and (repo / 'docs/code-mode-final-acceptance-vuy9.md').is_file(), 'Final acceptance requires all prerequisites and parent evidence'
 if '4.2' in accepted_tasks:
     assert '1.1' in accepted_tasks and flow_evidence.is_file(), 'Live flow acceptance requires native host acceptance and its parent-reviewed observation record'
 if '1.1' in accepted_tasks:

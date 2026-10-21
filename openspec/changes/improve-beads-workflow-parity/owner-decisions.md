@@ -1,5 +1,9 @@
 # Owner decisions — reconciled planning selections
 
+## Installed lifecycle probe correction — owner-authorized continuation
+
+After the pinned lifetime investigation, Matt authorized correcting the probe and proceeding with `.9`. Task 6.2's unload/reactivate criterion means actual plugin activation-scope cleanup/removal within the existing location, not disappearance from a replacement registry after `/api/location/reload`. Whole-location reload permits the running step to retain its borrowed graph until the next boundary. Verify actual disposal ordering and suppression of pending output after that cleanup; preserve the original stronger location-reload failure as historical failed evidence, not a retroactive pass. This corrects the observation boundary, not product source or a promise of immediate revocation at routing replacement. Resume remaining installed/model qualification and then 6.3 only after 6.2 passes. Operator activation, source repair, release, archive, publication and closure are not delegated to the qualification worker.
+
 Recorded 2026-10-18 UTC from Matt's direct response to the Opus review on published candidate e74b507 (review report published at acf5a68). These are owner planning selections, not implementation acceptance or release authority. Proposal/spec/design/task/inventory reconciliation is now recorded in [reconciliation.md](reconciliation.md); earlier unselected alternatives remain historical.
 
 ## Operative Beads minimum — owner correction during implementation

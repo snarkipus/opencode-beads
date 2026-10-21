@@ -4,6 +4,10 @@
 
 The actual `beads@beads-marketplace` plugin is installed and enabled at **local project scope** for the Hermes `/opt/data/opencode-beads` workspace. This records installation/component discovery, not a live model-behavior or functional-parity result. It does not require collaborators to install a Claude plugin to use the OpenCode package.
 
+## Current OpenCode comparison boundary — 2026-10-21
+
+The [installed/model continuation](opencode-installed-model-continuation-vuy9.md) adds genuine OpenAI Sol/high semantic evidence on exact OpenCode 2.1.1 and the unchanged accepted package, including actual failure/partial child, meaningful append/relevant recall, bounded scope and same-provider summary/native recovery. Corrected actual cleanup/17 resource reads are reused; all 19 requirements and 73/74 selected corpus dispositions plus CODE_MODE are mapped. This is a parent-accepted bounded evaluation, not a controlled Claude-versus-OpenCode comparison or a model-quality finding. Ordinary typed execution remains withheld; the internal installed-source qualification seam is scratch-only. The installed Claude identity and all historical source comparisons below are unchanged. All 16 implementation tasks are accepted; release/activation remain separate.
+
 ## Installed identity
 
 - Claude Code: `2.1.292`.
