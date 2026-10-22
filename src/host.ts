@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode/plugin";
-import { applyBeadsSkill, createBeadsCommands, loadBeadsSkill, type SkillLoadDependencies } from "./workflows";
+import { applyBeadsSkill, createBeadsCommands, expandBeadsWorkflowContext, loadBeadsSkill, type SkillLoadDependencies } from "./workflows";
 import { applyBeadsAgents, beadsAgents, BEADS_TASK_AGENTS } from "./agents";
 import { BEADS_COMPACTION_GUIDANCE, UNKNOWN_CAPABILITIES, type RequestCapabilities } from "./guidance";
 import {
@@ -334,6 +334,7 @@ export async function setupBeads(
 
     registrations.push(await ctx.session.hook("context", async (event) => {
       if (abort.signal.aborted) return;
+      expandBeadsWorkflowContext(event.messages);
       if (ctx.session.get) {
         try {
           const info = await ctx.session.get({ sessionID: event.sessionID });
@@ -373,7 +374,9 @@ export async function setupBeads(
     }));
 
     registrations.push(await ctx.session.hook("compaction", (event) => {
-      if (!abort.signal.aborted && beadsSessions.get(event.sessionID)?.has(event.agent)) {
+      if (abort.signal.aborted) return;
+      expandBeadsWorkflowContext(event.messages);
+      if (beadsSessions.get(event.sessionID)?.has(event.agent)) {
         event.system.push({ type: "text", text: BEADS_COMPACTION_GUIDANCE });
         const known = references.get(event.sessionID);
         const gap = gapFor(event.sessionID);

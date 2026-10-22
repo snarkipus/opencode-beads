@@ -131,6 +131,18 @@ explicit modes and parent acceptance still apply. Guide/report commands produce
 their advertised artifact. This action-contract correction starts with beta.3;
 earlier beta artifacts do not contain this correction.
 
+Current source keeps all 29 `/oc-beads:<workflow>` invocations compact, with
+single-line free text inline and multiline text below, preserving whitespace.
+Full static instructions live in durable `ocBeadsWorkflow` message metadata,
+expanded by existing primary and compaction hooks; retained `ocBeadsSync` v1
+history remains readable. Attachments/skills, prompt hooks and native delivery
+remain normal inputs. Diagnostics retains its observed-report presentation.
+Plugin activation is required for expansion; summaries retain semantic context,
+not guaranteed verbatim snapshots. Native storage/estimates can include copies or
+miss hidden text; this is not a token-savings claim. See the
+[workflow evaluation](docs/workflow-native-context-evaluation.md) and original
+[sync design](docs/sync-native-context-plan.md) / [evaluation](docs/sync-native-context-evaluation.md).
+
 Starting with beta.2, the package-owned `oc-beads:status` is removed without an alias. Use `oc-beads:diagnostics` for integration health and `oc-beads:stats` for the issue-database overview via `bd status` (alias `bd stats`). User-defined old status overrides are untouched and are not migrated; the package does not edit configuration.
 
 `oc-beads:compact` guides semantic issue compaction with `bd admin compact`; `bd compact` squashes Dolt history and is a different operation. Neither is conversation compaction. A bare invocation explains the workflow; a sufficiently specified semantic apply request supplies its bounded authority under actual permissions and policy. See the packaged [compact guidance](assets/oc-beads/resources/TROUBLESHOOTING.md) for mode/actor boundaries and upstream help uncertainty. `oc-beads:restore` retrieves pre-compaction issue content, displaying it by default; `--apply` requires explicit authority to write it back and does not mean database backup recovery. Quickstart uses installed help and authorized context; sync guides Dolt-remote synchronization, distinct from `bd federation sync`.

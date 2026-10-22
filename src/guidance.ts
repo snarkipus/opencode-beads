@@ -73,6 +73,7 @@ Beads workflow context could not be loaded: \`bd prime\` ${reason}. Beads may st
 /** Added to compaction requests so the summary keeps the Beads work in flight. */
 export const BEADS_COMPACTION_GUIDANCE = `<beads-compaction>
 This session tracks work in Beads (bd). Carry acknowledged durable task/memory references, current scope, attempts, blockers, pending validation and known unsaved or uncertain gaps into the summary or native-provider context. A summary is not a Beads write. Do not persist, wait for permission or a queued write, or request a recursive same-session checkpoint during compaction. Earlier meaningful checkpoints support recovery; no final-write guarantee applies. Fresh guarded context is requested after compaction. Preserve host-owned native replay, metadata.keepID and legacy metadata.recent; do not inject result.native.messages or a replacement result to add references.
+Preserve an active /oc-beads workflow invocation's requested outcome, unresolved inputs or explicit modes, and applicable authority limits in the summary.
 </beads-compaction>`;
 
 /** Observed after native request filtering; selective operation permission remains per call. */

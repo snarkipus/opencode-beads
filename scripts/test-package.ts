@@ -1,3 +1,4 @@
+import type { SessionContext } from "@opencode/plugin/promise/session";
 import type { Info } from "@opencode/plugin/promise/tool";
 import { createHash } from "node:crypto";
 import type { CommandDefinition, CommandInvocation } from "@opencode/plugin/promise/command";
@@ -218,6 +219,7 @@ try {
   };
   async function setupPacked(options: Record<string, unknown>) {
     const registeredHooks: string[] = [];
+    const requestHooks = new Map<string, (event: SessionContext) => Promise<void> | void>();
     const tools: Info[] = [];
     const namespaces: Array<{ name: string }> = [];
     const agents = new Map<string, PackedAgent>();
@@ -282,8 +284,9 @@ try {
           prompts.push(input);
           return {};
         },
-        hook: async (name: string) => {
+        hook: async (name: string, callback: (event: SessionContext) => Promise<void> | void) => {
           registeredHooks.push(name);
+          requestHooks.set(name, callback);
           return own(`hook:${name}`);
         },
       },
@@ -328,22 +331,38 @@ try {
           throw new Error("Packed diagnostics did not report observed registration and qualification limits");
         }
       } else {
-        if (!submitted.text.includes(JSON.stringify(installedSkillPath))) throw new Error("Packed command uses the wrong JSON-quoted installed guidance base");
-        if (!submitted.text.startsWith(`Invoked command: /${definition.name}\nRequested outcome: ${definition.description}\n`)
-          || !submitted.text.endsWith(`Literal user details:\n${invocation.prompt.text}`)
-          || !submitted.text.includes("With sufficient inputs, perform the requested operation")) {
-          throw new Error(`Packed command lost invocation/outcome or literal details: ${definition.name}`);
+        if (submitted.text !== `/${definition.name} ${invocation.prompt.text}`) throw new Error(`Packed workflow history is not compact: ${definition.name}`);
+        const metadata = submitted.metadata as { ocBeadsWorkflow?: { version: number; instructions: string } };
+        const snapshot = metadata?.ocBeadsWorkflow;
+        if (!snapshot || snapshot.version !== 1 || Object.keys(metadata).join() !== "ocBeadsWorkflow"
+          || !snapshot.instructions.startsWith(`Invoked command: /${definition.name}\nRequested outcome: ${definition.description}\n`)
+          || !snapshot.instructions.includes(JSON.stringify(installedSkillPath))) throw new Error(`Packed workflow lost static installed instructions: ${definition.name}`);
+        const stem = definition.name.slice("oc-beads:".length) as keyof typeof workflows.WORKFLOWS;
+        const supporting = path.resolve(path.dirname(installedSkillPath), "resources", `${workflows.WORKFLOWS[stem][1]}.md`);
+        if (!snapshot.instructions.endsWith(`Supporting guidance: ${JSON.stringify(supporting)}`) || !(await fs.readFile(supporting, "utf8")).trim()) throw new Error(`Packed workflow resource differs: ${definition.name}`);
+        const stored = JSON.stringify(submitted);
+        for (const kind of ["context", "compaction"]) {
+          for (const routing of [metadata, { ocBeadsSync: snapshot }]) {
+            const event = { sessionID: invocation.sessionID, agent: "build", system: [], messages: [{ role: "user", content: [{ type: "text", text: submitted.text }], metadata: routing }], tools: {}, options: {} } as unknown as SessionContext;
+            await requestHooks.get(kind)!(event);
+            const expanded = JSON.stringify(event.messages);
+            if (/ocBeadsWorkflow|ocBeadsSync/.test(expanded) || expanded.split("Invoked command:").length !== 2
+              || event.messages[0]?.content[0]?.type !== "text" || event.messages[0].content[0].text !== snapshot.instructions
+              || !expanded.includes("With sufficient inputs, perform the requested operation")) throw new Error(`Packed workflow effective context lost installed instructions: ${definition.name}`);
+            await requestHooks.get(kind)!(event);
+            if (JSON.stringify(event.messages) !== expanded || JSON.stringify(submitted) !== stored) throw new Error("Packed workflow expansion mutated storage or duplicated instructions");
+          }
         }
+        if (requestHooks.has("title") || requestHooks.has("generate")) throw new Error("Packed workflow expanded auxiliary context");
       }
     }
     if (prompts.length !== commands.size) throw new Error("Packed native commands did not each submit one prompt");
-    for (const text of ["", "explain only"]) {
-      await commands.get("oc-beads:sync")!.execute({ ...invocation, prompt: { ...invocation.prompt, text } });
-      const submitted = prompts.at(-1)!;
-      if (typeof submitted.text !== "string" || !submitted.text.startsWith("Invoked command: /oc-beads:sync\nRequested outcome: Perform supported bd sync --no-adopt")
-        || submitted.text.includes("Literal user details:") !== Boolean(text)
-        || (text && !submitted.text.endsWith(`Literal user details:\n${text}`))) {
-        throw new Error("Installed sync callback lost bare action or explicit help details");
+    for (const stem of Object.keys(workflows.WORKFLOWS)) {
+      for (const text of ["", "explain only", "  ", "first line\r\n  second line\r\n"]) {
+        await commands.get(`oc-beads:${stem}`)!.execute({ ...invocation, prompt: { ...invocation.prompt, text } });
+        const submitted = prompts.at(-1)!;
+        const visible = `/oc-beads:${stem}${text ? `${/[\r\n]/.test(text) ? "\n" : " "}${text}` : ""}`;
+        if (submitted.text !== visible) throw new Error("Installed workflow callback lost bare action or literal details");
       }
     }
     await cleanup();

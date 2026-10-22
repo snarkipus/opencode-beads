@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "@opencode/plugin";
+import type { SessionContext } from "@opencode/plugin/promise/session";
 import type { CommandDefinition } from "@opencode/plugin/promise/command";
 
 type SkillEditor = Parameters<Parameters<Plugin.Context["skill"]["transform"]>[0]>[0];
@@ -87,7 +88,29 @@ export function applyBeadsSkill(editor: SkillEditor, skill: BeadsSkill, diagnose
   editor.add(skill);
 }
 
-/** Build native prompt commands, never shell/template interpolation or synthetic continuation. */
+/** Expand supported workflow/legacy snapshots only in transient user request copies. */
+export function expandBeadsWorkflowContext(messages: SessionContext["messages"]): void {
+  for (const [index, message] of messages.entries()) {
+    if (message.role !== "user") continue;
+    const metadata = { ...message.metadata };
+    let instructions: string | undefined;
+    for (const key of ["ocBeadsSync", "ocBeadsWorkflow"]) {
+      const snapshot = metadata[key];
+      if (!snapshot || typeof snapshot !== "object" || !("version" in snapshot) || snapshot.version !== 1
+        || !("instructions" in snapshot) || typeof snapshot.instructions !== "string") continue;
+      instructions = snapshot.instructions;
+      delete metadata[key];
+    }
+    if (instructions === undefined) continue;
+    messages[index] = {
+      ...message,
+      metadata,
+      content: [{ type: "text", text: instructions }, ...message.content],
+    };
+  }
+}
+
+/** Build native prompt commands with compact text and durable static workflow instructions. */
 export function createBeadsCommands(
   session: Pick<Plugin.Context["session"], "prompt">,
   diagnostics: (sessionID: string) => Promise<string>,
@@ -109,11 +132,13 @@ export function createBeadsCommands(
     description: purpose,
     async execute(input) {
       if (signal?.aborted) throw new Error("Beads workflow unloaded");
+      const instructions = `Invoked command: /oc-beads:${stem}\nRequested outcome: ${purpose}\n${common}\nSupporting guidance: ${JSON.stringify(resolve(dirname(skillPath), "resources", `${resource}.md`))}`;
       await session.prompt({
         ...input.prompt,
         sessionID: input.sessionID,
         delivery: input.delivery,
-        text: `Invoked command: /oc-beads:${stem}\nRequested outcome: ${purpose}\n${common}\nSupporting guidance: ${JSON.stringify(resolve(dirname(skillPath), "resources", `${resource}.md`))}${input.prompt.text ? `\n\nLiteral user details:\n${input.prompt.text}` : ""}`,
+        text: `/oc-beads:${stem}${input.prompt.text ? `${/[\r\n]/.test(input.prompt.text) ? "\n" : " "}${input.prompt.text}` : ""}`,
+        metadata: { ocBeadsWorkflow: { version: 1, instructions } },
       });
     },
   }));

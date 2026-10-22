@@ -18,6 +18,10 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+### Changed
+
+- Keep all 29 workflow commands compact through durable static message instructions and existing primary/compaction hooks, preserving native inputs, command purposes/resources and bounded authority. Read legacy sync v1 snapshots, retain diagnostics presentation and preserve active workflow outcome/inputs/modes/authority in summary guidance.
+
 ## [1.1.0-beta.3]
 
 ### Fixed
