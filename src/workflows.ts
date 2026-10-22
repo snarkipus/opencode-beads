@@ -151,7 +151,8 @@ export function createBeadsCommands(
       if (signal?.aborted) throw new Error("Beads workflow unloaded");
       await session.prompt({
         ...input.prompt, sessionID: input.sessionID, delivery: input.delivery,
-        text: `Report these observed Beads diagnostics. This is read-only; do not run store-opening commands, change configuration or infer live qualification.\n${report}\n\nUser request:\n${input.prompt.text}`,
+        text: `/oc-beads:diagnostics${input.prompt.text ? `${/[\r\n]/.test(input.prompt.text) ? "\n" : " "}${input.prompt.text}` : ""}`,
+        metadata: { ocBeadsWorkflow: { version: 1, instructions: `Report these observed Beads diagnostics. This is read-only; do not run store-opening commands, change configuration or infer live qualification.\n${report}\nInclude the loaded plugin name/version and observed OpenCode host version near the start of your report. Preserve unavailable, withheld and uncertain observations; do not infer a unique build identity from a version label.` } },
       });
     },
   });

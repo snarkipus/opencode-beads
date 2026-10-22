@@ -239,7 +239,13 @@ The package SHALL expose effective discovery, compatibility, ownership conflicts
 
 - **WHEN** a user invokes diagnostics or stats
 - **THEN** diagnostics uses only the existing safe version/context probes and cached integration state without opening a store, while stats remains an issue-overview workflow using `bd status` (alias `bd stats`)
-- **AND** the diagnostic payload and observed qualification limits remain unchanged apart from user-facing command-name wording
+- **AND** diagnostic safety and observed qualification limits are preserved; the report identifies the loaded plugin package name/version from its own manifest alongside the observed host version, without inferring a unique build fingerprint
+
+#### Scenario: Compact diagnostic history
+
+- **WHEN** diagnostics is invoked with optional free text and native attachments/delivery
+- **THEN** history shows the compact command and exact free text, while the dynamic report is captured once in durable metadata and expanded only through existing primary/compaction hooks
+- **AND** replay preserves the captured observation without regenerating diagnostics, duplicating instructions, mutating persisted input or expanding auxiliary requests
 
 #### Scenario: Diagnostics is overridden or unloaded
 

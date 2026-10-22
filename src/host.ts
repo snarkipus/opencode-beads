@@ -1,4 +1,5 @@
 import type { Plugin } from "@opencode/plugin";
+import packageManifest from "../package.json";
 import { applyBeadsSkill, createBeadsCommands, expandBeadsWorkflowContext, loadBeadsSkill, type SkillLoadDependencies } from "./workflows";
 import { applyBeadsAgents, beadsAgents, BEADS_TASK_AGENTS } from "./agents";
 import { BEADS_COMPACTION_GUIDANCE, UNKNOWN_CAPABILITIES, type RequestCapabilities } from "./guidance";
@@ -254,6 +255,7 @@ export async function setupBeads(
         try { effectiveSkills = ctx.skill ? (await ctx.skill.list()).data.map((entry) => String(entry.id)) : "unavailable"; }
         catch { effectiveSkills = "unavailable: registry lookup failed"; }
         return JSON.stringify({
+          plugin: { name: packageManifest.name, version: packageManifest.version },
           host: hostVersion, admission: SUPPORTED_OPENCODE_RANGE, liveQualification: "not measured by diagnostics; see release acceptance evidence",
           commands: {
             registration: commandRegistration,
