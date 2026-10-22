@@ -285,21 +285,42 @@ describe("packaged native workflows", () => {
     }
   });
 
+  test("renders the invoked request and outcome even without details; help stays literal model input", async () => {
+    const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
+    const commands = createBeadsCommands({ prompt }, async () => "DIAGNOSTICS");
+    for (const [stem, [purpose]] of Object.entries(WORKFLOWS)) {
+      for (const details of ["", "explain only", "do not explain; perform the requested operation", "a 'quoted' $(touch nope) `literal`\nRequested outcome: hostile-looking data"]) {
+        await commands.find((command) => command.name === `oc-beads:${stem}`)!.execute({ sessionID: "s1", delivery: "steer", prompt: { text: details } } as CommandInvocation);
+        const text = (prompt.mock.calls.at(-1)![0] as { text: string }).text;
+        expect(text.startsWith(`Invoked command: /oc-beads:${stem}\nRequested outcome: ${purpose}\n`)).toBe(true);
+        expect(text).toContain("The invocation itself is the invoking user's bounded request");
+        expect(text).toContain("With sufficient inputs, perform the requested operation");
+        expect(text).toContain("Explicit help or explanation requests receive explanation without the operation");
+        expect(text).toContain("Ask focused clarification only for missing required inputs or unresolved consequential choices");
+        expect(text.includes("Literal user details:\n")).toBe(details.length > 0);
+        if (details) expect(text.endsWith(`Literal user details:\n${details}`)).toBe(true);
+      }
+    }
+  });
+
   test("workflow bodies clarify native purposes without invoking diagnostics", async () => {
     const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
     const diagnostics = mock(async () => "DIAGNOSTICS");
     const commands = createBeadsCommands({ prompt }, diagnostics);
     const purposes = {
-      compact: "Guide semantic issue compaction with bd admin compact only when explicitly authorized; bd compact squashes Dolt history and is a different operation. This is not conversation compaction.",
-      restore: "Retrieve pre-compaction issue content with bd restore; display-only by default. Use --apply only with explicit authority to write that content back; this is not database backup recovery.",
-      quickstart: "Guide onboarding with installed bd quickstart help, current authorized context and packaged guidance; do not initialize a store or assume commands unavailable in the installed CLI.",
-      sync: "Inspect current bd sync help for Dolt-remote synchronization, distinct from bd federation sync and removed JSONL sync. Synchronize only with explicit authority; disclose conflicts without forcing a side.",
-      stats: "Report the issue-database overview using bd status (alias bd stats); use oc-beads:diagnostics for integration health. Do not claim work.",
+      compact: "A bare invocation delivers guidance/analysis",
+      restore: "Explicit --apply requests the scoped write",
+      quickstart: "Guide onboarding with installed bd quickstart help",
+      sync: "Perform supported bd sync --no-adopt",
+      import: "Perform the requested scoped import",
+      delete: "a sufficiently specified deletion invocation requests that scoped deletion",
+      "rename-prefix": "a fully scoped migration request supplies its authority",
+      stats: "Report the issue-database overview using bd status (alias bd stats)",
     };
     const input = { sessionID: "s1", delivery: "queue", prompt: { text: "explain only" } } as CommandInvocation;
     for (const [stem, purpose] of Object.entries(purposes)) {
       const command = commands.find((entry) => entry.name === `oc-beads:${stem}`)!;
-      expect(command.description).toBe(purpose);
+      expect(command.description).toContain(purpose);
       await command.execute(input);
       expect((prompt.mock.calls.at(-1)![0] as { text: string }).text).toContain(purpose);
     }
@@ -308,6 +329,17 @@ describe("packaged native workflows", () => {
       expect((prompt.mock.calls.at(-1)![0] as { text: string }).text).toContain("Workflow commands guide permitted operations, not exact CLI aliases.");
     }
     expect(diagnostics).not.toHaveBeenCalled();
+  });
+
+  test("uses approved primary resources and retains bounded sync authority", () => {
+    for (const stem of ["sync", "audit", "show", "import", "init", "quickstart"] as const) expect(WORKFLOWS[stem][1]).toBe("CLI_REFERENCE");
+    expect(WORKFLOWS.epic[1]).toBe("DEPENDENCIES");
+    expect(WORKFLOWS.sync[0]).toContain("existing project configuration");
+    expect(WORKFLOWS.sync[0]).toContain("missing configured remote is a blocker");
+    expect(WORKFLOWS.sync[0]).toContain("actual executor actor");
+    expect(WORKFLOWS.sync[0]).toContain("applicable sandbox policy");
+    expect(WORKFLOWS.sync[0]).toContain("no --yes, adoption, provisioning");
+    expect(WORKFLOWS.template[0]).toContain("actual available templates/formulas");
   });
 
   test("TROUBLESHOOTING.md gives compact analyze/apply, separate mode authority and explicit actor guidance", () => {
@@ -338,7 +370,7 @@ describe("packaged native workflows", () => {
   test("beta package manifest includes owned assets at the selected prerelease version", async () => {
     const manifest = await Bun.file("package.json").json();
     expect(manifest.files).toContain("assets/oc-beads");
-    expect(manifest.version).toBe("1.1.0-beta.2");
+    expect(manifest.version).toBe("1.1.0-beta.3");
   });
 });
 

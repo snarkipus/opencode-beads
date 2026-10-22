@@ -37,8 +37,8 @@ describe("documentation contracts", () => {
     expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version]));
   });
 
-  test("pairs the beta.2 release pin with diagnostics and preserves beta.1 migration history", () => {
-    expect(readme).toContain("**1.1.0-beta.2**");
+  test("pairs the current release pin with diagnostics and preserves beta.1 migration history", () => {
+    expect(readme).toContain(`**${packageManifest.version}**`);
     expect(readme).not.toContain("publication remains pending owner approval");
     const install = readme.split("## Installation")[1]?.split("### Plugin options")[0] ?? "";
     expect(install).toContain(`"plugins": ["${packageIdentity}"]`);
@@ -77,6 +77,29 @@ describe("documentation contracts", () => {
     const worktrees = await fs.readFile("assets/oc-beads/resources/WORKTREES.md", "utf8");
     expect(worktrees).toContain("Dolt-remote synchronization");
     expect(worktrees).toContain("bd federation sync");
+  });
+
+  test("documents bounded invocation authority, operational sync and release scope", async () => {
+    expect(readme).toContain("**Command invocation:**");
+    expect(readme).toContain("This action-contract correction starts with beta.3");
+    expect(readme).toContain("/oc-beads:sync explain");
+    for (const file of ["assets/oc-beads/SKILL.md", "assets/oc-beads/resources/CLI_REFERENCE.md"]) {
+      const text = await fs.readFile(file, "utf8");
+      expect(text).toContain("invocation itself");
+      expect(text).toContain("--no-adopt");
+      expect(text).toContain("missing configured remote");
+    }
+    const cli = await fs.readFile("assets/oc-beads/resources/CLI_REFERENCE.md", "utf8");
+    expect(cli).toContain("bd sync --no-adopt");
+    expect(cli).toContain("--actor='<executor-actor>'");
+    expect(cli).toContain("not completion");
+    expect(cli).toContain("## Audit and interchange");
+    expect(cli).toContain("## Onboarding and discovery");
+    const worktrees = await fs.readFile("assets/oc-beads/resources/WORKTREES.md", "utf8");
+    expect(worktrees).toContain("CLI_REFERENCE.md#synchronization");
+    const troubleshooting = await fs.readFile("assets/oc-beads/resources/TROUBLESHOOTING.md", "utf8");
+    expect(troubleshooting).toContain("does not need another generic approval");
+    expect(troubleshooting).toContain("## Deletion and identifier migration");
   });
 
   test("documents beta opt-in, normal public registration, stable opt-out and known Stop limits", () => {

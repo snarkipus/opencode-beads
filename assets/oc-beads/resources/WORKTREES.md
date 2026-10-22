@@ -18,7 +18,9 @@ safety checks. Inspect local changes before removal, preserve work that is not
 yours, and remove only a worktree whose cleanup is authorized. This resource
 does not create or clean up a worktree automatically.
 
-`oc-beads:sync` guides `bd sync` Dolt-remote synchronization, distinct from
-`bd federation sync` and removed JSONL sync. Inspect current help and synchronize
-only with explicit authority. Report conflicts without forcing a side; the
-installed Beads CLI owns synchronization and consistency semantics.
+`oc-beads:sync` requests supported Dolt-remote synchronization, distinct from
+`bd federation sync` and removed JSONL sync. Follow the focused
+[synchronization procedure](CLI_REFERENCE.md#synchronization) for --no-adopt,
+existing configuration, actor, permissions and honest outcomes. This resource is
+secondary worktree context; the installed Beads CLI owns synchronization and
+consistency semantics.

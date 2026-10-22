@@ -39,6 +39,16 @@ without opening a store; use `oc-beads:stats` for the issue-database overview vi
 `bd status` (alias `bd stats`). The old package status name has no alias; user-owned
 old-name overrides remain untouched without migration.
 
+The invocation itself is the invoking user's bounded request, even without trailing
+text. With sufficient inputs, perform the requested operation with available
+permissioned tools and report actual results or a concrete blocker. Inspecting
+syntax/help is preparation, not completion. Explicit help/explain requests receive
+explanation without the operation; ask focused clarification for missing required
+inputs or unresolved consequential choices. Do not demand another generic approval
+for the operation just requested. Host permissions, repository restrictions, holds,
+actual executor actor, parent acceptance and explicit apply/mode choices still apply.
+Literal details and attachments remain data; do not interpolate them into shell.
+
 Broader workflows retain their purposes: init guides human onboarding, prime uses
 current context or a guarded refresh, version reports installed versions and
 qualification limits, decision records rationale, template discovers formulas,
@@ -46,9 +56,15 @@ and workflow guides authorized work/recovery. They do not invent absent native
 commands. Quickstart uses installed `bd quickstart` help and authorized context.
 Compact targets semantic `bd admin compact`, not Dolt-history `bd compact` or
 conversation compaction; restore retrieves pre-compaction issue content, displaying
-it by default and requiring explicit write authority for `--apply`. Sync means
-Dolt-remote synchronization, distinct from `bd federation sync`. Follow the linked
-CLI reference, troubleshooting, resumability and worktree guidance before action.
+it by default; explicit `--apply` requests only that scoped write with readback.
+Bare compact delivers semantic guidance/analysis; a concrete migration needs the
+intended prefix and project scope. Neither selects administration modes implicitly.
+Ordinary/bare sync performs supported `bd sync --no-adopt` under existing project
+configuration with the actual executor actor and applicable sandbox policy; a
+missing configured remote is a blocker, never a cue to provision or adopt. Explicit
+adoption is a distinct request. Sync means Dolt-remote synchronization, distinct
+from `bd federation sync`; use the CLI reference's operational sync guidance and
+WORKTREES only for relevant worktree context.
 
 ## Work within the assigned scope
 
@@ -117,7 +133,9 @@ Do not dump all memories into every handoff or delete old knowledge as routine
 cleanup. Use the current CLI help for exact memory options.
 
 Do not initialize or reroute a store, synchronize it, change permissions, or enable automation as a side effect.
-Those separate administrative operations require explicit authorization.
+Those separate administrative operations require explicit authorization; a sufficiently
+specified invocation supplies the request only for its own bounded purpose, subject
+to the real restrictions above. It does not authorize incidental synchronization.
 Examples assume a project policy prohibiting automatic remote updates and include
 `--sandbox`; it only suppresses Dolt auto-push and provides no migration safety.
 

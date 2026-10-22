@@ -18,6 +18,14 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [1.1.0-beta.3]
+
+### Fixed
+
+- Render command invocation and requested outcome even without trailing details; sufficient-input actions perform their bounded request, explicit help explains, and missing inputs prompt focused clarification under existing permissions and policy.
+- Make ordinary sync request supported `bd sync --no-adopt` with existing configuration and actual executor actor, reporting missing remote or failure without adoption/provisioning. Align affected authority clauses and primary supporting resources while preserving guide artifacts, command inventory and qualification limits.
+
+
 ## [1.1.0-beta.2]
 
 ### Changed
@@ -339,7 +347,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.1.0-beta.2...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.1.0-beta.3...HEAD
+[1.1.0-beta.3]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.3
 [1.1.0-beta.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.2
 [1.0.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.2
 [1.0.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.1

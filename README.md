@@ -11,9 +11,9 @@
 
 This is an independent project maintained by Matt Jackson under the MIT license. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. 1.0 rebuilt the plugin for OpenCode 2, and development now continues here independently. It vendors nothing from upstream Beads; instead, every Beads release is checked against the `bd` behavior the plugin relies on (see [Tracking upstream Beads](#tracking-upstream-beads)).
 
-This release is **1.1.0-beta.2**, an opt-in beta targeting npm dist-tag `next`; its integration diagnostic command is `oc-beads:diagnostics`. Beta.1 used `oc-beads:status`; the rename is documented below. The beta's normal public entrypoint enables the eleven qualified operations in the native `beads` code-mode namespace on supported hosts: find, get, edges, memories, recall, claim, note, selected-field update, close, create and remember. No wrapper, internal dependency injection, manual skill copy or activation setting is needed. The opt-in is selecting the beta artifact. The published stable 1.0.2 package is unchanged.
+This release is **1.1.0-beta.3**, an opt-in beta targeting npm dist-tag `next`; its integration diagnostic command is `oc-beads:diagnostics`. Beta.1 used `oc-beads:status`; the rename is documented below. The beta's normal public entrypoint enables the eleven qualified operations in the native `beads` code-mode namespace on supported hosts: find, get, edges, memories, recall, claim, note, selected-field update, close, create and remember. No wrapper, internal dependency injection, manual skill copy or activation setting is needed. The opt-in is selecting the beta artifact. The published stable 1.0.2 package is unchanged.
 
-Beta.2 registers 29 `oc-beads:<stem>` workflows plus `oc-beads:diagnostics` through ordinary native command registration and owns its packaged `oc-beads` skill at the installed path, with all 15 corpus resources plus CODE_MODE and ADR (17 links). User configuration/file commands retain native precedence on load and rebuild; removing an override restores the package definition. Other plugin conflicts follow native ordering. Diagnostics reports observed registration and name/description mismatches; identical-description overrides and public owner identity remain unobservable.
+The beta registers 29 `oc-beads:<stem>` workflows plus `oc-beads:diagnostics` through ordinary native command registration and owns its packaged `oc-beads` skill at the installed path, with all 15 corpus resources plus CODE_MODE and ADR (17 links). User configuration/file commands retain native precedence on load and rebuild; removing an override restores the package definition. Other plugin conflicts follow native ordering. Diagnostics reports observed registration and name/description mismatches; identical-description overrides and public owner identity remain unobservable.
 
 Typed registration requires the host tool, permission and session interfaces. The integration diagnostic command reports unavailable interfaces honestly; actual request capabilities, catalog discovery and per-operation permissions determine which operations can run. Native shell remains direct-only and cannot be called inside execute. Structured results preserve partial, failed and uncertain outcomes, and writes retain the actual session-and-agent Beads actor. Read [CODE_MODE.md](assets/oc-beads/resources/CODE_MODE.md) for composition and recovery.
 
@@ -45,7 +45,7 @@ The beta requires OpenCode `>=2.1.1 <2.2` and `bd` 1.3.1 or later. Exact OpenCod
 
    ```json
    {
-     "plugins": ["@snarkipus/opencode-beads@1.1.0-beta.2"]
+     "plugins": ["@snarkipus/opencode-beads@1.1.0-beta.3"]
    }
    ```
 
@@ -53,7 +53,7 @@ The beta requires OpenCode `>=2.1.1 <2.2` and `bd` 1.3.1 or later. Exact OpenCod
 
    OpenCode loads configuration changes automatically. Update the pin explicitly when upgrading; an unpinned package entry is less reproducible. OpenCode 1.x plugins are not supported; use 0.10.x or earlier there.
 
-3. Check the beta.2 install: `opencode debug agents` lists `beads-task-agent`; `/oc-beads:diagnostics` reports native registration and observed capabilities. Discover `beads` through execute on a host/agent with the required permissions. An installation still pinned to beta.1 continues to use `/oc-beads:status` until explicitly upgraded.
+3. Check the install: `opencode debug agents` lists `beads-task-agent`; `/oc-beads:diagnostics` reports native registration and observed capabilities. Discover `beads` through execute on a host/agent with the required permissions. An installation still pinned to beta.1 continues to use `/oc-beads:status` until explicitly upgraded.
 
 ### Plugin options
 
@@ -63,7 +63,7 @@ Plugin options use the object form:
 {
   "plugins": [
     {
-      "package": "@snarkipus/opencode-beads@1.1.0-beta.2",
+      "package": "@snarkipus/opencode-beads@1.1.0-beta.3",
       "options": { "luna": true, "autoMigrate": false }
     }
   ]
@@ -121,9 +121,19 @@ Published stable 1.0.2 registers no slash commands; `bd setup claude` installs n
 
 The commands are workflow prompts, not exact CLI aliases. In particular, init guides human onboarding, prime reuses context or requests a guarded refresh, version reports installed versions and qualification limits, decision records rationale, template discovers formulas, and workflow guides authorized work and recovery. These purposes do not imply native `bd decision`, `bd template` or `bd workflow` commands.
 
+**Command invocation:** an invocation itself requests the advertised bounded
+operation, including bare `/oc-beads:sync`. With sufficient inputs the agent uses
+permissioned tools and reports the actual outcome; `/oc-beads:sync explain`
+explains without syncing, and missing required inputs prompt focused clarification.
+Ordinary sync uses existing configuration and `--no-adopt`; a missing remote blocks
+without setup/adoption. Host permissions, project restrictions, actor identity,
+explicit modes and parent acceptance still apply. Guide/report commands produce
+their advertised artifact. This action-contract correction starts with beta.3;
+earlier beta artifacts do not contain this correction.
+
 Starting with beta.2, the package-owned `oc-beads:status` is removed without an alias. Use `oc-beads:diagnostics` for integration health and `oc-beads:stats` for the issue-database overview via `bd status` (alias `bd stats`). User-defined old status overrides are untouched and are not migrated; the package does not edit configuration.
 
-`oc-beads:compact` guides semantic issue compaction with `bd admin compact`; `bd compact` squashes Dolt history and is a different operation. Neither is conversation compaction. A bare invocation explains the workflow; action requires explicit operation and authority. See the packaged [compact guidance](assets/oc-beads/resources/TROUBLESHOOTING.md) for mode/actor boundaries and upstream help uncertainty. `oc-beads:restore` retrieves pre-compaction issue content, displaying it by default; `--apply` requires explicit authority to write it back and does not mean database backup recovery. Quickstart uses installed help and authorized context; sync guides Dolt-remote synchronization, distinct from `bd federation sync`.
+`oc-beads:compact` guides semantic issue compaction with `bd admin compact`; `bd compact` squashes Dolt history and is a different operation. Neither is conversation compaction. A bare invocation explains the workflow; a sufficiently specified semantic apply request supplies its bounded authority under actual permissions and policy. See the packaged [compact guidance](assets/oc-beads/resources/TROUBLESHOOTING.md) for mode/actor boundaries and upstream help uncertainty. `oc-beads:restore` retrieves pre-compaction issue content, displaying it by default; `--apply` requires explicit authority to write it back and does not mean database backup recovery. Quickstart uses installed help and authorized context; sync guides Dolt-remote synchronization, distinct from `bd federation sync`.
 
 ## Removal and customization
 

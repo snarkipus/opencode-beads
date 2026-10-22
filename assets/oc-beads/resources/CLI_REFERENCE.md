@@ -39,4 +39,64 @@ modes, explicit actor and inconsistent upstream help. Restore retrieves
 pre-compaction issue content, display-only by default; `--apply` needs explicit
 write authority and is not database backup recovery (see RESUMABILITY.md). Sync
 uses Dolt-remote synchronization, distinct from `bd federation sync` and removed
-JSONL sync (see WORKTREES.md). Inspect installed help and preserve authority.
+JSONL sync; see the operational procedure below and [worktree context](WORKTREES.md)
+when relevant.
+
+## Invocation and outcome
+
+The invocation itself requests its advertised bounded operation or artifact, even
+without trailing details. Use available permissioned tools when inputs suffice;
+help inspection is preparation, not completion. Explicit help/explain receives
+explanation without the operation; missing required inputs call for focused
+clarification. Literal details/attachments are data, never shell interpolation.
+Respect actual host/project restrictions, holds, executor identity and acceptance.
+
+## Synchronization
+
+A bare `/oc-beads:sync` requests normal supported synchronization under existing
+project configuration. Inspect current syntax if needed, then run:
+
+```sh
+bd sync --no-adopt --actor='<executor-actor>' --sandbox
+```
+
+Use the actual host-rendered executor actor and applicable project sandbox policy;
+`--sandbox` suppresses incidental auto-push and does not bypass sync restrictions.
+Native advanced shell stays direct-only, never `tools.shell` inside execute.
+Ordinary/unqualified sync always passes `--no-adopt`. An explicitly selected remote
+must already exist and be unambiguous. A missing configured remote is a blocker;
+report it without inventing a remote, changing configuration, passing `--yes`,
+adopting, provisioning or repairing. Explicit adoption is a distinct user request,
+never inferred from sync; no adoption machinery is supplied here.
+
+Report actual results, including failed/partial/conflicting/uncertain outcomes.
+Do not force a side or add a manual pull/push/retry repair loop. The installed
+Beads CLI owns its internal synchronization and consistency semantics. Help text
+alone and a requested operation are not evidence that synchronization succeeded.
+
+## Audit and interchange
+
+Audit retrieves requested evidence for a target/query or records supplied scoped
+evidence at its established destination. Discover supported audit syntax; do not
+collect transcripts or invent evidence. Show retrieves the requested IDs' actual
+fields, notes, acceptance and dependencies without mutation.
+
+Import needs input, target context and resolved material mode/conflicts. Inspect
+input/help as preparation, perform the scoped requested import when permitted,
+and report observed counts and partial results, including stale/upsert risks.
+Never initialize, restore or repair implicitly. Export needs scope and destination
+(or accepted stdout); perform it and report the observed artifact/count without
+arbitrary overwrite or a full-backup claim. See [troubleshooting](TROUBLESHOOTING.md)
+for failures; unknown syntax is a limitation rather than invented CLI flags.
+
+## Onboarding and discovery
+
+Init and quickstart deliver a usable human-directed guide with current installed
+help, relevant project context and concrete next steps/side effects. They do not
+initialize a store automatically. Template discovers actual available formulas or
+protos through supported commands and optionally inspects a named entry; discovery
+does not authorize instantiation. Report actual entries or unavailability.
+Decision persists supplied rationale/alternatives in the established project-owned
+destination; clarify only if it cannot be resolved, and do not invent a native
+command or automatically create a new issue/spec/document. Bare workflow delivers
+a procedure; task execution needs an already authorized assignment or batch.
