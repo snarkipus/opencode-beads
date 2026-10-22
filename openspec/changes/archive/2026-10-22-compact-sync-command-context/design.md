@@ -28,7 +28,7 @@ Native-window replay retains metadata and expands once on the next primary reque
 
 ## Migration Plan
 
-Local uncommitted candidate only. Validate scoped specs before product edits, follow vertical RED/GREEN/REFACTOR, run source/package/spec gates, protected hashes and all 30 command description/instruction comparisons (reconstruct historical rich payloads with original fixed details/native fields against unchanged existing digests), then document deterministic evidence separately from inherited beta.3 action acceptance and the one new genuine sample. Parent owns task reconciliation, acceptance, commits, closure and any publication. Rollback is removal of this local candidate; canonical specs/archive remain unchanged.
+Implementation used a local uncommitted candidate. Scoped specs were validated before product edits, with vertical RED/GREEN/REFACTOR, source/package/spec gates, protected hashes and all 30 command description/instruction comparisons (reconstructing historical rich payloads with original fixed details/native fields against unchanged existing digests). Deterministic evidence is documented separately from inherited beta.3 action acceptance and the genuine samples. Parent accepted the work and reconciled task markers; subsequent authorized local closeout archives this completed change into canonical specs and commits the source. Publication and activation remain separate.
 
 ## Migration execution and compatibility boundaries (8fl)
 

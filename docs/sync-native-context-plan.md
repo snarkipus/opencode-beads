@@ -4,7 +4,9 @@ This source change implements only `/oc-beads:sync` from the parent-accepted
 plan in `opencode-beads-ueb` and READY review `opencode-beads-ag4`, under current
 implementation authority `opencode-beads-9ux`. Baseline:
 `76549cff2558404f8b855b8708d13ac81c52f138` (published beta.3).
-The scoped change is [compact-sync-command-context](../openspec/changes/compact-sync-command-context/proposal.md).
+The completed change is [compact-sync-command-context](../openspec/changes/archive/2026-10-22-compact-sync-command-context/proposal.md).
+
+This is the historical sync-only design, including the earlier visible details heading. The final natural presentation and all-workflow generalization are described in [workflow native context evaluation](workflow-native-context-evaluation.md) and the archived design.
 
 One ordinary native prompt carries `/oc-beads:sync`, followed by an exact
 `Literal user details` block when nonempty. Native files, agents, skills,
