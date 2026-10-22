@@ -37,8 +37,8 @@ describe("documentation contracts", () => {
     expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version]));
   });
 
-  test("pairs the beta.2 release pin with diagnostics and preserves beta.1 migration history", () => {
-    expect(readme).toContain("**1.1.0-beta.2**");
+  test("pairs the current release pin with diagnostics and preserves beta.1 migration history", () => {
+    expect(readme).toContain(`**${packageManifest.version}**`);
     expect(readme).not.toContain("publication remains pending owner approval");
     const install = readme.split("## Installation")[1]?.split("### Plugin options")[0] ?? "";
     expect(install).toContain(`"plugins": ["${packageIdentity}"]`);
@@ -79,9 +79,9 @@ describe("documentation contracts", () => {
     expect(worktrees).toContain("bd federation sync");
   });
 
-  test("documents bounded invocation authority, operational sync and source versus published behavior", async () => {
-    expect(readme).toContain("Unreleased source behavior");
-    expect(readme).toContain("published beta.2 archive");
+  test("documents bounded invocation authority, operational sync and release scope", async () => {
+    expect(readme).toContain("**Command invocation:**");
+    expect(readme).toContain("This action-contract correction starts with beta.3");
     expect(readme).toContain("/oc-beads:sync explain");
     for (const file of ["assets/oc-beads/SKILL.md", "assets/oc-beads/resources/CLI_REFERENCE.md"]) {
       const text = await fs.readFile(file, "utf8");
