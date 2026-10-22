@@ -31,6 +31,25 @@ When typed composition is available, discover current signatures through native
 Follow [code-mode composition](resources/CODE_MODE.md) for bounded reads,
 projection, ordered writes, completeness, uncertainty and decline/Stop semantics.
 
+## Command purposes
+
+The package's commands are workflow prompts, not exact CLI aliases. Use
+`oc-beads:diagnostics` for integration discovery, compatibility and context health
+without opening a store; use `oc-beads:stats` for the issue-database overview via
+`bd status` (alias `bd stats`). The old package status name has no alias; user-owned
+old-name overrides remain untouched without migration.
+
+Broader workflows retain their purposes: init guides human onboarding, prime uses
+current context or a guarded refresh, version reports installed versions and
+qualification limits, decision records rationale, template discovers formulas,
+and workflow guides authorized work/recovery. They do not invent absent native
+commands. Quickstart uses installed `bd quickstart` help and authorized context.
+Compact targets semantic `bd admin compact`, not Dolt-history `bd compact` or
+conversation compaction; restore retrieves pre-compaction issue content, displaying
+it by default and requiring explicit write authority for `--apply`. Sync means
+Dolt-remote synchronization, distinct from `bd federation sync`. Follow the linked
+CLI reference, troubleshooting, resumability and worktree guidance before action.
+
 ## Work within the assigned scope
 
 - Read the relevant issue and its dependencies before changing tracked state.

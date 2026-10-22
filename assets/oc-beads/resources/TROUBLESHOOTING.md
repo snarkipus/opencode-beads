@@ -19,6 +19,28 @@ limitation and use a documented replacement only when it preserves the needed
 semantics. The specialized `bd agent` and `bd slot` commands are absent from the
 inspected CLI; see [AGENTS.md](AGENTS.md).
 
+## Compact operation and authority
+
+`oc-beads:compact` guides semantic issue compaction with `bd admin compact`.
+`bd compact` squashes Dolt history and is a different operation; neither means
+conversation compaction. A bare invocation explains the workflow, not authority
+to act. Clarify the operation and scope when a request is ambiguous, and inspect
+applicable installed help before any explicitly authorized action.
+
+Prefer the agent-driven analyze/apply path. `--auto` sends issue content to an
+external AI provider; `--dolt` performs storage garbage collection rather than
+semantic summarization. These modes each require separate explicit authority;
+ordinary compact approval selects neither. Always supply explicit `--actor`
+for admin compact, which has its own local default of `agent`; do not inherit
+that default or the human Git identity.
+
+In the inspected Beads 1.3.1 help, admin compact's Usage/flags identify the semantic
+operation but its examples still say `bd compact`. Its discard wording also
+conflicts with restore's snapshot description. Do not copy those stale examples
+or promise reversibility from that conflicting help. Report the uncertainty and
+use applicable help and explicit authority for a future actual request. Do not
+execute administration to validate this prose or repair upstream behavior.
+
 ## Store, migration, or routing problem
 
 If the CLI reports no store, an outdated schema, an unexpected location, or a

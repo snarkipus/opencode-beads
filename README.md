@@ -7,21 +7,21 @@
 
 [Beads](https://github.com/gastownhall/beads) issue tracker integration for [OpenCode](https://opencode.ai).
 
-`@snarkipus/opencode-beads` is a maintained OpenCode adapter that gives OpenCode 2 the integration `bd setup claude` gives Claude Code: `bd prime` workflow context on every request, refreshed after compaction and when a session resumes, plus a bounded task agent. Published 1.0.2 completes one Bead per invocation; the beta/next candidate below follows the authorized scope. It does not replace Beads: the installed `bd` CLI remains authoritative for issues, project initialization, skills, migrations, backups, and Dolt synchronization.
+`@snarkipus/opencode-beads` is a maintained OpenCode adapter that gives OpenCode 2 the integration `bd setup claude` gives Claude Code: `bd prime` workflow context on every request, refreshed after compaction and when a session resumes, plus a bounded task agent. Published 1.0.2 completes one Bead per invocation; the published beta/next release follows the authorized scope. It does not replace Beads: the installed `bd` CLI remains authoritative for issues, project initialization, skills, migrations, backups, and Dolt synchronization.
 
 This is an independent project maintained by Matt Jackson under the MIT license. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. 1.0 rebuilt the plugin for OpenCode 2, and development now continues here independently. It vendors nothing from upstream Beads; instead, every Beads release is checked against the `bd` behavior the plugin relies on (see [Tracking upstream Beads](#tracking-upstream-beads)).
 
-This branch prepares **1.1.0-beta.1**, an opt-in beta for npm dist-tag `next`; publication remains pending owner approval. The beta's normal public entrypoint enables the eleven qualified operations in the native `beads` code-mode namespace on supported hosts: find, get, edges, memories, recall, claim, note, selected-field update, close, create and remember. No wrapper, internal dependency injection, manual skill copy or activation setting is needed. The opt-in is selecting the beta artifact. The published stable 1.0.2 package is unchanged.
+This release is **1.1.0-beta.2**, an opt-in beta targeting npm dist-tag `next`; its integration diagnostic command is `oc-beads:diagnostics`. Beta.1 used `oc-beads:status`; the rename is documented below. The beta's normal public entrypoint enables the eleven qualified operations in the native `beads` code-mode namespace on supported hosts: find, get, edges, memories, recall, claim, note, selected-field update, close, create and remember. No wrapper, internal dependency injection, manual skill copy or activation setting is needed. The opt-in is selecting the beta artifact. The published stable 1.0.2 package is unchanged.
 
-The beta registers 29 `oc-beads:<stem>` workflows plus `oc-beads:status` through ordinary native command registration and owns its packaged `oc-beads` skill at the installed path, with all 15 corpus resources plus CODE_MODE and ADR (17 links). User configuration/file commands retain native precedence on load and rebuild; removing an override restores the package definition. Other plugin conflicts follow native ordering. Status reports observed registration and name/description mismatches; identical-description overrides and public owner identity remain unobservable.
+Beta.2 registers 29 `oc-beads:<stem>` workflows plus `oc-beads:diagnostics` through ordinary native command registration and owns its packaged `oc-beads` skill at the installed path, with all 15 corpus resources plus CODE_MODE and ADR (17 links). User configuration/file commands retain native precedence on load and rebuild; removing an override restores the package definition. Other plugin conflicts follow native ordering. Diagnostics reports observed registration and name/description mismatches; identical-description overrides and public owner identity remain unobservable.
 
-Typed registration requires the host tool, permission and session interfaces. Status reports unavailable interfaces honestly; actual request capabilities, catalog discovery and per-operation permissions determine which operations can run. Native shell remains direct-only and cannot be called inside execute. Structured results preserve partial, failed and uncertain outcomes, and writes retain the actual session-and-agent Beads actor. Read [CODE_MODE.md](assets/oc-beads/resources/CODE_MODE.md) for composition and recovery.
+Typed registration requires the host tool, permission and session interfaces. The integration diagnostic command reports unavailable interfaces honestly; actual request capabilities, catalog discovery and per-operation permissions determine which operations can run. Native shell remains direct-only and cannot be called inside execute. Structured results preserve partial, failed and uncertain outcomes, and writes retain the actual session-and-agent Beads actor. Read [CODE_MODE.md](assets/oc-beads/resources/CODE_MODE.md) for composition and recovery.
 
-All 16 implementation tasks have parent acceptance on exact OpenCode 2.1.1 / Beads 1.3.1. The [final acceptance record](docs/code-mode-final-acceptance-vuy9.md) and [bounded installed/model evaluation](docs/opencode-installed-model-continuation-vuy9.md) retain their historical candidates and probes; this beta adds the public entrypoint and release-channel wiring. **Known limitation:** plain decline of a nested permission request does not stop the entire composition; a later independent operation can ask again. Use explicit Stop/Cancel to stop the composition. No token-saving, cross-provider checkpoint portability or multi-hour reliability claim is made.
+All 16 implementation tasks have parent acceptance on exact OpenCode 2.1.1 / Beads 1.3.1. The [final acceptance record](docs/code-mode-final-acceptance-vuy9.md) and [bounded installed/model evaluation](docs/opencode-installed-model-continuation-vuy9.md) retain their historical candidates and probes; the published beta adds the public entrypoint and release-channel wiring. **Known limitation:** plain decline of a nested permission request does not stop the entire composition; a later independent operation can ask again. Use explicit Stop/Cancel to stop the composition. No token-saving, cross-provider checkpoint portability or multi-hour reliability claim is made.
 
 ## Design
 
-The beta/next candidate uses scope-bounded task execution:
+The published beta/next release uses scope-bounded task execution:
 
 - The primary OpenCode thread retains planning context, decisions, and control.
 - An exact assignment or explicit one-bead mode stops with that item; read-only graph requests never authorize claims or writes.
@@ -41,19 +41,19 @@ The beta requires OpenCode `>=2.1.1 <2.2` and `bd` 1.3.1 or later. Exact OpenCod
 
    `bd init` owns project initialization and creates the canonical shared Beads skill at `.agents/skills/beads`, which OpenCode discovers. It also writes a minimal Beads section to `AGENTS.md` that points to `bd prime`, the same pointer Beads gives Claude Code in `CLAUDE.md`. The published stable package relies on that shared skill. The beta additionally owns its packaged `oc-beads` skill; it does not write startup files or change `.agents/skills/beads/SKILL.md`.
 
-2. After beta publication, add the version-pinned plugin to `~/.config/opencode/opencode.json` for every project, or to a project's `.opencode/opencode.json`:
+2. Add the published, version-pinned plugin to `~/.config/opencode/opencode.json` for every project, or to a project's `.opencode/opencode.json`:
 
    ```json
    {
-     "plugins": ["@snarkipus/opencode-beads@1.1.0-beta.1"]
+     "plugins": ["@snarkipus/opencode-beads@1.1.0-beta.2"]
    }
    ```
 
-   To follow the beta channel after publication, use `"plugins": ["@snarkipus/opencode-beads@next"]` instead. To stay on stable, use `"plugins": ["@snarkipus/opencode-beads@latest"]` (currently 1.0.2); do not select the beta. Stable promotion requires separate approval.
+   To follow the published beta channel, use `"plugins": ["@snarkipus/opencode-beads@next"]` instead. To stay on stable, use `"plugins": ["@snarkipus/opencode-beads@latest"]` (currently 1.0.2); do not select the beta. Stable promotion requires separate approval.
 
    OpenCode loads configuration changes automatically. Update the pin explicitly when upgrading; an unpinned package entry is less reproducible. OpenCode 1.x plugins are not supported; use 0.10.x or earlier there.
 
-3. Check the install: `opencode debug agents` lists `beads-task-agent`; `/oc-beads:status` reports native registration and observed capabilities. Discover `beads` through execute on a host/agent with the required permissions.
+3. Check the beta.2 install: `opencode debug agents` lists `beads-task-agent`; `/oc-beads:diagnostics` reports native registration and observed capabilities. Discover `beads` through execute on a host/agent with the required permissions. An installation still pinned to beta.1 continues to use `/oc-beads:status` until explicitly upgraded.
 
 ### Plugin options
 
@@ -63,7 +63,7 @@ Plugin options use the object form:
 {
   "plugins": [
     {
-      "package": "@snarkipus/opencode-beads@1.1.0-beta.1",
+      "package": "@snarkipus/opencode-beads@1.1.0-beta.2",
       "options": { "luna": true, "autoMigrate": false }
     }
   ]
@@ -119,7 +119,13 @@ Before running prime, the plugin checks `bd version` and the configuration-only 
 
 Published stable 1.0.2 registers no slash commands; `bd setup claude` installs none either. Ask the agent to work with Beads, have it load the canonical `beads` skill that `bd init` installs at `.agents/skills/beads` (OpenCode lists it and loads it with its `skill` tool), or use the `bd` CLI and the generated [Beads CLI reference](https://beads.gascity.com/cli-reference/index) directly. Versions before 1.0.0 shipped `/beads:*` commands adapted from upstream's Claude Code plugin; they duplicated `bd prime` and the skill.
 
-## Removal and customization in the source candidate
+The commands are workflow prompts, not exact CLI aliases. In particular, init guides human onboarding, prime reuses context or requests a guarded refresh, version reports installed versions and qualification limits, decision records rationale, template discovers formulas, and workflow guides authorized work and recovery. These purposes do not imply native `bd decision`, `bd template` or `bd workflow` commands.
+
+Starting with beta.2, the package-owned `oc-beads:status` is removed without an alias. Use `oc-beads:diagnostics` for integration health and `oc-beads:stats` for the issue-database overview via `bd status` (alias `bd stats`). User-defined old status overrides are untouched and are not migrated; the package does not edit configuration.
+
+`oc-beads:compact` guides semantic issue compaction with `bd admin compact`; `bd compact` squashes Dolt history and is a different operation. Neither is conversation compaction. A bare invocation explains the workflow; action requires explicit operation and authority. See the packaged [compact guidance](assets/oc-beads/resources/TROUBLESHOOTING.md) for mode/actor boundaries and upstream help uncertainty. `oc-beads:restore` retrieves pre-compaction issue content, displaying it by default; `--apply` requires explicit authority to write it back and does not mean database backup recovery. Quickstart uses installed help and authorized context; sync guides Dolt-remote synchronization, distinct from `bd federation sync`.
+
+## Removal and customization
 
 Remove the plugin's `plugins` entry to unload it. Cleanup aborts owned context/process work and its event observer, then awaits the scoped agent, skill, tool and hook disposers. It is idempotent and reports disposal failures. It never promises a final checkpoint after interruption. Reload starts with fresh session/location state. Package updates/removal belong to OpenCode's package lifecycle; this plugin has no installer or recursive asset watcher.
 

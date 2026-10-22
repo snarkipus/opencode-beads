@@ -37,6 +37,48 @@ describe("documentation contracts", () => {
     expect(new Set(documentedVersions)).toEqual(new Set([packageManifest.version]));
   });
 
+  test("pairs the beta.2 release pin with diagnostics and preserves beta.1 migration history", () => {
+    expect(readme).toContain("**1.1.0-beta.2**");
+    expect(readme).not.toContain("publication remains pending owner approval");
+    const install = readme.split("## Installation")[1]?.split("### Plugin options")[0] ?? "";
+    expect(install).toContain(`"plugins": ["${packageIdentity}"]`);
+    expect(install).toContain("`/oc-beads:diagnostics` reports native registration and observed capabilities");
+    expect(install).not.toContain("`/oc-beads:status` reports");
+    expect(readme).toContain("29 `oc-beads:<stem>` workflows plus `oc-beads:diagnostics`");
+    expect(readme).toContain("Beta.1 used `oc-beads:status`");
+    expect(readme).toContain("Starting with beta.2, the package-owned `oc-beads:status` is removed without an alias");
+    expect(readme).not.toContain("The diagnostics rename is not included in published beta.1 or the current npm `next` artifact");
+  });
+
+  test("documents diagnostics replacement, workflow mappings and compact/restore boundaries", async () => {
+    expect(readme).toContain("29 `oc-beads:<stem>` workflows plus `oc-beads:diagnostics`");
+    expect(readme).toContain("package-owned `oc-beads:status` is removed without an alias");
+    expect(readme).toContain("User-defined old status overrides are untouched and are not migrated");
+    expect(readme).toContain("`bd status` (alias `bd stats`)");
+    expect(readme).toContain("workflow prompts, not exact CLI aliases");
+    expect(readme).toContain("`bd admin compact`");
+    expect(readme).toContain("`bd compact` squashes Dolt history");
+    expect(changelog.split("## [1.1.0-beta.1]")[0]).toContain("oc-beads:diagnostics");
+    for (const file of ["assets/oc-beads/SKILL.md", "assets/oc-beads/resources/CLI_REFERENCE.md"]) {
+      const guidance = await fs.readFile(file, "utf8");
+      expect(guidance).toContain("workflow prompts, not exact CLI aliases");
+      expect(guidance).toContain("oc-beads:diagnostics");
+      expect(guidance).toContain("oc-beads:stats");
+    }
+    const troubleshooting = await fs.readFile("assets/oc-beads/resources/TROUBLESHOOTING.md", "utf8");
+    expect(troubleshooting).toContain("bare invocation");
+    expect(troubleshooting).toContain("examples still say `bd compact`");
+    expect(troubleshooting).toContain("conflicts with restore's snapshot description");
+    const restore = await fs.readFile("assets/oc-beads/resources/RESUMABILITY.md", "utf8");
+    expect(restore).toContain("pre-compaction issue content");
+    expect(restore).toContain("display-only by default");
+    expect(restore).toMatch(/--apply[\s\S]*explicit authority[\s\S]*write/);
+    expect(restore).toContain("not database backup recovery");
+    const worktrees = await fs.readFile("assets/oc-beads/resources/WORKTREES.md", "utf8");
+    expect(worktrees).toContain("Dolt-remote synchronization");
+    expect(worktrees).toContain("bd federation sync");
+  });
+
   test("documents beta opt-in, normal public registration, stable opt-out and known Stop limits", () => {
     expect(readme).toContain(`${packageManifest.name}@next`);
     expect(readme).toContain(`${packageManifest.name}@latest`);

@@ -254,7 +254,7 @@ export async function setupBeads(
         try { effectiveSkills = ctx.skill ? (await ctx.skill.list()).data.map((entry) => String(entry.id)) : "unavailable"; }
         catch { effectiveSkills = "unavailable: registry lookup failed"; }
         return JSON.stringify({
-          host: hostVersion, admission: SUPPORTED_OPENCODE_RANGE, liveQualification: "not measured by status; see release acceptance evidence",
+          host: hostVersion, admission: SUPPORTED_OPENCODE_RANGE, liveQualification: "not measured by diagnostics; see release acceptance evidence",
           commands: {
             registration: commandRegistration,
             lookup: effectiveCommands ? "available" : "failed",
