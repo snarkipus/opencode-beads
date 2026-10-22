@@ -81,3 +81,12 @@ manual fallback. If a write timed out, read the issue before retrying; the first
 write may have landed. Preserve uncertainty explicitly until it is resolved.
 
 Use the current CLI syntax from `bd prime` and command help when authorized.
+
+## Restore pre-compaction issue content
+
+`oc-beads:restore` guides `bd restore` retrieval of pre-compaction issue content,
+display-only by default. `--apply` requires explicit authority to write that
+content back to the issue. This is not database backup recovery, Git history
+restoration or general store repair. Inspect installed help and report missing
+content or uncertainty honestly; conflicting compact/restore help does not
+establish guaranteed recovery or reversibility.

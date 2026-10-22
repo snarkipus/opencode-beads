@@ -918,12 +918,41 @@ describe("owned workflow registration", () => {
     await cleanup();
     expect(c.callbacks).toEqual([config]);
     expect(c.commands().get(ready.name)).toBe(user);
-    expect(c.commands().has("oc-beads:status")).toBe(false);
+    expect(c.commands().has("oc-beads:diagnostics")).toBe(false);
     const add = mock((_definition: CommandDefinition) => {});
     packageCallback({ add });
     expect(add).not.toHaveBeenCalled();
     await expect(ready.execute(c.invocation)).rejects.toThrow("unloaded");
     expect(f.events.aborted()).toBe(true);
+  });
+
+  test("diagnostics overrides restore natively and user-owned old status survives package removal", async () => {
+    const f = fakeContext();
+    const c = commandFixture(f);
+    const cleanup = await setupBeads(f.ctx, { warn: () => {} });
+    expect(c.commands().size).toBe(30);
+    expect(c.commands().has("oc-beads:status")).toBe(false);
+    const diagnostics = c.commands().get("oc-beads:diagnostics")!;
+    expect(diagnostics.description).toBe("Inspect OpenCode Beads integration discovery, conflicts, compatibility and context/persistence diagnostics without opening a store; use oc-beads:stats for the issue-database overview.");
+    const oldStatus = { name: "oc-beads:status", description: "USER OLD STATUS", execute: mock(async () => {}) };
+    const override = { ...diagnostics, description: "USER DIAGNOSTICS", execute: mock(async () => {}) };
+    const oldConfig = (editor: { add(definition: CommandDefinition): void }) => editor.add(oldStatus);
+    const newConfig = (editor: { add(definition: CommandDefinition): void }) => editor.add(override);
+    c.callbacks.push(oldConfig, newConfig);
+    expect(c.commands().get(diagnostics.name)).toBe(override);
+    await c.commands().get(diagnostics.name)!.execute(c.invocation);
+    expect(override.execute).toHaveBeenCalledTimes(1);
+    c.callbacks.splice(c.callbacks.indexOf(newConfig), 1);
+    expect(c.commands().get(diagnostics.name)).toBe(diagnostics);
+    expect(c.commands().get(oldStatus.name)).toBe(oldStatus);
+    await c.commands().get(oldStatus.name)!.execute(c.invocation);
+    expect(oldStatus.execute).toHaveBeenCalledTimes(1);
+    await c.commands().get("oc-beads:stats")!.execute(c.invocation);
+    expect(c.prompt.mock.calls.at(-1)![0].text).toContain("issue-database overview using bd status (alias bd stats)");
+    expect(c.prompt.mock.calls.at(-1)![0].text).toContain("Supporting guidance:");
+    await cleanup();
+    expect(c.commands().get(oldStatus.name)).toBe(oldStatus);
+    expect(c.commands().has(diagnostics.name)).toBe(false);
   });
 
   test("registers after an initial lookup failure and reports observable mismatches, missing names and ownership blind spots", async () => {
@@ -934,9 +963,9 @@ describe("owned workflow registration", () => {
     expect(c.transform).toHaveBeenCalledTimes(1);
     c.failLookup(false);
     const ready = c.commands().get("oc-beads:ready")!;
-    const status = c.commands().get("oc-beads:status")!;
+    const diagnostics = c.commands().get("oc-beads:diagnostics")!;
     const report = async () => {
-      await status.execute(c.invocation);
+      await diagnostics.execute(c.invocation);
       const text = String(c.prompt.mock.calls.at(-1)![0].text);
       return JSON.parse(text.split("\n")[1]!);
     };
@@ -1085,7 +1114,7 @@ test("cleanup attempts every owned disposer and reports a failed disposal", asyn
   expect(f.events.aborted()).toBe(true);
 });
 
-test("registered status distinguishes missing, held, failed, loading and uncertain context using only config probes", async () => {
+test("registered diagnostics distinguishes missing, held, failed, loading and uncertain context using only config probes", async () => {
   const f = fakeContext({ pluginOptions: { autoMigrate: true } });
   const c = commandFixture(f);
   let time = 0;
@@ -1102,12 +1131,13 @@ test("registered status distinguishes missing, held, failed, loading and uncerta
   let release: (text: string) => void = () => {};
   const prime = mock(async () => new Promise<string>((resolve) => { release = resolve; }));
   const cleanup = await setupBeads(f.ctx, { bd, runtime: { prime }, now: () => time, retryMs: 1, warn: () => {} });
-  const status = c.commands().get("oc-beads:status")!;
+  const diagnostics = c.commands().get("oc-beads:diagnostics")!;
   const report = async () => {
-    await status.execute(c.invocation);
+    await diagnostics.execute(c.invocation);
     return JSON.parse(String(c.prompt.mock.calls.at(-1)![0].text).split("\n")[1]!);
   };
   const initial = await report();
+  expect(initial.liveQualification).toBe("not measured by diagnostics; see release acceptance evidence");
   expect(initial.context).toBe("missing: not loaded");
   expect(initial.requestCapability).toBe("unknown: no actual request observation");
   await f.request("s1", "build");
@@ -1147,7 +1177,7 @@ test("registered status distinguishes missing, held, failed, loading and uncerta
   await cleanup();
 });
 
-test("unload aborts an in-flight native status without submitting a late prompt", async () => {
+test("unload aborts an in-flight native diagnostics without submitting a late prompt", async () => {
   const f = fakeContext();
   const c = commandFixture(f);
   let signal: AbortSignal | undefined;
@@ -1159,7 +1189,7 @@ test("unload aborts an in-flight native status without submitting a late prompt"
       return { kind: "ready" };
     },
   } });
-  const pending = c.commands().get("oc-beads:status")!.execute(c.invocation);
+  const pending = c.commands().get("oc-beads:diagnostics")!.execute(c.invocation);
   await settle();
   await cleanup();
   expect(signal?.aborted).toBe(true);

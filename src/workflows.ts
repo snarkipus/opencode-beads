@@ -16,7 +16,7 @@ export const WORKFLOWS = {
   blocked: ["Inspect blocked work; distinguish explicit blocked status from dependency blocking.", "DEPENDENCIES"],
   close: ["Close only the requested work with acceptance and validation evidence and closure authority.", "WORKFLOWS"],
   comments: ["Read discussion or append the requested comment/checkpoint without replacing prior notes.", "RESUMABILITY"],
-  compact: ["Explain or perform explicitly authorized administrative issue compaction using current CLI help; this is separate from conversation compaction.", "TROUBLESHOOTING"],
+  compact: ["Guide semantic issue compaction with bd admin compact only when explicitly authorized; bd compact squashes Dolt history and is a different operation. This is not conversation compaction.", "TROUBLESHOOTING"],
   create: ["Create the requested issue with useful description, acceptance/design and discovered-from provenance when applicable; leave it unassigned unless assignment is intentional.", "ISSUE_CREATION"],
   decision: ["Record the requested decision, rationale and alternatives; reference intended behavior and detailed rationale in their project-owned homes.", "INTEGRATION_PATTERNS"],
   delete: ["Inspect the requested deletion and its effects; delete only with explicit scoped authority, never as a substitute for closure.", "TROUBLESHOOTING"],
@@ -28,15 +28,15 @@ export const WORKFLOWS = {
   label: ["Inspect or update only requested labels while preserving the project's taxonomy.", "CLI_REFERENCE"],
   list: ["Retrieve issues with the requested supported filters. Retrieval does not authorize claims or task execution.", "CLI_REFERENCE"],
   prime: ["Use supplied current context when available; request a guarded full-context refresh only when authorized and no hold is active.", "RESUMABILITY"],
-  quickstart: ["Provide onboarding using current prime/help and packaged guidance; the deprecated bd quickstart command is not assumed available.", "BOUNDARIES"],
+  quickstart: ["Guide onboarding with installed bd quickstart help, current authorized context and packaged guidance; do not initialize a store or assume commands unavailable in the installed CLI.", "BOUNDARIES"],
   ready: ["Inspect actionable work. Honor an exact assignment; claim and execute only work already within the authorized scope.", "WORKFLOWS"],
   "rename-prefix": ["Explain the requested project identifier migration and reference impact using current CLI help; require explicit migration authority.", "TROUBLESHOOTING"],
   reopen: ["Inspect current state, then reopen only the requested issue with the supplied regression/correction reason.", "WORKFLOWS"],
-  restore: ["Inspect supported historical retrieval/restoration in the installed Dolt-based CLI; do not assume legacy Git restore syntax or restore without authority.", "RESUMABILITY"],
+  restore: ["Retrieve pre-compaction issue content with bd restore; display-only by default. Use --apply only with explicit authority to write that content back; this is not database backup recovery.", "RESUMABILITY"],
   search: ["Search issues using supported filters; distinguish issue search from reusable memory search.", "CLI_REFERENCE"],
   show: ["Read requested issue details, prior notes, acceptance and dependencies without mutating them.", "RESUMABILITY"],
-  stats: ["Report the requested issue overview without automatically claiming work.", "CLI_REFERENCE"],
-  sync: ["Inspect current bd sync help: current federation synchronization differs from removed JSONL sync. Synchronize only with explicit authority; disclose conflicts without forcing a side.", "WORKTREES"],
+  stats: ["Report the issue-database overview using bd status (alias bd stats); use oc-beads:diagnostics for integration health. Do not claim work.", "CLI_REFERENCE"],
+  sync: ["Inspect current bd sync help for Dolt-remote synchronization, distinct from bd federation sync and removed JSONL sync. Synchronize only with explicit authority; disclose conflicts without forcing a side.", "WORKTREES"],
   template: ["Discover supported templates/formulas through installed help; replace obsolete static template syntax and do not execute a formula automatically.", "MOLECULES"],
   update: ["Apply only requested field changes; use an atomic claim for authorized execution and append-style progress notes. Replacement of notes is intentional, never routine.", "RESUMABILITY"],
   version: ["Report actual installed CLI, package and host versions and qualification limits; do not hardcode a latest version or install/upgrade anything.", "CLI_REFERENCE"],
@@ -90,11 +90,12 @@ export function applyBeadsSkill(editor: SkillEditor, skill: BeadsSkill, diagnose
 /** Build native prompt commands, never shell/template interpolation or synthetic continuation. */
 export function createBeadsCommands(
   session: Pick<Plugin.Context["session"], "prompt">,
-  status: (sessionID: string) => Promise<string>,
+  diagnostics: (sessionID: string) => Promise<string>,
   skillPath = BEADS_SKILL_PATH,
   signal?: AbortSignal,
 ): CommandDefinition[] {
   const common = [
+    "Workflow commands guide permitted operations, not exact CLI aliases.",
     "Follow repository/user authority and the exact requested scope. Do not bypass a hold with manual prime or other store access.",
     "Use actual request capabilities: discover the native beads namespace and compose supported daily operations in code mode when present. Native shell is direct-only; advanced/admin workflows use permissioned direct shell and current CLI help. Do not call tools.shell inside execute. Advanced guidance does not enable automation.",
     "Every agent-authored write, claim and heartbeat needs the host-rendered actual executor's command-scoped BEADS_ACTOR or --actor. Preserve authorship; read created_by, owner and assignee separately.",
@@ -115,11 +116,11 @@ export function createBeadsCommands(
     },
   }));
   commands.push({
-    name: "oc-beads:status",
-    description: "Inspect native discovery, conflicts, compatibility and context/persistence status without opening a store.",
+    name: "oc-beads:diagnostics",
+    description: "Inspect OpenCode Beads integration discovery, conflicts, compatibility and context/persistence diagnostics without opening a store; use oc-beads:stats for the issue-database overview.",
     async execute(input) {
       if (signal?.aborted) throw new Error("Beads workflow unloaded");
-      const report = await status(input.sessionID);
+      const report = await diagnostics(input.sessionID);
       if (signal?.aborted) throw new Error("Beads workflow unloaded");
       await session.prompt({
         ...input.prompt, sessionID: input.sessionID, delivery: input.delivery,

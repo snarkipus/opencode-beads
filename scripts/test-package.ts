@@ -301,8 +301,8 @@ try {
     const richSkill = skills.get("oc-beads");
     if (richSkill?.path !== installedSkillPath || richSkill.content !== installedSkill.content) throw new Error("Installed skill registration differs from packed asset");
     if (skills.get("beads") !== userSkill) throw new Error("Shared user skill was changed");
-    const expectedCommands = [...Object.keys(workflows.WORKFLOWS).map((stem) => `oc-beads:${stem}`), "oc-beads:status"].sort();
-    if (commands.size !== 30 || [...commands.keys()].sort().join("\0") !== expectedCommands.join("\0")) {
+    const expectedCommands = [...Object.keys(workflows.WORKFLOWS).map((stem) => `oc-beads:${stem}`), "oc-beads:diagnostics"].sort();
+    if (commands.has("oc-beads:status") || !commands.has("oc-beads:diagnostics") || !commands.has("oc-beads:stats") || commands.size !== 30 || [...commands.keys()].sort().join("\0") !== expectedCommands.join("\0")) {
       throw new Error("Packed callback did not register all 30 native command definitions");
     }
     invoking = true;
@@ -319,13 +319,13 @@ try {
         || submitted.files !== invocation.prompt.files || submitted.agents !== invocation.prompt.agents || submitted.skills !== invocation.prompt.skills) {
         throw new Error(`Packed command did not preserve native invocation: ${definition.name}`);
       }
-      if (definition.name === "oc-beads:status") {
+      if (definition.name === "oc-beads:diagnostics") {
         const status = JSON.parse(submitted.text.split("\n")[1]!);
         if (status.commands.registration !== "registered" || status.commands.lookup !== "available"
-          || !status.commands.ownership.includes("identical-description") || status.liveQualification !== "not measured by status; see release acceptance evidence"
+          || !status.commands.ownership.includes("identical-description") || status.liveQualification !== "not measured by diagnostics; see release acceptance evidence"
           || status.typedContinuity !== "enabled: qualified beta registration"
           || status.typedRegistration !== "registered: beads namespace, code-mode-only") {
-          throw new Error("Packed status did not report observed registration and qualification limits");
+          throw new Error("Packed diagnostics did not report observed registration and qualification limits");
         }
       } else if (!submitted.text.includes(JSON.stringify(installedSkillPath))) throw new Error("Packed command uses the wrong JSON-quoted installed guidance base");
     }

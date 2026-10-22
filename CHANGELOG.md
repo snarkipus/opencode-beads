@@ -18,6 +18,12 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [1.1.0-beta.2]
+
+### Changed
+- Replace package-owned `oc-beads:status` with `oc-beads:diagnostics` without an alias; retain stats for issue overview and leave user-owned old status overrides untouched.
+- Clarify compact, restore, quickstart and sync workflow purposes and compact mode/actor authority.
+
 ## [1.1.0-beta.1]
 
 ### Added
@@ -333,7 +339,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.1.0-beta.1...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.1.0-beta.2...HEAD
+[1.1.0-beta.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.2
 [1.0.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.2
 [1.0.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.1
 [1.0.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.0.0

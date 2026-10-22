@@ -221,7 +221,7 @@ describe("oc-beads guidance assets", () => {
 describe("packaged native workflows", () => {
   test("forwards exact scope and partial-handoff authority cues without selecting or claiming work", async () => {
     const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
-    const commands = createBeadsCommands({ prompt }, async () => "STATUS");
+    const commands = createBeadsCommands({ prompt }, async () => "DIAGNOSTICS");
     // These are literal caller instructions, not a mock model or a scope interpreter.
     const scenarios = [
       ["ready", "Execute exact fixture-1 only; stop without substitution; closure belongs to parent."],
@@ -249,14 +249,17 @@ describe("packaged native workflows", () => {
     expect(workflows).toContain("new discoveries never expand it");
   });
 
-  test("defines exactly the selected inventory's 29 command stems plus status", async () => {
+  test("defines exactly the selected inventory's 29 command stems plus diagnostics", async () => {
     const inventory = await Bun.file("docs/claude-code-integration-inventory.json").json();
     const selected = inventory.marketplace_main.files
       .filter((file: { path: string }) => file.path.startsWith("plugins/beads/skills/beads/commands/"))
       .map((file: { selected_mapping: { target: string } }) => file.selected_mapping.target).sort();
     expect(Object.keys(WORKFLOWS).map((stem) => `oc-beads:${stem}`).sort()).toEqual(selected);
-    const commands = createBeadsCommands({ prompt: mock(async () => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>)) }, async () => "STATUS");
-    expect(commands.map((command) => command.name).sort()).toEqual([...selected, "oc-beads:status"].sort());
+    const commands = createBeadsCommands({ prompt: mock(async () => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>)) }, async () => "DIAGNOSTICS");
+    expect(commands).toHaveLength(30);
+    expect(new Set(commands.map((command) => command.name)).size).toBe(30);
+    expect(commands.some((command) => command.name === "oc-beads:status")).toBe(false);
+    expect(commands.map((command) => command.name).sort()).toEqual([...selected, "oc-beads:diagnostics"].sort());
   });
 
   test("forwards literal arguments, attachments, prompt fields and native delivery without template execution", async () => {
@@ -265,7 +268,7 @@ describe("packaged native workflows", () => {
       sessionID: "s1", delivery: "queue",
       prompt: { text: "a 'quoted' $ARGUMENTS $(touch nope) `literal`", files: [{ uri: "file:///tmp/a%20b", name: "a b" }], agents: [{ name: "build" }], skills: [{ id: "oc-beads" }] },
     } as unknown as CommandInvocation;
-    for (const command of createBeadsCommands({ prompt }, async () => "STATUS: withheld")) {
+    for (const command of createBeadsCommands({ prompt }, async () => "DIAGNOSTICS: withheld")) {
       await command.execute(input);
       const sent = prompt.mock.calls.at(-1)![0] as Record<string, unknown>;
       expect(sent.sessionID).toBe(input.sessionID);
@@ -274,12 +277,41 @@ describe("packaged native workflows", () => {
       expect(sent.agents).toBe(input.prompt.agents);
       expect(sent.skills).toBe(input.prompt.skills);
       expect(sent.text).toContain(input.prompt.text);
-      if (command.name !== "oc-beads:status") {
+      if (command.name !== "oc-beads:diagnostics") {
         expect(sent.text).toContain("Do not bypass a hold");
         expect(sent.text).toContain("oc-beads");
         expect(sent.text).not.toContain("mcp__");
-      } else expect(sent.text).toContain("STATUS: withheld");
+      } else expect(sent.text).toContain("DIAGNOSTICS: withheld");
     }
+  });
+
+  test("workflow bodies clarify native purposes without invoking diagnostics", async () => {
+    const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
+    const diagnostics = mock(async () => "DIAGNOSTICS");
+    const commands = createBeadsCommands({ prompt }, diagnostics);
+    const purposes = {
+      compact: "Guide semantic issue compaction with bd admin compact only when explicitly authorized; bd compact squashes Dolt history and is a different operation. This is not conversation compaction.",
+      restore: "Retrieve pre-compaction issue content with bd restore; display-only by default. Use --apply only with explicit authority to write that content back; this is not database backup recovery.",
+      quickstart: "Guide onboarding with installed bd quickstart help, current authorized context and packaged guidance; do not initialize a store or assume commands unavailable in the installed CLI.",
+      sync: "Inspect current bd sync help for Dolt-remote synchronization, distinct from bd federation sync and removed JSONL sync. Synchronize only with explicit authority; disclose conflicts without forcing a side.",
+      stats: "Report the issue-database overview using bd status (alias bd stats); use oc-beads:diagnostics for integration health. Do not claim work.",
+    };
+    const input = { sessionID: "s1", delivery: "queue", prompt: { text: "explain only" } } as CommandInvocation;
+    for (const [stem, purpose] of Object.entries(purposes)) {
+      const command = commands.find((entry) => entry.name === `oc-beads:${stem}`)!;
+      expect(command.description).toBe(purpose);
+      await command.execute(input);
+      expect((prompt.mock.calls.at(-1)![0] as { text: string }).text).toContain(purpose);
+    }
+    for (const stem of ["init", "prime", "version", "decision", "template", "workflow"]) {
+      await commands.find((entry) => entry.name === `oc-beads:${stem}`)!.execute(input);
+      expect((prompt.mock.calls.at(-1)![0] as { text: string }).text).toContain("Workflow commands guide permitted operations, not exact CLI aliases.");
+    }
+    expect(diagnostics).not.toHaveBeenCalled();
+  });
+
+  test("TROUBLESHOOTING.md gives compact analyze/apply, separate mode authority and explicit actor guidance", () => {
+    expect(readResource("TROUBLESHOOTING")).toMatch(/Prefer the agent-driven analyze\/apply path[\s\S]*--auto[\s\S]*external AI provider[\s\S]*--dolt[\s\S]*storage garbage collection[\s\S]*each require separate explicit authority[\s\S]*ordinary compact approval selects neither[\s\S]*explicit `--actor`[\s\S]*default of `agent`/);
   });
 
   test("loads the rich skill at its installed path with all 17 explicit links, beyond a sampled ten", async () => {
@@ -306,7 +338,7 @@ describe("packaged native workflows", () => {
   test("beta package manifest includes owned assets at the selected prerelease version", async () => {
     const manifest = await Bun.file("package.json").json();
     expect(manifest.files).toContain("assets/oc-beads");
-    expect(manifest.version).toBe("1.1.0-beta.1");
+    expect(manifest.version).toBe("1.1.0-beta.2");
   });
 });
 
