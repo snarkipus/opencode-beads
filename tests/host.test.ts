@@ -1002,7 +1002,7 @@ describe("owned workflow registration", () => {
     try {
       const stored: SessionContext["messages"] = [];
       const expected: SessionContext["messages"] = [];
-      const stems = ["show", "update", "compact", "sync"];
+      const stems = ["show", "update", "compact", "sync", "diagnostics"];
       for (const [index, stem] of stems.entries()) {
         const details = index === stems.length - 1 ? "current turn exact details" : `fixture-1 ${stem} literal --apply --auto`;
         await commands.find(c => c.name === `oc-beads:${stem}`)!.execute({ ...c.invocation, prompt: { ...c.invocation.prompt, text: details } });
@@ -1037,7 +1037,7 @@ describe("owned workflow registration", () => {
         expect(serialized).toBe(candidate);
         expect(serialized).toBe(await serialize(expected));
         expect(serialized).not.toMatch(/ocBeadsWorkflow|ocBeadsSync/);
-        for (const stem of stems) expect(serialized.match(new RegExp(`Invoked command: /oc-beads:${stem}`, "g"))).toHaveLength(1);
+        for (const stem of stems) expect(serialized.match(new RegExp(stem === "diagnostics" ? "Report these observed Beads diagnostics" : `Invoked command: /oc-beads:${stem}`, "g"))).toHaveLength(1);
         expect(serialized).toContain("current turn exact details");
         const once = JSON.stringify(event.messages);
         await f.hooks.get(kind)!(event);
@@ -1050,15 +1050,50 @@ describe("owned workflow registration", () => {
       expect(JSON.stringify(stored)).toBe(storage);
       const auxiliary = await serialize(stored);
       expect(auxiliary).not.toContain("Invoked command:");
+      expect(auxiliary).not.toContain("Report these observed Beads diagnostics");
       expect(auxiliary).not.toMatch(/ocBeadsWorkflow|ocBeadsSync/);
       expect([...f.hooks.keys()].sort()).toEqual(["compaction", "context"]);
-      expect(c.prompt).toHaveBeenCalledTimes(4);
+      expect(c.prompt).toHaveBeenCalledTimes(stems.length);
       if (process.env.OC_BEADS_WORKFLOW_EVIDENCE_DIR) await writeFile(path.join(process.env.OC_BEADS_WORKFLOW_EVIDENCE_DIR, "provider-fixture.json"), JSON.stringify({ kind: "local Responses serialization only; no inference", invocations: stems, candidate: JSON.parse(candidate!), auxiliary: JSON.parse(auxiliary), stablePrimaryCompactionReplay: true }, null, 2));
     } finally {
       await client.dispose();
       server.stop(true);
       await cleanup();
     }
+  });
+
+  test("diagnostics identifies its loaded package and expands the captured report through existing hooks", async () => {
+    const f = fakeContext();
+    const c = commandFixture(f);
+    const prime = mock(async () => "PRIME");
+    const cleanup = await setupBeads(f.ctx, { warn: () => {}, runtime: { guard: async () => ({kind: "ready"}), prime } });
+    try {
+      await c.commands().get("oc-beads:diagnostics")!.execute(c.invocation);
+      const sent = c.prompt.mock.calls.at(-1)![0];
+      const metadata = sent.metadata as {ocBeadsWorkflow: {version: number; instructions: string}};
+      const snapshot = metadata.ocBeadsWorkflow;
+      const report = JSON.parse(snapshot.instructions.split("\n")[1]!);
+      const manifest = await Bun.file(new URL("../package.json", import.meta.url)).json();
+      expect(report.plugin).toEqual({name: manifest.name, version: manifest.version});
+      expect(report.host).toBe("2.1.1");
+      expect(prime).not.toHaveBeenCalled();
+      const stored = {role: "user" as const, content: [{type:"text" as const, text: String(sent.text)}], metadata};
+      const raw = JSON.stringify(stored);
+      for (const kind of ["context", "compaction"]) {
+        const event: ContextEvent = {sessionID:"s1", agent:"build", system:[], messages:[JSON.parse(raw)]};
+        await f.hooks.get(kind)!(event);
+        expect(event.messages![0]!.content[0]).toEqual({type:"text", text:snapshot.instructions});
+        expect(JSON.stringify(event.messages)).not.toContain("ocBeadsWorkflow");
+        expect(JSON.stringify(event.messages).split(snapshot.instructions.split("\n")[0]!)).toHaveLength(2);
+      }
+      for (const kind of ["title", "generate"]) {
+        const event: ContextEvent = {sessionID:"s1", agent:"build", system:[], messages:[JSON.parse(raw)]};
+        await f.hooks.get(kind)?.(event);
+        expect(JSON.stringify(event.messages!.map(message => message.content))).not.toContain('Report these observed Beads diagnostics');
+      }
+      expect(JSON.stringify(stored)).toBe(raw);
+      expect(c.prompt).toHaveBeenCalledTimes(1);
+    } finally { await cleanup(); }
   });
 
   test("diagnostics overrides restore natively and user-owned old status survives package removal", async () => {
@@ -1102,8 +1137,8 @@ describe("owned workflow registration", () => {
     const diagnostics = c.commands().get("oc-beads:diagnostics")!;
     const report = async () => {
       await diagnostics.execute(c.invocation);
-      const text = String(c.prompt.mock.calls.at(-1)![0].text);
-      return JSON.parse(text.split("\n")[1]!);
+      const metadata = c.prompt.mock.calls.at(-1)![0].metadata as {ocBeadsWorkflow: {instructions: string}};
+      return JSON.parse(metadata.ocBeadsWorkflow.instructions.split("\n")[1]!);
     };
     let observed = await report();
     expect(observed.commands.registration).toBe("registered");
@@ -1270,7 +1305,8 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
   const diagnostics = c.commands().get("oc-beads:diagnostics")!;
   const report = async () => {
     await diagnostics.execute(c.invocation);
-    return JSON.parse(String(c.prompt.mock.calls.at(-1)![0].text).split("\n")[1]!);
+    const metadata = c.prompt.mock.calls.at(-1)![0].metadata as {ocBeadsWorkflow: {instructions: string}};
+    return JSON.parse(metadata.ocBeadsWorkflow.instructions.split("\n")[1]!);
   };
   const initial = await report();
   expect(initial.liveQualification).toBe("not measured by diagnostics; see release acceptance evidence");

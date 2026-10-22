@@ -18,6 +18,13 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [1.1.0-beta.5]
+
+### Fixed
+
+- Keep `/oc-beads:diagnostics` history compact using the existing metadata and primary/compaction hooks while capturing its dynamic observed report once and preserving safe probes, native inputs, replay and unload behavior.
+- Include the loaded plugin package name/version from its own manifest and request prominent plugin/host identity in the diagnostic answer; do not infer a unique canary build from a version label.
+
 ## [1.1.0-beta.4]
 
 ### Changed
@@ -353,7 +360,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.1.0-beta.4...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.1.0-beta.5...HEAD
+[1.1.0-beta.5]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.5
 [1.1.0-beta.4]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.4
 [1.1.0-beta.3]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.3
 [1.1.0-beta.2]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.2

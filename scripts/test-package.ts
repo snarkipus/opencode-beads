@@ -323,7 +323,22 @@ try {
         throw new Error(`Packed command did not preserve native invocation: ${definition.name}`);
       }
       if (definition.name === "oc-beads:diagnostics") {
-        const status = JSON.parse(submitted.text.split("\n")[1]!);
+        if (submitted.text !== `/${definition.name} ${invocation.prompt.text}`) throw new Error("Packed diagnostics history is not compact");
+        const metadata = submitted.metadata as {ocBeadsWorkflow: {version: number; instructions: string}};
+        const snapshot = metadata?.ocBeadsWorkflow;
+        if (!snapshot || snapshot.version !== 1) throw new Error("Packed diagnostics lost its snapshot");
+        const status = JSON.parse(snapshot.instructions.split("\n")[1]!);
+        if (status.plugin?.name !== manifest.name || status.plugin?.version !== manifest.version) throw new Error("Packed diagnostics did not identify the loaded package");
+        const stored = JSON.stringify(submitted);
+        for (const kind of ["context", "compaction"]) {
+          const event = {sessionID: invocation.sessionID, agent: "build", system: [], messages: [{role: "user", content: [{type: "text", text: submitted.text}], metadata}], tools: {}, options: {}} as unknown as SessionContext;
+          await requestHooks.get(kind)!(event);
+          if (event.messages[0]?.content[0]?.type !== "text" || event.messages[0].content[0].text !== snapshot.instructions || /ocBeadsWorkflow/.test(JSON.stringify(event.messages))) throw new Error(`Packed diagnostics expansion differs: ${kind}`);
+          const once = JSON.stringify(event.messages);
+          await requestHooks.get(kind)!(event);
+          if (JSON.stringify(event.messages) !== once) throw new Error("Packed diagnostics expansion duplicates");
+        }
+        if (JSON.stringify(submitted) !== stored) throw new Error("Packed diagnostics mutated persisted input");
         if (status.commands.registration !== "registered" || status.commands.lookup !== "available"
           || !status.commands.ownership.includes("identical-description") || status.liveQualification !== "not measured by diagnostics; see release acceptance evidence"
           || status.typedContinuity !== "enabled: qualified beta registration"
