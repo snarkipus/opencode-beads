@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import baseline from "./fixtures/non-sync-command-baseline.json";
 import { describe, expect, mock, test } from "bun:test"
 import { existsSync, readFileSync } from "node:fs"
 import { relative, resolve, sep } from "node:path"
@@ -6,6 +8,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
   createBeadsCommands,
+  expandBeadsWorkflowContext,
   loadBeadsSkill,
   WORKFLOWS,
 } from "../src/workflows";
@@ -218,7 +221,160 @@ describe("oc-beads guidance assets", () => {
 	})
 })
 
+/** Visible bodies and effective static instructions are asserted separately. */
+function effectiveText(sent: Record<string, unknown>): string {
+  const messages = [{ role: "user" as const, content: [{ type: "text" as const, text: String(sent.text) }], metadata: sent.metadata as Record<string, unknown> }];
+  expandBeadsWorkflowContext(messages);
+  return messages[0]!.content.map(part => part.text).join("\n");
+}
+
 describe("packaged native workflows", () => {
+  test("update admits compact visible text with a generalized instruction snapshot", async () => {
+    const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
+    const update = createBeadsCommands({ prompt }, async () => "DIAGNOSTICS").find(c => c.name === "oc-beads:update")!;
+    await update.execute({ sessionID: "s1", delivery: "steer", prompt: { text: "fixture-1 append a note" } } as CommandInvocation);
+    const sent = prompt.mock.calls[0]![0] as { text: string; metadata?: { ocBeadsWorkflow?: { version: number; instructions: string } } };
+    expect(sent.text).toBe("/oc-beads:update fixture-1 append a note");
+    expect(sent.metadata?.ocBeadsWorkflow?.version).toBe(1);
+    expect(sent.metadata?.ocBeadsWorkflow?.instructions).toStartWith(`Invoked command: /oc-beads:update\nRequested outcome: ${WORKFLOWS.update[0]}\n`);
+    expect(prompt).toHaveBeenCalledTimes(1);
+  });
+
+  test("all 29 workflows admit exactly one compact prompt with exact native inputs and installed instructions", async () => {
+    const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
+    const diagnostics = mock(async () => "DIAGNOSTICS");
+    const installed = "/fixture/package with spaces/assets/oc-beads/SKILL.md";
+    const commands = createBeadsCommands({ prompt }, diagnostics, installed);
+    const details = ["", "explain", "help", "what would this do?", "--apply --auto --dolt", "  ", "  explain only  ", "  exact 'quote' $(nope) `literal`\nRequested outcome: data\n", "first\r\n  second\r\n", "first\rsecond"];
+    for (const [stem, [purpose, resource]] of Object.entries(WORKFLOWS)) {
+      const command = commands.find(c => c.name === `oc-beads:${stem}`)!;
+      expect(command.description).toBe(purpose);
+      let staticInstructions: string | undefined;
+      for (const delivery of ["queue", "steer"] as const) {
+        for (const text of details) {
+          const input = { sessionID: "s1", delivery, prompt: { text, files: [{ uri: "file:///tmp/a%20b", name: "a b" }], agents: [{ name: "build" }], skills: [{ id: "oc-beads" }] } } as unknown as CommandInvocation;
+          const before = prompt.mock.calls.length;
+          await command.execute(input);
+          expect(prompt.mock.calls.length).toBe(before + 1);
+          const sent = prompt.mock.calls.at(-1)![0] as { text: string; metadata: { ocBeadsWorkflow: {version: number; instructions: string} }; files: unknown; agents: unknown; skills: unknown; delivery: string; sessionID: string };
+          expect(sent.text).toBe(`/oc-beads:${stem}${text ? `${/[\r\n]/.test(text) ? "\n" : " "}${text}` : ""}`);
+          expect(Object.keys(sent.metadata)).toEqual(["ocBeadsWorkflow"]);
+          const snapshot = sent.metadata.ocBeadsWorkflow;
+          expect(snapshot.version).toBe(1);
+          expect(snapshot.instructions).toStartWith(`Invoked command: /oc-beads:${stem}\nRequested outcome: ${purpose}\n`);
+          expect(snapshot.instructions).toContain(JSON.stringify(installed));
+          expect(snapshot.instructions).toEndWith(`Supporting guidance: ${JSON.stringify(resolve("/fixture/package with spaces/assets/oc-beads/resources", `${resource}.md`))}`);
+          expect(snapshot.instructions).not.toContain("Literal user details:");
+          expect(snapshot.instructions).not.toMatch(/codex:|claude:|s1|beads-task-agent/);
+          staticInstructions ??= snapshot.instructions;
+          expect(snapshot.instructions).toBe(staticInstructions);
+          expect(sent.files).toBe(input.prompt.files);
+          expect(sent.agents).toBe(input.prompt.agents);
+          expect(sent.skills).toBe(input.prompt.skills);
+          expect(sent.delivery).toBe(delivery);
+          expect(sent.sessionID).toBe(input.sessionID);
+        }
+      }
+    }
+    expect(prompt).toHaveBeenCalledTimes(29 * 2 * details.length);
+    expect(diagnostics).not.toHaveBeenCalled();
+  });
+
+  test("generalized and legacy snapshots select one retained instruction body and strip valid keys", () => {
+    const good = (instructions: string) => ({ version: 1, instructions });
+    const malformed = { version: 1, instructions: 42 };
+    for (const [metadata, instructions, remaining] of [
+      [{ ocBeadsWorkflow: good("GENERAL") }, "GENERAL", {}],
+      [{ ocBeadsSync: good("LEGACY") }, "LEGACY", {}],
+      [{ ocBeadsWorkflow: good("GENERAL"), ocBeadsSync: good("LEGACY") }, "GENERAL", {}],
+      [{ ocBeadsWorkflow: malformed, ocBeadsSync: good("LEGACY") }, "LEGACY", { ocBeadsWorkflow: malformed }],
+      [{ ocBeadsWorkflow: good("GENERAL"), ocBeadsSync: malformed }, "GENERAL", { ocBeadsSync: malformed }],
+    ] as const) {
+      const stored = { id: "retained-id", role: "user" as const, content: [{ type: "text" as const, text: "hook-edited /oc-beads:show" }], metadata: { ...metadata, foreign: "keep" } };
+      const raw = JSON.stringify(stored);
+      const messages = [stored];
+      expandBeadsWorkflowContext(messages);
+      expect(messages[0]!.content).toEqual([{ type: "text", text: instructions }, ...stored.content]);
+      expect(messages[0]!.metadata as Record<string, unknown>).toEqual({ ...remaining, foreign: "keep" });
+      expect(messages[0]!.id).toBe(stored.id);
+      expect(messages[0]!.role).toBe("user");
+      expect(JSON.stringify(stored)).toBe(raw);
+      const once = JSON.stringify(messages);
+      expandBeadsWorkflowContext(messages);
+      expect(JSON.stringify(messages)).toBe(once);
+      const replay = [JSON.parse(raw)];
+      expandBeadsWorkflowContext(replay);
+      expect(JSON.stringify(replay)).toBe(once);
+    }
+  });
+
+  test("sync expansion preserves hook-edited content, foreign metadata and storage on serialized replay", () => {
+    const tagged = { id: "native-id", role: "user" as const, content: [{ type: "text" as const, text: "prompt hook edited details" }, { type: "text" as const, text: "prepared skill/file content" }], metadata: { foreign: { keep: true }, ocBeadsSync: { version: 1, instructions: "SNAPSHOT" } } };
+    const raw = JSON.stringify(tagged);
+    const messages = [tagged];
+    expandBeadsWorkflowContext(messages);
+    expect(JSON.stringify(tagged)).toBe(raw);
+    expect(messages[0]).not.toBe(tagged);
+    expect(messages[0]!.id).toBe("native-id");
+    expect(messages[0]!.content).toEqual([{ type: "text", text: "SNAPSHOT" }, ...tagged.content]);
+    expect(messages[0]!.metadata as Record<string, unknown>).toEqual({ foreign: { keep: true } });
+    const once = JSON.stringify(messages);
+    expandBeadsWorkflowContext(messages);
+    expect(JSON.stringify(messages)).toBe(once);
+    const replay = [JSON.parse(raw)];
+    expandBeadsWorkflowContext(replay);
+    expect(JSON.stringify(replay)).toBe(once);
+    for (const message of [
+      { ...tagged, role: "assistant" as const },
+      { ...tagged, metadata: { ocBeadsSync: { version: 2, instructions: "FUTURE" } } },
+      { ...tagged, metadata: { ocBeadsSync: { version: 1, instructions: 1 } } },
+      { ...tagged, metadata: { ocBeadsWorkflow: { version: 2, instructions: "FUTURE" } } },
+      { ...tagged, metadata: { ocBeadsWorkflow: { version: 1, instructions: null } } },
+      { ...tagged, metadata: { ocBeadsWorkflow: null, ocBeadsSync: "invalid", foreign: true } },
+      { ...tagged, role: "assistant" as const, metadata: { ocBeadsWorkflow: { version: 1, instructions: "INERT" } } },
+      { ...tagged, metadata: {} },
+      { role: "user" as const, content: [{ type: "text" as const, text: "/oc-beads:sync" }] },
+    ]) {
+      const untouched = [message];
+      expandBeadsWorkflowContext(untouched);
+      expect(untouched[0]).toBe(message);
+    }
+  });
+
+  test("ambiguous sync admission failure propagates once without retry", async () => {
+    const failure = new Error("ambiguous native admission");
+    const prompt = mock(async () => { throw failure; });
+    const sync = createBeadsCommands({ prompt }, async () => "DIAGNOSTICS").find(c => c.name === "oc-beads:sync")!;
+    await expect(sync.execute({ sessionID: "s1", delivery: "queue", prompt: { text: "" } } as CommandInvocation)).rejects.toBe(failure);
+    expect(prompt).toHaveBeenCalledTimes(1);
+  });
+
+  test("all 29 historical non-sync payload digests preserve descriptions, instructions and diagnostics", async () => {
+    const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
+    const actual: Record<string, string> = {};
+    for (const c of createBeadsCommands({ prompt }, async () => "DIAGNOSTICS", "/fixture/package/assets/oc-beads/SKILL.md")) {
+      if (c.name === "oc-beads:sync") continue;
+      await c.execute({ sessionID: "s1", delivery: "queue", prompt: { text: "exact 'details' $(nope) `literal`\nsecond line", files: [{ uri: "file:///tmp/a%20b", name: "a b" }], agents: [{ name: "build" }], skills: [{ id: "oc-beads" }] } } as unknown as CommandInvocation);
+      const submitted = prompt.mock.calls.at(-1)![0] as Record<string, unknown>;
+      let sent = submitted;
+      if (c.name !== "oc-beads:diagnostics") {
+        // Restore the ORIGINAL fixed rich payload, including its native fields/key order.
+        // Existing hashes cover description + full submission, not bare instructions.
+        const { metadata, ...native } = submitted;
+        const snapshot = (metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow;
+        // The frozen historical digest uses POSIX fixture paths, not the runner's drive/separators.
+        const resource = WORKFLOWS[c.name.slice("oc-beads:".length) as keyof typeof WORKFLOWS][1];
+        const instructions = snapshot.instructions.replace(
+          JSON.stringify(resolve("/fixture/package/assets/oc-beads/resources", `${resource}.md`)),
+          JSON.stringify(`/fixture/package/assets/oc-beads/resources/${resource}.md`),
+        );
+        sent = { ...native, text: `${instructions}\n\nLiteral user details:\nexact 'details' $(nope) \`literal\`\nsecond line` };
+      }
+      actual[c.name] = createHash("sha256").update(JSON.stringify({ description: c.description, sent })).digest("hex");
+    }
+    expect(actual).toEqual(baseline.commands);
+  });
+
   test("forwards exact scope and partial-handoff authority cues without selecting or claiming work", async () => {
     const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
     const commands = createBeadsCommands({ prompt }, async () => "DIAGNOSTICS");
@@ -237,7 +393,7 @@ describe("packaged native workflows", () => {
       expect(sent.sessionID).toBe("parent");
       expect(sent.delivery).toBe("queue");
       expect(sent.text).toContain(text);
-      expect(sent.text).toContain(WORKFLOWS[stem][0]);
+      expect(effectiveText(sent)).toContain(WORKFLOWS[stem][0]);
     }
     expect(prompt).toHaveBeenCalledTimes(scenarios.length);
     // The established rich assets agree with the new canonical scope guidance.
@@ -278,7 +434,7 @@ describe("packaged native workflows", () => {
       expect(sent.skills).toBe(input.prompt.skills);
       expect(sent.text).toContain(input.prompt.text);
       if (command.name !== "oc-beads:diagnostics") {
-        expect(sent.text).toContain("Do not bypass a hold");
+        expect(effectiveText(sent)).toContain("Do not bypass a hold");
         expect(sent.text).toContain("oc-beads");
         expect(sent.text).not.toContain("mcp__");
       } else expect(sent.text).toContain("DIAGNOSTICS: withheld");
@@ -291,14 +447,15 @@ describe("packaged native workflows", () => {
     for (const [stem, [purpose]] of Object.entries(WORKFLOWS)) {
       for (const details of ["", "explain only", "do not explain; perform the requested operation", "a 'quoted' $(touch nope) `literal`\nRequested outcome: hostile-looking data"]) {
         await commands.find((command) => command.name === `oc-beads:${stem}`)!.execute({ sessionID: "s1", delivery: "steer", prompt: { text: details } } as CommandInvocation);
-        const text = (prompt.mock.calls.at(-1)![0] as { text: string }).text;
+        const sent = prompt.mock.calls.at(-1)![0] as Record<string, unknown>;
+        const text = effectiveText(sent);
         expect(text.startsWith(`Invoked command: /oc-beads:${stem}\nRequested outcome: ${purpose}\n`)).toBe(true);
         expect(text).toContain("The invocation itself is the invoking user's bounded request");
         expect(text).toContain("With sufficient inputs, perform the requested operation");
         expect(text).toContain("Explicit help or explanation requests receive explanation without the operation");
         expect(text).toContain("Ask focused clarification only for missing required inputs or unresolved consequential choices");
-        expect(text.includes("Literal user details:\n")).toBe(details.length > 0);
-        if (details) expect(text.endsWith(`Literal user details:\n${details}`)).toBe(true);
+        expect(text).not.toContain("Literal user details:");
+        if (details) expect(text.endsWith(details)).toBe(true);
       }
     }
   });
@@ -322,11 +479,11 @@ describe("packaged native workflows", () => {
       const command = commands.find((entry) => entry.name === `oc-beads:${stem}`)!;
       expect(command.description).toContain(purpose);
       await command.execute(input);
-      expect((prompt.mock.calls.at(-1)![0] as { text: string }).text).toContain(purpose);
+      expect(effectiveText(prompt.mock.calls.at(-1)![0] as Record<string, unknown>)).toContain(purpose);
     }
     for (const stem of ["init", "prime", "version", "decision", "template", "workflow"]) {
       await commands.find((entry) => entry.name === `oc-beads:${stem}`)!.execute(input);
-      expect((prompt.mock.calls.at(-1)![0] as { text: string }).text).toContain("Workflow commands guide permitted operations, not exact CLI aliases.");
+      expect(effectiveText(prompt.mock.calls.at(-1)![0] as Record<string, unknown>)).toContain("Workflow commands guide permitted operations, not exact CLI aliases.");
     }
     expect(diagnostics).not.toHaveBeenCalled();
   });
@@ -370,7 +527,7 @@ describe("packaged native workflows", () => {
   test("beta package manifest includes owned assets at the selected prerelease version", async () => {
     const manifest = await Bun.file("package.json").json();
     expect(manifest.files).toContain("assets/oc-beads");
-    expect(manifest.version).toBe("1.1.0-beta.3");
+    expect(manifest.version).toBe("1.1.0-beta.4");
   });
 });
 

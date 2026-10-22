@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import { make } from "@opencode/ai/promise";
+import { configure } from "@opencode/ai/providers/openai";
+import baseline from "./fixtures/non-sync-command-baseline.json";
 import { describe, expect, mock, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,12 +12,12 @@ import { setupBeads, type HostContext } from "../src/host";
 import type { CommandDefinition, CommandInvocation } from "@opencode/plugin/promise/command";
 import type { ContinuityHost } from "../src/continuity";
 import { Error as ToolError, type Info, type ToolContext, type ToolDomain } from "@opencode/plugin/promise/tool";
-import type { SessionCompaction } from "@opencode/plugin/promise/session";
+import type { SessionContext, SessionCompaction } from "@opencode/plugin/promise/session";
 import { executorActor } from "../src/continuity";
 import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
 import { BEADS_COMPACTION_GUIDANCE, primeFailureNotice } from "../src/guidance";
 
-type ContextEvent = { tools?: Record<string, unknown>; sessionID: string; agent: string; system: Array<{ type: "text"; text: string }> };
+type ContextEvent = { messages?: SessionContext["messages"]; tools?: Record<string, unknown>; sessionID: string; agent: string; system: Array<{ type: "text"; text: string }> };
 type ToolAfterEvent = Extract<Parameters<Parameters<ToolDomain["hook"]>[1]>[0], { status: string }>;
 
 /** A controllable server event stream. */
@@ -80,7 +84,7 @@ function fakeContext(options: {
     agent: { get: agentGet, transform: agentTransform },
     session: {
       hook: mock(async (name: string, callback: (event: ContextEvent) => void) => {
-        hooks.set(name, callback);
+        hooks.set(name, (event) => { event.messages ??= []; return callback(event); });
         return { dispose: async () => {} };
       }),
     },
@@ -926,24 +930,135 @@ describe("owned workflow registration", () => {
     expect(f.events.aborted()).toBe(true);
   });
 
-  test("registered sync callback submits bare action and explicit explanation through the native prompt", async () => {
+  test("registered mixed workflow and legacy hooks expand replay once before location/eligibility returns", async () => {
     const f = fakeContext();
     const c = commandFixture(f);
     const cleanup = await setupBeads(f.ctx, { warn: () => {} });
-    const sync = c.commands().get("oc-beads:sync")!;
-    for (const text of ["", "explain only"]) {
-      await sync.execute({ ...c.invocation, prompt: { ...c.invocation.prompt, text } });
+    const update = c.commands().get("oc-beads:update")!;
+    const stored: SessionContext["messages"] = [];
+    for (const [stem, text, delivery] of [["show", "fixture-1", "queue"], ["update", "append note", "steer"], ["compact", "explain --auto", "queue"], ["sync", "explain only", "steer"]] as const) {
+      await c.commands().get(`oc-beads:${stem}`)!.execute({ ...c.invocation, delivery, prompt: { ...c.invocation.prompt, text } });
       const sent = c.prompt.mock.calls.at(-1)![0];
-      expect(sent.text).toStartWith("Invoked command: /oc-beads:sync\nRequested outcome:");
-      expect(sent.text).toContain("With sufficient inputs, perform the requested operation");
+      expect(sent.text).toBe(`/oc-beads:${stem} ${text}`);
       expect(sent.files).toBe(c.invocation.prompt.files);
-      expect(sent.delivery).toBe(c.invocation.delivery);
-      if (text) expect(sent.text).toEndWith(`Literal user details:\n${text}`);
+      expect(sent.delivery).toBe(delivery);
+      const metadata = sent.metadata as { ocBeadsWorkflow: unknown };
+      stored.push({ role: "user", content: [{ type: "text", text: String(sent.text) }, { type: "text", text: "native prepared attachment/skill + hook edit" }], metadata: stem === "sync" ? { ocBeadsSync: metadata.ocBeadsWorkflow } : metadata } as SessionContext["messages"][number]);
     }
+    expect(c.prompt).toHaveBeenCalledTimes(4);
+    const raw = JSON.stringify(stored);
+    // Native-window replay decodes lowered messages, preserving per-message metadata.
+    for (const kind of ["context", "compaction"]) {
+      const event = { sessionID: "s1", agent: "build", system: [], messages: JSON.parse(raw) } as ContextEvent;
+      await f.hooks.get(kind)!(event);
+      const once = JSON.stringify(event.messages);
+      expect(once).not.toContain("ocBeadsSync");
+      expect(once).not.toContain("ocBeadsWorkflow");
+      expect(once.match(/Invoked command: \/oc-beads:/g)).toHaveLength(4);
+      expect(once).toContain("With sufficient inputs, perform the requested operation");
+      await f.hooks.get(kind)!(event);
+      expect(JSON.stringify(event.messages)).toBe(once);
+      expect(event.messages![1]!.content).toContainEqual({ type: "text", text: "/oc-beads:update append note" });
+    }
+    // Restoring instruction content must precede session-location and guard holds.
+    Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/elsewhere" } }) });
+    const moved = { sessionID: "s1", agent: "build", system: [], messages: JSON.parse(raw) } as ContextEvent;
+    await f.hooks.get("context")!(moved);
+    expect(JSON.stringify(moved.messages)).toContain("Requested outcome:");
+    expect(moved.system).toEqual([]);
+    expect(JSON.stringify(stored)).toBe(raw);
+    expect([...f.hooks.keys()].sort()).toEqual(["compaction", "context"]);
+    // Summary recent-context uses stored visible text; no promise of verbatim snapshot retention.
+    const recent = stored.flatMap(m => m.content).map(p => p.type === "text" ? p.text : "").join("\n");
+    expect(recent).not.toContain("Requested outcome:");
+    expect(BEADS_COMPACTION_GUIDANCE).toContain("active /oc-beads workflow invocation's requested outcome, unresolved inputs or explicit modes, and applicable authority limits");
     const calls = c.prompt.mock.calls.length;
     await cleanup();
-    await expect(sync.execute(c.invocation)).rejects.toThrow("unloaded");
+    const unloaded = { sessionID: "s1", agent: "build", system: [], messages: JSON.parse(raw) } as ContextEvent;
+    await f.hooks.get("context")!(unloaded);
+    expect(JSON.stringify(unloaded.messages)).toBe(raw);
+    await expect(update.execute(c.invocation)).rejects.toThrow("unloaded");
     expect(c.prompt).toHaveBeenCalledTimes(calls);
+  });
+
+  test("actual Responses serialization retains mixed workflow and legacy instructions once on native replay", async () => {
+    const f = fakeContext();
+    const c = commandFixture(f);
+    const { createBeadsCommands } = await import("../src/workflows");
+    const commands = createBeadsCommands({ prompt: c.prompt as unknown as Parameters<typeof createBeadsCommands>[0]["prompt"] }, async () => "DIAGNOSTICS", "/fixture/package/assets/oc-beads/SKILL.md");
+    const cleanup = await setupBeads(f.ctx, { warn: () => {} });
+    const captures: unknown[] = [];
+    const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
+      captures.push(await request.json());
+      const response = { id: "resp_fixture", object: "response", created_at: 0, model: "fixture", status: "completed", output: [], usage: { input_tokens: 1, output_tokens: 0, total_tokens: 1 } };
+      return new Response(`data: ${JSON.stringify({type: "response.completed", response})}\n\n`, { headers: { "content-type": "text/event-stream" } });
+    } });
+    const client = make();
+    const model = configure({ apiKey: "disposable-fixture", baseURL: `${server.url.origin}/v1` }).responses("fixture");
+    const serialize = async (messages: SessionContext["messages"]) => {
+      await client.llm.generate({ model, messages });
+      return JSON.stringify(captures.at(-1));
+    };
+    try {
+      const stored: SessionContext["messages"] = [];
+      const expected: SessionContext["messages"] = [];
+      const stems = ["show", "update", "compact", "sync"];
+      for (const [index, stem] of stems.entries()) {
+        const details = index === stems.length - 1 ? "current turn exact details" : `fixture-1 ${stem} literal --apply --auto`;
+        await commands.find(c => c.name === `oc-beads:${stem}`)!.execute({ ...c.invocation, prompt: { ...c.invocation.prompt, text: details } });
+        const sent = c.prompt.mock.calls.at(-1)![0] as Record<string, unknown>;
+        const snapshot = (sent.metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow;
+        if (stem === "sync") {
+          // Canonicalize only the fixed resource path for the historical POSIX digest.
+          const instructions = snapshot.instructions.replace(
+            JSON.stringify(path.resolve("/fixture/package/assets/oc-beads/resources/CLI_REFERENCE.md")),
+            JSON.stringify("/fixture/package/assets/oc-beads/resources/CLI_REFERENCE.md"),
+          );
+          expect(createHash("sha256").update(instructions).digest("hex")).toBe(baseline.syncInstructionsSha256);
+        }
+        const content = [{ type: "text" as const, text: String(sent.text) }, { type: "text" as const, text: "native file/skill preparation + prompt hook edits" }];
+        // Legacy retained history uses its stored snapshot, never a current-definition lookup.
+        const metadata = stem === "sync" ? { ocBeadsSync: snapshot, foreign: true } : { ...sent.metadata as Record<string, unknown>, foreign: true };
+        stored.push({ role: "user", content, metadata });
+        expected.push({ role: "user", content: [{ type: "text", text: snapshot.instructions }, ...content], metadata: { foreign: true } });
+        if (index === 0) {
+          const assistant = { role: "assistant" as const, content: [{ type: "text" as const, text: "interleaved assistant" }] };
+          stored.push(assistant);
+          expected.push(assistant);
+        }
+      }
+      const storage = JSON.stringify(stored);
+      let candidate: string | undefined;
+      for (const kind of ["context", "compaction"]) {
+        const event = { sessionID: "s1", agent: "build", system: [], messages: JSON.parse(storage) } as ContextEvent;
+        await f.hooks.get(kind)!(event);
+        const serialized = await serialize(event.messages!);
+        candidate ??= serialized;
+        expect(serialized).toBe(candidate);
+        expect(serialized).toBe(await serialize(expected));
+        expect(serialized).not.toMatch(/ocBeadsWorkflow|ocBeadsSync/);
+        for (const stem of stems) expect(serialized.match(new RegExp(`Invoked command: /oc-beads:${stem}`, "g"))).toHaveLength(1);
+        expect(serialized).toContain("current turn exact details");
+        const once = JSON.stringify(event.messages);
+        await f.hooks.get(kind)!(event);
+        expect(JSON.stringify(event.messages)).toBe(once);
+        expect(await serialize(event.messages!)).toBe(candidate);
+        const replay = { ...event, messages: JSON.parse(storage) };
+        await f.hooks.get(kind)!(replay);
+        expect(await serialize(replay.messages!)).toBe(candidate);
+      }
+      expect(JSON.stringify(stored)).toBe(storage);
+      const auxiliary = await serialize(stored);
+      expect(auxiliary).not.toContain("Invoked command:");
+      expect(auxiliary).not.toMatch(/ocBeadsWorkflow|ocBeadsSync/);
+      expect([...f.hooks.keys()].sort()).toEqual(["compaction", "context"]);
+      expect(c.prompt).toHaveBeenCalledTimes(4);
+      if (process.env.OC_BEADS_WORKFLOW_EVIDENCE_DIR) await writeFile(path.join(process.env.OC_BEADS_WORKFLOW_EVIDENCE_DIR, "provider-fixture.json"), JSON.stringify({ kind: "local Responses serialization only; no inference", invocations: stems, candidate: JSON.parse(candidate!), auxiliary: JSON.parse(auxiliary), stablePrimaryCompactionReplay: true }, null, 2));
+    } finally {
+      await client.dispose();
+      server.stop(true);
+      await cleanup();
+    }
   });
 
   test("diagnostics overrides restore natively and user-owned old status survives package removal", async () => {
@@ -968,8 +1083,9 @@ describe("owned workflow registration", () => {
     await c.commands().get(oldStatus.name)!.execute(c.invocation);
     expect(oldStatus.execute).toHaveBeenCalledTimes(1);
     await c.commands().get("oc-beads:stats")!.execute(c.invocation);
-    expect(c.prompt.mock.calls.at(-1)![0].text).toContain("issue-database overview using bd status (alias bd stats)");
-    expect(c.prompt.mock.calls.at(-1)![0].text).toContain("Supporting guidance:");
+    const statsMetadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
+    expect(statsMetadata.ocBeadsWorkflow.instructions).toContain("issue-database overview using bd status (alias bd stats)");
+    expect(statsMetadata.ocBeadsWorkflow.instructions).toContain("Supporting guidance:");
     await cleanup();
     expect(c.commands().get(oldStatus.name)).toBe(oldStatus);
     expect(c.commands().has(diagnostics.name)).toBe(false);

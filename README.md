@@ -11,7 +11,7 @@
 
 This is an independent project maintained by Matt Jackson under the MIT license. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. 1.0 rebuilt the plugin for OpenCode 2, and development now continues here independently. It vendors nothing from upstream Beads; instead, every Beads release is checked against the `bd` behavior the plugin relies on (see [Tracking upstream Beads](#tracking-upstream-beads)).
 
-This release is **1.1.0-beta.3**, an opt-in beta targeting npm dist-tag `next`; its integration diagnostic command is `oc-beads:diagnostics`. Beta.1 used `oc-beads:status`; the rename is documented below. The beta's normal public entrypoint enables the eleven qualified operations in the native `beads` code-mode namespace on supported hosts: find, get, edges, memories, recall, claim, note, selected-field update, close, create and remember. No wrapper, internal dependency injection, manual skill copy or activation setting is needed. The opt-in is selecting the beta artifact. The published stable 1.0.2 package is unchanged.
+This release is **1.1.0-beta.4**, an opt-in beta targeting npm dist-tag `next`; its integration diagnostic command is `oc-beads:diagnostics`. Beta.1 used `oc-beads:status`; the rename is documented below. The beta's normal public entrypoint enables the eleven qualified operations in the native `beads` code-mode namespace on supported hosts: find, get, edges, memories, recall, claim, note, selected-field update, close, create and remember. No wrapper, internal dependency injection, manual skill copy or activation setting is needed. The opt-in is selecting the beta artifact. The published stable 1.0.2 package is unchanged.
 
 The beta registers 29 `oc-beads:<stem>` workflows plus `oc-beads:diagnostics` through ordinary native command registration and owns its packaged `oc-beads` skill at the installed path, with all 15 corpus resources plus CODE_MODE and ADR (17 links). User configuration/file commands retain native precedence on load and rebuild; removing an override restores the package definition. Other plugin conflicts follow native ordering. Diagnostics reports observed registration and name/description mismatches; identical-description overrides and public owner identity remain unobservable.
 
@@ -45,7 +45,7 @@ The beta requires OpenCode `>=2.1.1 <2.2` and `bd` 1.3.1 or later. Exact OpenCod
 
    ```json
    {
-     "plugins": ["@snarkipus/opencode-beads@1.1.0-beta.3"]
+     "plugins": ["@snarkipus/opencode-beads@1.1.0-beta.4"]
    }
    ```
 
@@ -63,7 +63,7 @@ Plugin options use the object form:
 {
   "plugins": [
     {
-      "package": "@snarkipus/opencode-beads@1.1.0-beta.3",
+      "package": "@snarkipus/opencode-beads@1.1.0-beta.4",
       "options": { "luna": true, "autoMigrate": false }
     }
   ]
@@ -130,6 +130,18 @@ without setup/adoption. Host permissions, project restrictions, actor identity,
 explicit modes and parent acceptance still apply. Guide/report commands produce
 their advertised artifact. This action-contract correction starts with beta.3;
 earlier beta artifacts do not contain this correction.
+
+Beta.4 keeps all 29 `/oc-beads:<workflow>` invocations compact, with
+single-line free text inline and multiline text below, preserving whitespace.
+Full static instructions live in durable `ocBeadsWorkflow` message metadata,
+expanded by existing primary and compaction hooks; retained `ocBeadsSync` v1
+history remains readable. Attachments/skills, prompt hooks and native delivery
+remain normal inputs. Diagnostics retains its observed-report presentation.
+Plugin activation is required for expansion; summaries retain semantic context,
+not guaranteed verbatim snapshots. Native storage/estimates can include copies or
+miss hidden text; this is not a token-savings claim. See the
+[workflow evaluation](docs/workflow-native-context-evaluation.md) and original
+[sync design](docs/sync-native-context-plan.md) / [evaluation](docs/sync-native-context-evaluation.md).
 
 Starting with beta.2, the package-owned `oc-beads:status` is removed without an alias. Use `oc-beads:diagnostics` for integration health and `oc-beads:stats` for the issue-database overview via `bd status` (alias `bd stats`). User-defined old status overrides are untouched and are not migrated; the package does not edit configuration.
 
