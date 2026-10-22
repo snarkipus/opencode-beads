@@ -327,9 +327,25 @@ try {
           || status.typedRegistration !== "registered: beads namespace, code-mode-only") {
           throw new Error("Packed diagnostics did not report observed registration and qualification limits");
         }
-      } else if (!submitted.text.includes(JSON.stringify(installedSkillPath))) throw new Error("Packed command uses the wrong JSON-quoted installed guidance base");
+      } else {
+        if (!submitted.text.includes(JSON.stringify(installedSkillPath))) throw new Error("Packed command uses the wrong JSON-quoted installed guidance base");
+        if (!submitted.text.startsWith(`Invoked command: /${definition.name}\nRequested outcome: ${definition.description}\n`)
+          || !submitted.text.endsWith(`Literal user details:\n${invocation.prompt.text}`)
+          || !submitted.text.includes("With sufficient inputs, perform the requested operation")) {
+          throw new Error(`Packed command lost invocation/outcome or literal details: ${definition.name}`);
+        }
+      }
     }
     if (prompts.length !== commands.size) throw new Error("Packed native commands did not each submit one prompt");
+    for (const text of ["", "explain only"]) {
+      await commands.get("oc-beads:sync")!.execute({ ...invocation, prompt: { ...invocation.prompt, text } });
+      const submitted = prompts.at(-1)!;
+      if (typeof submitted.text !== "string" || !submitted.text.startsWith("Invoked command: /oc-beads:sync\nRequested outcome: Perform supported bd sync --no-adopt")
+        || submitted.text.includes("Literal user details:") !== Boolean(text)
+        || (text && !submitted.text.endsWith(`Literal user details:\n${text}`))) {
+        throw new Error("Installed sync callback lost bare action or explicit help details");
+      }
+    }
     await cleanup();
     const expectedOwned = ["agent", "skill", "command", "tool:execute.after", "tool:transform", ...registeredHooks.map((name) => `hook:${name}`)].sort();
     if ([...owned].sort().join("\0") !== expectedOwned.join("\0")

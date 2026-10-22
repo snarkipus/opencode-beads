@@ -34,7 +34,7 @@ const BEADS_HOST_GUIDANCE = `## CLI Safety
 Use actual request capabilities below. Native shell is direct-only and cannot be called inside execute.
 Treat the injected \`bd prime\` output as the canonical workflow reference. Use \`bd --help\` to discover commands, \`bd <command> --help\` for current syntax, and \`--json\` when structured output improves reliability. Distinguish command failures from output parsing failures.
 
-Run relevant validation before closing an issue. Do not commit, push, or run Dolt synchronization automatically; do so only when current instructions or repository policy explicitly require it.`;
+Run relevant validation before closing an issue. Do not commit, push, or run Dolt synchronization automatically; do so only when current instructions or repository policy explicitly require it. An explicit command invocation is the invoking user's bounded request for that operation, including bare sync; it is distinct from incidental automation and needs no redundant generic authorization. Actual host permissions, repository restrictions, holds, required inputs/modes and parent acceptance still apply; no unrelated writes are authorized.`;
 
 const BEADS_RECOVERY_GUIDANCE = `## Work continuity
 

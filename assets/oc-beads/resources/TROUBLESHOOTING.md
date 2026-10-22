@@ -23,9 +23,11 @@ inspected CLI; see [AGENTS.md](AGENTS.md).
 
 `oc-beads:compact` guides semantic issue compaction with `bd admin compact`.
 `bd compact` squashes Dolt history and is a different operation; neither means
-conversation compaction. A bare invocation explains the workflow, not authority
-to act. Clarify the operation and scope when a request is ambiguous, and inspect
-applicable installed help before any explicitly authorized action.
+conversation compaction. A bare invocation delivers a useful semantic guide or
+analysis artifact. A sufficiently specified semantic apply request supplies its
+bounded authority and does not need another generic approval. Clarify missing
+scope, targets or consequential choices; preserve actual host/project restrictions
+and inspect applicable installed help before action.
 
 Prefer the agent-driven analyze/apply path. `--auto` sends issue content to an
 external AI provider; `--dolt` performs storage garbage collection rather than
@@ -69,3 +71,16 @@ owns it or the claim was reclaimed, stop writes and coordinate a deliberate
 handoff. Never force-reassign yourself or fall back to the human Git identity.
 Record unresolved acceptance, missing evidence, and the next authorized action
 in the handoff.
+
+## Deletion and identifier migration
+
+A sufficiently specified deletion invocation requests that bounded deletion.
+Inspect target/effects and clarify unresolved destructive impact, then perform
+only the requested deletion when policy and permissions permit. Do not replace
+closure with deletion or silently expand cascades.
+
+Bare rename-prefix delivers the advertised migration/reference-impact explanation.
+A concrete migration requires a desired prefix and project scope; a fully scoped
+migration request supplies its bounded authority without another generic approval.
+Do not infer a prefix, migration or collateral rewrites. Real restrictions and
+missing inputs still block; the invocation never bypasses permission or a hold.

@@ -926,6 +926,26 @@ describe("owned workflow registration", () => {
     expect(f.events.aborted()).toBe(true);
   });
 
+  test("registered sync callback submits bare action and explicit explanation through the native prompt", async () => {
+    const f = fakeContext();
+    const c = commandFixture(f);
+    const cleanup = await setupBeads(f.ctx, { warn: () => {} });
+    const sync = c.commands().get("oc-beads:sync")!;
+    for (const text of ["", "explain only"]) {
+      await sync.execute({ ...c.invocation, prompt: { ...c.invocation.prompt, text } });
+      const sent = c.prompt.mock.calls.at(-1)![0];
+      expect(sent.text).toStartWith("Invoked command: /oc-beads:sync\nRequested outcome:");
+      expect(sent.text).toContain("With sufficient inputs, perform the requested operation");
+      expect(sent.files).toBe(c.invocation.prompt.files);
+      expect(sent.delivery).toBe(c.invocation.delivery);
+      if (text) expect(sent.text).toEndWith(`Literal user details:\n${text}`);
+    }
+    const calls = c.prompt.mock.calls.length;
+    await cleanup();
+    await expect(sync.execute(c.invocation)).rejects.toThrow("unloaded");
+    expect(c.prompt).toHaveBeenCalledTimes(calls);
+  });
+
   test("diagnostics overrides restore natively and user-owned old status survives package removal", async () => {
     const f = fakeContext();
     const c = commandFixture(f);

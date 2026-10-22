@@ -18,6 +18,12 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+### Fixed
+
+- Render command invocation and requested outcome even without trailing details; sufficient-input actions perform their bounded request, explicit help explains, and missing inputs prompt focused clarification under existing permissions and policy.
+- Make ordinary sync request supported `bd sync --no-adopt` with existing configuration and actual executor actor, reporting missing remote or failure without adoption/provisioning. Align affected authority clauses and primary supporting resources while preserving guide artifacts, command inventory and qualification limits.
+
+
 ## [1.1.0-beta.2]
 
 ### Changed

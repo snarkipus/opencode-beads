@@ -13,8 +13,8 @@ The package-owned `oc-beads` skill, all 15 corpus resources plus CODE_MODE and A
 
 #### Scenario: User invokes a selected command
 
-- **WHEN** a user discovers and invokes an installed selected command with arguments
-- **THEN** the advertised workflow receives the intended arguments through its documented native entry point
+- **WHEN** a user discovers and invokes an installed selected command with or without trailing details
+- **THEN** the advertised workflow receives the invoked name, requested outcome and any literal details through its documented native entry point
 - **AND** uses available execution tools without inventing a Beads MCP tool
 
 #### Scenario: Task requires deeper guidance
@@ -41,6 +41,12 @@ The package-owned `oc-beads` skill, all 15 corpus resources plus CODE_MODE and A
 - **THEN** guidance explains that workflow prompts guide permitted operations rather than act as exact CLI aliases, including broader init, prime, version, decision, template and workflow purposes
 - **AND** quickstart uses neutral installed-help wording without an unsupported deprecation claim, and sync distinguishes Dolt-remote synchronization from `bd federation sync` and removed JSONL sync
 
+#### Scenario: Bare invocation retains the request
+
+- **WHEN** a user invokes a command without trailing details
+- **THEN** the command name and advertised bounded operation or artifact remain the user request
+- **AND** supporting guidance addresses that workflow rather than only syntax discovery
+
 ### Requirement: Coherent context and authority
 
 The integration SHALL preserve applicable user and repository authority across injected workflow, skills, commands and delegated guidance. It SHALL distinguish missing or failed context from context withheld by an explicit hold, and SHALL NOT recommend bypassing a hold through manual fallback.
@@ -56,6 +62,13 @@ The integration SHALL preserve applicable user and repository authority across i
 - **WHEN** current applicable workflow context has already been supplied
 - **THEN** discovery guidance does not require another prime solely because the skill was loaded
 - **AND** distinct applicable local constraints remain available when duplicate guidance is reduced
+
+#### Scenario: Explicit invocation and incidental automation
+
+- **WHEN** a user invokes a sufficiently specified workflow
+- **THEN** the invocation carries that invoking user's authority for its bounded purpose without redundant generic authorization
+- **AND** actual host permissions, repository restrictions, holds, actor identity, parent acceptance and required inputs or explicit modes remain controlling
+- **AND** unrelated writes, incidental synchronization and inferred remote adoption remain unauthorized
 
 ### Requirement: Owned installation and user customization
 
@@ -103,6 +116,25 @@ Selected workflows SHALL preserve the user's requested execution scope, distingu
 - **WHEN** a selected bounded worker or permission constraint stops before completion
 - **THEN** the result identifies the incomplete work, relevant context and next action
 - **AND** does not claim that the task or durable write succeeded
+
+#### Scenario: Sufficient inputs request an action
+
+- **WHEN** an action workflow has the required inputs and available permissioned capabilities
+- **THEN** it performs the requested operation and reports actual results or an identified blocker
+- **AND** help inspection alone does not complete the action
+
+#### Scenario: Explanation or missing required inputs
+
+- **WHEN** the user explicitly requests help/explanation or required action inputs are missing
+- **THEN** it explains without performing the advertised mutation or asks focused clarification for the missing inputs respectively
+- **AND** advertised guide/report workflows deliver their useful artifact, including bare compact or init without administration/store initialization
+
+#### Scenario: Bare synchronization with existing configuration
+
+- **WHEN** the user invokes ordinary or bare sync
+- **THEN** it attempts supported bd sync --no-adopt under existing project configuration, actual executor actor and applicable sandbox policy
+- **AND** a missing configured remote or denied permission is reported honestly without adoption, provisioning, --yes, force resolution, unrelated writes or manual pull/push repair loops
+- **AND** explicit adoption remains a distinct request never inferred from synchronization
 
 ### Requirement: Explicit native availability and fallback
 

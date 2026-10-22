@@ -79,6 +79,29 @@ describe("documentation contracts", () => {
     expect(worktrees).toContain("bd federation sync");
   });
 
+  test("documents bounded invocation authority, operational sync and source versus published behavior", async () => {
+    expect(readme).toContain("Unreleased source behavior");
+    expect(readme).toContain("published beta.2 archive");
+    expect(readme).toContain("/oc-beads:sync explain");
+    for (const file of ["assets/oc-beads/SKILL.md", "assets/oc-beads/resources/CLI_REFERENCE.md"]) {
+      const text = await fs.readFile(file, "utf8");
+      expect(text).toContain("invocation itself");
+      expect(text).toContain("--no-adopt");
+      expect(text).toContain("missing configured remote");
+    }
+    const cli = await fs.readFile("assets/oc-beads/resources/CLI_REFERENCE.md", "utf8");
+    expect(cli).toContain("bd sync --no-adopt");
+    expect(cli).toContain("--actor='<executor-actor>'");
+    expect(cli).toContain("not completion");
+    expect(cli).toContain("## Audit and interchange");
+    expect(cli).toContain("## Onboarding and discovery");
+    const worktrees = await fs.readFile("assets/oc-beads/resources/WORKTREES.md", "utf8");
+    expect(worktrees).toContain("CLI_REFERENCE.md#synchronization");
+    const troubleshooting = await fs.readFile("assets/oc-beads/resources/TROUBLESHOOTING.md", "utf8");
+    expect(troubleshooting).toContain("does not need another generic approval");
+    expect(troubleshooting).toContain("## Deletion and identifier migration");
+  });
+
   test("documents beta opt-in, normal public registration, stable opt-out and known Stop limits", () => {
     expect(readme).toContain(`${packageManifest.name}@next`);
     expect(readme).toContain(`${packageManifest.name}@latest`);

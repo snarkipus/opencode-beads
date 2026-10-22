@@ -72,6 +72,8 @@ describe("project-owned task-agent contract", () => {
       expect(guidance).toMatch(/^<beads-guidance>\n[\s\S]*\n<\/beads-guidance>$/);
       expect(guidance).toContain("Native shell is direct-only");
       expect(guidance).toContain("Do not commit, push, or run Dolt synchronization automatically");
+      expect(guidance).toContain("explicit command invocation is the invoking user's bounded request");
+      expect(guidance).toContain("incidental automation");
     }
     expect(primary).toContain("through the `subagent` tool");
     expect(primary).toContain("normal blocking child return");

@@ -121,9 +121,19 @@ Published stable 1.0.2 registers no slash commands; `bd setup claude` installs n
 
 The commands are workflow prompts, not exact CLI aliases. In particular, init guides human onboarding, prime reuses context or requests a guarded refresh, version reports installed versions and qualification limits, decision records rationale, template discovers formulas, and workflow guides authorized work and recovery. These purposes do not imply native `bd decision`, `bd template` or `bd workflow` commands.
 
+**Unreleased source behavior:** an invocation itself requests the advertised bounded
+operation, including bare `/oc-beads:sync`. With sufficient inputs the agent uses
+permissioned tools and reports the actual outcome; `/oc-beads:sync explain`
+explains without syncing, and missing required inputs prompt focused clarification.
+Ordinary sync uses existing configuration and `--no-adopt`; a missing remote blocks
+without setup/adoption. Host permissions, project restrictions, actor identity,
+explicit modes and parent acceptance still apply. Guide/report commands produce
+their advertised artifact. This correction is not in the published beta.2 archive;
+the unchanged local package version does not identify that published artifact.
+
 Starting with beta.2, the package-owned `oc-beads:status` is removed without an alias. Use `oc-beads:diagnostics` for integration health and `oc-beads:stats` for the issue-database overview via `bd status` (alias `bd stats`). User-defined old status overrides are untouched and are not migrated; the package does not edit configuration.
 
-`oc-beads:compact` guides semantic issue compaction with `bd admin compact`; `bd compact` squashes Dolt history and is a different operation. Neither is conversation compaction. A bare invocation explains the workflow; action requires explicit operation and authority. See the packaged [compact guidance](assets/oc-beads/resources/TROUBLESHOOTING.md) for mode/actor boundaries and upstream help uncertainty. `oc-beads:restore` retrieves pre-compaction issue content, displaying it by default; `--apply` requires explicit authority to write it back and does not mean database backup recovery. Quickstart uses installed help and authorized context; sync guides Dolt-remote synchronization, distinct from `bd federation sync`.
+`oc-beads:compact` guides semantic issue compaction with `bd admin compact`; `bd compact` squashes Dolt history and is a different operation. Neither is conversation compaction. A bare invocation explains the workflow; a sufficiently specified semantic apply request supplies its bounded authority under actual permissions and policy. See the packaged [compact guidance](assets/oc-beads/resources/TROUBLESHOOTING.md) for mode/actor boundaries and upstream help uncertainty. `oc-beads:restore` retrieves pre-compaction issue content, displaying it by default; `--apply` requires explicit authority to write it back and does not mean database backup recovery. Quickstart uses installed help and authorized context; sync guides Dolt-remote synchronization, distinct from `bd federation sync`.
 
 ## Removal and customization
 
