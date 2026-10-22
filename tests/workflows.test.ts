@@ -362,7 +362,13 @@ describe("packaged native workflows", () => {
         // Existing hashes cover description + full submission, not bare instructions.
         const { metadata, ...native } = submitted;
         const snapshot = (metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow;
-        sent = { ...native, text: `${snapshot.instructions}\n\nLiteral user details:\nexact 'details' $(nope) \`literal\`\nsecond line` };
+        // The frozen historical digest uses POSIX fixture paths, not the runner's drive/separators.
+        const resource = WORKFLOWS[c.name.slice("oc-beads:".length) as keyof typeof WORKFLOWS][1];
+        const instructions = snapshot.instructions.replace(
+          JSON.stringify(resolve("/fixture/package/assets/oc-beads/resources", `${resource}.md`)),
+          JSON.stringify(`/fixture/package/assets/oc-beads/resources/${resource}.md`),
+        );
+        sent = { ...native, text: `${instructions}\n\nLiteral user details:\nexact 'details' $(nope) \`literal\`\nsecond line` };
       }
       actual[c.name] = createHash("sha256").update(JSON.stringify({ description: c.description, sent })).digest("hex");
     }

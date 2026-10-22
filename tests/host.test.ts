@@ -1008,7 +1008,14 @@ describe("owned workflow registration", () => {
         await commands.find(c => c.name === `oc-beads:${stem}`)!.execute({ ...c.invocation, prompt: { ...c.invocation.prompt, text: details } });
         const sent = c.prompt.mock.calls.at(-1)![0] as Record<string, unknown>;
         const snapshot = (sent.metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow;
-        if (stem === "sync") expect(createHash("sha256").update(snapshot.instructions).digest("hex")).toBe(baseline.syncInstructionsSha256);
+        if (stem === "sync") {
+          // Canonicalize only the fixed resource path for the historical POSIX digest.
+          const instructions = snapshot.instructions.replace(
+            JSON.stringify(path.resolve("/fixture/package/assets/oc-beads/resources/CLI_REFERENCE.md")),
+            JSON.stringify("/fixture/package/assets/oc-beads/resources/CLI_REFERENCE.md"),
+          );
+          expect(createHash("sha256").update(instructions).digest("hex")).toBe(baseline.syncInstructionsSha256);
+        }
         const content = [{ type: "text" as const, text: String(sent.text) }, { type: "text" as const, text: "native file/skill preparation + prompt hook edits" }];
         // Legacy retained history uses its stored snapshot, never a current-definition lookup.
         const metadata = stem === "sync" ? { ocBeadsSync: snapshot, foreign: true } : { ...sent.metadata as Record<string, unknown>, foreign: true };
