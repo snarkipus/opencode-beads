@@ -1,6 +1,6 @@
 # Tasks
 
-Planning only. After owner acceptance, map this cohesive change to one implementation Bead, not one Bead per checkbox. Shared edit limits and stop conditions are in [design.md](design.md); do not begin from artifact-complete status alone.
+Planning accepted; execution mapping is epic `opencode-beads-5rj`, with source/checks child `opencode-beads-5rj.1` owning 1.1, 1.2 and 2.1, and qualification/acceptance child `opencode-beads-5rj.2` owning 2.2 and 2.3, blocked by the source child. Shared edit limits and stop conditions are in [design.md](design.md). Mapping is not execution authority; discuss additional corner-case mitigation before implementation and do not begin from artifact-complete status alone.
 
 ## 1. Adapt the two host seams
 
