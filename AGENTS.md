@@ -16,6 +16,25 @@
 - JSDoc comments for function documentation
 - Async/await for async operations
 
+## Proportional engineering
+
+- Before adding complexity for a speculative or vanishingly unlikely race or
+  security edge case, explain the concrete failure mode, likelihood, and
+  complexity cost to the user and get their buy-in. Do not silently expand scope
+  for theoretical robustness.
+- Validate external inputs at the boundary that owns them; trust values already
+  guaranteed by supported schemas or internal contracts. Preserve integration
+  responsibilities without duplicating upstream internals or speculative repairs.
+- Add helpers, wrappers or abstractions only for actual reuse, a genuinely complex
+  boundary, or a meaningful concept that improves readability. Do not extract
+  single-use helpers or introduce frameworks preemptively.
+- Test the actual changed implementation and dispatch path, not a duplicate of its
+  logic in the test. Prefer small realistic fixtures; mock external effects when
+  isolation is useful, without replacing the behavior being verified.
+
+Adapted selectively from [OpenCode's guidance](https://github.com/anomalyco/opencode/blob/84578e123ffd31e31a174457e7350961da4fabbc/AGENTS.md);
+its repository-specific tools, architecture and style rules do not apply here.
+
 ## Project Structure
 - `src/plugin.ts` - OpenCode V2 plugin entry point (default export `{ id, setup }`)
 - `src/host.ts` - Wires the context hook, session events, and agent registration
