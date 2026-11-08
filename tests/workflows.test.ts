@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { Message } from "@opencode/ai/effect";
 import baseline from "./fixtures/non-sync-command-baseline.json";
 import { describe, expect, mock, test } from "bun:test"
 import { existsSync, readFileSync } from "node:fs"
@@ -14,6 +15,17 @@ import {
 } from "../src/workflows";
 import type { Plugin } from "@opencode/plugin";
 import type { CommandInvocation } from "@opencode/plugin/promise/command";
+
+type StoredSessionMessage = Awaited<ReturnType<Plugin.Context["session"]["context"]>>[number];
+type StoredUserMessage = Extract<StoredSessionMessage, { type: "user" }>;
+
+function storedUserMessage(id: string, text: string, metadata?: StoredUserMessage["metadata"]): StoredUserMessage {
+  return { id, type: "user", time: { created: 1 }, text, ...(metadata === undefined ? {} : { metadata }) };
+}
+
+function projectedUserMessage(id: string, text: string) {
+  return Message.make({ id, role: "user", content: text });
+}
 
 type InventoryEntry = {
 	category: string
@@ -223,9 +235,12 @@ describe("oc-beads guidance assets", () => {
 
 /** Visible bodies and effective static instructions are asserted separately. */
 function effectiveText(sent: Record<string, unknown>): string {
-  const messages = [{ role: "user" as const, content: [{ type: "text" as const, text: String(sent.text) }], metadata: sent.metadata as Record<string, unknown> }];
-  expandBeadsWorkflowContext(messages);
-  return messages[0]!.content.map(part => part.text).join("\n");
+  const id = "workflow-command";
+  const metadata = sent.metadata as { ocBeadsWorkflow: { version: number; instructions: string } };
+  const stored = storedUserMessage(id, String(sent.text), { ocBeadsWorkflow: metadata.ocBeadsWorkflow });
+  const messages = [projectedUserMessage(id, String(sent.text))];
+  expandBeadsWorkflowContext(messages, [stored]);
+  return messages[0]!.content.filter(part => part.type === "text").map(part => part.text).join("\n");
 }
 
 describe("packaged native workflows", () => {
@@ -251,15 +266,17 @@ describe("packaged native workflows", () => {
         expect(snapshot.instructions.split(report)).toHaveLength(2);
         expect(snapshot.instructions).toContain("do not run store-opening commands");
         expect(snapshot.instructions).toContain("plugin name/version");
-        const stored = JSON.stringify(sent);
-        const messages = [{role: "user" as const, content: [{type: "text" as const, text: String(sent.text)}], metadata: sent.metadata as Record<string, unknown>}];
-        expandBeadsWorkflowContext(messages);
-        expect(messages[0]!.content[0]!.text).toBe(snapshot.instructions);
-        expect(messages[0]!.metadata).toEqual({});
+        const storageText = JSON.stringify(sent);
+        const stored = storedUserMessage("diagnostic-command", String(sent.text), {
+          ocBeadsWorkflow: (sent.metadata as {ocBeadsWorkflow: {version: number; instructions: string}}).ocBeadsWorkflow,
+        });
+        const messages = [projectedUserMessage(stored.id, stored.text)];
+        expandBeadsWorkflowContext(messages, [stored]);
+        expect(messages[0]!.content[0]).toEqual(Message.text(snapshot.instructions));
         const expanded = JSON.stringify(messages);
-        expandBeadsWorkflowContext(messages);
+        expandBeadsWorkflowContext(messages, [stored]);
         expect(JSON.stringify(messages)).toBe(expanded);
-        expect(JSON.stringify(sent)).toBe(stored);
+        expect(JSON.stringify(sent)).toBe(storageText);
         expect(diagnostics).toHaveBeenCalledTimes(count + 1);
       }
     }
@@ -316,65 +333,71 @@ describe("packaged native workflows", () => {
     expect(diagnostics).not.toHaveBeenCalled();
   });
 
-  test("generalized and legacy snapshots select one retained instruction body and strip valid keys", () => {
+  test("generalized and legacy snapshots select one stored instruction body without mutating history", () => {
     const good = (instructions: string) => ({ version: 1, instructions });
     const malformed = { version: 1, instructions: 42 };
-    for (const [metadata, instructions, remaining] of [
-      [{ ocBeadsWorkflow: good("GENERAL") }, "GENERAL", {}],
-      [{ ocBeadsSync: good("LEGACY") }, "LEGACY", {}],
-      [{ ocBeadsWorkflow: good("GENERAL"), ocBeadsSync: good("LEGACY") }, "GENERAL", {}],
-      [{ ocBeadsWorkflow: malformed, ocBeadsSync: good("LEGACY") }, "LEGACY", { ocBeadsWorkflow: malformed }],
-      [{ ocBeadsWorkflow: good("GENERAL"), ocBeadsSync: malformed }, "GENERAL", { ocBeadsSync: malformed }],
+    for (const [metadata, instructions] of [
+      [{ ocBeadsWorkflow: good("GENERAL") }, "GENERAL"],
+      [{ ocBeadsSync: good("LEGACY") }, "LEGACY"],
+      [{ ocBeadsWorkflow: good("GENERAL"), ocBeadsSync: good("LEGACY") }, "GENERAL"],
+      [{ ocBeadsWorkflow: malformed, ocBeadsSync: good("LEGACY") }, "LEGACY"],
+      [{ ocBeadsWorkflow: good("GENERAL"), ocBeadsSync: malformed }, "GENERAL"],
     ] as const) {
-      const stored = { id: "retained-id", role: "user" as const, content: [{ type: "text" as const, text: "hook-edited /oc-beads:show" }], metadata: { ...metadata, foreign: "keep" } };
+      const stored = storedUserMessage("retained-id", "hook-edited /oc-beads:show", { ...metadata, foreign: "keep" });
       const raw = JSON.stringify(stored);
-      const messages = [stored];
-      expandBeadsWorkflowContext(messages);
-      expect(messages[0]!.content).toEqual([{ type: "text", text: instructions }, ...stored.content]);
-      expect(messages[0]!.metadata as Record<string, unknown>).toEqual({ ...remaining, foreign: "keep" });
+      const request = projectedUserMessage(stored.id, stored.text);
+      const messages = [request];
+      expect(expandBeadsWorkflowContext(messages, [stored])).toBeFalse();
+      expect(messages[0]!.content).toEqual([{ type: "text", text: instructions }, ...request.content]);
       expect(messages[0]!.id).toBe(stored.id);
       expect(messages[0]!.role).toBe("user");
       expect(JSON.stringify(stored)).toBe(raw);
       const once = JSON.stringify(messages);
-      expandBeadsWorkflowContext(messages);
+      expandBeadsWorkflowContext(messages, [stored]);
       expect(JSON.stringify(messages)).toBe(once);
-      const replay = [JSON.parse(raw)];
-      expandBeadsWorkflowContext(replay);
+      const replay = [projectedUserMessage(stored.id, stored.text)];
+      expandBeadsWorkflowContext(replay, [stored]);
       expect(JSON.stringify(replay)).toBe(once);
     }
   });
 
-  test("sync expansion preserves hook-edited content, foreign metadata and storage on serialized replay", () => {
-    const tagged = { id: "native-id", role: "user" as const, content: [{ type: "text" as const, text: "prompt hook edited details" }, { type: "text" as const, text: "prepared skill/file content" }], metadata: { foreign: { keep: true }, ocBeadsSync: { version: 1, instructions: "SNAPSHOT" } } };
-    const raw = JSON.stringify(tagged);
-    const messages = [tagged];
-    expandBeadsWorkflowContext(messages);
-    expect(JSON.stringify(tagged)).toBe(raw);
-    expect(messages[0]).not.toBe(tagged);
+  test("sync expansion preserves projected content and durable storage on replay", () => {
+    const stored = storedUserMessage("native-id", "prompt hook edited details", {
+      foreign: { keep: true }, ocBeadsSync: { version: 1, instructions: "SNAPSHOT" },
+    });
+    const raw = JSON.stringify(stored);
+    const projected = Message.make({ id: stored.id, role: "user", content: [Message.text("prompt hook edited details"), Message.text("prepared skill/file content")] });
+    const messages = [projected];
+    expect(expandBeadsWorkflowContext(messages, [stored])).toBeFalse();
+    expect(JSON.stringify(stored)).toBe(raw);
+    expect(messages[0]).not.toBe(projected);
     expect(messages[0]!.id).toBe("native-id");
-    expect(messages[0]!.content).toEqual([{ type: "text", text: "SNAPSHOT" }, ...tagged.content]);
-    expect(messages[0]!.metadata as Record<string, unknown>).toEqual({ foreign: { keep: true } });
+    expect(JSON.stringify(messages[0]!.content)).toBe(JSON.stringify([Message.text("SNAPSHOT"), ...projected.content]));
     const once = JSON.stringify(messages);
-    expandBeadsWorkflowContext(messages);
+    expandBeadsWorkflowContext(messages, [stored]);
     expect(JSON.stringify(messages)).toBe(once);
-    const replay = [JSON.parse(raw)];
-    expandBeadsWorkflowContext(replay);
+    const replay = [Message.make({ id: stored.id, role: "user", content: [Message.text("prompt hook edited details"), Message.text("prepared skill/file content")] })];
+    expandBeadsWorkflowContext(replay, [stored]);
     expect(JSON.stringify(replay)).toBe(once);
-    for (const message of [
-      { ...tagged, role: "assistant" as const },
-      { ...tagged, metadata: { ocBeadsSync: { version: 2, instructions: "FUTURE" } } },
-      { ...tagged, metadata: { ocBeadsSync: { version: 1, instructions: 1 } } },
-      { ...tagged, metadata: { ocBeadsWorkflow: { version: 2, instructions: "FUTURE" } } },
-      { ...tagged, metadata: { ocBeadsWorkflow: { version: 1, instructions: null } } },
-      { ...tagged, metadata: { ocBeadsWorkflow: null, ocBeadsSync: "invalid", foreign: true } },
-      { ...tagged, role: "assistant" as const, metadata: { ocBeadsWorkflow: { version: 1, instructions: "INERT" } } },
-      { ...tagged, metadata: {} },
-      { role: "user" as const, content: [{ type: "text" as const, text: "/oc-beads:sync" }] },
-    ]) {
-      const untouched = [message];
-      expandBeadsWorkflowContext(untouched);
-      expect(untouched[0]).toBe(message);
+    const malformed = [
+      storedUserMessage("bad-version", "/oc-beads:sync", { ocBeadsSync: { version: 2, instructions: "FUTURE" } }),
+      storedUserMessage("bad-instructions", "/oc-beads:sync", { ocBeadsWorkflow: { version: 1, instructions: 1 } }),
+      storedUserMessage("null-snapshot", "/oc-beads:sync", { ocBeadsWorkflow: null, ocBeadsSync: "invalid", foreign: true }),
+    ];
+    for (const record of malformed) {
+      const request = projectedUserMessage(record.id, record.text);
+      const untouched = [request];
+      expect(expandBeadsWorkflowContext(untouched, [record])).toBeTrue();
+      expect(untouched[0]).toBe(request);
     }
+    const assistant = Message.make({ id: stored.id, role: "assistant", content: "assistant" });
+    const assistantMessages = [assistant];
+    expect(expandBeadsWorkflowContext(assistantMessages, [stored])).toBeFalse();
+    expect(assistantMessages[0]).toBe(assistant);
+    const ordinary = projectedUserMessage("ordinary", "plain user input");
+    const ordinaryMessages = [ordinary];
+    expect(expandBeadsWorkflowContext(ordinaryMessages, [])).toBeFalse();
+    expect(ordinaryMessages[0]).toBe(ordinary);
   });
 
   test("ambiguous sync admission failure propagates once without retry", async () => {

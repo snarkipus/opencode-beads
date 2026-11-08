@@ -5,6 +5,7 @@ import {
   BEADS_TASK_AGENT_DESCRIPTION,
   BEADS_TASK_AGENT_PROMPT,
   beadsGuidance,
+  capabilityGuidance,
 } from "../src/guidance";
 
 const unsupportedPattern = /beads mcp|mcp server|via mcp|\bmcp\b|claude code|\/plugin update beads/i;
@@ -88,6 +89,29 @@ describe("project-owned task-agent contract", () => {
       expect(text).toContain("shell");
       expect(text).not.toContain("`bash`");
     }
+  });
+
+  test("describes composed, direct-leaf, shell, and wholly denied requests separately", () => {
+    const composed = capabilityGuidance({ typed: "registered-execute-visible", execute: true, shell: true, direct: false });
+    expect(composed).toContain("Beads namespace is registered and execute is visible");
+    expect(composed).toContain("Each operation still checks its own permissions");
+    expect(composed).toContain("rejected operation is not success");
+    expect(composed).toContain("Stop/Cancel");
+    expect(composed).toContain("Do not call tools.shell inside execute");
+
+    const direct = capabilityGuidance({ typed: "registered-direct-visible", execute: false, shell: false, direct: true });
+    expect(direct).toContain("Native Beads leaf tools are directly visible");
+    expect(direct).toContain("Use only the listed direct leaves");
+    expect(direct).toContain("rejected operation is not success");
+    expect(direct).toContain("Stop/Cancel");
+
+    const shell = capabilityGuidance({ typed: "unavailable", execute: false, shell: true, direct: false });
+    expect(shell).toContain("independently available direct shell tool");
+    expect(shell).toContain("Shell cannot run inside execute");
+
+    const denied = capabilityGuidance({ typed: "unavailable", execute: false, shell: false, direct: false });
+    expect(denied).toContain("Neither native Beads leaves nor direct shell access");
+    expect(denied).toContain("do not route around it");
   });
 
   test("gives the Luna profile the same prompt and description", () => {

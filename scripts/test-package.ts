@@ -1,11 +1,28 @@
 import type { SessionContext } from "@opencode/plugin/promise/session";
 import type { Info } from "@opencode/plugin/promise/tool";
+import { Message } from "@opencode/ai/effect";
+import type { Plugin } from "@opencode/plugin";
 import { createHash } from "node:crypto";
 import type { CommandDefinition, CommandInvocation } from "@opencode/plugin/promise/command";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+type StoredSessionMessage = Awaited<ReturnType<Plugin.Context["session"]["context"]>>[number];
+type StoredUserMessage = Extract<StoredSessionMessage, { type: "user" }>;
+
+function storedUserMessage(
+  id: string,
+  text: string,
+  metadata: StoredUserMessage["metadata"]
+): StoredUserMessage {
+  return { id, type: "user", time: { created: 1 }, text, ...(metadata === undefined ? {} : { metadata }) };
+}
+
+function projectedUserMessage(id: string, text: string) {
+  return Message.make({ id, role: "user", content: text });
+}
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-beads-package-"));
@@ -120,7 +137,7 @@ try {
   if (manifest.bin !== undefined) {
     throw new Error("Packed package unexpectedly registers a companion CLI");
   }
-  const opencodeRange = ">=2.1.1 <2.2";
+  const opencodeRange = ">=2.2.6 <2.3";
   if (
     manifest.dependencies !== undefined ||
     JSON.stringify(manifest.peerDependencies) !==
@@ -237,9 +254,10 @@ try {
       return { dispose: async () => { disposed.add(name); } };
     };
     const prompts: Array<Record<string, unknown>> = [];
+    const storedMessages: StoredSessionMessage[] = [];
     let invoking = false;
     const cleanup = await (plugin!.setup as (ctx: unknown) => Promise<unknown>)({
-      app: { name: "OpenCode", version: "2.1.1", channel: "stable" },
+      app: { name: "OpenCode", version: "2.2.6", channel: "stable" },
       location: { directory: consumerDir, project: { directory: consumerDir } },
       options,
       agent: {
@@ -279,6 +297,7 @@ try {
       },
       session: {
         get: async () => ({ location: { directory: consumerDir } }),
+        context: async () => [...storedMessages],
         prompt: async (input: Record<string, unknown>) => {
           if (!invoking) throw new Error("Setup must not submit a prompt");
           prompts.push(input);
@@ -331,7 +350,10 @@ try {
         if (status.plugin?.name !== manifest.name || status.plugin?.version !== manifest.version) throw new Error("Packed diagnostics did not identify the loaded package");
         const stored = JSON.stringify(submitted);
         for (const kind of ["context", "compaction"]) {
-          const event = {sessionID: invocation.sessionID, agent: "build", system: [], messages: [{role: "user", content: [{type: "text", text: submitted.text}], metadata}], tools: {}, options: {}} as unknown as SessionContext;
+          const id = `packed-diagnostics-${kind}`;
+          storedMessages.splice(0, storedMessages.length, storedUserMessage(id, submitted.text, metadata as StoredUserMessage["metadata"]));
+          const event = {sessionID: invocation.sessionID, agent: "build", system: [], messages: [projectedUserMessage(id, submitted.text)], tools: {}, options: {}} as unknown as SessionContext;
+          if (Object.hasOwn(event.messages[0]!, "metadata")) throw new Error("SDK projection unexpectedly retained request metadata");
           await requestHooks.get(kind)!(event);
           if (event.messages[0]?.content[0]?.type !== "text" || event.messages[0].content[0].text !== snapshot.instructions || /ocBeadsWorkflow/.test(JSON.stringify(event.messages))) throw new Error(`Packed diagnostics expansion differs: ${kind}`);
           const once = JSON.stringify(event.messages);
@@ -357,8 +379,11 @@ try {
         if (!snapshot.instructions.endsWith(`Supporting guidance: ${JSON.stringify(supporting)}`) || !(await fs.readFile(supporting, "utf8")).trim()) throw new Error(`Packed workflow resource differs: ${definition.name}`);
         const stored = JSON.stringify(submitted);
         for (const kind of ["context", "compaction"]) {
-          for (const routing of [metadata, { ocBeadsSync: snapshot }]) {
-            const event = { sessionID: invocation.sessionID, agent: "build", system: [], messages: [{ role: "user", content: [{ type: "text", text: submitted.text }], metadata: routing }], tools: {}, options: {} } as unknown as SessionContext;
+          for (const [routingIndex, routing] of [metadata, { ocBeadsSync: snapshot }].entries()) {
+            const id = `packed-workflow-${kind}-${routingIndex}`;
+            storedMessages.splice(0, storedMessages.length, storedUserMessage(id, submitted.text, routing as StoredUserMessage["metadata"]));
+            const event = { sessionID: invocation.sessionID, agent: "build", system: [], messages: [projectedUserMessage(id, submitted.text)], tools: {}, options: {} } as unknown as SessionContext;
+            if (Object.hasOwn(event.messages[0]!, "metadata")) throw new Error("SDK projection unexpectedly retained request metadata");
             await requestHooks.get(kind)!(event);
             const expanded = JSON.stringify(event.messages);
             if (/ocBeadsWorkflow|ocBeadsSync/.test(expanded) || expanded.split("Invoked command:").length !== 2

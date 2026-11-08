@@ -4,11 +4,14 @@ Use the actual request capability block. When the beads namespace is registered
 and execute is visible, use native `search({namespace: "beads"})` to discover
 current signatures. Catalog discovery and each operation's permissions determine
 what is callable; execute visibility alone does not establish leaf availability.
-Do not copy a signature catalog from prose or invent tools. If execute is denied,
-code-mode-only Beads operations disappear. Permissioned direct shell is a fallback
-only when available, authorized and no guard hold applies. Native shell is
-**direct-only**: never call `tools.shell` inside execute. Repository editing,
-tests and Git run in separate direct shell turns.
+Do not copy a signature catalog from prose or invent tools. When a host exposes
+namespaced Beads leaves directly, use only those actually visible leaves and
+their current signatures; each operation still has its own permission check.
+Permissioned direct shell is independently available only when shown, authorized
+and no guard hold applies. Do not retry a rejected operation through another
+surface; preserve explicit Stop/Cancel. Native shell is **direct-only**: never
+call `tools.shell` inside execute. Repository editing, tests and Git run in
+separate direct shell turns.
 
 ## Read, choose, then act
 

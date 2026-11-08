@@ -7,6 +7,8 @@ import type { CommandDefinition } from "@opencode/plugin/promise/command";
 
 type SkillEditor = Parameters<Parameters<Plugin.Context["skill"]["transform"]>[0]>[0];
 export type BeadsSkill = Parameters<SkillEditor["add"]>[0];
+type StoredSessionMessage = Awaited<ReturnType<Plugin.Context["session"]["context"]>>[number];
+type RequestMessage = SessionContext["messages"][number];
 
 /** Package-relative paths survive npm installation, spaces and ignored/deep install roots. */
 export const BEADS_SKILL_PATH = fileURLToPath(new URL("../assets/oc-beads/SKILL.md", import.meta.url));
@@ -88,26 +90,53 @@ export function applyBeadsSkill(editor: SkillEditor, skill: BeadsSkill, diagnose
   editor.add(skill);
 }
 
-/** Expand supported workflow/legacy snapshots only in transient user request copies. */
-export function expandBeadsWorkflowContext(messages: SessionContext["messages"]): void {
+function storedWorkflowInstructions(metadata: unknown): string | undefined {
+  if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) return undefined;
+  const snapshotInstructions = (snapshot: unknown): string | undefined => {
+    if (typeof snapshot !== "object" || snapshot === null || Array.isArray(snapshot)) return undefined;
+    if (!("version" in snapshot) || snapshot.version !== 1
+      || !("instructions" in snapshot) || typeof snapshot.instructions !== "string") return undefined;
+    return snapshot.instructions;
+  };
+  return snapshotInstructions(Reflect.get(metadata, "ocBeadsWorkflow"))
+    ?? snapshotInstructions(Reflect.get(metadata, "ocBeadsSync"));
+}
+
+function hasWorkflowInvocation(message: RequestMessage): boolean {
+  if (message.role !== "user") return false;
+  let text = "";
+  for (const part of message.content) if (part.type === "text") text += `${text ? "\n" : ""}${part.text}`;
+  const command = /(?:^|\n)\/oc-beads:([a-z-]+)(?=\s|$)/m.exec(text)?.[1];
+  return command === "diagnostics" || (command !== undefined && Object.hasOwn(WORKFLOWS, command));
+}
+
+/** Expand snapshots from native durable records into transient request copies by typed message ID. */
+export function expandBeadsWorkflowContext(
+  messages: SessionContext["messages"],
+  storedMessages: readonly StoredSessionMessage[],
+): boolean {
+  const instructionsByID = new Map<string, string>();
+  for (const stored of storedMessages) {
+    if (stored.type !== "user") continue;
+    const instructions = storedWorkflowInstructions(stored.metadata);
+    if (instructions !== undefined) instructionsByID.set(stored.id, instructions);
+  }
+
+  let unavailable = false;
   for (const [index, message] of messages.entries()) {
     if (message.role !== "user") continue;
-    const metadata = { ...message.metadata };
-    let instructions: string | undefined;
-    for (const key of ["ocBeadsSync", "ocBeadsWorkflow"]) {
-      const snapshot = metadata[key];
-      if (!snapshot || typeof snapshot !== "object" || !("version" in snapshot) || snapshot.version !== 1
-        || !("instructions" in snapshot) || typeof snapshot.instructions !== "string") continue;
-      instructions = snapshot.instructions;
-      delete metadata[key];
+    const instructions = message.id === undefined ? undefined : instructionsByID.get(message.id);
+    if (instructions === undefined) {
+      unavailable ||= hasWorkflowInvocation(message);
+      continue;
     }
-    if (instructions === undefined) continue;
+    if (message.content[0]?.type === "text" && message.content[0].text === instructions) continue;
     messages[index] = {
       ...message,
-      metadata,
       content: [{ type: "text", text: instructions }, ...message.content],
     };
   }
+  return unavailable;
 }
 
 /** Build native prompt commands with compact text and durable static workflow instructions. */

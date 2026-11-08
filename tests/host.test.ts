@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { make } from "@opencode/ai/promise";
+import { make } from "@opencode/ai";
+import { Message } from "@opencode/ai/effect";
 import { configure } from "@opencode/ai/providers/openai";
 import baseline from "./fixtures/non-sync-command-baseline.json";
 import { describe, expect, mock, test } from "bun:test";
@@ -19,6 +20,12 @@ import { BEADS_COMPACTION_GUIDANCE, primeFailureNotice } from "../src/guidance";
 
 type ContextEvent = { messages?: SessionContext["messages"]; tools?: Record<string, unknown>; sessionID: string; agent: string; system: Array<{ type: "text"; text: string }> };
 type ToolAfterEvent = Extract<Parameters<Parameters<ToolDomain["hook"]>[1]>[0], { status: string }>;
+type StoredSessionMessage = Awaited<ReturnType<HostContext["session"]["context"]>>[number];
+type StoredUserMessage = Extract<StoredSessionMessage, { type: "user" }>;
+
+function storedUserMessage(id: string, text: string, metadata?: StoredUserMessage["metadata"]): StoredUserMessage {
+  return { id, type: "user", time: { created: 1 }, text, ...(metadata === undefined ? {} : { metadata }) };
+}
 
 /** A controllable server event stream. */
 function eventStream() {
@@ -77,12 +84,13 @@ function fakeContext(options: {
     return { dispose: async () => {} };
   });
   const ctx = {
-    app: { name: "OpenCode", version: options.appVersion ?? "2.1.1", channel: "stable" },
+    app: { name: "OpenCode", version: options.appVersion ?? "2.2.6", channel: "stable" },
     location: { directory: options.directory ?? "/project" },
     options: options.pluginOptions ?? {},
     event: { subscribe: events.subscribe },
     agent: { get: agentGet, transform: agentTransform },
     session: {
+      context: mock(async () => []),
       hook: mock(async (name: string, callback: (event: ContextEvent) => void) => {
         hooks.set(name, (event) => { event.messages ??= []; return callback(event); });
         return { dispose: async () => {} };
@@ -331,11 +339,17 @@ describe("setupBeads", () => {
     const typed = (await f.request("actual", "build", { execute: {}, shell: {} }))[0]!;
     expect(typed).toContain(executorActor({ sessionID: "actual", agent: "build" }));
     expect(typed).toContain("Beads namespace is registered and execute is visible");
+    const direct = (await f.request("actual", "restricted", { beads_get: {}, beads_note: {} }))[0]!;
+    expect(direct).toContain(executorActor({ sessionID: "actual", agent: "restricted" }));
+    expect(direct).toContain("Native Beads leaf tools are directly visible");
+    expect(direct).toContain("Use only the listed direct leaves");
+    expect(direct).toContain("Each operation still checks its own permission");
+    expect(direct).not.toContain("direct shell tool");
     const shell = (await f.request("actual", "review", { shell: {} }))[0]!;
     expect(shell).toContain(executorActor({ sessionID: "actual", agent: "review" }));
     expect(shell).not.toContain(executorActor({ sessionID: "actual", agent: "build" }));
     expect(shell).toContain("direct shell tool");
-    expect((await f.request("actual", "review", {}))[0]).toContain("Neither");
+    expect((await f.request("actual", "review", {}))[0]).toContain("Neither native Beads leaves nor direct shell access");
     expect(prime).toHaveBeenCalledTimes(1);
     guard = { kind: "migration-pending", installed: "1.3.1", store: "1.2.0" };
     f.events.push({ type: "session.compaction.ended", data: { sessionID: "actual" } }); await settle();
@@ -398,22 +412,22 @@ describe("setupBeads", () => {
     cleanup();
   });
   test("reports and skips setup for an unsupported OpenCode host", async () => {
-    for (const appVersion of ["2.0.29", "2.1.0", "2.1.1-beta.1", "2.2.0", "unknown"]) {
+    for (const appVersion of ["2.0.29", "2.1.0", "2.1.1", "2.2.5", "2.3.0", "2.2.6-beta.1", "unknown"]) {
       const f = fakeContext({ appVersion });
       const warn = mock(() => {});
 
       const cleanup = await setupBeads(f.ctx, { warn });
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining(`OpenCode ${appVersion}`));
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.1.1 <2.2"));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.2.6 <2.3"));
       expect(f.agents.size).toBe(0);
       expect(f.hooks.size).toBe(0);
       cleanup();
     }
   });
 
-  test("admits candidate patch hosts within the selected 2.1 line", async () => {
-    const f = fakeContext({ appVersion: "2.1.8" });
+  test("admits candidate patch hosts within the selected 2.2 line", async () => {
+    const f = fakeContext({ appVersion: "2.2.8" });
     const cleanup = await setupBeads(f.ctx, {
       runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" },
     });
@@ -935,21 +949,26 @@ describe("owned workflow registration", () => {
     const c = commandFixture(f);
     const cleanup = await setupBeads(f.ctx, { warn: () => {} });
     const update = c.commands().get("oc-beads:update")!;
-    const stored: SessionContext["messages"] = [];
+    const stored: StoredSessionMessage[] = [];
+    const projected: SessionContext["messages"] = [];
+    const context = mock(async () => stored);
+    Object.assign(f.ctx.session, { context });
     for (const [stem, text, delivery] of [["show", "fixture-1", "queue"], ["update", "append note", "steer"], ["compact", "explain --auto", "queue"], ["sync", "explain only", "steer"]] as const) {
       await c.commands().get(`oc-beads:${stem}`)!.execute({ ...c.invocation, delivery, prompt: { ...c.invocation.prompt, text } });
       const sent = c.prompt.mock.calls.at(-1)![0];
       expect(sent.text).toBe(`/oc-beads:${stem} ${text}`);
       expect(sent.files).toBe(c.invocation.prompt.files);
       expect(sent.delivery).toBe(delivery);
-      const metadata = sent.metadata as { ocBeadsWorkflow: unknown };
-      stored.push({ role: "user", content: [{ type: "text", text: String(sent.text) }, { type: "text", text: "native prepared attachment/skill + hook edit" }], metadata: stem === "sync" ? { ocBeadsSync: metadata.ocBeadsWorkflow } : metadata } as SessionContext["messages"][number]);
+      const workflow = (sent.metadata as { ocBeadsWorkflow: { version: number; instructions: string } }).ocBeadsWorkflow;
+      const messageID = `workflow-${stem}`;
+      stored.push(storedUserMessage(messageID, String(sent.text), stem === "sync" ? { ocBeadsSync: workflow } : { ocBeadsWorkflow: workflow }));
+      projected.push(Message.make({ id: messageID, role: "user", content: [Message.text(String(sent.text)), Message.text("native prepared attachment/skill + hook edit")] }));
     }
     expect(c.prompt).toHaveBeenCalledTimes(4);
-    const raw = JSON.stringify(stored);
-    // Native-window replay decodes lowered messages, preserving per-message metadata.
+    const raw = JSON.stringify(projected);
+    const storedRaw = JSON.stringify(stored);
     for (const kind of ["context", "compaction"]) {
-      const event = { sessionID: "s1", agent: "build", system: [], messages: JSON.parse(raw) } as ContextEvent;
+      const event = { sessionID: "s1", agent: "build", system: [], messages: projected.map((message) => Message.make(message)) } as ContextEvent;
       await f.hooks.get(kind)!(event);
       const once = JSON.stringify(event.messages);
       expect(once).not.toContain("ocBeadsSync");
@@ -960,25 +979,122 @@ describe("owned workflow registration", () => {
       expect(JSON.stringify(event.messages)).toBe(once);
       expect(event.messages![1]!.content).toContainEqual({ type: "text", text: "/oc-beads:update append note" });
     }
-    // Restoring instruction content must precede session-location and guard holds.
+    expect(context).toHaveBeenCalledTimes(4);
+    // A moved session is withheld before native snapshot lookup.
     Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/elsewhere" } }) });
-    const moved = { sessionID: "s1", agent: "build", system: [], messages: JSON.parse(raw) } as ContextEvent;
+    const moved = { sessionID: "s1", agent: "build", system: [], messages: projected.map((message) => Message.make(message)) } as ContextEvent;
     await f.hooks.get("context")!(moved);
-    expect(JSON.stringify(moved.messages)).toContain("Requested outcome:");
-    expect(moved.system).toEqual([]);
-    expect(JSON.stringify(stored)).toBe(raw);
+    expect(JSON.stringify(moved.messages)).not.toContain("Requested outcome:");
+    expect(JSON.stringify(moved.system)).toContain("Saved Beads workflow instructions or diagnostics are unavailable");
+    expect(context).toHaveBeenCalledTimes(4);
+    expect(JSON.stringify(stored)).toBe(storedRaw);
     expect([...f.hooks.keys()].sort()).toEqual(["compaction", "context"]);
     // Summary recent-context uses stored visible text; no promise of verbatim snapshot retention.
-    const recent = stored.flatMap(m => m.content).map(p => p.type === "text" ? p.text : "").join("\n");
+    const recent = stored.filter((message) => message.type === "user").map((message) => message.text).join("\n");
     expect(recent).not.toContain("Requested outcome:");
     expect(BEADS_COMPACTION_GUIDANCE).toContain("active /oc-beads workflow invocation's requested outcome, unresolved inputs or explicit modes, and applicable authority limits");
     const calls = c.prompt.mock.calls.length;
     await cleanup();
-    const unloaded = { sessionID: "s1", agent: "build", system: [], messages: JSON.parse(raw) } as ContextEvent;
+    const unloaded = { sessionID: "s1", agent: "build", system: [], messages: projected.map((message) => Message.make(message)) } as ContextEvent;
     await f.hooks.get("context")!(unloaded);
     expect(JSON.stringify(unloaded.messages)).toBe(raw);
     await expect(update.execute(c.invocation)).rejects.toThrow("unloaded");
     expect(c.prompt).toHaveBeenCalledTimes(calls);
+  });
+
+  test("restores a saved workflow by ID from native context after the SDK projects a metadata-free user message", async () => {
+    const f = fakeContext({ appVersion: "2.2.6" });
+    const c = commandFixture(f);
+    const order: string[] = [];
+    const cleanup = await setupBeads(f.ctx, { warn: () => {} });
+    await c.commands().get("oc-beads:show")!.execute({
+      ...c.invocation,
+      delivery: "queue",
+      prompt: { ...c.invocation.prompt, text: "fixture-1 --json" },
+    });
+    const sent = c.prompt.mock.calls.at(-1)![0];
+    const workflow = (sent.metadata as { ocBeadsWorkflow: { version: number; instructions: string } }).ocBeadsWorkflow;
+    const messageID = "workflow-message-1";
+    const get = mock(async () => {
+      order.push("location");
+      return { location: { directory: "/project" } };
+    });
+    const context = mock(async ({ sessionID }: { sessionID: string }) => {
+      order.push("context");
+      expect(sessionID).toBe(c.invocation.sessionID);
+      return [{
+        id: messageID,
+        type: "user" as const,
+        time: { created: 1 },
+        text: String(sent.text),
+        metadata: { ocBeadsWorkflow: workflow },
+      }];
+    });
+    Object.assign(f.ctx.session, { get, context });
+
+    const projected = Message.make({ id: messageID, role: "user", content: String(sent.text) });
+    expect(projected.role).toBe("user");
+    expect(Object.hasOwn(projected, "metadata")).toBeFalse();
+    const event: ContextEvent = { sessionID: c.invocation.sessionID, agent: "build", system: [], messages: [projected] };
+    await f.hooks.get("context")!(event);
+
+    expect(order).toEqual(["location", "context"]);
+    expect(context).toHaveBeenCalledTimes(1);
+    expect(event.messages?.[0]?.content[0]).toEqual(Message.text(workflow.instructions));
+    expect(event.messages?.[0]?.content[1]).toEqual(Message.text(String(sent.text)));
+    expect(c.prompt.mock.calls.at(-1)![0].delivery).toBe("queue");
+    await cleanup();
+  });
+
+  test("reports unavailable snapshots after a rejected or incomplete native read without re-admission", async () => {
+    for (const result of ["rejected", "missing"] as const) {
+      const f = fakeContext();
+      const c = commandFixture(f);
+      const cleanup = await setupBeads(f.ctx, { warn: () => {} });
+      await c.commands().get("oc-beads:show")!.execute(c.invocation);
+      const message = Message.make({ id: `missing-${result}`, role: "user", content: "/oc-beads:show fixture-1" });
+      const context = mock(async () => {
+        if (result === "rejected") throw new Error("fixture native read rejected");
+        return [];
+      });
+      Object.assign(f.ctx.session, { context });
+      const before = JSON.stringify(message.content);
+      const event: ContextEvent = { sessionID: "s1", agent: "build", system: [], messages: [message] };
+      const promptCount = c.prompt.mock.calls.length;
+      await f.hooks.get("context")!(event);
+      expect(JSON.stringify(event.messages?.[0]?.content)).toBe(before);
+      expect(JSON.stringify(event.system)).toContain("Saved Beads workflow instructions or diagnostics are unavailable");
+      expect(context).toHaveBeenCalledTimes(1);
+      expect(c.prompt).toHaveBeenCalledTimes(promptCount);
+      await cleanup();
+    }
+  });
+
+  test("discards a late native snapshot after session generation changes", async () => {
+    const f = fakeContext();
+    const c = commandFixture(f);
+    const messageID = "moving-workflow";
+    const stored = storedUserMessage(messageID, "/oc-beads:show fixture-1", {
+      ocBeadsWorkflow: { version: 1, instructions: "STALE SNAPSHOT" },
+    });
+    let release: (messages: StoredSessionMessage[]) => void = () => {};
+    const context = mock(async () => new Promise<StoredSessionMessage[]>((resolve) => { release = resolve; }));
+    Object.assign(f.ctx.session, { context });
+    const cleanup = await setupBeads(f.ctx, { warn: () => {} });
+    const message = Message.make({ id: messageID, role: "user", content: stored.text });
+    const before = JSON.stringify(message.content);
+    const event: ContextEvent = { sessionID: "s1", agent: "build", system: [], messages: [message] };
+    const pending = f.hooks.get("context")!(event);
+    await settle();
+    f.events.push({ type: "session.moved", data: { sessionID: "s1" } });
+    await settle();
+    release([stored]);
+    await pending;
+    expect(JSON.stringify(event.messages?.[0]?.content)).toBe(before);
+    expect(JSON.stringify(event.system)).toContain("Saved Beads workflow instructions or diagnostics are unavailable");
+    expect(JSON.stringify(event.messages)).not.toContain("STALE SNAPSHOT");
+    expect(context).toHaveBeenCalledTimes(1);
+    await cleanup();
   });
 
   test("actual Responses serialization retains mixed workflow and legacy instructions once on native replay", async () => {
@@ -996,12 +1112,14 @@ describe("owned workflow registration", () => {
     const client = make();
     const model = configure({ apiKey: "disposable-fixture", baseURL: `${server.url.origin}/v1` }).responses("fixture");
     const serialize = async (messages: SessionContext["messages"]) => {
-      await client.llm.generate({ model, messages });
+      await client.generate({ model, messages });
       return JSON.stringify(captures.at(-1));
     };
     try {
-      const stored: SessionContext["messages"] = [];
+      const stored: StoredSessionMessage[] = [];
+      const projected: SessionContext["messages"] = [];
       const expected: SessionContext["messages"] = [];
+      Object.assign(f.ctx.session, { context: mock(async () => stored) });
       const stems = ["show", "update", "compact", "sync", "diagnostics"];
       for (const [index, stem] of stems.entries()) {
         const details = index === stems.length - 1 ? "current turn exact details" : `fixture-1 ${stem} literal --apply --auto`;
@@ -1016,21 +1134,26 @@ describe("owned workflow registration", () => {
           );
           expect(createHash("sha256").update(instructions).digest("hex")).toBe(baseline.syncInstructionsSha256);
         }
-        const content = [{ type: "text" as const, text: String(sent.text) }, { type: "text" as const, text: "native file/skill preparation + prompt hook edits" }];
+        const messageID = `response-workflow-${stem}`;
+        const content = [String(sent.text), "native file/skill preparation + prompt hook edits"];
         // Legacy retained history uses its stored snapshot, never a current-definition lookup.
-        const metadata = stem === "sync" ? { ocBeadsSync: snapshot, foreign: true } : { ...sent.metadata as Record<string, unknown>, foreign: true };
-        stored.push({ role: "user", content, metadata });
-        expected.push({ role: "user", content: [{ type: "text", text: snapshot.instructions }, ...content], metadata: { foreign: true } });
+        const metadata: StoredUserMessage["metadata"] = stem === "sync"
+          ? { ocBeadsSync: snapshot, foreign: true }
+          : { ocBeadsWorkflow: snapshot, foreign: true };
+        stored.push(storedUserMessage(messageID, String(sent.text), metadata));
+        projected.push(Message.make({ id: messageID, role: "user", content: content.map((text) => Message.text(text)) }));
+        expected.push(Message.make({ id: messageID, role: "user", content: [snapshot.instructions, ...content].map((text) => Message.text(text)) }));
         if (index === 0) {
-          const assistant = { role: "assistant" as const, content: [{ type: "text" as const, text: "interleaved assistant" }] };
-          stored.push(assistant);
+          const assistant = Message.make({ role: "assistant", content: Message.text("interleaved assistant") });
+          projected.push(assistant);
           expected.push(assistant);
         }
       }
       const storage = JSON.stringify(stored);
+      const projectedStorage = JSON.stringify(projected);
       let candidate: string | undefined;
       for (const kind of ["context", "compaction"]) {
-        const event = { sessionID: "s1", agent: "build", system: [], messages: JSON.parse(storage) } as ContextEvent;
+        const event = { sessionID: "s1", agent: "build", system: [], messages: projected.map((message) => Message.make(message)) } as ContextEvent;
         await f.hooks.get(kind)!(event);
         const serialized = await serialize(event.messages!);
         candidate ??= serialized;
@@ -1043,12 +1166,13 @@ describe("owned workflow registration", () => {
         await f.hooks.get(kind)!(event);
         expect(JSON.stringify(event.messages)).toBe(once);
         expect(await serialize(event.messages!)).toBe(candidate);
-        const replay = { ...event, messages: JSON.parse(storage) };
+        const replay = { ...event, messages: projected.map((message) => Message.make(message)) };
         await f.hooks.get(kind)!(replay);
         expect(await serialize(replay.messages!)).toBe(candidate);
       }
       expect(JSON.stringify(stored)).toBe(storage);
-      const auxiliary = await serialize(stored);
+      expect(JSON.stringify(projected)).toBe(projectedStorage);
+      const auxiliary = await serialize(projected);
       expect(auxiliary).not.toContain("Invoked command:");
       expect(auxiliary).not.toContain("Report these observed Beads diagnostics");
       expect(auxiliary).not.toMatch(/ocBeadsWorkflow|ocBeadsSync/);
@@ -1075,19 +1199,22 @@ describe("owned workflow registration", () => {
       const report = JSON.parse(snapshot.instructions.split("\n")[1]!);
       const manifest = await Bun.file(new URL("../package.json", import.meta.url)).json();
       expect(report.plugin).toEqual({name: manifest.name, version: manifest.version});
-      expect(report.host).toBe("2.1.1");
+      expect(report.host).toBe("2.2.6");
       expect(prime).not.toHaveBeenCalled();
-      const stored = {role: "user" as const, content: [{type:"text" as const, text: String(sent.text)}], metadata};
+      const stored = storedUserMessage("diagnostics-message", String(sent.text), { ocBeadsWorkflow: snapshot });
+      const request = Message.make({ id: stored.id, role: "user", content: String(sent.text) });
       const raw = JSON.stringify(stored);
+      const context = mock(async () => [stored]);
+      Object.assign(f.ctx.session, { context });
       for (const kind of ["context", "compaction"]) {
-        const event: ContextEvent = {sessionID:"s1", agent:"build", system:[], messages:[JSON.parse(raw)]};
+        const event: ContextEvent = {sessionID:"s1", agent:"build", system:[], messages:[Message.make(request)]};
         await f.hooks.get(kind)!(event);
         expect(event.messages![0]!.content[0]).toEqual({type:"text", text:snapshot.instructions});
         expect(JSON.stringify(event.messages)).not.toContain("ocBeadsWorkflow");
         expect(JSON.stringify(event.messages).split(snapshot.instructions.split("\n")[0]!)).toHaveLength(2);
       }
       for (const kind of ["title", "generate"]) {
-        const event: ContextEvent = {sessionID:"s1", agent:"build", system:[], messages:[JSON.parse(raw)]};
+        const event: ContextEvent = {sessionID:"s1", agent:"build", system:[], messages:[Message.make(request)]};
         await f.hooks.get(kind)?.(event);
         expect(JSON.stringify(event.messages!.map(message => message.content))).not.toContain('Report these observed Beads diagnostics');
       }
