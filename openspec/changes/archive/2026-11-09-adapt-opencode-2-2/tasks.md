@@ -1,5 +1,7 @@
 # Tasks
 
+**Archived completion:** All five mapped tasks are accepted, including the final Claude Opus 5.5 READY gate. Source, qualification and retained limitations are summarized in [the acceptance record](../../../../docs/opencode-22-qualification-5rj2.md). The mapping below records implementation custody; it is not a new execution or release authorization.
+
 Planning accepted; execution mapping is epic `opencode-beads-5rj`, with source/checks child `opencode-beads-5rj.1` owning 1.1, 1.2 and 2.1, and qualification/acceptance child `opencode-beads-5rj.2` owning 2.2 and 2.3, blocked by the source child. Shared edit limits and stop conditions are in [design.md](design.md). Mapping is not execution authority; discuss additional corner-case mitigation before implementation and do not begin from artifact-complete status alone.
 
 ## 1. Adapt the two host seams

@@ -138,7 +138,7 @@ Selected workflows SHALL preserve the user's requested execution scope, distingu
 
 ### Requirement: Explicit native availability and fallback
 
-The redesign SHALL use N1 with exact OpenCode 2.1.1 qualification and `>=2.1.1 <2.2` admission through opt-in beta/next delivery. It SHALL NOT silently migrate stable consumers, promise arbitrary minor/major compatibility or substitute N0. Concrete incompatibilities SHALL block the affected path with diagnostics. Publication remains separately authorized.
+The integration SHALL target exact OpenCode 2.2.6 qualification and `>=2.2.6 <2.3` admission. It SHALL distinguish admission from measured compatibility, preserve existing version pins and refuse unsupported host registration with diagnostics. It SHALL NOT retain a 2.1 compatibility layer or silently migrate installations. Publication remains separately authorized.
 
 #### Scenario: A different host version is considered
 
@@ -169,7 +169,7 @@ Typed tools and direct shell fallback SHALL respect shell visibility and operati
 #### Scenario: Agent wholly denies shell
 
 - **WHEN** a restricted agent's effective rules wholly deny shell
-- **THEN** typed tools are absent from its code-mode inventory, not merely denied after selection; default typed tools have no direct registration and native shell is never callable inside execute
+- **THEN** typed tools are absent from both its native code-mode inventory and direct-tool fallback, not merely denied after selection; native shell is never callable inside execute
 
 #### Scenario: Invoking agent differs from session default
 
@@ -187,7 +187,7 @@ Typed tools and direct shell fallback SHALL respect shell visibility and operati
 - **WHEN** the host permission assertion returns user correction with feedback or explicit decline
 - **THEN** the adapter propagates the assertion rejection unchanged and preserves correction feedback without executing the rejected target operation
 - **AND** it does not acknowledge target success or automatically retry the operation
-- **AND** code-mode composition remains available despite the owner-accepted OpenCode 2.1.1 limitation that a plain decline may become an inner error in an outer completed result and permit subsequent model steps or independently permissioned work
+- **AND** the host owns outer code-mode decline/continuation behavior; qualification records actual target-host behavior without downstream repair or relabeling historical observations
 - **AND** rejection of one operation does not promise whole-step termination; every later operation retains its own permission checks, and explicit Stop/Cancel remains a separate cancellation guarantee
 
 #### Scenario: External target or held workspace
@@ -244,7 +244,7 @@ The package SHALL expose effective discovery, compatibility, ownership conflicts
 #### Scenario: Compact diagnostic history
 
 - **WHEN** diagnostics is invoked with optional free text and native attachments/delivery
-- **THEN** history shows the compact command and exact free text, while the dynamic report is captured once in durable metadata and expanded only through existing primary/compaction hooks
+- **THEN** history shows the compact command and exact free text, while the dynamic report is captured once in a durable invocation snapshot and expanded only through primary/compaction hooks
 - **AND** replay preserves the captured observation without regenerating diagnostics, duplicating instructions, mutating persisted input or expanding auxiliary requests
 
 #### Scenario: Diagnostics is overridden or unloaded
@@ -259,8 +259,8 @@ The integration SHALL render actual executor identity and request capabilities, 
 #### Scenario: Execute is denied
 
 - **WHEN** execute is wholly denied for the actual request
-- **THEN** code-mode-only Beads tools are unavailable and guidance offers direct shell only if separately available and not held
-- **AND** when both capabilities are unavailable the limitation is reported without bypass or invented tool access
+- **THEN** composition is reported unavailable, while actually exposed direct Beads tools remain discoverable under their own permissions; direct shell is offered only if separately available and not held
+- **AND** when composed tools, direct typed tools and shell are unavailable the limitation is reported without bypass or invented tool access
 
 #### Scenario: Typed and shell writes share an executor
 
@@ -309,14 +309,14 @@ The integration SHALL present all 29 WORKFLOWS callbacks as compact native user 
 
 - **WHEN** any WORKFLOWS command is invoked with bare text or literal details, files, agents, skills and queue or steer delivery
 - **THEN** exactly one ordinary native prompt preserves those inputs and native prompt-hook edits
-- **AND** visible text contains `/oc-beads:<stem>` and any exact untruncated literal details, while durable versioned ocBeadsWorkflow v1 message metadata retains the static instructions and installed resource paths
+- **AND** visible text contains `/oc-beads:<stem>` and any exact untruncated literal details, while a durable versioned ocBeadsWorkflow v1 invocation snapshot retains the static instructions and installed resource paths
 - **AND** single-line free text follows the command on the same line; multiline free text follows it on a new line, preserving its whitespace without generated headings or typed-argument parsing
 - **AND** no synthetic pairing, retry, auxiliary model call or pending-command queue is introduced
 
 #### Scenario: Request expansion and replay
 
-- **WHEN** a retained tagged user message reaches primary or compaction context, including after native-window replay or reload
-- **THEN** its request copy receives exactly one instruction snapshot, preserving content, foreign metadata, IDs and role without changing stored history
+- **WHEN** a retained tagged user message whose durable snapshot is present in the native latest-compaction context reaches primary or compaction context, including retained messages after replay or reload
+- **THEN** its durable invocation snapshot is resolved through supported native session history and its request copy receives exactly one expansion, preserving content, foreign data, IDs and role without changing stored history or relying on model-message metadata
 - **AND** outbound provider input contains no routing marker or serialized duplicate snapshot, with stable expansion across identical requests and current-turn instructions present
 - **AND** missing, unknown or non-user metadata and unmarked historical messages remain untouched
 
@@ -343,7 +343,7 @@ The integration SHALL present all 29 WORKFLOWS callbacks as compact native user 
 
 - **WHEN** retained user history contains a valid version-1 ocBeadsSync snapshot, a valid version-1 ocBeadsWorkflow snapshot, or both
 - **THEN** the generalized snapshot wins when both are valid, otherwise the valid snapshot is expanded
-- **AND** both recognized valid routing keys are stripped from the transient copy so repeated expansion is stable, while malformed, unsupported, foreign and non-user metadata remains untouched
+- **AND** recognized routing keys and serialized duplicate snapshots are excluded from provider input, expansion is stable across repeated requests, and malformed, unsupported, foreign and non-user metadata remains untouched in durable history
 - **AND** new invocations write only ocBeadsWorkflow, without reconstructing old instructions from current command definitions or rewriting stored history
 
 #### Scenario: Existing workflow authority and resource contracts
@@ -351,3 +351,26 @@ The integration SHALL present all 29 WORKFLOWS callbacks as compact native user 
 - **WHEN** any migrated workflow is invoked with action, help, guide, missing-input or explicit mode details
 - **THEN** its existing purpose, common instructions, all installed skill/resource paths, required targets and acceptance ownership remain controlling with actual execution-derived actor/capabilities/native permission
 - **AND** restore remains display-only absent --apply, compact --auto and --dolt each need separate authority, QuickStart uses current installed guidance, stats means issue-database overview, and no implicit administration, cascade, initialization or repair is inferred
+
+#### Scenario: Snapshot retrieval is unavailable
+
+- **WHEN** a retained workflow invocation cannot resolve its durable snapshot through the supported native history path
+- **THEN** the request exposes the missing-guidance condition rather than silently inventing or reconstructing its instructions
+- **AND** the integration does not re-admit the prompt, replay the operation or reinterpret stored text as new authority
+
+#### Scenario: Model switch restores older transcript beyond the readable context
+
+- **WHEN** native compaction on model A is followed by switching to model B that cannot replay A's native window, and the host restores earlier ordinary user messages whose snapshots are absent from the native latest-compaction context
+- **THEN** affected historical workflow instructions or captured diagnostic reports are explicitly reported unavailable rather than claimed restored
+- **AND** accessible current snapshots still expand normally; host-supplied replay content and Beads issues, notes and checkpoints are not rewritten or deleted
+
+### Requirement: Documented snapshot-recovery deficiency
+
+The package SHALL document unavailable historical workflow-snapshot recovery as an unresolved plugin deficiency with an upstream API blocker. User-facing documentation SHALL explain its trigger, impact and limits and link the upstream request. Accepting the limitation for a release SHALL NOT be described as resolving the deficiency.
+
+#### Scenario: User evaluates the documented limitation
+
+- **WHEN** a user reads the README's applicable compatibility/limitations section
+- **THEN** it describes native compaction followed by an incompatible model switch, missing historical workflow instructions or captured reports, and unaffected Beads tracker data
+- **AND** it links OpenCode #57424 and identifies the unresolved local follow-up without requiring Beads access to understand the limitation
+- **AND** unreleased adaptation behavior is distinguished from the published beta's narrower host support

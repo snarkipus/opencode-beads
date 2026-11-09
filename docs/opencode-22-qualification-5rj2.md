@@ -6,7 +6,7 @@
 
 - **Standards: READY.** Qualification used the public frozen package and supported host interfaces; production code, permissions and attribution were not modified to make probes pass. No upstream patch, retry/routing framework or expanded host/provider matrix was added.
 - **Spec: READY for the five selected tasks.** Source checks, controlled native mechanics and one genuine model-selected workflow cover their respective boundaries. Known limitations remain explicit rather than being relabelled fixes. The [original final review](reviews/claude-opencode-22-final-tjd.md) retains its documentation-only REVISE; the [same-session recheck](reviews/claude-opencode-22-final-recheck-tjd.md) records F1 resolved and final READY. Actual reviewer model/session and no-error/no-denial completion were verified; all 201 corrected candidate file hashes remained unchanged across recheck. The status/marker/report additions in this local closeout are evidence-only successors, not runtime changes.
-- The execution epic remains open for canonical-spec synchronization/archive and its separately authorized publication. This verdict does not authorize source push/merge, a registry release, changing npm tags or operator activation.
+- The owner subsequently authorized canonical-spec synchronization/archive and source publication. The accepted deltas are synchronized into the canonical specs and the completed change is [archived](../openspec/changes/archive/2026-11-09-adapt-opencode-2-2/proposal.md). Source publication follows the normal PR/CI path; registry release, npm-tag changes and operator activation remain separately gated. Publication identities and execution-epic closure are recorded in Beads, not inferred from the earlier review verdict.
 
 ## Exact candidate
 
@@ -45,11 +45,12 @@ Durable raw evidence and offline analyzers are under `/opt/data/research/opencod
 
 Owned host/provider/fixture processes and loopback listeners were removed; transient server secrets/private startup logs were deleted. Source/archive and scoped operator fingerprints were preserved. The fresh authenticated native test profile remains private at `/opt/data/cache/scratch/oc-beads-22-genuine` for parent custody; its real credential database was not copied into evidence or deleted. No Zeus or operator service/configuration change occurred.
 
-Recommended next steps, under their own authority:
+Specification closeout is complete: the archive operation synchronized one added and six modified requirements, with no removals or renames. All five implementation/qualification tasks remain checked in the archived package. The archive-closeout successor to the accepted candidate changes specification/evidence documentation only; the qualified packed files and archive remain unchanged.
 
-- Synchronize the accepted active deltas into canonical specs, rehearse/validate archive, then publish the reviewed source and specification closeout.
+Remaining release steps, under their own authority:
+
 - Prepare **stable 2.0.0**, not a silent 1.x promotion: new host admission is `>=2.2.6 <2.3`; there is no parallel 2.1 compatibility layer. Document upgrading OpenCode first and installing the new plugin deliberately.
 - Preserve existing stable/beta exact pins for users staying on older hosts. Until a trusted release is authorized and verified, npm `latest=1.0.2` and `next=1.1.0-beta.5` remain the previously published releases, not this local candidate.
 - A future version/migration-note change creates a new release archive identity and needs ordinary release checks/provenance; it does not erase this exact-candidate qualification or silently authorize another live campaign.
 
-Parent acceptance is not package publication, operator activation, canonical archival or resolution of the known deficiency.
+Parent acceptance and source publication are not package publication, operator activation or resolution of the known deficiency. Canonical synchronization and archival follow the owner's separate closeout authorization, not an implied release approval.
