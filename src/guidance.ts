@@ -78,17 +78,19 @@ Preserve an active /oc-beads workflow invocation's requested outcome, unresolved
 
 /** Observed after native request filtering; selective operation permission remains per call. */
 export interface RequestCapabilities {
-  typed: "registered-execute-visible" | "unavailable" | "unknown";
+  typed: "registered-execute-visible" | "registered-direct-visible" | "unavailable" | "unknown";
   execute: boolean | null;
   shell: boolean | null;
+  direct: boolean | null;
 }
-export const UNKNOWN_CAPABILITIES: RequestCapabilities = { typed: "unknown", execute: null, shell: null };
+export const UNKNOWN_CAPABILITIES: RequestCapabilities = { typed: "unknown", execute: null, shell: null, direct: null };
 
 /** Capability statements describe observations, never a permission grant. */
 export function capabilityGuidance(capabilities: RequestCapabilities): string {
-  if (capabilities.typed === "registered-execute-visible") return "Beads namespace is registered and execute is visible. Discover current signatures with native search({namespace: \"beads\"}); compose only operations found in the native catalog. Some or all leaves may be filtered out. Each leaf still checks its own permissions; visibility grants no authority. Native shell is direct-only; run repository work and validation in direct shell turns. Do not call tools.shell inside execute.";
-  if (capabilities.shell === true) return "Typed Beads composition is unavailable for this request. Use permissioned bd through the direct shell tool only when authorized and no hold applies. Shell cannot run inside execute.";
-  if (capabilities.execute !== null && capabilities.shell === false) return "Neither typed Beads composition nor direct shell access is available for this request. Report unavailable capability and stop the affected work; do not route around it.";
+  if (capabilities.typed === "registered-execute-visible") return "Beads namespace is registered and execute is visible. Discover current signatures with native search({namespace: \"beads\"}); compose only operations found in the native catalog. Some or all leaves may be filtered out. Each operation still checks its own permissions; a rejected operation is not success and must not be retried through another surface. Honor explicit Stop/Cancel. Native shell is direct-only; run repository work and validation in direct shell turns. Do not call tools.shell inside execute.";
+  if (capabilities.typed === "registered-direct-visible") return "Native Beads leaf tools are directly visible for this request, while execute is unavailable. Use only the listed direct leaves and their current signatures, one operation at a time. Each operation still checks its own permission; a rejected operation is not success and must not be retried through shell or another surface. Honor explicit Stop/Cancel. Direct shell is available only if separately listed and permissioned.";
+  if (capabilities.shell === true) return "Native Beads operations are not visible for this request. Use permissioned bd through the independently available direct shell tool only when authorized and no hold applies. Shell cannot run inside execute.";
+  if (capabilities.execute !== null && capabilities.shell === false) return "Neither native Beads leaves nor direct shell access are available for this request. Report unavailable capability and stop the affected work; do not route around it.";
   return "Beads request capability is unknown. Check actual native catalog/tools before choosing typed composition or direct shell; do not infer permission or bypass a hold.";
 }
 

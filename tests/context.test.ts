@@ -46,15 +46,19 @@ function fixture(
 describe("context controller", () => {
   test("renders actual request actors and capabilities without caching one agent identity", async () => {
     const f = fixture();
-    const typed = { typed: "registered-execute-visible", execute: true, shell: true } as const;
+    const typed = { typed: "registered-execute-visible", execute: true, shell: true, direct: false } as const;
     const a = await f.controller.systemFor("s1", "build", typed);
-    const b = await f.controller.systemFor("s1", "review", { typed: "unavailable", execute: false, shell: true });
+    const b = await f.controller.systemFor("s1", "review", { typed: "unavailable", execute: false, shell: true, direct: false });
     expect(a).toContain("opencode:build:");
     expect(a).toContain("namespace");
     expect(b).toContain("opencode:review:");
     expect(b).not.toContain("opencode:build:");
     expect(b).toContain("direct shell");
-    expect(await f.controller.systemFor("s1", "review", { typed: "unavailable", execute: false, shell: false })).toContain("Neither");
+    const direct = await f.controller.systemFor("s1", "restricted", { typed: "registered-direct-visible", execute: false, shell: false, direct: true });
+    expect(direct).toContain("Native Beads leaf tools are directly visible");
+    expect(direct).toContain("rejected operation is not success");
+    expect(direct).toContain("Stop/Cancel");
+    expect(await f.controller.systemFor("s1", "review", { typed: "unavailable", execute: false, shell: false, direct: false })).toContain("Neither");
     expect(f.prime).toHaveBeenCalledTimes(1);
     const held = fixture({ guard: { kind: "migration-pending", installed: "1.3.1", store: "1.2.0" } });
     expect(await held.controller.systemFor("s1", "build", typed)).not.toContain("direct shell");

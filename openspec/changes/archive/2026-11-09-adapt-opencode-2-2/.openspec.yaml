@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-11-08
+goal: Adapt compact workflow transport and native tool capability guidance to
+  OpenCode2.2.6 while preserving scoped behavior; prepare targeted qualification
+  and stable delivery without implementation or publication.

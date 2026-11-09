@@ -202,18 +202,24 @@ describe("documentation contracts", () => {
 
   test("keeps the compatibility record on the selected beta/next OpenCode baseline", () => {
     expect(sdkContract).toContain("# OpenCode V2 Plugin Contract");
-    expect(packageManifest.peerDependencies["@opencode/plugin"]).toBe(">=2.1.1 <2.2");
+    expect(packageManifest.peerDependencies["@opencode/plugin"]).toBe(">=2.2.6 <2.3");
     expect(packageManifest.peerDependenciesMeta["@opencode/plugin"]?.optional).toBeTrue();
-    expect(packageManifest.devDependencies["@opencode/plugin"]).toBe("2.1.1");
-    expect(sdkContract).toContain("`@opencode/plugin` `>=2.1.1 <2.2`");
-    expect(sdkContract).toContain("`@opencode/plugin` `2.1.1` for development typing only");
+    expect(packageManifest.devDependencies["@opencode/plugin"]).toBe("2.2.6");
+    expect(sdkContract).toContain("`@opencode/plugin` `>=2.2.6 <2.3`");
+    expect(sdkContract).toContain("`2.2.6` for development typing only");
     expect(sdkContract).toContain("`<name>/server`, then `<name>`");
     expect(sdkContract).toContain("`session.compaction.ended`");
-    expect(sdkContract).toContain("The exact 2.1.1 runtime target has not been qualified");
+    expect(sdkContract).toContain("Exact OpenCode 2.2.6 qualification is parent-accepted");
+    expect(sdkContract).toContain("072d9c29ef89fa2697109be072798e79cf4af622111266de40ef65e7950ac836");
+    expect(sdkContract).toContain("[current qualification](opencode-22-qualification-5rj2.md)");
+    expect(sdkContract).not.toContain("The 2.2.6 runtime candidate has not been qualified");
     expect(sdkContract).not.toContain("1.18.");
-    expect(readme).toContain(
-      "| OpenCode (beta/next candidate) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |"
-    );
+    expect(readme).toContain("| OpenCode (published beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
+    expect(readme).toContain("| OpenCode (unreleased source candidate) | `>=2.2.6 <2.3` | 2.2.6 (source target; host gate pending) |");
+    expect(readme).toContain("after native conversation compaction on model A, switching to model B");
+    expect(readme).toContain("upstream issue #57424");
+    expect(readme).toContain("opencode-beads-o66");
+    expect(readme).toContain("does not change or repair the Beads issue database or its stored data");
     expect(readme).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
     expect(readme).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.1 |");
     expect(readme).not.toContain("@opencode-ai/");

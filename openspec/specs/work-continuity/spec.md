@@ -91,9 +91,10 @@ The selected integration SHALL distinguish awaited interception from observation
 
 #### Scenario: Host retains and replays compacted history
 
-- **WHEN** 2.1.1 summary/native history is recovered or forked, or its provider/model changes
-- **THEN** the integration preserves host-owned native replay and metadata.keepID/legacy metadata.recent semantics without substituting a provider replacement window for a summary
+- **WHEN** summary/native history is recovered or forked on the selected 2.2 host, or its provider/model changes
+- **THEN** the integration preserves host-owned native replay and summary retention without substituting a provider replacement window for a summary
 - **AND** tool execution state and UI metadata are not treated as renamed provider replay payloads
+- **AND** workflow snapshots present in native latest-compaction context follow workflow-access expansion; earlier ordinary user messages restored after a non-replayable native-window model switch receive explicit unavailable-guidance disclosure when their snapshots are absent from that context
 
 ### Requirement: Honest persistence acknowledgement
 

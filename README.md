@@ -19,6 +19,12 @@ Typed registration requires the host tool, permission and session interfaces. Th
 
 All 16 implementation tasks have parent acceptance on exact OpenCode 2.1.1 / Beads 1.3.1. The [final acceptance record](docs/code-mode-final-acceptance-vuy9.md) and [bounded installed/model evaluation](docs/opencode-installed-model-continuation-vuy9.md) retain their historical candidates and probes; the published beta adds the public entrypoint and release-channel wiring. **Known limitation:** plain decline of a nested permission request does not stop the entire composition; a later independent operation can ask again. Use explicit Stop/Cancel to stop the composition. No token-saving, cross-provider checkpoint portability or multi-hour reliability claim is made.
 
+### Unreleased OpenCode 2.2.6 source adaptation
+
+This checkout contains an unreleased source candidate targeting `@opencode/plugin` 2.2.6 and host admission `>=2.2.6 <2.3`. It is still package version `1.1.0-beta.5`; the published beta.5 artifact and its `>=2.1.1 <2.2` compatibility range have not changed. The candidate has not passed live host qualification and does not alter operator configuration or Beads data.
+
+**Known workflow-guidance limitation:** after native conversation compaction on model A, switching to model B that cannot replay A's native context can make earlier workflow instruction snapshots and captured diagnostics unavailable. The candidate restores them only when OpenCode's current native session context contains matching user-message IDs; otherwise it reports the workflow guidance unavailable and continues with the ordinary request. This is the model-switch case tracked by [upstream issue #57424](https://github.com/anomalyco/opencode/issues/57424) and local deficiency `opencode-beads-o66`; it remains unresolved. The limitation affects prompt guidance only: it does not change or repair the Beads issue database or its stored data.
+
 ## Design
 
 The published beta/next release uses scope-bounded task execution:
@@ -31,7 +37,7 @@ The published beta/next release uses scope-bounded task execution:
 
 ## Installation
 
-The beta requires OpenCode `>=2.1.1 <2.2` and `bd` 1.3.1 or later. Exact OpenCode 2.1.1 has bounded native, Stop and installed/model evidence; other admitted 2.1 patches are not inferred qualified. The external `bd` CLI and project initialization remain prerequisites; the plugin does not install or upgrade them. Stable 1.0.2 remains separately qualified against OpenCode 2.0.26.
+The published beta.5 requires OpenCode `>=2.1.1 <2.2` and `bd` 1.3.1 or later. Exact OpenCode 2.1.1 has bounded native, Stop and installed/model evidence; other admitted 2.1 patches are not inferred qualified. The unreleased source candidate instead admits `>=2.2.6 <2.3`; that range is a source target, not host qualification. The external `bd` CLI and project initialization remain prerequisites; the plugin does not install or upgrade them. Stable 1.0.2 remains separately qualified against OpenCode 2.0.26.
 1. Install the [`bd` CLI](https://github.com/gastownhall/beads/blob/main/docs/getting-started/installation.md) once on the host, then initialize each project:
 
    ```bash
@@ -192,12 +198,13 @@ The package vendors nothing from upstream. It depends on the installed `bd` CLI 
 
 | Component | Expected range | Validated baseline |
 | --- | --- | --- |
-| OpenCode (beta/next candidate) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |
+| OpenCode (published beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |
+| OpenCode (unreleased source candidate) | `>=2.2.6 <2.3` | 2.2.6 (source target; host gate pending) |
 | OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |
 | `bd` CLI | 1.3.1 through 1.x | 1.3.1 |
 | Bun (OpenCode host runtime) | >=1.3.14 | 1.4.2 |
 
-The beta/next candidate type-checks against `@opencode/plugin` 2.1.1 and declares an optional peer range of `>=2.1.1 <2.2`. It checks `ctx.app.version` at startup and reports an unsupported-host diagnostic before registering Beads agents or hooks. This source guard does not qualify the entire host range; exact 2.1.1 has bounded accepted evidence, and future 2.1 patches are admitted candidates rather than tested versions. The stable 1.0.2 qualification on 2.0.26 is historical. See the [OpenCode V2 contract](docs/opencode-sdk-contract.md). The `bd` baseline was reviewed against Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`).
+Published beta.5 type-checks against `@opencode/plugin` 2.1.1 and declares an optional peer range of `>=2.1.1 <2.2`. This checkout's unreleased source candidate type-checks against 2.2.6 and declares `>=2.2.6 <2.3`; its source admission guard does not qualify that host range. Exact 2.1.1 has bounded accepted evidence for the published beta, and future 2.1 patches are admitted there as candidates rather than tested versions. The stable 1.0.2 qualification on 2.0.26 is historical. See the [OpenCode V2 contract](docs/opencode-sdk-contract.md). The `bd` baseline was reviewed against Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`).
 
 ## Troubleshooting
 
