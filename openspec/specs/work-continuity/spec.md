@@ -3,8 +3,6 @@
 ## Purpose
 Preserve meaningful work context so authorized work can resume across compaction, session changes and delegation without reconstructing failed approaches or asking the user to repeat known context.
 
-These are the selected N1 outcome contracts. Historical source acceptance remains intact; new code-mode source tasks and behavioral acceptance remain unexecuted. See design and tasks for qualified delivery boundaries.
-
 ## Requirements
 
 ### Requirement: Meaningful progress checkpoints

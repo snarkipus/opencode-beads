@@ -7,6 +7,16 @@
 - **bd contract check** (needs `bd` on PATH): `bun run test:bd-contract`; install a pinned release with `./scripts/install-bd.sh <version> <dir>`
 - **Install deps**: `bun install`
 
+## Where truth lives
+
+Start with [`docs/README.md`](docs/README.md). It indexes current documents and their distinct responsibilities. You do not need to read `docs/reviews/` or dated records to learn current behavior.
+
+- **Intended behavior** lives in the canonical specs `openspec/specs/*/spec.md`. Requirements and scenarios change only through an owner-approved OpenSpec change. Editorial fixes to a spec's Purpose are allowed.
+- **Packaged guidance** in `assets/oc-beads/` ships to users and is behavioral, so edit it like source, not like docs.
+- **User docs** are `README.md` (concise onboarding) and `docs/user-guide.md` (details). **Reference facts** about pinned OpenCode interfaces and sources go in `docs/opencode-sdk-contract.md`, and Beads artifact policy goes in `docs/beads-artifact-policy.md`. Neither restates product rules; link the spec requirement instead.
+- **Design rationale** lives in `openspec/changes/archive/`. **Historical evidence** lives in `docs/reviews/`, dated qualification/evaluation/acceptance records in `docs/`, and `docs/history/`. It is frozen: never edit it to sound current, and add new evidence as a new record. **Live execution status** (claims, progress, acceptance, closure) lives in Beads; do not duplicate mutable status in specs or guides. Dated acceptance records remain evidence.
+- **Disagreements:** specs define intended behavior, not observed upstream facts or execution permission. Correct inaccurate explanatory prose within scope; never rewrite evidence or invent an API to match a spec. If code, SDK facts or test results conflict with the intended behavior, report the precise gap and stop the affected change for disposition. Do not silently change the accepted contract or infer dispatch, publication or activation authority from it.
+
 ## Code Style
 - TypeScript strict mode with ESM modules
 - Use `import type` for type-only imports (verbatimModuleSyntax)
@@ -37,11 +47,15 @@ its repository-specific tools, architecture and style rules do not apply here.
 
 ## Project Structure
 - `src/plugin.ts` - OpenCode V2 plugin entry point (default export `{ id, setup }`)
-- `src/host.ts` - Wires the context hook, session events, and agent registration
-- `src/context.ts` - Per-session `bd prime` context cache and audience selection
+- `src/host.ts` - Host admission plus wiring for hooks, session events, and agent/command/skill/tool registration
+- `src/context.ts` - Per-session `bd prime` context cache, actor and capability guidance
+- `src/continuity.ts` - The eleven permissioned typed operations in the `beads` namespace
+- `src/workflows.ts` - The 30 `oc-beads:*` commands and durable workflow snapshots
+- `src/instructions.ts` - Request-only reduction of duplicated bd-managed `AGENTS.md` blocks
 - `src/guard.ts` - Beads version and schema-migration guard
 - `src/agents.ts`, `src/guidance.ts` - Project-owned task agents, prompt, and shared guidance
 - `src/prime.ts` - Bounded `bd` process runner
+- `assets/oc-beads/` - Packaged skill, resources and ADR (shipped, behavioral)
 
 ## Notes
 - This is an OpenCode V2 plugin integrating the beads issue tracker
@@ -58,9 +72,9 @@ This project-owned policy applies to commands in generated integration blocks to
 - Supply explicit command-scoped `BEADS_ACTOR` or `--actor` for every agent-authored write, claim and heartbeat. Never inherit the human Git identity or set a shared user-global actor. Hermes uses `snarkimedes`; delegated executors use readable identities such as `codex:9c2e1` or `claude:7edcc`, with short unambiguous session suffixes when needed. Keep full session IDs in evidence, not actor names; model names alone are not executor identities.
 - Carry the actual executor actor into delegated instructions and commands. The executing worker claims explicitly authorized work atomically and keeps that actor through updates/heartbeats. Parent coordination/review does not transfer ownership; record deliberate handoffs.
 - Leave new work unassigned unless assignment is intentional; assign Matt only for explicitly human-owned work. Read back `created_by` (audit author), `owner` (record/account ownership) and `assignee` (executor) separately. Actor attribution is not authentication or permission. Preserve historical authorship, including unknown values; record provenance corrections in notes rather than rewriting audit history.
-- A quick OpenSpec draft does not require its own ticket. Substantial multi-session/delegated planning does: use one bounded planning Bead, separate from the implementation epic, with artifact revisions, decisions and pending acceptance. This effort uses `opencode-beads-d9n`.
+- A quick OpenSpec draft does not require its own ticket. Substantial multi-session/delegated planning does: use one bounded planning Bead, separate from the implementation epic, with artifact revisions, decisions and pending acceptance. Use the planning Bead named in your assignment; do not reuse an earlier effort's Bead.
 - Give a substantive independently owned review one bounded review Bead linked to its planning work and exact candidate. Reuse it through correction/recheck cycles; do not create a ticket per document, invocation, transient retry or minor nit. Record the actual reviewer actor/session, verdict, findings and evidence. Do not invent retroactive claims or timestamps for reviews already performed.
-- OpenSpec owns intended behavior; committed docs own detailed rationale/evidence; Beads owns execution, assignment and acceptance status. Close planning/review from their own evidence and owner acceptance, not from implementation completion. Their closure does not authorize implementation, release or deployment. Readiness alone is never dispatch permission.
+- Ownership of behavior, rationale/evidence and execution status follows [Where truth lives](#where-truth-lives). Close planning/review from their own evidence and owner acceptance, not from implementation completion. Their closure does not authorize implementation, release or deployment. Readiness alone is never dispatch permission.
 
 ## Releasing a New Version
 
@@ -74,7 +88,7 @@ If the user specifies a version number (e.g., "bump to 0.4.0") or bump type (maj
 2. Fetch tags from remote: `git fetch origin --tags`
 3. Get commits since last release: `git log v<current>..HEAD --oneline`
 4. **Read the actual diffs** - don't rely solely on commit messages:
-   - `git diff v<current>..HEAD -- src/` for source changes
+   - `git diff v<current>..HEAD -- src/ assets/` for source and packaged-guidance changes
 5. Apply semver:
    - **patch** (0.0.x): Bug fixes, dependency updates, and compatibility updates with no breaking changes
    - **minor** (0.x.0): New features, new commands, non-breaking enhancements
@@ -88,7 +102,7 @@ If the user specifies a version number (e.g., "bump to 0.4.0") or bump type (maj
    - Add new version heading: `## [X.Y.Z]`
    - Update `[unreleased]` compare link at bottom to compare from new version
    - Add new version release link at the end of the reference links list
-3. **`README.md`** - Update version in the installation example JSON
+3. **`README.md`** - Update version in the installation example JSON (also the options example in `docs/user-guide.md`)
 
 ### Commit Convention
 
