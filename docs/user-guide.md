@@ -148,16 +148,18 @@ Remove the `plugins` entry to unload the plugin. Cleanup aborts owned context/pr
 | OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |
 | OpenCode (2.0.0) | `>=2.2.6 <2.3` | 2.2.6 (accepted native and genuine-model qualification) |
 | OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |
-| `bd` CLI | 1.3.1 through 1.x | 1.3.1 |
+| `bd` CLI | 1.3.1 through 1.x | 1.3.4 |
 | Bun (OpenCode host runtime) | >=1.3.14 | 1.4.2 |
 
-Version 2.0.0 type-checks against `@opencode/plugin` 2.2.6 and declares optional peer range `>=2.2.6 <2.3`. Admission does not qualify future patches. Native qualification used Beads 1.3.4 as its fixture CLI; the supported-minimum contract evidence remains 1.3.1. See the [2.2.6 qualification](opencode-22-qualification-5rj2.md) and the [OpenCode integration reference](opencode-sdk-contract.md). The `bd` baseline was reviewed against Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`).
+Version 2.0.0 type-checks against `@opencode/plugin` 2.2.6 and declares optional peer range `>=2.2.6 <2.3`. Admission does not qualify future patches. Native qualification used Beads 1.3.4 as its fixture CLI; the supported-minimum contract evidence remains 1.3.1. See the [2.2.6 qualification](opencode-22-qualification-5rj2.md) and the [OpenCode integration reference](opencode-sdk-contract.md). The current CLI baseline was reviewed against Beads v1.3.4; see the [2026-11-09 release review](beads-1.3.4-review-2026-11-09.md). The historical integration comparison remains Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`), separately from CLI validation and the reviewed marketplace-main inventory.
 
 ## Tracking upstream Beads
 
 The package vendors nothing from upstream. It depends on the installed `bd` CLI at runtime: `bd prime` supplies the current workflow, and the schema migration guard enforces the supported `bd` range.
 
 [`scripts/bd-contract.ts`](../scripts/bd-contract.ts) checks a real `bd` against everything the plugin relies on. CI runs it against the validated release from `package.json` (`beads.validated`). The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release and fails if that release breaks the contract or is newer than the validated one. When a new release appears, review its upgrade notes, then update `beads.validated` and the compatibility table. The [artifact policy](beads-artifact-policy.md) records why upstream artifacts are not vendored.
+
+The daily/manual `beads-contract` workflow also has an independent source-comparison job using `scripts/check-beads-integration.ts`. Its step summary contains the collector JSON and exit status: immutable reviewed baseline/candidate commits, selected paths and source/diff links. Completed changed and unchanged comparisons succeed informationally; unavailable retrieval/comparison fails that job and is never reported as unchanged. Neither job depends on the other, and these maintenance checks are not product/release prerequisites. No GitHub issues, automatic adoption or baseline advancement occur. A maintainer must explicitly disposition changes before updating the reviewed inventory. Schedules use the default branch; an authorized manual run can select a published branch with `--ref` when the workflow exists on default.
 
 ## Troubleshooting
 

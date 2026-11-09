@@ -249,6 +249,26 @@ describe("release artifact identity", () => {
     expect(workflow).not.toMatch(/npm publish\s*(?:\n|$)/);
   });
 
+  test("keeps source comparison independent and reports even unavailable collection", async () => {
+    const workflow = await fs.readFile(join(projectDirectory, ".github/workflows/beads-contract.yml"), "utf8");
+    expect(workflow).toContain("schedule:");
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow.match(/^  [a-z-]+:$/gm)?.filter(line => line === "  contract:" || line === "  source-comparison:")).toHaveLength(2);
+    expect(workflow).not.toMatch(/\bneeds:|continue-on-error:|(?:issues|checks):\s*write/);
+    const source = workflow.split("  source-comparison:")[1]!;
+    expect(source).toContain("bun scripts/check-beads-integration.ts");
+    expect(source).toContain('exit "$status"');
+    expect(source).toContain("if: ${{ always() }}");
+    expect(source).toContain('>> "$GITHUB_STEP_SUMMARY"');
+    expect(source).not.toMatch(/install-bd|test:bd-contract|::(?:error|warning)::/);
+    expect(workflow).toContain("Require review of new Beads releases");
+    for (const name of ["ci.yml", "release.yml"]) {
+      const product = await fs.readFile(join(projectDirectory, ".github/workflows", name), "utf8");
+      expect(product).not.toContain("source-comparison");
+      expect(product).not.toContain("beads-contract.yml");
+    }
+  });
+
   test("hardens workflow dependencies, credentials, caching, and update cooldowns", async () => {
     const workflowNames = ["ci.yml", "release.yml", "beads-contract.yml"];
     const workflows = await Promise.all(

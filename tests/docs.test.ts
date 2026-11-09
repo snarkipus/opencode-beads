@@ -277,7 +277,7 @@ describe("documentation contracts", () => {
     expect(userGuide).toContain("| OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
     expect(userGuide).toContain(`| OpenCode (${packageManifest.version}) | \`>=2.2.6 <2.3\` | 2.2.6 (accepted native and genuine-model qualification) |`);
     expect(userGuide).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
-    expect(userGuide).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.1 |");
+    expect(userGuide).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.4 |");
     expect(readme).toContain("| OpenCode | `>=2.2.6 <2.3` |");
     expect(readme).not.toContain("The candidate has not passed live host qualification");
     expect(readme).toContain("Upgrade OpenCode before changing the plugin pin");
@@ -344,7 +344,7 @@ describe("documentation contracts", () => {
 
   test("records the retired vendoring decision and the historical baselines", () => {
     expect(userGuide).toContain("The package vendors nothing from upstream.");
-    expect(userGuide).toContain("The `bd` baseline was reviewed against Beads v1.3.1");
+    expect(userGuide).toContain("The historical integration comparison remains Beads v1.3.1");
     expect(userGuide).toContain("c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c");
     expect(artifactPolicy).toContain("The package vendors no upstream Beads artifacts.");
     expect(artifactPolicy).toContain("| `agents/task-agent.md` | Retired in 1.0.0 (`opencode-beads-w5y`) |");
