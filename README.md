@@ -23,7 +23,7 @@ Version **2.0.0** is the stable line.
 | Component | Supported | Evidence |
 | --- | --- | --- |
 | OpenCode | `>=2.2.6 <2.3` | Exact 2.2.6 native-host qualification plus one genuine model workflow |
-| `bd` CLI | 1.3.1 through 1.x | 1.3.1 contract baseline |
+| `bd` CLI | 1.3.1 through 1.x | 1.3.4 contract baseline |
 
 A compatible range is admission, not proof that every future patch was tested. The plugin refuses to register on hosts outside the range. Older hosts: see [Compatibility](docs/user-guide.md#compatibility).
 
@@ -89,7 +89,7 @@ The agent claims the issue atomically and appends checkpoints under the actual s
 
 ## Authorship and license
 
-This is an independent project maintained by Matt Jackson. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. It vendors nothing from upstream Beads; each Beads release is checked against the `bd` behavior the plugin relies on.
+This is an independent project maintained by Matt Jackson. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. It vendors nothing from upstream Beads; the daily/manual maintenance workflow checks tagged CLI compatibility and independently compares reviewed upstream integration sources with current MAIN. Completed source changes are informational; adoption remains a human decision.
 
 opencode-beads is licensed under the MIT license. See [`LICENSE`](LICENSE).
 

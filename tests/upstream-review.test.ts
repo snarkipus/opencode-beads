@@ -64,7 +64,7 @@ async function run(data = responses(), sourceInventory: unknown = inventory) {
 }
 
 /** Run the actual CLI with a temporary preload replacing only HTTP retrieval. */
-async function entrypoint(data: Record<string, unknown>, args: string[] = []) {
+async function entrypoint(data: Record<string, unknown>, args: string[] = [], workflowText?: string) {
   const directory = await fs.mkdtemp(join(tmpdir(), "oc-upstream-entrypoint-"));
   temporaryDirectories.push(directory);
   const preload = join(directory, "fetch.ts");
@@ -75,17 +75,41 @@ globalThis.fetch = async (url) => {
   return new Response(JSON.stringify(data[String(url)]), { status: 200 });
 };
 `);
-  const proc = Bun.spawn([process.execPath, "--preload", preload, script, ...args], {
+  const workflow = (workflowText ?? await fs.readFile(resolve(import.meta.dir, "../.github/workflows/beads-contract.yml"), "utf8"))
+    .replace(/\r\n/g, "\n");
+  const runBlocks = [...workflow.split("  source-comparison:")[1]!.matchAll(/        run: \|\n((?:          .*\n|\n)+)/g)]
+    .map(match => match[1]!.replace(/^          /gm, ""));
+  expect(runBlocks).toHaveLength(2);
+  const [collect, summarize] = runBlocks as [string, string];
+  // Exercise the literal workflow shell; only add the existing HTTP preload to its real collector invocation.
+  const command = collect.replace("bun scripts/check-beads-integration.ts", '"$BUN_EXECUTABLE" --preload "$FETCH_PRELOAD" "$COLLECTOR"');
+  const summaryPath = join(directory, "summary.md");
+  const env = { ...process.env, GH_TOKEN: "fixture-secret-never-print", RUNNER_TEMP: directory,
+    GITHUB_STEP_SUMMARY: summaryPath, BUN_EXECUTABLE: process.execPath, FETCH_PRELOAD: preload, COLLECTOR: script };
+  const proc = Bun.spawn(args.length ? [process.execPath, "--preload", preload, script, ...args] : ["bash", "-e", "-c", command], {
     cwd: directory,
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, GH_TOKEN: "fixture-secret-never-print" },
+    env,
   });
-  const [exitCode, stdout, stderr] = await Promise.all([
+  const [exitCode, output, stderr] = await Promise.all([
     proc.exited, new Response(proc.stdout).text(), new Response(proc.stderr).text(),
   ]);
-  expect(await fs.readdir(directory)).toEqual(["fetch.ts"]);
-  return { exitCode, stdout, stderr, report: JSON.parse(stdout) };
+  let stdout = output;
+  let summary = "";
+  if (!args.length) {
+    stdout = await fs.readFile(join(directory, "beads-source.json"), "utf8");
+    expect(await fs.readFile(join(directory, "beads-source.exit"), "utf8")).toBe(`${exitCode}\n`);
+    const reporting = Bun.spawn(["bash", "-e", "-c", summarize], { cwd: directory, env, stdout: "pipe", stderr: "pipe" });
+    expect(await reporting.exited).toBe(0);
+    summary = await fs.readFile(summaryPath, "utf8");
+    expect(summary).toContain(`Collector exit status: ${exitCode}`);
+    expect(summary).toContain(stdout);
+    expect(summary).not.toMatch(/::(?:error|warning)::|fixture-secret-never-print/);
+  }
+  expect((await fs.readdir(directory)).sort()).toEqual(args.length ? ["fetch.ts"]
+    : ["beads-source.exit", "beads-source.json", "fetch.ts", "summary.md"]);
+  return { exitCode, stdout, stderr, summary, report: JSON.parse(stdout) };
 }
 
 describe("advisory marketplace MAIN source collector", () => {
@@ -196,6 +220,18 @@ describe("advisory marketplace MAIN source collector", () => {
     missingCommit[`${api}/commits/main`] = { sha: candidate };
     expect((await run(missingCommit)).exitCode).toBe(2);
     expect((await run(responses(), { marketplace_main: { commit: "main" } })).exitCode).toBe(2);
+  });
+
+  test("actual workflow shell accepts CRLF line endings", async () => {
+    const workflow = await fs.readFile(resolve(import.meta.dir, "../.github/workflows/beads-contract.yml"), "utf8");
+    const selected = JSON.parse(await fs.readFile(inventoryPath, "utf8")).marketplace_main.files
+      .map((file: { path: string; git_blob: string }) => ({ path: file.path, sha: file.git_blob, type: "blob", mode: "100644" }));
+    const data = responses(selected);
+    data[`${api}/git/trees/${baseTree}?recursive=1`] = { sha: baseTree, truncated: false, tree: selected };
+    const result = await entrypoint(data, [], workflow.replace(/\r?\n/g, "\r\n"));
+    expect(result.exitCode).toBe(0);
+    expect(result.report.kind).toBe("completed");
+    expect(result.report.status).toBe("unchanged");
   });
 
   test("actual entrypoint: changed MAIN with the same tagged CLI result stays informational/0 and read-only", async () => {
