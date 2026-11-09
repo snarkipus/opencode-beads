@@ -209,7 +209,10 @@ describe("documentation contracts", () => {
     expect(sdkContract).toContain("`2.2.6` for development typing only");
     expect(sdkContract).toContain("`<name>/server`, then `<name>`");
     expect(sdkContract).toContain("`session.compaction.ended`");
-    expect(sdkContract).toContain("The 2.2.6 runtime candidate has not been qualified");
+    expect(sdkContract).toContain("Exact OpenCode 2.2.6 qualification is parent-accepted");
+    expect(sdkContract).toContain("072d9c29ef89fa2697109be072798e79cf4af622111266de40ef65e7950ac836");
+    expect(sdkContract).toContain("[current qualification](opencode-22-qualification-5rj2.md)");
+    expect(sdkContract).not.toContain("The 2.2.6 runtime candidate has not been qualified");
     expect(sdkContract).not.toContain("1.18.");
     expect(readme).toContain("| OpenCode (published beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
     expect(readme).toContain("| OpenCode (unreleased source candidate) | `>=2.2.6 <2.3` | 2.2.6 (source target; host gate pending) |");
