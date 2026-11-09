@@ -373,4 +373,4 @@ The package SHALL document unavailable historical workflow-snapshot recovery as 
 - **WHEN** a user reads the README's applicable compatibility/limitations section
 - **THEN** it describes native compaction followed by an incompatible model switch, missing historical workflow instructions or captured reports, and unaffected Beads tracker data
 - **AND** it links OpenCode #57424 and identifies the unresolved local follow-up without requiring Beads access to understand the limitation
-- **AND** unreleased adaptation behavior is distinguished from the published beta's narrower host support
+- **AND** current 2.2 integration behavior is distinguished from the published beta's narrower host support
