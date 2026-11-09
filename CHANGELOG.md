@@ -18,6 +18,24 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [2.0.0]
+
+### Changed
+
+- Graduate the qualified native Beads integration from beta to the stable line: eleven permissioned operations, 29 workflow commands plus `oc-beads:diagnostics`, packaged guidance and scope-bounded task execution.
+- **Breaking:** require OpenCode `>=2.2.6 <2.3`; upgrade OpenCode before selecting 2.0.0. No parallel 2.1 compatibility layer or automatic migration is provided; existing exact 1.x/beta pins remain available. Beads minimum remains 1.3.1.
+- Reflect actual request capabilities: native composition when available, directly exposed Beads leaves when execute is unavailable, and independently permissioned direct shell. Preserve per-operation rejection, actor attribution and Stop/Cancel.
+
+### Fixed
+
+- Restore durable workflow and once-captured diagnostic instructions after OpenCode 2.2 projects messages without metadata: resolve one native current-context snapshot map by retained user-message ID, with location/cancellation/generation checks and no new cache or side store.
+- Reconcile README installation, migration and compatibility guidance with the accepted exact OpenCode 2.2.6 qualification. Runtime and packaged guidance are unchanged from the final Opus-reviewed candidate; version/README metadata create a new release artifact.
+
+### Known limitations
+
+- Native compaction followed by switching to a model unable to replay the native window can leave older command instructions or captured diagnostics inaccessible. Report unavailable guidance instead of reconstructing it; Beads issue data is unaffected. Upstream #57424 / `opencode-beads-o66` remain unresolved.
+- A declined nested operation need not end the entire composition; later operations retain independent permissions. Explicit Stop/Cancel is the cancellation boundary.
+
 ## [1.1.0-beta.5]
 
 ### Fixed
@@ -360,7 +378,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v1.1.0-beta.5...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.0.0
 [1.1.0-beta.5]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.5
 [1.1.0-beta.4]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.4
 [1.1.0-beta.3]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.3
