@@ -102,7 +102,7 @@ describe("documentation contracts", () => {
     expect(troubleshooting).toContain("## Deletion and identifier migration");
   });
 
-  test("documents beta opt-in, normal public registration, stable opt-out and known Stop limits", () => {
+  test("documents stable 2.0 installation, historical pins and known Stop limits", () => {
     expect(readme).toContain(`${packageManifest.name}@next`);
     expect(readme).toContain(`${packageManifest.name}@latest`);
     expect(readme).toContain("normal public entrypoint enables the eleven qualified operations");
@@ -111,8 +111,8 @@ describe("documentation contracts", () => {
     expect(readme).not.toContain("Ordinary typed continuity execution remains withheld");
   });
 
-  test("presents the 1.x contract and credits the original project", () => {
-    expect(packageManifest.version).toMatch(/^1\.\d+\.\d+(?:-beta\.[1-9]\d*)?$/);
+  test("presents the stable 2.x contract and credits the original project", () => {
+    expect(packageManifest.version).toMatch(/^2\.\d+\.\d+$/);
     expect(readme).not.toContain("This plugin is intentionally small in scope");
     expect(readme).not.toContain("limits its scope to bug fixes");
     expect(readme).toContain("maintained OpenCode adapter");
@@ -144,7 +144,7 @@ describe("documentation contracts", () => {
       "bd init",
       "creates the canonical shared Beads skill",
       "`.agents/skills/beads`",
-      "The beta additionally owns its packaged `oc-beads` skill",
+      "The plugin additionally owns its packaged `oc-beads` skill",
       "does not write startup files",
       "Update the pin explicitly when upgrading",
       "**Do not run `bd setup opencode`.**",
@@ -200,7 +200,7 @@ describe("documentation contracts", () => {
     }
   });
 
-  test("keeps the compatibility record on the selected beta/next OpenCode baseline", () => {
+  test("keeps the compatibility record on the selected plugin 2.0 OpenCode baseline", () => {
     expect(sdkContract).toContain("# OpenCode V2 Plugin Contract");
     expect(packageManifest.peerDependencies["@opencode/plugin"]).toBe(">=2.2.6 <2.3");
     expect(packageManifest.peerDependenciesMeta["@opencode/plugin"]?.optional).toBeTrue();
@@ -214,8 +214,11 @@ describe("documentation contracts", () => {
     expect(sdkContract).toContain("[current qualification](opencode-22-qualification-5rj2.md)");
     expect(sdkContract).not.toContain("The 2.2.6 runtime candidate has not been qualified");
     expect(sdkContract).not.toContain("1.18.");
-    expect(readme).toContain("| OpenCode (published beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
-    expect(readme).toContain("| OpenCode (unreleased source candidate) | `>=2.2.6 <2.3` | 2.2.6 (source target; host gate pending) |");
+    expect(readme).toContain("| OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
+    expect(readme).toContain(`| OpenCode (${packageManifest.version}) | \`>=2.2.6 <2.3\` | 2.2.6 (accepted native and genuine-model qualification) |`);
+    expect(readme).not.toContain("The candidate has not passed live host qualification");
+    expect(readme).toContain("Upgrade OpenCode before changing the plugin pin");
+    expect(readme).toContain("Existing exact 1.x and beta pins remain available");
     expect(readme).toContain("after native conversation compaction on model A, switching to model B");
     expect(readme).toContain("upstream issue #57424");
     expect(readme).toContain("opencode-beads-o66");
