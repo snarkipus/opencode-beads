@@ -76,6 +76,12 @@ This project-owned policy applies to commands in generated integration blocks to
 - Give a substantive independently owned review one bounded review Bead linked to its planning work and exact candidate. Reuse it through correction/recheck cycles; do not create a ticket per document, invocation, transient retry or minor nit. Record the actual reviewer actor/session, verdict, findings and evidence. Do not invent retroactive claims or timestamps for reviews already performed.
 - Ownership of behavior, rationale/evidence and execution status follows [Where truth lives](#where-truth-lives). Close planning/review from their own evidence and owner acceptance, not from implementation completion. Their closure does not authorize implementation, release or deployment. Readiness alone is never dispatch permission.
 
+## Native harness onboarding
+
+- Codex uses the shared `.agents/skills/beads` skill, `.codex/hooks.json` and the enabled native hooks feature. Review/trust the exact repo hook hashes through Codex's normal trust mechanism; do not use a blanket hook-trust bypass. For ordinary orchestrated work, retain user config so its hash-scoped trust records load, while selecting model/effort and assignment authority explicitly. `--ignore-user-config` is for deliberately isolated runs, not proof of complete native hook onboarding.
+- Claude Code uses its installed Beads plugin for the skill, command resources and lifecycle context. When authentication HOME differs from plugin-install HOME, pass `--plugin-dir` for the verified existing plugin directory; do not copy credentials, install duplicate hooks or infer loading from `bd setup claude --check` alone.
+- Verify actual hook/context delivery and one scoped CLI operation in a fresh harness run. Setup checks prove file/config presence, not execution. Full Beads capability remains available; task-specific read/write/claim/closure limits come from the assigned Bead and dispatch. Native hook output and historical memories do not expand those limits or transfer parent acceptance.
+
 ## Releasing a New Version
 
 **Triggers**: User says "bump the version", "cut a new release", "release a new version", "let's do a release", or similar.
