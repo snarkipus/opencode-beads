@@ -2422,6 +2422,13 @@
     "installed_match": "All 57 files under plugins/beads byte-match the installed cache; installation/discovery is not behavioral qualification.",
     "files": [
       {
+        "path": "LICENSE",
+        "category": "support",
+        "git_blob": "2a187917a0b9e8ea3ab3db2d9e60649f0e2e4ea5",
+        "sha256": "caa2c60efbbf71e18b45ef6006a18213f8a42554b235af88883f6f1ec240b7db",
+        "url": "https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/LICENSE"
+      },
+      {
         "path": ".claude-plugin/marketplace.json",
         "category": "manifest-or-hooks",
         "git_blob": "aad41ecfb55e1f2141567047e7eb03503c48be89",

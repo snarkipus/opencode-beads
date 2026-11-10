@@ -1,5 +1,7 @@
 # Proposal
 
+Historical proposal retained after implementation acceptance and canonical specification synchronization. Its planning-time authority statements are not current execution status; release and activation remain separately authorized.
+
 ## Why
 
 Offer Terra Medium as an optional implementation worker without taking Luna Max away from existing users or changing the normal model-inheriting task agent. An orchestrator should select a named worker while retaining the same Beads scope, permissions and acceptance boundaries.

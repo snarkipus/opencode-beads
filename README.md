@@ -18,11 +18,11 @@ The installed `bd` CLI stays authoritative for issues, project initialization, s
 
 ## Supported versions
 
-Version **2.0.0** is the stable line.
+Version **2.1.0** targets the stable line.
 
 | Component | Supported | Evidence |
 | --- | --- | --- |
-| OpenCode | `>=2.2.6 <2.3` | Exact 2.2.6 native-host qualification plus one genuine model workflow |
+| OpenCode | `>=2.2.6 <2.3` | Base integration: exact 2.2.6 native-host qualification plus one genuine model workflow; one read-only Terra Medium child dispatch on 2.2.6 |
 | `bd` CLI | 1.3.1 through 1.x | 1.3.4 contract baseline |
 
 A compatible range is admission, not proof that every future patch was tested. The plugin refuses to register on hosts outside the range. Older hosts: see [Compatibility](docs/user-guide.md#compatibility).
@@ -44,17 +44,19 @@ A compatible range is admission, not proof that every future patch was tested. T
 
    ```json
    {
-     "plugins": ["@snarkipus/opencode-beads@2.0.0"]
+     "plugins": ["@snarkipus/opencode-beads@2.1.0"]
    }
    ```
 
-   OpenCode reloads configuration automatically. Update the pin explicitly when upgrading. Options such as `luna`, `stealth` and `autoMigrate` use the [object form](docs/user-guide.md#plugin-options).
+   OpenCode reloads configuration automatically. Update the pin explicitly when upgrading. Options such as `luna`, `terra`, `stealth` and `autoMigrate` use the [object form](docs/user-guide.md#plugin-options).
 
 3. Check the install: `opencode debug agents` lists `beads-task-agent`, and `/oc-beads:diagnostics` reports native registration and observed capabilities.
 
-### Upgrading to 2.0.0
+### Upgrading to 2.1.0
 
 Upgrade OpenCode before changing the plugin pin: 2.0.0 requires `>=2.2.6 <2.3` and has no 2.1 compatibility layer. Then replace the existing plugin entry, not add a second one, and check `/oc-beads:diagnostics`. Existing exact 1.x and beta pins remain available; installations are not upgraded automatically. Staying on OpenCode 2.1? Keep the exact `1.1.0-beta.5` pin, which retains its `>=2.1.1 <2.2` range. Other migration notes are in the [user guide](docs/user-guide.md#upgrading).
+
+From plugin 2.0.0, the host range and existing options are unchanged. To add the optional `beads-task-agent-terra` profile, enable `terra: true` in the object form. It uses `openai/gpt-6.1-terra#medium`; the default agent still inherits its model, Luna Max remains available, and both optional profiles can coexist. Enabling a profile does not authorize work or change the parent route.
 
 ## First use
 
@@ -89,7 +91,7 @@ The agent claims the issue atomically and appends checkpoints under the actual s
 
 ## Authorship and license
 
-This is an independent project maintained by Matt Jackson. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. It vendors nothing from upstream Beads; the daily/manual maintenance workflow checks tagged CLI compatibility and independently compares reviewed upstream integration sources with current MAIN. Completed source changes are informational; adoption remains a human decision.
+This is an independent project maintained by Matt Jackson. It began as a fork of [Josh Thomas's `opencode-beads`](https://github.com/joshuadavidthomas/opencode-beads), and the original work remains credited to its author. Its project-owned guidance includes attributed MIT-licensed excerpts; it redistributes no upstream executable, host integration or sync-managed vendor tree. See the [notice](assets/oc-beads/THIRD_PARTY_NOTICES.md). The daily/manual maintenance workflow checks tagged CLI compatibility and independently compares reviewed upstream integration sources with current MAIN. Completed source changes are informational; adoption remains a human decision.
 
 opencode-beads is licensed under the MIT license. See [`LICENSE`](LICENSE).
 

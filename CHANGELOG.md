@@ -18,6 +18,18 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [2.1.0]
+
+### Added
+
+- Optional `terra: true` profile registers `beads-task-agent-terra` on `openai/gpt-6.1-terra#medium`, with the same scope-bounded guidance, permissions, step cap, actor attribution and Beads context eligibility as the existing task agents. The default agent still inherits its model; Luna Max is unchanged and both optional profiles can coexist. Provider access remains external; no silent fallback or model-quality guarantee is added.
+
+### Changed
+
+- Align issue-writing and deliberate handoff guidance with attributed Beads excerpts; monitor the upstream license alongside the existing source inventory.
+- Document native Claude Code and Codex Beads onboarding for orchestrated work: retain verified native integration, confirm actual context delivery and bind execution authority to the assigned Bead.
+- Reconcile the validated Beads CLI baseline to 1.3.4 while preserving minimum 1.3.1, and add independent daily/manual advisory upstream-source comparison. These maintenance changes were already delivered on main; they do not introduce runtime repair or automatic adoption.
+
 ## [2.0.0]
 
 ### Changed
@@ -378,7 +390,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.0.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.1.0
 [2.0.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.0.0
 [1.1.0-beta.5]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.5
 [1.1.0-beta.4]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.4

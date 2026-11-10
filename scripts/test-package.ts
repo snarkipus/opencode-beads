@@ -439,6 +439,9 @@ try {
   if (!rules.includes("shell:git push *:ask") || taskAgent.steps !== 100) {
     throw new Error("Packed task agent lacks the no-push permission rules or the default steps cap");
   }
+  if (vanilla.agents.has("beads-task-agent-terra")) {
+    throw new Error("Packed plugin enabled Terra without an opt-in");
+  }
   if (vanilla.agents.has("beads-task-agent-luna")) {
     throw new Error("Packed plugin enabled Luna without an opt-in");
   }
@@ -449,6 +452,16 @@ try {
     lunaModel.variant !== "max" || luna?.system !== taskAgentPrompt || luna?.mode !== "subagent"
   ) {
     throw new Error("Packed plugin did not register the shared Luna Max profile");
+  }
+  const both = await setupPacked({ luna: true, terra: true });
+  const terra = both.agents.get("beads-task-agent-terra");
+  const terraModel = terra?.model as { providerID?: string; id?: string; variant?: string } | undefined;
+  if (terraModel?.providerID !== "openai" || terraModel.id !== "gpt-6.1-terra" ||
+      terraModel.variant !== "medium" || terra?.system !== taskAgentPrompt ||
+      terra?.mode !== "subagent" || terra?.steps !== taskAgent.steps ||
+      JSON.stringify(terra?.permissions) !== JSON.stringify(taskAgent.permissions) ||
+      !both.agents.has("beads-task-agent-luna")) {
+    throw new Error("Packed plugin did not register the shared Terra Medium profile alongside Luna");
   }
   const cli = path.join(consumerDir, "node_modules", ".bin", "opencode-beads");
   if (await fs.exists(cli)) throw new Error("Packed package unexpectedly installed a companion CLI");

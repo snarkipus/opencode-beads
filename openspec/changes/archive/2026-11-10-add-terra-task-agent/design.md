@@ -1,5 +1,7 @@
 # Design
 
+Historical planning rationale retained after implementation acceptance and archival. Source-baseline and future-tense statements below describe the original design context, not current release status.
+
 ## Context
 
 See [proposal](proposal.md) for motivation and the [workflow-access delta](specs/workflow-access/spec.md) for behavior. Current source at `56e3a3bb4c261e500ce81b8c337073f1710eaa22` builds the inherited agent and optional Luna in `src/agents.ts`; `src/host.ts` forwards `luna`, and task-agent recognition uses the exported agent-name set. Native configuration already overrides registered fields.

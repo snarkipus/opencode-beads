@@ -3,9 +3,11 @@ import { BEADS_TASK_AGENT_DESCRIPTION, BEADS_TASK_AGENT_PROMPT } from "./guidanc
 
 export const BEADS_TASK_AGENT = "beads-task-agent";
 export const BEADS_TASK_AGENT_LUNA = "beads-task-agent-luna";
+export const BEADS_TASK_AGENT_TERRA = "beads-task-agent-terra";
 export const BEADS_TASK_AGENTS: ReadonlySet<string> = new Set([
   BEADS_TASK_AGENT,
   BEADS_TASK_AGENT_LUNA,
+  BEADS_TASK_AGENT_TERRA,
 ]);
 
 /** Default interruption cap on worker steps; never a completion target or authority to continue. */
@@ -35,16 +37,21 @@ export const TASK_AGENT_PERMISSIONS = [
 /** Routing for the opt-in Luna profile, `provider/model#variant` in OpenCode terms. */
 export const LUNA_MODEL = { providerID: "openai", id: "gpt-6-luna", variant: "max" } as const;
 
+/** Routing for the opt-in Terra Medium profile. */
+export const TERRA_MODEL = { providerID: "openai", id: "gpt-6.1-terra", variant: "medium" } as const;
+
 export interface BeadsAgentDefinition {
   description: string;
   system: string;
-  model?: typeof LUNA_MODEL;
+  model?: typeof LUNA_MODEL | typeof TERRA_MODEL;
   steps?: number;
 }
 
 export interface BeadsAgentOptions {
   /** Register the Luna Max profile alongside the default task agent. */
   luna?: boolean;
+  /** Register the Terra Medium profile alongside the default task agent. */
+  terra?: boolean;
   /** Interruption cap on worker steps; 0 removes the cap, never the assignment's scope limits. */
   steps?: number;
 }
@@ -59,6 +66,7 @@ export function beadsAgents(options: BeadsAgentOptions = {}): Record<string, Bea
   if (Number.isInteger(steps) && steps > 0) base.steps = steps;
   const agents: Record<string, BeadsAgentDefinition> = { [BEADS_TASK_AGENT]: base };
   if (options.luna) agents[BEADS_TASK_AGENT_LUNA] = { ...base, model: LUNA_MODEL };
+  if (options.terra) agents[BEADS_TASK_AGENT_TERRA] = { ...base, model: TERRA_MODEL };
   return agents;
 }
 

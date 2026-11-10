@@ -59,7 +59,7 @@ its repository-specific tools, architecture and style rules do not apply here.
 
 ## Notes
 - This is an OpenCode V2 plugin integrating the beads issue tracker
-- Nothing is vendored from upstream Beads; see `docs/beads-artifact-policy.md`. Review each Beads release's upgrade notes against the surfaces listed there
+- Project-owned guidance contains attributed excerpts; no upstream executable, host integration or sync-managed vendor tree is shipped; see `docs/beads-artifact-policy.md`. Review each Beads release's upgrade notes against the surfaces listed there
 
 ## Upstream responsibility boundary
 

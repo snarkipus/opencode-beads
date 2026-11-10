@@ -23,7 +23,7 @@ behavior is defined by the canonical specs listed in the
 
 Install the [`bd` CLI](https://github.com/gastownhall/beads/blob/main/docs/getting-started/installation.md) once on the host, then run `git init` (only when the directory is not already a Git worktree) and `bd init` in each project. `bd init` owns project initialization and creates the canonical shared Beads skill at `.agents/skills/beads`, which OpenCode discovers. It also writes a minimal Beads section to `AGENTS.md` that points to `bd prime`, the same pointer Beads gives Claude Code in `CLAUDE.md`. The plugin additionally owns its packaged `oc-beads` skill; it does not write startup files or change `.agents/skills/beads/SKILL.md`. The plugin does not install or upgrade `bd`.
 
-An exact version pin such as `"plugins": ["@snarkipus/opencode-beads@2.0.0"]` is recommended. To follow stable releases, use `"plugins": ["@snarkipus/opencode-beads@latest"]` and check the resolved version before upgrading. `"plugins": ["@snarkipus/opencode-beads@next"]` is a separate historical beta channel, not a promise of a newer or compatible release. Update the pin explicitly when upgrading; an unpinned entry is less reproducible. OpenCode 1.x plugins are not supported; use 0.10.x or earlier there.
+An exact version pin such as `"plugins": ["@snarkipus/opencode-beads@2.1.0"]` is recommended. To follow stable releases, use `"plugins": ["@snarkipus/opencode-beads@latest"]` and check the resolved version before upgrading. `"plugins": ["@snarkipus/opencode-beads@next"]` is a separate historical beta channel, not a promise of a newer or compatible release. Update the pin explicitly when upgrading; an unpinned entry is less reproducible. OpenCode 1.x plugins are not supported; use 0.10.x or earlier there.
 
 After installing, `opencode debug agents` lists `beads-task-agent`, and `/oc-beads:diagnostics` reports the loaded package and host versions, native registration and observed capabilities. Discover `beads` through `execute` on a host and agent with the required permissions.
 
@@ -35,7 +35,7 @@ Plugin options use the object form:
 {
   "plugins": [
     {
-      "package": "@snarkipus/opencode-beads@2.0.0",
+      "package": "@snarkipus/opencode-beads@2.1.0",
       "options": { "luna": true, "autoMigrate": false }
     }
   ]
@@ -45,6 +45,7 @@ Plugin options use the object form:
 | Option | Default | Effect |
 | --- | --- | --- |
 | `luna` | `false` | Also register the `beads-task-agent-luna` profile. |
+| `terra` | `false` | Also register the `beads-task-agent-terra` profile. |
 | `stealth` | `false` | Add `--stealth` to `bd prime` (no git operations in the session-close protocol), like `bd setup claude --stealth`. `bd config set no-git-ops true` is the project-level equivalent. |
 | `taskAgentSteps` | `100` | Interruption cap on task-agent steps per invocation. `0` removes the cap; neither value changes authorized scope or establishes completion. |
 | `refreshAfterIdleMinutes` | `30` | Re-run `bd prime` when a session resumes after this much inactivity, as Claude Code does on resume. `0` disables idle refresh. |
@@ -82,7 +83,7 @@ The plugin runs `bd prime --full` in the project directory and attaches its outp
 
 While prime is attached, two bd-managed `AGENTS.md` blocks only repeat it: the full-profile section `bd setup opencode` writes and the Codex section `bd init` writes. The plugin replaces those marked blocks in the outgoing request with a one-line pointer. Your `AGENTS.md` file and any text outside those markers are not changed, and nothing is replaced when prime is withheld or unavailable.
 
-Known regular subagents remain excluded, including `explore` and `general`, while `beads-task-agent` and `beads-task-agent-luna` remain eligible. If agent lookup fails, context injection fails open to preserve compatibility with unknown custom primary agents.
+Known regular subagents remain excluded, including `explore` and `general`, while `beads-task-agent`, `beads-task-agent-luna` and `beads-task-agent-terra` remain eligible. If agent lookup fails, context injection fails open to preserve compatibility with unknown custom primary agents.
 
 If `bd` is unavailable or the project is uninitialized, nothing is added. If `bd prime` fails or times out, the agent gets a short `<beads-notice>` saying context is unavailable and to run `bd prime`. The plugin retries after 30 seconds and logs `[opencode-beads]` warnings. The task agent retains standalone guidance for authorized scope, atomic claim, append checkpoints, validate before closure, and partial handoff under the caller's acceptance authority.
 
@@ -129,9 +130,13 @@ OpenCode lets the plugin enforce parts of that contract:
 - **Context in the worker.** The worker runs in its own child session and receives `bd prime` there too.
 - **Beads state across compaction.** Compaction in sessions with Beads context asks the summarizer to keep bead IDs, claims and status changes, follow-ups, blockers and pending validation.
 
-### Opt-in Luna Max profile
+### Opt-in fixed profiles
 
 Set `"luna": true` to also register `beads-task-agent-luna`, which uses `openai/gpt-6-luna#max` with the same prompt, mode, step cap and permissions. The default `beads-task-agent` leaves its model unset and inherits the parent's model. Customizations to `beads-task-agent` are not copied to Luna. Ask the primary agent to delegate to `beads-task-agent-luna` by name; enabling Luna does not reroute existing calls. Luna requires access to that model in your provider setup; the plugin does not install models, configure authentication or silently fall back. The profile makes no model-quality guarantee.
+
+Terra is introduced in `2.1.0`; published `2.0.0` does not include it.
+
+Set `"terra": true` to also register `beads-task-agent-terra` with `openai/gpt-6.1-terra#medium`. It has the same prompt, mode, step cap and permissions, and can be enabled independently or together with Luna. Ask for Terra by name; it does not change the parent route. Terra likewise requires provider access, has no silent fallback, and does not grant authority to execute work. Native overrides apply per agent; default-agent customizations are not copied to Terra.
 
 ## Customization and removal
 
@@ -147,17 +152,18 @@ Remove the `plugins` entry to unload the plugin. Cleanup aborts owned context/pr
 | --- | --- | --- |
 | OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |
 | OpenCode (2.0.0) | `>=2.2.6 <2.3` | 2.2.6 (accepted native and genuine-model qualification) |
+| OpenCode (2.1.0 candidate) | `>=2.2.6 <2.3` | Unchanged base uses the 2.0.0 evidence; one read-only Terra Medium child dispatch on 2.2.6 |
 | OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |
 | `bd` CLI | 1.3.1 through 1.x | 1.3.4 |
 | Bun (OpenCode host runtime) | >=1.3.14 | 1.4.2 |
 
-Version 2.0.0 type-checks against `@opencode/plugin` 2.2.6 and declares optional peer range `>=2.2.6 <2.3`. Admission does not qualify future patches. Native qualification used Beads 1.3.4 as its fixture CLI; the supported-minimum contract evidence remains 1.3.1. See the [2.2.6 qualification](opencode-22-qualification-5rj2.md) and the [OpenCode integration reference](opencode-sdk-contract.md). The current CLI baseline was reviewed against Beads v1.3.4; see the [2026-11-09 release review](beads-1.3.4-review-2026-11-09.md). The historical integration comparison remains Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`), separately from CLI validation and the reviewed marketplace-main inventory.
+Version 2.1.0 type-checks against `@opencode/plugin` 2.2.6 and retains the optional peer range `>=2.2.6 <2.3`. The unchanged base integration reuses the accepted 2.0.0 qualification; the added Terra profile has one accepted read-only native parent-to-child dispatch, including actual Terra/medium routing, a Beads read and the unchanged parent route. See the [Terra qualification record](opencode-terra-qualification-ug9.md). This is a representative sample, not a reliability benchmark. Admission does not qualify future patches. Native qualification used Beads 1.3.4 as its fixture CLI; the supported-minimum contract evidence remains 1.3.1. See the [2.2.6 qualification](opencode-22-qualification-5rj2.md) and the [OpenCode integration reference](opencode-sdk-contract.md). The current CLI baseline was reviewed against Beads v1.3.4; see the [2026-11-09 release review](beads-1.3.4-review-2026-11-09.md). The historical integration comparison remains Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`), separately from CLI validation and the reviewed marketplace-main inventory.
 
 ## Tracking upstream Beads
 
-The package vendors nothing from upstream. It depends on the installed `bd` CLI at runtime: `bd prime` supplies the current workflow, and the schema migration guard enforces the supported `bd` range.
+The package includes attributed MIT-licensed excerpts in project-owned guidance; it redistributes no upstream executable, host integration or sync-managed vendor tree. See the [notice](../assets/oc-beads/THIRD_PARTY_NOTICES.md). It depends on the installed `bd` CLI at runtime: `bd prime` supplies the current workflow, and the schema migration guard enforces the supported `bd` range.
 
-[`scripts/bd-contract.ts`](../scripts/bd-contract.ts) checks a real `bd` against everything the plugin relies on. CI runs it against the validated release from `package.json` (`beads.validated`). The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release and fails if that release breaks the contract or is newer than the validated one. When a new release appears, review its upgrade notes, then update `beads.validated` and the compatibility table. The [artifact policy](beads-artifact-policy.md) records why upstream artifacts are not vendored.
+[`scripts/bd-contract.ts`](../scripts/bd-contract.ts) checks a real `bd` against everything the plugin relies on. CI runs it against the validated release from `package.json` (`beads.validated`). The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release and fails if that release breaks the contract or is newer than the validated one. When a new release appears, review its upgrade notes, then update `beads.validated` and the compatibility table. The [artifact policy](beads-artifact-policy.md) describes the project-owned adaptations and retired vendor tree.
 
 The daily/manual `beads-contract` workflow also has an independent source-comparison job using `scripts/check-beads-integration.ts`. Its step summary contains the collector JSON and exit status: immutable reviewed baseline/candidate commits, selected paths and source/diff links. Completed changed and unchanged comparisons succeed informationally; unavailable retrieval/comparison fails that job and is never reported as unchanged. Neither job depends on the other, and these maintenance checks are not product/release prerequisites. No GitHub issues, automatic adoption or baseline advancement occur. A maintainer must explicitly disposition changes before updating the reviewed inventory. Schedules use the default branch; an authorized manual run can select a published branch with `--ref` when the workflow exists on default.
 

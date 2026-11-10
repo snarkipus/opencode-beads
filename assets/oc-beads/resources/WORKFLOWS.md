@@ -1,6 +1,6 @@
 # Workflows and checkpoints
 
-> Adapted from [Beads marketplace-main `WORKFLOWS.md`](https://github.com/gastownhall/beads/blob/4a67d0d0288c1b4ee23e17fc896f47616931ba2d/plugins/beads/skills/beads/resources/WORKFLOWS.md). The append policy below resolves conflicting upstream examples: checkpoints append; replacing notes is deliberate.
+> Adapted from Beads [`WORKFLOWS.md`](https://github.com/gastownhall/beads/blob/5ac194105c138ca799bc2f6534c8f92712d8d782/plugins/beads/skills/beads/resources/WORKFLOWS.md) at `5ac194105c138ca799bc2f6534c8f92712d8d782`; see [third-party notices](../THIRD_PARTY_NOTICES.md).
 
 ## Begin with the current context
 
@@ -62,3 +62,66 @@ the same review item through corrections and rechecks. Record actual reviewer
 actor/session, verdict, findings and evidence without retroactive claims.
 Planning/review closure needs its own evidence and owner acceptance; readiness
 alone never authorizes dispatch, implementation, release or deployment.
+
+
+### Verbatim upstream excerpt: WORKFLOWS, Compaction Survival
+
+**Writing notes for compaction survival:**
+
+**Good note (enables recovery):**
+```
+bd update issue-42 --append-notes "COMPLETED: User authentication - added JWT token
+generation with 1hr expiry, implemented refresh token endpoint using rotating
+tokens pattern. IN PROGRESS: Password reset flow. Email service integration
+working. NEXT: Need to add rate limiting to reset endpoint (currently unlimited
+requests). KEY DECISION: Using bcrypt with 12 rounds after reviewing OWASP
+recommendations, tech lead concerned about response time but benchmarks show <100ms."
+```
+
+**Bad note (insufficient for recovery):**
+```
+bd update issue-42 --append-notes "Working on auth feature. Made some progress.
+More to do later."
+```
+
+The good note contains:
+- Specific accomplishments (what was implemented/configured)
+- Current state (which part is working, what's in progress)
+- Next concrete step (not just "continue")
+- Key context (team concerns, technical decisions with rationale)
+
+**OpenCode adaptation:** Follow the existing assignment and permissions; quoted commands are historical illustrations, not copyable local commands. Use the actor-scoped examples above.
+
+
+### Verbatim upstream excerpt: WORKFLOWS, Notes Format
+
+### Notes Format (Current State, Not Cumulative)
+
+```
+Good handoff note (current state):
+COMPLETED: Parsed markdown into structured format
+IN PROGRESS: Implementing Docs API insertion
+NEXT: Debug batchUpdate call - getting 400 error on formatting
+BLOCKER: None
+KEY DECISION: Using two-phase approach (insert text, then apply formatting) based on reference implementation
+
+Bad handoff note (not useful):
+Updated some stuff. Will continue later.
+```
+
+**Rules for handoff notes:**
+- Current state only (overwrite previous notes, not append)
+- Specific accomplishments (not vague progress)
+- Concrete next step (not "continue working")
+- Optional: Blockers, key decisions, references
+- Written for someone with zero conversation context
+
+**OpenCode adaptation:** Follow the existing assignment and permissions; quoted commands are historical illustrations, not copyable local commands. Use the actor-scoped examples above.
+
+**OpenCode adaptation:** This replacement is a deliberate current-state handoff; append incremental checkpoints between handoffs. Carry forward relevant decisions, rejected approaches with reasons, blockers and next action. Use the permissioned direct shell `--notes` route; with typed-only access append a labelled handoff and report the limitation.
+
+### Verbatim upstream excerpt: WORKFLOWS, Status Maintenance
+
+- [ ] During: Update acceptance criteria if requirements clarify
+
+**OpenCode adaptation:** Keep title, description and acceptance stable through lifecycle progress; factual corrections and genuine requirement clarification follow existing assignment and project authority.

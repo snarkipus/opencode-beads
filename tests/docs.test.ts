@@ -273,9 +273,10 @@ describe("documentation contracts", () => {
     expect(sdkHistory).toContain('Bun.spawn(["bd", "prime"]');
   });
 
-  test("keeps the compatibility record on the selected plugin 2.0 OpenCode baseline", () => {
+  test("separates accepted base compatibility from the representative Terra qualification", () => {
     expect(userGuide).toContain("| OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
-    expect(userGuide).toContain(`| OpenCode (${packageManifest.version}) | \`>=2.2.6 <2.3\` | 2.2.6 (accepted native and genuine-model qualification) |`);
+    expect(userGuide).toContain("| OpenCode (2.0.0) | `>=2.2.6 <2.3` | 2.2.6 (accepted native and genuine-model qualification) |");
+    expect(userGuide).toContain(`| OpenCode (${packageManifest.version} candidate) | \`>=2.2.6 <2.3\` | Unchanged base uses the 2.0.0 evidence; one read-only Terra Medium child dispatch on 2.2.6 |`);
     expect(userGuide).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
     expect(userGuide).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.4 |");
     expect(readme).toContain("| OpenCode | `>=2.2.6 <2.3` |");
@@ -315,7 +316,7 @@ describe("documentation contracts", () => {
     for (const heading of ["## Beyond Claude Code", "## Deliberate divergences", "## Not exercised"]) {
       expect(parity).toContain(heading);
     }
-    for (const option of ["refreshAfterIdleMinutes", "stealth", "taskAgentSteps", "autoMigrate", "luna"]) {
+    for (const option of ["refreshAfterIdleMinutes", "stealth", "taskAgentSteps", "autoMigrate", "luna", "terra"]) {
       expect(userGuide).toContain(`| \`${option}\` |`);
     }
   });
@@ -326,6 +327,10 @@ describe("documentation contracts", () => {
     expect(userGuide).toContain("`bd migrate schema`");
     expect(userGuide).toContain("| `autoMigrate` | `false` |");
     expect(userGuide).toContain("| `luna` | `false` |");
+    expect(userGuide).toContain("| `terra` | `false` |");
+    expect(userGuide).toContain("`openai/gpt-6.1-terra#medium`");
+    expect(userGuide).toContain('"options": { "luna": true, "autoMigrate": false }');
+    expect(userGuide).toContain("Terra is introduced in `2.1.0`; published `2.0.0` does not include it.");
     expect(userGuide).not.toContain('"beads-task-agent-luna": {}');
     expect(artifactPolicy).toContain("schema migration guard");
   });
@@ -342,11 +347,12 @@ describe("documentation contracts", () => {
     expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
 
-  test("records the retired vendoring decision and the historical baselines", () => {
-    expect(userGuide).toContain("The package vendors nothing from upstream.");
+  test("records the retired vendoring decision and the historical baselines", async () => {
+    expect(userGuide).toContain("attributed MIT-licensed excerpts");
     expect(userGuide).toContain("The historical integration comparison remains Beads v1.3.1");
     expect(userGuide).toContain("c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c");
-    expect(artifactPolicy).toContain("The package vendors no upstream Beads artifacts.");
+    expect(artifactPolicy).toContain("attributed MIT-licensed excerpts");
+    expect(await fs.readFile("assets/oc-beads/THIRD_PARTY_NOTICES.md", "utf8")).toContain("Copyright (c) 2025 Beads Contributors");
     expect(artifactPolicy).toContain("| `agents/task-agent.md` | Retired in 1.0.0 (`opencode-beads-w5y`) |");
     expect(artifactPolicy).toContain("### Rationale for retiring vendoring");
     expect(artifactPolicy).toContain("Codex ships skills and hooks but no agent.");
