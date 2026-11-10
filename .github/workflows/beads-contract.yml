@@ -1,6 +1,6 @@
 name: beads-contract
 
-# Nothing is vendored from upstream Beads. This checks the latest stable bd release against the
+# Project-owned guidance contains attributed excerpts; no upstream executable or sync-managed vendor tree is shipped. This checks the latest stable bd release against the
 # plugin's contract daily, and fails when a newer release has not been reviewed yet.
 # Independent MAIN source comparison is informational; unavailable evidence fails only its job.
 on:

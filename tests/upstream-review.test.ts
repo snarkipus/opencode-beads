@@ -239,6 +239,8 @@ describe("advisory marketplace MAIN source collector", () => {
     const packagePath = resolve(import.meta.dir, "../package.json");
     const actualPackage = await fs.readFile(packagePath, "utf8");
     const main = JSON.parse(actualInventory).marketplace_main;
+    expect(main.commit).toBe("4a67d0d0288c1b4ee23e17fc896f47616931ba2d");
+    expect(main.files.find((f: { path: string }) => f.path === "LICENSE")?.git_blob).toBe("2a187917a0b9e8ea3ab3db2d9e60649f0e2e4ea5");
     const selected = main.files.map((f: { path: string; git_blob: string }) => ({
       path: f.path, sha: f.git_blob, type: "blob", mode: "100644",
     }));

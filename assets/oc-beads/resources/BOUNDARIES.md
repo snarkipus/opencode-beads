@@ -53,5 +53,6 @@ only within the authority already granted.
 
 For a tracked item, preserve its execution identity and history. Claim
 atomically when authorized, use an explicit actor on writes, and append material
-progress rather than replacing previous notes. A task record does not own the
+progress; a deliberate current-state handoff may replace working notes while
+preserving relevant learning. A task record does not own the
 Beads database or authorize sync, setup, permission changes, or Git operations.

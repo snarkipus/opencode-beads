@@ -125,6 +125,7 @@ export async function setupBeads(
   const stepsOption = ctx.options?.taskAgentSteps;
   const agents = beadsAgents({
     luna: ctx.options?.luna === true,
+    terra: ctx.options?.terra === true,
     steps: typeof stepsOption === "number" && Number.isInteger(stepsOption) && stepsOption >= 0 ? stepsOption : undefined,
   });
 

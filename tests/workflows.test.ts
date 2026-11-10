@@ -88,6 +88,8 @@ describe("oc-beads guidance assets", () => {
 	test("teaches append checkpoints, selective memory, and bounded actor-owned work", () => {
 		const skill = readFileSync(skillPath, "utf8")
 		const workflows = readFileSync(resolve(assetRoot, "resources/WORKFLOWS.md"), "utf8")
+		const resumability = readFileSync(resolve(assetRoot, "resources/RESUMABILITY.md"), "utf8")
+		const creation = readFileSync(resolve(assetRoot, "resources/ISSUE_CREATION.md"), "utf8")
 		const guidance = `${skill}\n${workflows}`
 
 		expect(guidance).toContain("--append-notes")
@@ -97,7 +99,20 @@ describe("oc-beads guidance assets", () => {
 		expect(guidance).toContain("assignee")
 		expect(guidance).toContain("reusable knowledge")
 		expect(guidance).toContain("authorized batch")
-		expect(guidance).not.toMatch(/bd update[^\n]*\s--notes\s/)
+		expect(guidance).toContain("--notes=")
+		expect(guidance).toContain("typed-only")
+		for (const text of [skill, workflows, resumability]) {
+			expect(text).toContain("--append-notes")
+			expect(text).toContain("--notes")
+		}
+		for (const text of [creation, resumability, workflows]) {
+			expect(text).toContain("Verbatim upstream excerpt")
+			expect(text).toContain("OpenCode adaptation")
+			expect(text).toContain("5ac194105c138ca799bc2f6534c8f92712d8d782")
+		}
+		expect(skill).toContain("acceptance states stable, verifiable outcomes")
+		expect(workflows).toContain("OpenCode adaptation")
+		expect(workflows).toContain("5ac194105c138ca799bc2f6534c8f92712d8d782")
 	})
 
 	test("keeps current CLI access honest without claiming host prerequisites or automatic setup", () => {
@@ -438,7 +453,7 @@ describe("packaged native workflows", () => {
       }
       actual[c.name] = createHash("sha256").update(JSON.stringify({ description: c.description, sent })).digest("hex");
     }
-    expect(actual).toEqual(baseline.commands);
+    expect(actual).toEqual({ ...baseline.commands, "oc-beads:update": "b4f6a0e8b2729bab4361a6252a86217eac825b6c66f2db8d3dcc0f1803de7b25" });
   });
 
   test("forwards exact scope and partial-handoff authority cues without selecting or claiming work", async () => {

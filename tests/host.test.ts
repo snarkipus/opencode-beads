@@ -463,6 +463,31 @@ describe("setupBeads", () => {
   });
 
 
+  test("registers Terra independently and with Luna, with shared policy and context", async () => {
+    const ready = { runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" } };
+    for (const luna of [false, true]) {
+      const f = fakeContext({ pluginOptions: { terra: true, luna, taskAgentSteps: 12 } });
+      const cleanup = await setupBeads(f.ctx, ready);
+      expect([...f.agents.keys()]).toEqual(luna
+        ? ["beads-task-agent", "beads-task-agent-luna", "beads-task-agent-terra"]
+        : ["beads-task-agent", "beads-task-agent-terra"]);
+      const base = f.agents.get("beads-task-agent")!;
+      const terra = f.agents.get("beads-task-agent-terra")!;
+      expect(base.model).toBeUndefined();
+      expect(terra.model).toEqual({ providerID: "openai", id: "gpt-6.1-terra", variant: "medium" });
+      expect(terra.system).toBe(base.system);
+      expect(terra.description).toBe(base.description);
+      expect(terra.mode).toBe(base.mode);
+      expect(terra.permissions).toEqual(base.permissions);
+      expect(terra.steps).toBe(base.steps);
+      if (luna) expect(f.agents.get("beads-task-agent-luna")?.model).toEqual({ providerID: "openai", id: "gpt-6-luna", variant: "max" });
+      expect(await f.request("terra-child", "beads-task-agent-terra")).toEqual([
+        renderBeadsContext("PRIME", "task-agent", { sessionID: "terra-child", agent: "beads-task-agent-terra" }),
+      ]);
+      await cleanup();
+    }
+  });
+
   test("appends rendered prime to eligible requests through the context hook only", async () => {
     const f = fakeContext();
     const prime = mock(async (_directory: string) => "PRIME");

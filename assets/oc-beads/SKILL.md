@@ -98,6 +98,10 @@ WORKTREES only for relevant worktree context.
   evidence expected, actor, and stop condition. There is no required
   command-count threshold or one-issue-per-invocation loop.
 
+## Issue fields
+
+Title identifies the outcome; description explains why and context; design records the approach and may change; acceptance states stable, verifiable outcomes; notes hold evolving state. Lifecycle progress alone does not change objectives or acceptance; authorized factual corrections and genuine clarifications remain legitimate. This package-owned `oc-beads` skill is distinct from the shared `beads` skill that `bd init` may create.
+
 ## Keep useful progress
 
 At a meaningful change in direction, record what was attempted, what happened,
@@ -108,8 +112,13 @@ the issue's notes so useful earlier learning remains available:
 bd update '<id>' --append-notes="Tried …; result …; because …; blocker …; next …" --actor='<executor-actor>' --sandbox --json
 ```
 
-Use `--append-notes` for checkpoints. Replacing notes is a deliberate edit, not
-the routine checkpoint path. Keep records concise and evidence-based; do not
+Use `--append-notes` for checkpoints. For a deliberate current-state handoff, replace working notes while carrying forward relevant decisions, rejected approaches and reasons, blockers and the next action:
+
+```sh
+bd update '<id>' --notes="Current state; decisions; blockers; next action" --actor='<executor-actor>' --sandbox --json
+```
+
+The typed `note` operation is append-only. If only typed operations are available, append a labelled handoff and report the typed-only limitation; replacement requires an available, permissioned direct shell. Keep records concise and evidence-based; do not
 store credentials, raw dumps, or guesses as facts. Do not write just to meet a
 count or frequency target when nothing material changed. If a write fails or its
 result is uncertain, report that state and inspect before retrying.

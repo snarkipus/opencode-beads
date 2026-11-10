@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-11-10
+goal: Add an opt-in Terra Medium Beads task agent alongside the unchanged
+  inherited-model and Luna profiles

@@ -39,13 +39,24 @@ describe("project-owned task-agent contract", () => {
     expect(prompt).toContain("claim fails or readback does not confirm your assignment, stop");
     expect(prompt).toContain("Discovery does not add execution authority");
     expect(prompt).toContain("discovered-from:<current-id>");
-    expect(prompt).toContain("Append per-bead checkpoints");
+    expect(prompt).toContain("current-state handoff");
+    expect(prompt).toContain("--notes");
+    expect(prompt).toContain("authorized corrections or clarifications");
+    expect(prompt).toContain("oc-beads");
     expect(prompt).toContain("unresolved acceptance or failed validation remains incomplete");
     expect(prompt).toContain("If the parent owns acceptance or closure, return evidence and leave the bead open");
     expect(prompt).toContain("permission denial, cancellation, deliberate stop");
     expect(prompt).toContain("concise results, not raw JSON");
     expect(prompt).not.toContain("Agent Delegation");
     expect(prompt).not.toContain("otherwise choose one highest-priority ready bead");
+  });
+
+  test("distinguishes new claims from resumption and parent handoff", () => {
+    for (const text of [BEADS_TASK_AGENT_PROMPT, beadsGuidance("primary")]) {
+      expect(text).toContain("When starting new work, confirm it is open");
+      expect(text).toContain("continue without reopening or claiming it again");
+      expect(text).toContain("retains in_progress while qualification or review is outstanding");
+    }
   });
 
   test("carries executor attribution and separates planning/review acceptance", () => {
@@ -71,6 +82,11 @@ describe("project-owned task-agent contract", () => {
     const taskAgent = beadsGuidance("task-agent");
     for (const guidance of [primary, taskAgent]) {
       expect(guidance).toMatch(/^<beads-guidance>\n[\s\S]*\n<\/beads-guidance>$/);
+      expect(guidance).toContain("--append-notes");
+      expect(guidance).toContain("--notes");
+      expect(guidance).toContain("current-state handoff");
+      expect(guidance).toContain("authorized corrections or clarifications");
+      expect(guidance).toContain("oc-beads");
       expect(guidance).toContain("Native shell is direct-only");
       expect(guidance).toContain("Do not commit, push, or run Dolt synchronization automatically");
       expect(guidance).toContain("explicit command invocation is the invoking user's bounded request");
