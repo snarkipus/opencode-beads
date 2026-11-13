@@ -242,11 +242,11 @@ describe("documentation contracts", () => {
   test("keeps the OpenCode reference current and the former ledger historical", () => {
     expect(sdkContract).toContain("# OpenCode integration reference");
     expect(sdkContract).toMatch(/\*\*not a\s+behavioral contract\*\*/);
-    expect(packageManifest.peerDependencies["@opencode/plugin"]).toBe(">=2.2.6 <2.3");
+    expect(packageManifest.peerDependencies["@opencode/plugin"]).toBe(">=2.3.0 <2.4");
     expect(packageManifest.peerDependenciesMeta["@opencode/plugin"]?.optional).toBeTrue();
-    expect(packageManifest.devDependencies["@opencode/plugin"]).toBe("2.2.6");
-    expect(sdkContract).toContain("`@opencode/plugin` `>=2.2.6 <2.3`");
-    expect(sdkContract).toContain("`2.2.6` for development typing only");
+    expect(packageManifest.devDependencies["@opencode/plugin"]).toBe("2.3.0");
+    expect(sdkContract).toContain("`@opencode/plugin` `>=2.3.0 <2.4`");
+    expect(sdkContract).toContain("`2.3.0` for development typing only");
     expect(sdkContract).toContain("`<name>/server`, then `<name>`");
     expect(sdkContract).toContain("`session.compaction.ended`");
     expect(sdkContract).toContain("`ctx.session.context({ sessionID })`");
@@ -276,11 +276,21 @@ describe("documentation contracts", () => {
   test("separates accepted base compatibility from the representative Terra qualification", () => {
     expect(userGuide).toContain("| OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
     expect(userGuide).toContain("| OpenCode (2.0.0) | `>=2.2.6 <2.3` | 2.2.6 (accepted native and genuine-model qualification) |");
-    expect(userGuide).toContain(`| OpenCode (${packageManifest.version} candidate) | \`>=2.2.6 <2.3\` | Unchanged base uses the 2.0.0 evidence; one read-only Terra Medium child dispatch on 2.2.6 |`);
+    expect(packageManifest.version).toBe("2.2.0");
+    expect(userGuide).toContain("| OpenCode (2.1.0 released) | `>=2.2.6 <2.3` |");
+    expect(userGuide).toContain("| OpenCode (2.2.0) | `>=2.3.0 <2.4` | Exact 2.3.0 bounded native qualification |");
     expect(userGuide).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
     expect(userGuide).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.4 |");
-    expect(readme).toContain("| OpenCode | `>=2.2.6 <2.3` |");
-    expect(readme).not.toContain("The candidate has not passed live host qualification");
+    expect(readme).toContain("| OpenCode | `>=2.3.0 <2.4` |");
+    expect(readme).toContain("bounded native qualification");
+    for (const document of [readme, userGuide, sdkContract]) {
+      expect(document).toContain("opencode-23-qualification-xwq.md");
+      expect(document).not.toContain("native qualification is pending");
+    }
+    expect(userGuide).toContain("repeated idle reports with outstanding work");
+    expect(userGuide).toContain("cancellation during real bd execution");
+    expect(readme).toContain("### Upgrading to 2.2.0");
+    expect(userGuide).toContain("**Staying on OpenCode 2.2:** keep the released exact `2.1.0` pin");
     expect(readme).toContain("Upgrade OpenCode before changing the plugin pin");
     expect(readme).toContain("Existing exact 1.x and beta pins remain available");
     expect(readme).toContain("native conversation compaction on model A, switching to model B");

@@ -84,7 +84,7 @@ function fakeContext(options: {
     return { dispose: async () => {} };
   });
   const ctx = {
-    app: { name: "OpenCode", version: options.appVersion ?? "2.2.6", channel: "stable" },
+    app: { name: "OpenCode", version: options.appVersion ?? "2.3.0", channel: "stable" },
     location: { directory: options.directory ?? "/project" },
     options: options.pluginOptions ?? {},
     event: { subscribe: events.subscribe },
@@ -412,22 +412,22 @@ describe("setupBeads", () => {
     cleanup();
   });
   test("reports and skips setup for an unsupported OpenCode host", async () => {
-    for (const appVersion of ["2.0.29", "2.1.0", "2.1.1", "2.2.5", "2.3.0", "2.2.6-beta.1", "unknown"]) {
+    for (const appVersion of ["2.0.29", "2.1.1", "2.2.5", "2.2.6", "2.2.8", "2.4.0", "3.0.0", "2.3.0-beta.1", "2.3", "unknown"]) {
       const f = fakeContext({ appVersion });
       const warn = mock(() => {});
 
       const cleanup = await setupBeads(f.ctx, { warn });
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining(`OpenCode ${appVersion}`));
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.2.6 <2.3"));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.3.0 <2.4"));
       expect(f.agents.size).toBe(0);
       expect(f.hooks.size).toBe(0);
       cleanup();
     }
   });
 
-  test("admits candidate patch hosts within the selected 2.2 line", async () => {
-    const f = fakeContext({ appVersion: "2.2.8" });
+  test.each(["2.3.0", "2.3.8"])("admits candidate host %s within the selected 2.3 line", async (appVersion) => {
+    const f = fakeContext({ appVersion });
     const cleanup = await setupBeads(f.ctx, {
       runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" },
     });
@@ -755,7 +755,7 @@ function commandFixture(f: ReturnType<typeof fakeContext>) {
 }
 
 describe("child handoff plugin boundary (not live host qualification)", () => {
-  test.each(["failed", "cancelled", "NO_TEXT", "partial"] as const)("preserves %s child outcome and adds only a next-request recovery cue", async (outcome) => {
+  test.each(["running", "failed", "cancelled", "NO_TEXT", "partial"] as const)("preserves %s child outcome and adds only a next-request recovery cue", async (outcome) => {
     const f = fakeContext();
     const t = toolFixture(f);
     const prompt = mock(async () => ({}));
@@ -770,14 +770,14 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     const handoff = `Task fixture-1 only; actor ${executorActor(child)}; session child; tried A; failed validation; because B; reference task:fixture-1; candidate fixture-rev; blocker acceptance; next authorized action C; partial.`;
     const input = { agent: "beads-task-agent", description: "bounded fixture", prompt: handoff };
     const base = { tool: "subagent", sessionID: parent.sessionID, agent: parent.agent, messageID: parent.messageID, id: parent.id, input };
-    // Pinned subagent.ts:245–268: failure/cancellation are Tool.Error; NO_TEXT is
-    // a completed tool result. There is no execute.after status="cancelled".
+    // Exercise the 2.3 launch handle and error boundary alongside earlier result
+    // forms; execute.after has no status="cancelled".
     const event: ToolAfterEvent = outcome === "failed" || outcome === "cancelled"
       ? { ...base, status: "error", error: new ToolError({ message: outcome === "failed" ? "Subagent failed (sessionID: child): fixture failure" : "Subagent cancelled (sessionID: child)" }) }
       : { ...base, status: "completed", result: {
-        output: { sessionID: "child", status: "completed", output: outcome === "NO_TEXT" ? "Subagent completed without a text response." : handoff },
-        content: `<subagent sessionID="child" state="completed">\n${outcome === "NO_TEXT" ? "Subagent completed without a text response." : handoff}\n</subagent>`,
-        metadata: { sessionID: "child", status: "completed" },
+        output: { sessionID: "child", status: outcome === "running" ? "running" : "completed", output: outcome === "running" ? "The subagent is working in the background (sessionID: child). You will receive a <subagent> message when it goes idle, and again after each later round of work." : outcome === "NO_TEXT" ? "Subagent completed without a text response." : handoff },
+        content: outcome === "running" ? '<subagent sessionID="child" state="running">Launched</subagent>' : `<subagent sessionID="child" state="completed">\n${outcome === "NO_TEXT" ? "Subagent completed without a text response." : handoff}\n</subagent>`,
+        metadata: { sessionID: "child", status: outcome === "running" ? "running" : "completed" },
       } };
     const before = JSON.stringify(event);
     await t.after(event);
@@ -788,7 +788,9 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     expect(synthetic).not.toHaveBeenCalled();
     const recovered = await f.request("parent", "build");
     expect(prime).toHaveBeenCalledTimes(3);
-    expect(recovered[1]).toContain("Reconcile its scope, attempts, validation, durable references and incomplete work");
+    expect(recovered[1]).toContain("may only acknowledge launch or follow-up");
+    expect(recovered[1]).toContain("actual reports or results");
+    expect(recovered[1]).not.toContain("A child returned");
     // Child context is isolated; a parent-side result does not change its actor/cache.
     expect(await f.request("child", "beads-task-agent")).toHaveLength(1);
     expect(prime).toHaveBeenCalledTimes(3);
@@ -1028,7 +1030,7 @@ describe("owned workflow registration", () => {
   });
 
   test("restores a saved workflow by ID from native context after the SDK projects a metadata-free user message", async () => {
-    const f = fakeContext({ appVersion: "2.2.6" });
+    const f = fakeContext({ appVersion: "2.3.0" });
     const c = commandFixture(f);
     const order: string[] = [];
     const cleanup = await setupBeads(f.ctx, { warn: () => {} });
@@ -1224,7 +1226,7 @@ describe("owned workflow registration", () => {
       const report = JSON.parse(snapshot.instructions.split("\n")[1]!);
       const manifest = await Bun.file(new URL("../package.json", import.meta.url)).json();
       expect(report.plugin).toEqual({name: manifest.name, version: manifest.version});
-      expect(report.host).toBe("2.2.6");
+      expect(report.host).toBe("2.3.0");
       expect(prime).not.toHaveBeenCalled();
       const stored = storedUserMessage("diagnostics-message", String(sent.text), { ocBeadsWorkflow: snapshot });
       const request = Message.make({ id: stored.id, role: "user", content: String(sent.text) });

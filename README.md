@@ -18,14 +18,14 @@ The installed `bd` CLI stays authoritative for issues, project initialization, s
 
 ## Supported versions
 
-Version **2.1.0** targets the stable line.
+Version **2.2.0** targets OpenCode 2.3.
 
 | Component | Supported | Evidence |
 | --- | --- | --- |
-| OpenCode | `>=2.2.6 <2.3` | Base integration: exact 2.2.6 native-host qualification plus one genuine model workflow; one read-only Terra Medium child dispatch on 2.2.6 |
+| OpenCode | `>=2.3.0 <2.4` | Exact 2.3.0 bounded native qualification |
 | `bd` CLI | 1.3.1 through 1.x | 1.3.4 contract baseline |
 
-A compatible range is admission, not proof that every future patch was tested. The plugin refuses to register on hosts outside the range. Older hosts: see [Compatibility](docs/user-guide.md#compatibility).
+The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includes real delegation, report freshness and Code Mode reads. Repeated idle reports with outstanding work and cancellation during real `bd` execution were deferred and remain unexecuted. A compatible range is admission, not proof that every future patch was tested. The plugin refuses to register on hosts outside the range. Older hosts: see [Compatibility](docs/user-guide.md#compatibility).
 
 ## Installation
 
@@ -44,7 +44,7 @@ A compatible range is admission, not proof that every future patch was tested. T
 
    ```json
    {
-     "plugins": ["@snarkipus/opencode-beads@2.1.0"]
+     "plugins": ["@snarkipus/opencode-beads@2.2.0"]
    }
    ```
 
@@ -52,11 +52,11 @@ A compatible range is admission, not proof that every future patch was tested. T
 
 3. Check the install: `opencode debug agents` lists `beads-task-agent`, and `/oc-beads:diagnostics` reports native registration and observed capabilities.
 
-### Upgrading to 2.1.0
+### Upgrading to 2.2.0
 
-Upgrade OpenCode before changing the plugin pin: 2.0.0 requires `>=2.2.6 <2.3` and has no 2.1 compatibility layer. Then replace the existing plugin entry, not add a second one, and check `/oc-beads:diagnostics`. Existing exact 1.x and beta pins remain available; installations are not upgraded automatically. Staying on OpenCode 2.1? Keep the exact `1.1.0-beta.5` pin, which retains its `>=2.1.1 <2.2` range. Other migration notes are in the [user guide](docs/user-guide.md#upgrading).
+Upgrade OpenCode before changing the plugin pin: 2.2.0 requires `>=2.3.0 <2.4`. Then replace the existing plugin entry, not add a second one, and check `/oc-beads:diagnostics`. Existing exact 1.x and beta pins remain available; installations are not upgraded automatically. Staying on OpenCode 2.1? Keep the exact `1.1.0-beta.5` pin, which retains its `>=2.1.1 <2.2` range. Other migration notes are in the [user guide](docs/user-guide.md#upgrading).
 
-From plugin 2.0.0, the host range and existing options are unchanged. To add the optional `beads-task-agent-terra` profile, enable `terra: true` in the object form. It uses `openai/gpt-6.1-terra#medium`; the default agent still inherits its model, Luna Max remains available, and both optional profiles can coexist. Enabling a profile does not authorize work or change the parent route.
+For OpenCode 2.2, keep the released exact `2.1.0` plugin pin; it retains `>=2.2.6 <2.3` support. Version 2.2.0 changes the host range while retaining existing options. To add the optional `beads-task-agent-terra` profile, enable `terra: true` in the object form. It uses `openai/gpt-6.1-terra#medium`; the default agent still inherits its model, Luna Max remains available, and both optional profiles can coexist. Enabling a profile does not authorize work or change the parent route.
 
 ## First use
 
@@ -79,7 +79,7 @@ The agent claims the issue atomically and appends checkpoints under the actual s
 
 - **Workflow guidance after a model switch.** This is an unresolved deficiency. After native conversation compaction on model A, switching to model B that cannot replay A's native context can make earlier workflow instruction snapshots and captured diagnostics unavailable. The plugin reports that guidance as unavailable and continues with the ordinary request; it does not reconstruct it. The limitation affects prompt guidance only: it does not change or repair the Beads issue database or its stored data. It is tracked upstream as [upstream issue #57424](https://github.com/anomalyco/opencode/issues/57424) and locally as `opencode-beads-o66`.
 - **Rejecting a permission is not Stop.** If you reject one nested operation, it does not run and is not retried. However, that does not promise to end the rest of the composition, because each later operation gets its own permission check. Use explicit Stop/Cancel to stop the composition.
-- **Bounded evidence.** Qualification covers exact OpenCode 2.2.6 and one genuine OpenAI workflow. It is not a model-reliability, token-saving, cross-provider checkpoint or multi-hour claim.
+- **Bounded evidence.** Bounded qualification covers exact OpenCode 2.3.0 and a genuine OpenAI workflow, with the deferred cases described above. It is not a model-reliability, token-saving, cross-provider checkpoint or multi-hour claim.
 
 ## Documentation
 

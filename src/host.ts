@@ -45,7 +45,7 @@ export interface HostDependencies {
 }
 
 const DEFAULT_DIAGNOSTIC_INTERVAL_MS = 60_000;
-const SUPPORTED_OPENCODE_RANGE = ">=2.2.6 <2.3";
+const SUPPORTED_OPENCODE_RANGE = ">=2.3.0 <2.4";
 const DIRECT_BEADS_TOOLS = new Set([
   "beads_find", "beads_get", "beads_edges", "beads_memories", "beads_recall", "beads_claim",
   "beads_note", "beads_update", "beads_close", "beads_create", "beads_remember",
@@ -56,8 +56,7 @@ function isSupportedOpenCodeVersion(version: string): boolean {
   if (!match) return false;
   const major = Number(match[1]);
   const minor = Number(match[2]);
-  const patch = Number(match[3]);
-  return major === 2 && minor === 2 && patch >= 6;
+  return major === 2 && minor === 3;
 }
 
 function eventSessionID(event: unknown): string | undefined {
@@ -490,7 +489,7 @@ export async function setupBeads(
       if (abort.signal.aborted || event.tool === "execute" || event.tool.startsWith("beads_") || !beadsSessions.has(event.sessionID)) return;
       if (event.tool === "subagent") {
         controller.invalidate(event.sessionID);
-        recoveryCues.set(event.sessionID, "A child returned. Reconcile its scope, attempts, validation, durable references and incomplete work before proceeding within the existing authorization.");
+        recoveryCues.set(event.sessionID, "A subagent call finished; it may only acknowledge launch or follow-up. Reconcile actual reports or results, scope, attempts, validation, durable references and incomplete work before relying on completion or proceeding within the existing authorization.");
       }
     }));
 

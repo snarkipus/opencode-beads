@@ -23,7 +23,7 @@ behavior is defined by the canonical specs listed in the
 
 Install the [`bd` CLI](https://github.com/gastownhall/beads/blob/main/docs/getting-started/installation.md) once on the host, then run `git init` (only when the directory is not already a Git worktree) and `bd init` in each project. `bd init` owns project initialization and creates the canonical shared Beads skill at `.agents/skills/beads`, which OpenCode discovers. It also writes a minimal Beads section to `AGENTS.md` that points to `bd prime`, the same pointer Beads gives Claude Code in `CLAUDE.md`. The plugin additionally owns its packaged `oc-beads` skill; it does not write startup files or change `.agents/skills/beads/SKILL.md`. The plugin does not install or upgrade `bd`.
 
-An exact version pin such as `"plugins": ["@snarkipus/opencode-beads@2.1.0"]` is recommended. To follow stable releases, use `"plugins": ["@snarkipus/opencode-beads@latest"]` and check the resolved version before upgrading. `"plugins": ["@snarkipus/opencode-beads@next"]` is a separate historical beta channel, not a promise of a newer or compatible release. Update the pin explicitly when upgrading; an unpinned entry is less reproducible. OpenCode 1.x plugins are not supported; use 0.10.x or earlier there.
+An exact version pin such as `"plugins": ["@snarkipus/opencode-beads@2.2.0"]` is recommended. To follow stable releases, use `"plugins": ["@snarkipus/opencode-beads@latest"]` and check the resolved version before upgrading. `"plugins": ["@snarkipus/opencode-beads@next"]` is a separate historical beta channel, not a promise of a newer or compatible release. Update the pin explicitly when upgrading; an unpinned entry is less reproducible. OpenCode 1.x plugins are not supported; use 0.10.x or earlier there.
 
 After installing, `opencode debug agents` lists `beads-task-agent`, and `/oc-beads:diagnostics` reports the loaded package and host versions, native registration and observed capabilities. Discover `beads` through `execute` on a host and agent with the required permissions.
 
@@ -35,7 +35,7 @@ Plugin options use the object form:
 {
   "plugins": [
     {
-      "package": "@snarkipus/opencode-beads@2.1.0",
+      "package": "@snarkipus/opencode-beads@2.2.0",
       "options": { "luna": true, "autoMigrate": false }
     }
   ]
@@ -53,8 +53,9 @@ Plugin options use the object form:
 
 ## Upgrading
 
-Upgrade OpenCode first: 2.0.0 requires `>=2.2.6 <2.3` and has no 2.1 compatibility layer. Then replace the existing plugin entry instead of stacking a second version, and check `/oc-beads:diagnostics`. OpenCode upgrades and plugin installation remain operator-owned actions; existing exact pins are never upgraded automatically.
+Upgrade OpenCode first: 2.2.0 requires `>=2.3.0 <2.4`. Then replace the existing plugin entry instead of stacking a second version, and check `/oc-beads:diagnostics`. OpenCode upgrades and plugin installation remain operator-owned actions; existing exact pins are never upgraded automatically.
 
+- **Staying on OpenCode 2.2:** keep the released exact `2.1.0` pin, which retains `>=2.2.6 <2.3` support. Version 2.2.0 drops OpenCode 2.2 admission.
 - **Staying on OpenCode 2.1:** keep the exact beta.5 pin rather than following `latest`; beta.5 retains its historical `>=2.1.1 <2.2` range. Stable 1.0.2 remains a historical option for its separately qualified host.
 - **From stable 1.0.2:** task execution now follows the explicitly authorized scope instead of imposing one Bead per invocation. Exact assignments still stop with their item; discovery never grants authority.
 - **Diagnostics rename:** Beta.1 used `oc-beads:status`; 2.0.0 uses `oc-beads:diagnostics`. Existing user overrides are not silently renamed, and an installation still pinned to beta.1 keeps `/oc-beads:status` until explicitly upgraded.
@@ -152,12 +153,13 @@ Remove the `plugins` entry to unload the plugin. Cleanup aborts owned context/pr
 | --- | --- | --- |
 | OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |
 | OpenCode (2.0.0) | `>=2.2.6 <2.3` | 2.2.6 (accepted native and genuine-model qualification) |
-| OpenCode (2.1.0 candidate) | `>=2.2.6 <2.3` | Unchanged base uses the 2.0.0 evidence; one read-only Terra Medium child dispatch on 2.2.6 |
+| OpenCode (2.1.0 released) | `>=2.2.6 <2.3` | 2.2.6 with one read-only Terra dispatch |
+| OpenCode (2.2.0) | `>=2.3.0 <2.4` | Exact 2.3.0 bounded native qualification |
 | OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |
 | `bd` CLI | 1.3.1 through 1.x | 1.3.4 |
 | Bun (OpenCode host runtime) | >=1.3.14 | 1.4.2 |
 
-Version 2.1.0 type-checks against `@opencode/plugin` 2.2.6 and retains the optional peer range `>=2.2.6 <2.3`. The unchanged base integration reuses the accepted 2.0.0 qualification; the added Terra profile has one accepted read-only native parent-to-child dispatch, including actual Terra/medium routing, a Beads read and the unchanged parent route. See the [Terra qualification record](opencode-terra-qualification-ug9.md). This is a representative sample, not a reliability benchmark. Admission does not qualify future patches. Native qualification used Beads 1.3.4 as its fixture CLI; the supported-minimum contract evidence remains 1.3.1. See the [2.2.6 qualification](opencode-22-qualification-5rj2.md) and the [OpenCode integration reference](opencode-sdk-contract.md). The current CLI baseline was reviewed against Beads v1.3.4; see the [2026-11-09 release review](beads-1.3.4-review-2026-11-09.md). The historical integration comparison remains Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`), separately from CLI validation and the reviewed marketplace-main inventory.
+Version 2.2.0 type-checks against `@opencode/plugin` 2.3.0 and admits `>=2.3.0 <2.4`. Its [bounded native qualification](opencode-23-qualification-xwq.md) covers real launch, report freshness, stop and Code Mode reads on exact 2.3.0; repeated idle reports with outstanding work and cancellation during real bd execution were deferred and remain unexecuted. Admission does not qualify later patches. Earlier [2.2.6 qualification](opencode-22-qualification-5rj2.md) and [Terra qualification](opencode-terra-qualification-ug9.md) apply to their recorded candidates, not this 2.3 candidate. See the [OpenCode integration reference](opencode-sdk-contract.md). The supported Beads minimum is 1.3.1; the current CLI baseline was reviewed against Beads v1.3.4; see the [release review](beads-1.3.4-review-2026-11-09.md). The historical integration comparison remains Beads v1.3.1 (commit `c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c`), separately from CLI validation and the reviewed marketplace-main inventory.
 
 ## Tracking upstream Beads
 
@@ -174,7 +176,7 @@ The daily/manual `beads-contract` workflow also has an independent source-compar
 - **A Beads notice instead of context:** The schema migration guard withheld prime. Back up `.beads`, run `bd migrate schema`, and continue; or upgrade `bd` if the notice says it is older than 1.3.1.
 - **Canonical skill missing:** For a new workspace, run `bd init`. For an existing workspace, follow current upstream Beads guidance; this plugin does not install or repair skills.
 - **Task agent asks before committing or pushing:** Intentional; see [Task agent](#task-agent). Approve the command, or set the agent's `permissions` in OpenCode configuration.
-- **Nothing registered:** Check the `[opencode-beads]` warning; the host may be outside `>=2.2.6 <2.3`.
+- **Nothing registered:** Check the `[opencode-beads]` warning; the host may be outside `>=2.3.0 <2.4`.
 - **Regular subagent has no context:** Intentional. Delegate Beads work to `beads-task-agent` or run the required `bd` command explicitly.
 - **Behavior changed after upgrade:** Compare `opencode --version`, `bd version`, and `bun --version` with the compatibility table, then inspect [Beads releases](https://github.com/gastownhall/beads/releases) and the [changelog](../CHANGELOG.md).
 

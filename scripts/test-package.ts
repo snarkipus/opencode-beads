@@ -137,7 +137,7 @@ try {
   if (manifest.bin !== undefined) {
     throw new Error("Packed package unexpectedly registers a companion CLI");
   }
-  const opencodeRange = ">=2.2.6 <2.3";
+  const opencodeRange = ">=2.3.0 <2.4";
   if (
     manifest.dependencies !== undefined ||
     JSON.stringify(manifest.peerDependencies) !==
@@ -257,7 +257,7 @@ try {
     const storedMessages: StoredSessionMessage[] = [];
     let invoking = false;
     const cleanup = await (plugin!.setup as (ctx: unknown) => Promise<unknown>)({
-      app: { name: "OpenCode", version: "2.2.6", channel: "stable" },
+      app: { name: "OpenCode", version: "2.3.0", channel: "stable" },
       location: { directory: consumerDir, project: { directory: consumerDir } },
       options,
       agent: {

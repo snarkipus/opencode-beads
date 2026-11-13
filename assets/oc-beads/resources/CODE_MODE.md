@@ -74,7 +74,7 @@ successful persistence. Write inputs remain in host trace metadata.
 
 Full prime remains the canonical workflow reference. Meaningful checkpoints
 carry attempts, measured outcomes, rationale, blockers and next action. Important
-recovery, external changes and child returns require fresh relevant state;
+recovery, external changes and actual child reports require fresh relevant state;
 acknowledged writes do not require a generic redundant read of their own result.
 Preserve distinct repository/user authority, guard holds and exact scope. Missing
 capability or failed context is reported honestly, without manual-prime bypass,

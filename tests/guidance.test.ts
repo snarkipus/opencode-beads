@@ -93,7 +93,12 @@ describe("project-owned task-agent contract", () => {
       expect(guidance).toContain("incidental automation");
     }
     expect(primary).toContain("through the `subagent` tool");
-    expect(primary).toContain("normal blocking child return");
+    expect(primary).toContain("launch handle");
+    expect(primary).toContain("later and repeated idle reports");
+    expect(primary).toContain("accepted task completion");
+    expect(primary).toContain("Host-owned transport");
+    expect(primary).not.toContain("normal blocking child return");
+    expect(BEADS_TASK_AGENT_PROMPT).toContain("additional background or nested automation");
     expect(primary).toContain("NO_TEXT");
     expect(primary).toContain("actual executor actor");
     expect(primary).not.toMatch(/Delegate multi-command|only single atomic operations/);
