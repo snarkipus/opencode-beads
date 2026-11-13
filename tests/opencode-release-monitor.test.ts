@@ -107,7 +107,9 @@ if (process.env.SDK_FAILURE === "1" && args[0] === "test") process.exit(33);
   return { release, sdk, review, calls, summary: await fs.readFile(summary, "utf8") };
 }
 
-describe("OpenCode stable-release monitoring", () => {
+// These literal Bash/Git/jq blocks target the Ubuntu-only maintenance job.
+// Product Windows coverage and the platform-independent notifier test remain enabled.
+describe.skipIf(process.platform === "win32")("OpenCode stable-release monitoring", () => {
   test("already reviewed release runs exact SDK checks without advancing the pinned baseline", async () => {
     const result = await monitor(reviewedVersion, { crlf: true });
     expect(result.release.exitCode).toBe(0);
