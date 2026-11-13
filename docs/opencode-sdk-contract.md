@@ -34,6 +34,49 @@ to live at this path is preserved as
   frozen; the published 2.0.0 package carries the same runtime files and
   packaged guidance with updated version metadata.
 
+## Release monitoring
+
+The daily/manual [`beads-contract` workflow](../.github/workflows/beads-contract.yml)
+has an independent OpenCode stable-release job alongside the existing Beads checks.
+Its human-reviewed release baseline is [`.github/opencode-reviewed-version`](../.github/opencode-reviewed-version),
+not the development SDK pin or a claim of native-host qualification.
+The initial 2.2.7 review covers tagged source and SDK compatibility only; it
+claims no additional native-host/model qualification. Assessment evidence and
+check results belong in Beads, not this standing reference.
+
+The job selects the highest stable OpenCode version from 2.0.0 onward by default,
+using the complete paginated release list with only tag/draft/prerelease metadata.
+It ignores legacy 1.x and separately named component releases: GitHub's
+repository-wide `latest` can designate the legacy line instead of V2. Future
+major releases still trigger review; their detection does not expand host
+admission. Manual runs can select an exact stable V2-or-later release tag with
+`opencode_version`. The job installs that exact published SDK in a disposable
+Git snapshot, restores the snapshot's source manifest/lockfile, and runs the
+existing tests, typecheck and package smoke. Its Actions summary
+records the release link, reviewed baseline and SDK outcome. Newer unreviewed
+releases fail the independent monitor even if SDK checks pass. Retrieval/install
+or compatibility failures remain failures, not successful no-change results.
+
+Review the release notes and relevant tagged source before deliberately advancing
+the reviewed-version file. Passing SDK checks does not automatically admit a new
+host version, change the pinned SDK, update consumer installations or establish
+live-host/model qualification. The monitor creates no issues, PRs or releases;
+selected follow-up work belongs in Beads. Its failures do not become dependencies
+of ordinary product CI or the release workflow.
+
+## CI failure notifications
+
+The metadata-only [failure notifier](../.github/workflows/notify-ci-failure.yml)
+posts a failed `ci` or `beads-contract` run's link to Discord. Create an incoming
+webhook in the intended Discord channel, then save its standard URL directly as
+the repository Actions secret `DISCORD_CI_WEBHOOK_URL`; never put it in source or
+chat. Without that secret, delivery is not configured and the notifier reports
+an error. Successful runs do not post, mentions are disabled, and the notifier
+never checks out failed-run code or downloads its artifacts. Each failed-run
+completion gets one send attempt; manually rerunning the notifier can duplicate
+a message. Activation and observed delivery are separate: first delivery remains
+unverified until a real failure is posted to the intended channel.
+
 ## Loading and host admission
 
 The package default-exports `{ id: "opencode-beads", setup }` (the shape
