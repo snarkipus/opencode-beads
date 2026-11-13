@@ -65,6 +65,19 @@ For selected delegated workflows, the integration SHALL preserve the task's scop
 - **WHEN** a task has unresolved acceptance criteria or relevant validation has failed
 - **THEN** the workflow preserves the unresolved state and evidence rather than closing it as complete
 
+#### Scenario: Native launch acknowledgement precedes a report
+
+- **WHEN** the host immediately acknowledges an authorized child launch or follow-up with a running session handle
+- **THEN** the integration treats it as transport acknowledgement rather than a child result or completed task
+- **AND** host-owned asynchronous execution does not authorize additional workers, nested work, claim transfer or scope expansion
+
+#### Scenario: Repeated idle reports require reconciliation
+
+- **WHEN** a native child report reaches an idle or already-running parent, including a repeated idle-period report with work outstanding
+- **THEN** the next eligible parent request obtains relevant current task state and knowledge or discloses unavailable, withheld or uncertain freshness before relying on it
+- **AND** the caller reconciles scope, actual actor/session, attempts, outcomes, validation, durable references, blockers and remaining acceptance under existing permissions and custody
+- **AND** a period-completed label or idle report alone does not establish task completion, authorize closure or resume deliberately stopped work
+
 ### Requirement: Native trigger and semantic responsibility separation
 
 The selected integration SHALL distinguish awaited interception from observational events and semantic judgment from transport success. It SHALL document the selected native mechanism for each continuity behavior, preserve failed or uncertain persistence status, and avoid indiscriminate conversion of tool results or transcripts into durable memory.
@@ -89,7 +102,7 @@ The selected integration SHALL distinguish awaited interception from observation
 
 #### Scenario: Host retains and replays compacted history
 
-- **WHEN** summary/native history is recovered or forked on the selected 2.2 host, or its provider/model changes
+- **WHEN** summary/native history is recovered or forked on the selected host, or its provider/model changes
 - **THEN** the integration preserves host-owned native replay and summary retention without substituting a provider replacement window for a summary
 - **AND** tool execution state and UI metadata are not treated as renamed provider replay payloads
 - **AND** workflow snapshots present in native latest-compaction context follow workflow-access expansion; earlier ordinary user messages restored after a non-replayable native-window model switch receive explicit unavailable-guidance disclosure when their snapshots are absent from that context

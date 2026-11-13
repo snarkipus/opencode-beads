@@ -48,7 +48,7 @@ The installed Beads CLI owns database, routing and consistency semantics; the ad
 
 const BEADS_DELEGATION_GUIDANCE = `## Delegation
 
-Choose direct work or delegation for the task's needs, not the number of commands. When authorized delegation helps, use the \`beads-task-agent\` subagent through the \`subagent\` tool with normal blocking child return. Carry the exact scope, actual executor actor, acceptance/closure owner, expected evidence and stop conditions. Explicit parent/child boundaries still apply; delegation does not grant a larger goal. Background or nested automation is not enabled by this guidance.
+Choose direct work or delegation for the task's needs, not the number of commands. When authorized delegation helps, use the \`beads-task-agent\` subagent through the \`subagent\` tool and treat the native launch handle as an acknowledgement, not accepted task completion. The host may deliver later and repeated idle reports; reconcile each actual report and current relevant task and knowledge before relying on it. Host-owned transport for the assigned work is allowed. Carry the exact scope, actual executor actor, acceptance/closure owner, expected evidence and stop conditions. Explicit parent/child boundaries still apply; delegation does not grant a larger goal. Additional background or nested automation and follow-up work require existing authorization.
 
 Reconcile the child's scope, actor/session, attempts, outcomes, rationale, validation, durable references, blockers, incomplete acceptance and next authorized action. A tool return alone is not completion evidence: NO_TEXT, failed/cancelled children and stale/late results remain incomplete until reconciled. A result after deliberate stop does not authorize resumption or closure. Use earlier acknowledged records and disclose gaps on later authorized recovery. Never synthesize a parent restart or approve a permission wait to obtain a final checkpoint.`;
 
@@ -61,7 +61,7 @@ ${BEADS_SCOPE_GUIDANCE}
 
 ${BEADS_EXECUTOR_GUIDANCE}
 
-Return concise results, not raw JSON: include task/scope, actual actor and full session ID, attempts/outcomes/rationale, exact validation and candidate revision, durable references, blockers, unresolved acceptance and next authorized action. Distinguish completion from partial progress, NO_TEXT, failure or cancellation. The caller reconciles acceptance; a step cap or invocation ending does not establish completion. Do not launch background or nested automation or restart a stopped parent.`;
+Return concise results, not raw JSON: include task/scope, actual actor and full session ID, attempts/outcomes/rationale, exact validation and candidate revision, durable references, blockers, unresolved acceptance and next authorized action. Distinguish completion from partial progress, NO_TEXT, failure or cancellation. The caller reconciles acceptance; a step cap or invocation ending does not establish completion. Do not launch additional background or nested automation or restart a stopped parent.`;
 
 /** Shown instead of context when `bd prime` fails, as upstream's Codex hook reports refresh failures. */
 export function primeFailureNotice(reason: "failed" | "timed out"): string {

@@ -18,6 +18,16 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [2.2.0]
+
+### Changed
+
+- Change OpenCode admission to `>=2.3.0 <2.4`, dropping 2.2 support; retain released plugin 2.1.0 for OpenCode 2.2. Type against SDK 2.3.0.
+- Distinguish asynchronous subagent launch handles, later reports and accepted completion; use a neutral reconciliation cue without changing stop or permission behavior.
+- Accept bounded exact 2.3.0 native qualification. Repeated idle reports with outstanding work and cancellation during real `bd` execution remain deferred and unexecuted; see the [qualification record](docs/opencode-23-qualification-xwq.md).
+- Add independent OpenCode stable-release monitoring and metadata-only CI failure notifications; advancing the reviewed baseline remains a deliberate decision.
+- Retain the unresolved model-switch snapshot-recovery limitation `opencode-beads-o66`.
+
 ## [2.1.0]
 
 ### Added
@@ -390,7 +400,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.1.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.2.0
 [2.1.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.1.0
 [2.0.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.0.0
 [1.1.0-beta.5]: https://github.com/snarkipus/opencode-beads/releases/tag/v1.1.0-beta.5

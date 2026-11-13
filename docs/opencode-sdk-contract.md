@@ -11,11 +11,12 @@ to live at this path is preserved as
 
 ## Versions and sources
 
-- Package declarations: optional peer `@opencode/plugin` `>=2.2.6 <2.3`, and
-  `2.2.6` for development typing only. The only import is
+- Package declarations: optional peer `@opencode/plugin` `>=2.3.0 <2.4`, and
+  `2.3.0` for development typing only. The only import is
   `import type { Plugin } from "@opencode/plugin"`, so the package installs
   nothing from OpenCode and runs on the host's runtime.
-- Pinned host source for 2.2.6: `anomalyco/opencode`
+- Pinned host source for 2.3.0: `anomalyco/opencode` [`a6b15d33daf6ab7d35569f6d711fdb630b9f04e7`](https://github.com/anomalyco/opencode/tree/a6b15d33daf6ab7d35569f6d711fdb630b9f04e7). The [bounded native qualification](opencode-23-qualification-xwq.md) covers exact 2.3.0; repeated idle reports with outstanding work and cancellation during real `bd` execution remain deferred and unexecuted. SDK and fixture checks alone do not establish native behavior.
+- Earlier host source for 2.2.6: `anomalyco/opencode`
   [`dc2ffcf8bf26f9e669b6aa22b95f50e12be15e06`](https://github.com/anomalyco/opencode/tree/dc2ffcf8bf26f9e669b6aa22b95f50e12be15e06).
   The 2.1→2.2 adaptation rationale is in the archived
   [design](../openspec/changes/archive/2026-11-09-adapt-opencode-2-2/design.md).
@@ -28,7 +29,7 @@ to live at this path is preserved as
   by `src/guard.ts`); the CLI facts the plugin depends on are exercised by
   [`scripts/bd-contract.ts`](../scripts/bd-contract.ts). See the
   [artifact policy](beads-artifact-policy.md).
-- Measured evidence: exact OpenCode 2.2.6 native-host qualification plus one
+- Earlier candidate evidence: exact OpenCode 2.2.6 native-host qualification plus one
   genuine model workflow is recorded in the
   [2.2.6 qualification](opencode-22-qualification-5rj2.md). That record is
   frozen; the published 2.0.0 package carries the same runtime files and
@@ -84,7 +85,7 @@ The package default-exports `{ id: "opencode-beads", setup }` (the shape
 plugin as `<name>/server`, then `<name>`; the package exports both to
 `src/plugin.ts`, and the package smoke test checks both.
 
-`setup` reads `ctx.app.version` and registers nothing outside `>=2.2.6 <2.3`,
+`setup` reads `ctx.app.version` and registers nothing outside `>=2.3.0 <2.4`,
 emitting one `[opencode-beads]` warning instead (`src/host.ts`). Governing rule:
 [Explicit native availability and fallback](../openspec/specs/workflow-access/spec.md#requirement-explicit-native-availability-and-fallback).
 
@@ -104,7 +105,7 @@ emitting one `[opencode-beads]` warning instead (`src/host.ts`). Governing rule:
 | `ctx.skill.transform`, `ctx.skill.list` | Registers the packaged `oc-beads` skill by path, checking collisions on every rebuild. | `src/host.ts`, `assets/oc-beads/` | [Owned installation and user customization](../openspec/specs/workflow-access/spec.md#requirement-owned-installation-and-user-customization) |
 | `ctx.tool.transform` | Registers eleven operations in the `beads` namespace with `{ namespace: "beads", permission: "shell", codemode: true }`. Native shell is never callable inside `execute`. | `src/continuity.ts` | [Typed daily-loop composition](../openspec/specs/work-continuity/spec.md#requirement-typed-daily-loop-composition) |
 | `ctx.permission.assert` | Each typed operation asserts its exact `bd` argv with the actual invocation session/agent/message/call and `save: []`. | `src/continuity.ts` | [Restricted-agent typed operation boundary](../openspec/specs/workflow-access/spec.md#requirement-restricted-agent-typed-operation-boundary) |
-| `ctx.tool.hook("execute.after")` | Adds a reconciliation cue after a `subagent` result; outer `execute` results add nothing. | `src/host.ts` | [Delegated knowledge and closure evidence](../openspec/specs/work-continuity/spec.md#requirement-delegated-knowledge-and-closure-evidence) |
+| `ctx.tool.hook("execute.after")` | Adds a neutral next-request reconciliation cue after a `subagent` call, including a launch handle or error; it does not determine completion. Outer `execute` results add nothing. | `src/host.ts` | [Delegated knowledge and closure evidence](../openspec/specs/work-continuity/spec.md#requirement-delegated-knowledge-and-closure-evidence) |
 | `ctx.event.subscribe({ signal })` | `session.deleted`, `session.moved`, `session.forked` drop session state; `session.compaction.started`/`session.compaction.ended`/`session.compaction.failed`, execution start/interrupt/fail and model/agent selection invalidate cached prime. | `src/host.ts` | [Recovery from durable state](../openspec/specs/work-continuity/spec.md#requirement-recovery-from-durable-state) |
 | Diagnostics output | V2 has no plugin log API; rate-limited `console.warn` lines prefixed `[opencode-beads]`. | `src/host.ts` | — |
 | Process execution | No `$` helper in V2. `Bun.spawn(["bd", ...args], { cwd, ... })` through the shared `runBd` runner, with timeout and process-group cleanup. | `src/prime.ts` | — |

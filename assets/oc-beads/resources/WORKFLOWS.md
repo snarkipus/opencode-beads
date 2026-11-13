@@ -18,7 +18,7 @@ delegate by command count.
 ## Checkpoint at useful transitions
 
 Append when a failed approach changes the next step, a finding is validated, a
-decision changes, work becomes blocked, a child returns, or a session may stop.
+decision changes, work becomes blocked, an actual child report arrives, or a session may stop.
 Include the attempt, result, why it matters, evidence, blocker, and next action.
 Use `--append-notes`, for example:
 

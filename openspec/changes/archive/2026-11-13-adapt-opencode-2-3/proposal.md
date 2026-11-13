@@ -22,6 +22,10 @@ None.
 - `workflow-access`: explicit bounded support target/admission policy and wording-only retarget of the documented snapshot-recovery deficiency.
 - `work-continuity`: clarify launch acknowledgement, repeated idle reports and evidence-based acceptance within delegated knowledge and closure evidence; retarget the native replay scenario to the selected host without changing replay behavior. Existing transport/semantic separation, stop and persistence rules remain controlling.
 
+## Qualification disposition
+
+The owner accepted bounded native qualification with two cases deferred and unexecuted: repeated idle reports while the same work remains outstanding, and cancellation while the real bd process is executing. The [qualification decision](../../../../docs/opencode-23-qualification-xwq.md) records evidence, cost rationale, residual uncertainty and revisit triggers. Neither case is labelled passed; behavioral guarantees and publication boundaries are unchanged. No further timing campaign is selected.
+
 ## Impact
 
 Future implementation is limited to delegation wording in `src/guidance.ts`, the subagent cue/freshness seam and admission guard in `src/host.ts`, affected tests, and consistent compatibility references/package declarations after policy acceptance. Shared lifecycle and typed-tool mechanisms remain intact. Existing SDK 2.3 evidence (231 tests / 12,300 assertions, typecheck and package smoke) is reusable fixture evidence, not native qualification.

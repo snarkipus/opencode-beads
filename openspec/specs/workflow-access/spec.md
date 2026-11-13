@@ -138,7 +138,7 @@ Selected workflows SHALL preserve the user's requested execution scope, distingu
 
 ### Requirement: Explicit native availability and fallback
 
-The integration SHALL target exact OpenCode 2.2.6 qualification and `>=2.2.6 <2.3` admission. It SHALL distinguish admission from measured compatibility, preserve existing version pins and refuse unsupported host registration with diagnostics. It SHALL NOT retain a 2.1 compatibility layer or silently migrate installations. Publication remains separately authorized.
+The integration SHALL target exact OpenCode 2.3.0 qualification and `>=2.3.0 <2.4` admission. It SHALL distinguish admission from measured compatibility, preserve existing version pins and refuse unsupported host registration with diagnostics. It SHALL NOT retain a 2.1 compatibility layer or silently migrate installations. Publication remains separately authorized.
 
 #### Scenario: A different host version is considered
 
@@ -373,7 +373,7 @@ The package SHALL document unavailable historical workflow-snapshot recovery as 
 - **WHEN** a user reads the README's applicable compatibility/limitations section
 - **THEN** it describes native compaction followed by an incompatible model switch, missing historical workflow instructions or captured reports, and unaffected Beads tracker data
 - **AND** it links OpenCode #57424 and identifies the unresolved local follow-up without requiring Beads access to understand the limitation
-- **AND** current 2.2 integration behavior is distinguished from the published beta's narrower host support
+- **AND** current 2.3 integration behavior is distinguished from the published beta's narrower host support
 
 ### Requirement: Optional named task-agent profiles
 
