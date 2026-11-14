@@ -26,4 +26,4 @@ Diagnostics remains version/config-only and cached integration observations. It 
 
 ## Migration Plan
 
-Local candidate only. No store migration is performed by this change. Existing options need no edit. Parent reviews the source candidate and accepts before archival/closure or publication. Historical planning, reviews and failed experiments remain immutable; rollback of the plugin does not roll back native store state.
+The removal requires no plugin-issued store migration. Existing options need no edit. Source acceptance and independent review precede canonical synchronization and archival; publication remains a separate release action. Historical planning, reviews and failed experiments remain immutable; rollback of the plugin does not roll back native store state.
