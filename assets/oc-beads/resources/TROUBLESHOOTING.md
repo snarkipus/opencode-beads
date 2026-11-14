@@ -6,8 +6,8 @@
 
 First identify which state actually occurred. If no context was provided, retrieve
 current CLI context only when permitted and no hold is active. If retrieval
-failed, report the error and preserve the task's last known state. If a migration
-or permission guard withheld context, stop; do not run `bd prime`, a different
+failed, report the error and preserve the task's last known state. If a compatibility check or explicit
+permission restriction withheld context, stop; do not run `bd prime`, a different
 CLI surface, or another agent as a bypass.
 
 ## A command or flag is unknown

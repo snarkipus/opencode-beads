@@ -21,7 +21,7 @@ evidence; Beads records execution, assignment, and acceptance.
 Use the current Beads context when the host provides it. If it is absent, retrieve
 current workflow context through the permissioned CLI only when that operation is
 authorized and no hold is active. Distinguish context that is missing, failed to
-load, or deliberately withheld. A migration or permission hold is a stop signal;
+load, or deliberately withheld. An explicit authority or permission hold is a stop signal;
 do not bypass it by manually running `bd prime`. If execute is unavailable, use direct shell only when separately available and
 authorized. Native shell is direct-only and cannot be called inside execute. Do
 not assume an unstated tool name, approval, or setup step.
@@ -147,6 +147,10 @@ specified invocation supplies the request only for its own bounded purpose, subj
 to the real restrictions above. It does not authorize incidental synchronization.
 Examples assume a project policy prohibiting automatic remote updates and include
 `--sandbox`; it only suppresses Dolt auto-push and provides no migration safety.
+Native Beads owns store opening, schema bounds and upgrade semantics; ordinary
+full prime may open or migrate a store. The plugin adds no migration command.
+Agent-initiated migration or repair still requires explicit applicable authority.
+Native partial-availability notices remain meaningful even when prime exits successfully.
 
 ## Validation, handoff, and stopping
 

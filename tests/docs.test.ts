@@ -331,18 +331,18 @@ describe("documentation contracts", () => {
     }
   });
 
-  test("documents the schema migration guard and plugin options", () => {
-    expect(userGuide).toContain("## Schema migration guard");
-    expect(userGuide).toContain("`bd --readonly` does not prevent that");
-    expect(userGuide).toContain("`bd migrate schema`");
-    expect(userGuide).toContain("| `autoMigrate` | `false` |");
+  test("documents native store ownership and retired option compatibility", () => {
+    expect(userGuide).toContain("## Native Beads store behavior");
+    expect(userGuide).toContain("does not guarantee migration-free context");
+    expect(userGuide).not.toContain("run `bd migrate schema`");
+    expect(userGuide).toContain("| `autoMigrate` | ignored |");
     expect(userGuide).toContain("| `luna` | `false` |");
     expect(userGuide).toContain("| `terra` | `false` |");
     expect(userGuide).toContain("`openai/gpt-6.1-terra#medium`");
-    expect(userGuide).toContain('"options": { "luna": true, "autoMigrate": false }');
+    expect(userGuide).toContain('"options": { "luna": true }');
     expect(userGuide).toContain("Terra is introduced in `2.1.0`; published `2.0.0` does not include it.");
     expect(userGuide).not.toContain('"beads-task-agent-luna": {}');
-    expect(artifactPolicy).toContain("schema migration guard");
+    expect(artifactPolicy).toContain("Native Beads owns store opening, schema bounds and migrations");
   });
 
   test("documents upstream-aligned full-prime context boundaries", () => {

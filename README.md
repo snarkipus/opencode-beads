@@ -14,7 +14,7 @@
 - **Workflows:** 29 `oc-beads:<stem>` workflows plus `oc-beads:diagnostics`, and a packaged `oc-beads` skill.
 - **Task agent:** a scope-bounded `beads-task-agent`. Exact assignments stop with their item; an already-authorized batch may continue within its bounds.
 
-The installed `bd` CLI stays authoritative for issues, project initialization, shared skills, migrations and Dolt synchronization. The plugin does not replace it.
+The installed `bd` CLI stays authoritative for issues, project initialization, shared skills, migrations and Dolt synchronization. The plugin does not replace it. Ordinary native store opens may migrate; the obsolete `autoMigrate` option is accepted and ignored. See [native store behavior](docs/user-guide.md#native-beads-store-behavior).
 
 ## Supported versions
 
@@ -48,7 +48,7 @@ The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includ
    }
    ```
 
-   OpenCode reloads configuration automatically. Update the pin explicitly when upgrading. Options such as `luna`, `terra`, `stealth` and `autoMigrate` use the [object form](docs/user-guide.md#plugin-options).
+   OpenCode reloads configuration automatically. Update the pin explicitly when upgrading. Options such as `luna`, `terra`, `stealth` use the [object form](docs/user-guide.md#plugin-options).
 
 3. Check the install: `opencode debug agents` lists `beads-task-agent`, and `/oc-beads:diagnostics` reports native registration and observed capabilities.
 
@@ -83,7 +83,7 @@ The agent claims the issue atomically and appends checkpoints under the actual s
 
 ## Documentation
 
-- [User guide](docs/user-guide.md): options, upgrading, context injection, migration guard, workflows, task agent, customization, compatibility and troubleshooting.
+- [User guide](docs/user-guide.md): options, upgrading, context injection, native store behavior, workflows, task agent, customization, compatibility and troubleshooting.
 - [Code-mode guidance](assets/oc-beads/resources/CODE_MODE.md): composing typed operations and recovering from partial or uncertain outcomes.
 - [Documentation index](docs/README.md): where behavior, rationale, reference facts and historical evidence live.
 - [OpenCode integration reference](docs/opencode-sdk-contract.md) and [Beads artifact policy](docs/beads-artifact-policy.md).

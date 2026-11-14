@@ -18,6 +18,10 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove plugin-side CLI-witness schema holds that blocked valid Beads workspaces. Native Beads owns store opening and migrations; full prime and persistent memories remain native. Legacy `autoMigrate` values are accepted and ignored.
+
 ## [2.2.0]
 
 ### Changed

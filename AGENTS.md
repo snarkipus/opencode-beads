@@ -52,7 +52,7 @@ its repository-specific tools, architecture and style rules do not apply here.
 - `src/continuity.ts` - The eleven permissioned typed operations in the `beads` namespace
 - `src/workflows.ts` - The 30 `oc-beads:*` commands and durable workflow snapshots
 - `src/instructions.ts` - Request-only reduction of duplicated bd-managed `AGENTS.md` blocks
-- `src/guard.ts` - Beads version and schema-migration guard
+- `src/guard.ts` - Beads CLI version and config-only workspace compatibility checks
 - `src/agents.ts`, `src/guidance.ts` - Project-owned task agents, prompt, and shared guidance
 - `src/prime.ts` - Bounded `bd` process runner
 - `assets/oc-beads/` - Packaged skill, resources and ADR (shipped, behavioral)

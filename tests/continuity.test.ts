@@ -27,7 +27,6 @@ function fixture() {
   const dependencies: ContinuityDependencies = {
     bd, acknowledged,
     realpath: async (path) => path,
-    readText: async () => "1.3.1",
   };
   const tools = createContinuityTools(host, dependencies);
   const execute = (name: string, input: unknown, context = invocation()) => {
@@ -206,17 +205,31 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
     expect(f.bd.mock.calls.some(([, args]) => args[0] === "recall")).toBeFalse();
   });
 
-  test("preserves migration holds before and after shell approval", async () => {
-    const f = fixture();
-    f.dependencies.readText = async () => "1.2.0";
-    await expect(f.execute("note", { id: "task-1", text: "progress" })).rejects.toThrow("held");
-    const afterApproval = fixture();
-    let marker = "1.3.1";
-    afterApproval.dependencies.readText = async () => marker;
-    afterApproval.permission.mockImplementation(async () => { marker = "1.2.0"; });
-    await expect(afterApproval.execute("get", { ids: ["task-1"] })).rejects.toThrow("held");
-    for (const candidate of [f, afterApproval]) {
-      expect(candidate.bd.mock.calls.some(([, args]) => ["update", "show"].includes(args[0] ?? ""))).toBeFalse();
+  test("typed calls ignore stale, missing and different witnesses", async () => {
+    for (const marker of [undefined, "1.3.2", "1.3.4", "1.4.0"]) {
+      const f = fixture();
+      const readText = mock(async () => marker);
+      Object.assign(f.dependencies, { readText });
+      f.bd.mockImplementation(async (_cwd, args) => {
+        if (args[0] === "version") return "1.3.4";
+        if (args[0] === "context") return '{"beads_dir":"/project/.beads"}';
+        return JSON.stringify([{ id: "task-1", notes: "progress" }]);
+      });
+      expect((await f.execute("note", { id: "task-1", text: "progress" })).output.status).toBe("acknowledged");
+      expect(readText).not.toHaveBeenCalled();
+      expect(f.permission).toHaveBeenCalledTimes(1);
+      expect(f.bd.mock.calls.at(-1)?.[1]).toContain("--actor");
+    }
+  });
+
+  test("preserves minimum checks before and after shell approval", async () => {
+    for (const afterApproval of [false, true]) {
+      const f = fixture();
+      let version = afterApproval ? "1.3.4" : "1.3.0";
+      f.bd.mockImplementation(async (_cwd, args) => args[0] === "version" ? version : '{"beads_dir":"/project/.beads"}');
+      f.permission.mockImplementation(async () => { version = "1.3.0"; });
+      await expect(f.execute("get", { ids: ["task-1"] })).rejects.toThrow("unsupported");
+      expect(f.bd.mock.calls.some(([, args]) => args[0] === "show")).toBeFalse();
     }
   });
 

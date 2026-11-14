@@ -28,7 +28,7 @@ publication or activation authority.
 
 ## Current documents
 
-- [User guide](user-guide.md): installation details, options, upgrading, context, migration guard, workflows, task agent, compatibility and troubleshooting.
+- [User guide](user-guide.md): installation details, options, upgrading, context, native store behavior, workflows, task agent, compatibility and troubleshooting.
 - [OpenCode integration reference](opencode-sdk-contract.md): pinned host interfaces and where the adapter uses them.
 - [Beads artifact policy](beads-artifact-policy.md): what is and is not taken from upstream Beads, and the `bd` contract check.
 - [2.2.6 qualification](opencode-22-qualification-5rj2.md): the frozen evidence summary behind the current host support.

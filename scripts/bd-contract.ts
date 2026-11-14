@@ -143,17 +143,9 @@ try {
   const beadsPath = typeof where?.path === "string" ? where.path : undefined;
   check(beadsPath && (await fs.exists(beadsPath)), "bd where --json reports an existing .beads path");
 
-  const markerPath = beadsPath ? path.join(beadsPath, ".local_version") : undefined;
-  const readMarker = async () =>
-    markerPath ? await fs.readFile(markerPath, "utf8").catch(() => undefined) : undefined;
-  const initialMarker = await readMarker();
-  check(
-    initialMarker !== undefined && parseVersion(initialMarker)?.join(".") === installed?.join("."),
-    `bd init writes .local_version for the installed version (${initialMarker?.trim()})`
-  );
   check(
     (await checkBeadsStore(repo, guardRuntime)).kind === "ready",
-    "guard reports a current store as ready"
+    "CLI/workspace compatibility checks pass (not SQL health certification)"
   );
 
   const initialFullPrime = await attempt("prime before issue writes", () => bd(repo, ["prime", "--full"]));
@@ -373,9 +365,8 @@ try {
     `the plugin replaces bd's duplicate AGENTS.md blocks (${minimized.replaced} block(s), ${agentsFile.length} -> ${minimized.text.length} chars)`
   );
 
-  // The guard's marker contract: prime never refreshes it, bd migrate schema always does.
-  if (markerPath) {
-    await fs.writeFile(markerPath, "0.0.1\n");
+  // Native prime, stealth and full context remain the integration contract.
+  {
     const prime = await attempt("bd prime", () => bd(repo, ["prime"]));
     check(prime?.trim(), "bd prime succeeds with workflow output");
     const stealthPrime = await attempt("bd prime --stealth", () => bd(repo, ["prime", "--stealth"]));
@@ -399,20 +390,6 @@ try {
       "REASSESS: bd may no longer read Claude Code's MCP settings; --full stays harmless."
     );
     await fs.rm(path.dirname(claudeSettings), { recursive: true, force: true });
-    check((await readMarker())?.trim() === "0.0.1", "bd prime does not update .local_version");
-    check(
-      (await checkBeadsStore(repo, guardRuntime)).kind === "migration-pending",
-      "guard withholds prime for a stale .local_version"
-    );
-    await attempt("bd migrate schema", () => bd(repo, ["migrate", "schema", "--json"]));
-    check(
-      parseVersion((await readMarker()) ?? "")?.join(".") === installed?.join("."),
-      "bd migrate schema refreshes .local_version"
-    );
-    check(
-      (await checkBeadsStore(repo, guardRuntime)).kind === "ready",
-      "guard is ready again after bd migrate schema"
-    );
   }
 } finally {
   await fs.rm(root, { recursive: true, force: true });

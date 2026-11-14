@@ -9,7 +9,7 @@ behavior is defined by the canonical specs listed in the
 - [Upgrading](#upgrading)
 - [Why not `bd setup opencode`](#why-not-bd-setup-opencode)
 - [Context injection](#context-injection)
-- [Schema migration guard](#schema-migration-guard)
+- [Native Beads store behavior](#native-beads-store-behavior)
 - [Workflows and commands](#workflows-and-commands)
 - [Typed operations and permissions](#typed-operations-and-permissions)
 - [Task agent](#task-agent)
@@ -36,7 +36,7 @@ Plugin options use the object form:
   "plugins": [
     {
       "package": "@snarkipus/opencode-beads@2.2.0",
-      "options": { "luna": true, "autoMigrate": false }
+      "options": { "luna": true }
     }
   ]
 }
@@ -49,7 +49,7 @@ Plugin options use the object form:
 | `stealth` | `false` | Add `--stealth` to `bd prime` (no git operations in the session-close protocol), like `bd setup claude --stealth`. `bd config set no-git-ops true` is the project-level equivalent. |
 | `taskAgentSteps` | `100` | Interruption cap on task-agent steps per invocation. `0` removes the cap; neither value changes authorized scope or establishes completion. |
 | `refreshAfterIdleMinutes` | `30` | Re-run `bd prime` when a session resumes after this much inactivity, as Claude Code does on resume. `0` disables idle refresh. |
-| `autoMigrate` | `false` | Let automatic `bd prime` open a store that may need a schema migration. See [Schema migration guard](#schema-migration-guard). |
+| `autoMigrate` | ignored | Deprecated compatibility option. Both `true` and `false` are accepted and ignored without warnings; native Beads owns store behavior. |
 
 ## Upgrading
 
@@ -88,11 +88,15 @@ Known regular subagents remain excluded, including `explore` and `general`, whil
 
 If `bd` is unavailable or the project is uninitialized, nothing is added. If `bd prime` fails or times out, the agent gets a short `<beads-notice>` saying context is unavailable and to run `bd prime`. The plugin retries after 30 seconds and logs `[opencode-beads]` warnings. The task agent retains standalone guidance for authorized scope, atomic claim, append checkpoints, validate before closure, and partial handoff under the caller's acceptance authority.
 
-## Schema migration guard
+## Native Beads store behavior
 
-Beads 1.3 migrates an embedded store in place, irreversibly, the first time any command opens it, and `bd --readonly` does not prevent that. Because this plugin runs `bd prime` automatically, it would otherwise be the unattended first command after you upgrade `bd`.
+Before prime and typed operations, the plugin checks `bd version` against minimum 1.3.1 and uses the configuration-only `bd context --json` workspace probe. These checks do not open the store. A missing workspace differs from a failed or unsupported probe; the latter is reported without substituting a store-opening command.
 
-Before running prime, the plugin checks `bd version` and the configuration-only `bd context --json` probe, which do not open the store, and reads `.beads/.local_version`. If the installed `bd` is older than 1.3.1, or the store was last opened by an older `bd`, the plugin withholds prime and tells the agent not to run `bd` and to ask you to act. To proceed, back up the `.beads` directory and run `bd migrate schema`; the plugin picks up the change on its next retry. Setting `autoMigrate` skips the store-version check. `bd prime` itself does not update `.beads/.local_version`, so a store migrated only by prime keeps the old marker until you run `bd migrate schema` (or any ordinary `bd` command).
+The plugin no longer reads `.beads/.local_version` or infers pending SQL migrations from CLI witnesses. Native Beads owns schema bounds, store opening, migrations and upgrade/adoption semantics. Ordinary `bd prime --full` includes native persistent memories and may open or migrate a local store according to native behavior. The plugin does not guarantee migration-free context. An OpenCode session can be the first native store open after a `bd` upgrade; follow the native backup-before-upgrade procedure linked below. A successful prime can include a native partial-availability notice; its output is preserved and success does not certify complete memory delivery or store health.
+
+Follow the [Beads 1.3.4 upgrade procedure](https://github.com/gastownhall/beads/blob/7ef2fd05eb0cd3bdbde051f93cfc14ccf270cdde/docs/getting-started/upgrading.md), including backup with the old binary before upgrading and coordination for shared stores. The plugin does not run automatic migration, repair, bootstrap, update or synchronization commands. Agent-initiated administration still requires an explicit applicable request and normal permissions. Native open semantics do not grant extra administrative authority.
+
+The old `autoMigrate` feature is obsolete: existing true/false values are ignored without warnings and can be removed from configuration. Diagnostics reports version/workspace/protocol and cached integration observations without opening a store; it does not certify Beads SQL health.
 
 ## Workflows and commands
 
@@ -163,7 +167,7 @@ Version 2.2.0 type-checks against `@opencode/plugin` 2.3.0 and admits `>=2.3.0 <
 
 ## Tracking upstream Beads
 
-The package includes attributed MIT-licensed excerpts in project-owned guidance; it redistributes no upstream executable, host integration or sync-managed vendor tree. See the [notice](../assets/oc-beads/THIRD_PARTY_NOTICES.md). It depends on the installed `bd` CLI at runtime: `bd prime` supplies the current workflow, and the schema migration guard enforces the supported `bd` range.
+The package includes attributed MIT-licensed excerpts in project-owned guidance; it redistributes no upstream executable, host integration or sync-managed vendor tree. See the [notice](../assets/oc-beads/THIRD_PARTY_NOTICES.md). It depends on the installed `bd` CLI at runtime: `bd prime` supplies the current workflow, and CLI compatibility checks enforce the supported `bd` minimum.
 
 [`scripts/bd-contract.ts`](../scripts/bd-contract.ts) checks a real `bd` against everything the plugin relies on. CI runs it against the validated release from `package.json` (`beads.validated`). The scheduled `beads-contract` workflow runs it daily against the latest stable Beads release and fails if that release breaks the contract or is newer than the validated one. When a new release appears, review its upgrade notes, then update `beads.validated` and the compatibility table. The [artifact policy](beads-artifact-policy.md) describes the project-owned adaptations and retired vendor tree.
 
@@ -173,7 +177,7 @@ The daily/manual `beads-contract` workflow also has an independent source-compar
 
 - **No Beads context:** Run `bd prime`. Install `bd` if missing or run `bd init` if the project has no Beads workspace.
 - **`bd prime` failed or timed out:** Run `bd prime` in the project to see the error; the plugin retries every 30 seconds.
-- **A Beads notice instead of context:** The schema migration guard withheld prime. Back up `.beads`, run `bd migrate schema`, and continue; or upgrade `bd` if the notice says it is older than 1.3.1.
+- **A Beads notice instead of context:** Follow the reported CLI minimum or workspace-probe failure. A probe failure is not evidence of a missing store or pending migration; report the actual error without bypassing the check.
 - **Canonical skill missing:** For a new workspace, run `bd init`. For an existing workspace, follow current upstream Beads guidance; this plugin does not install or repair skills.
 - **Task agent asks before committing or pushing:** Intentional; see [Task agent](#task-agent). Approve the command, or set the agent's `permissions` in OpenCode configuration.
 - **Nothing registered:** Check the `[opencode-beads]` warning; the host may be outside `>=2.3.0 <2.4`.

@@ -3,7 +3,7 @@ import type { Info, ToolContext } from "@opencode/plugin/promise/tool";
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { isAbsolute, parse, relative, sep } from "node:path";
-import { checkBeadsStore, createGuardRuntime, type GuardRuntime } from "./guard";
+import { checkBeadsStore, createGuardRuntime } from "./guard";
 import { PrimeProcessError, runBd } from "./prime";
 
 export type ContinuityHost = Pick<Plugin.Context, "location"> & {
@@ -36,7 +36,6 @@ export interface ContinuityResult {
 export interface ContinuityDependencies {
   /** Override the normal bounded runner in tests. */
   bd?: typeof runBd;
-  readText?: GuardRuntime["readText"];
   realpath?: (path: string) => Promise<string>;
   acknowledged?: (sessionID: string, result: ContinuityResult) => void;
   signal?: AbortSignal;
@@ -295,7 +294,6 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
         signal.throwIfAborted();
         const options = { signal };
         const runtime = createGuardRuntime((cwd, argv) => bd(cwd, argv, options));
-        if (deps.readText) runtime.readText = deps.readText;
         const invocation = { sessionID: context.sessionID, agent: context.agent,
           source: { type: "tool" as const, messageID: context.messageID, id: context.id }, save: [] };
 
