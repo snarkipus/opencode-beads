@@ -276,9 +276,10 @@ describe("documentation contracts", () => {
   test("separates accepted base compatibility from the representative Terra qualification", () => {
     expect(userGuide).toContain("| OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
     expect(userGuide).toContain("| OpenCode (2.0.0) | `>=2.2.6 <2.3` | 2.2.6 (accepted native and genuine-model qualification) |");
-    expect(packageManifest.version).toBe("2.2.0");
+    expect(userGuide).toContain(`| OpenCode (${packageManifest.version}) | \`>=2.3.0 <2.4\` |`);
     expect(userGuide).toContain("| OpenCode (2.1.0 released) | `>=2.2.6 <2.3` |");
     expect(userGuide).toContain("| OpenCode (2.2.0) | `>=2.3.0 <2.4` | Exact 2.3.0 bounded native qualification |");
+    expect(userGuide).toContain("Deterministic/package regression checks; inherits 2.2.0 native baseline");
     expect(userGuide).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
     expect(userGuide).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.4 |");
     expect(readme).toContain("| OpenCode | `>=2.3.0 <2.4` |");
@@ -290,6 +291,7 @@ describe("documentation contracts", () => {
     expect(userGuide).toContain("repeated idle reports with outstanding work");
     expect(userGuide).toContain("cancellation during real bd execution");
     expect(readme).toContain("### Upgrading to 2.2.0");
+    expect(readme).toContain(`### Upgrading to ${packageManifest.version}`);
     expect(userGuide).toContain("**Staying on OpenCode 2.2:** keep the released exact `2.1.0` pin");
     expect(readme).toContain("Upgrade OpenCode before changing the plugin pin");
     expect(readme).toContain("Existing exact 1.x and beta pins remain available");

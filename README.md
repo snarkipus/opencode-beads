@@ -18,7 +18,7 @@ The installed `bd` CLI stays authoritative for issues, project initialization, s
 
 ## Supported versions
 
-Version **2.2.0** targets OpenCode 2.3.
+Version **2.2.1** targets OpenCode 2.3.
 
 | Component | Supported | Evidence |
 | --- | --- | --- |
@@ -44,13 +44,17 @@ The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includ
 
    ```json
    {
-     "plugins": ["@snarkipus/opencode-beads@2.2.0"]
+     "plugins": ["@snarkipus/opencode-beads@2.2.1"]
    }
    ```
 
    OpenCode reloads configuration automatically. Update the pin explicitly when upgrading. Options such as `luna`, `terra`, `stealth` use the [object form](docs/user-guide.md#plugin-options).
 
 3. Check the install: `opencode debug agents` lists `beads-task-agent`, and `/oc-beads:diagnostics` reports native registration and observed capabilities.
+
+### Upgrading to 2.2.1
+
+Replace the existing exact plugin pin with `2.2.1`. This patch removes false schema holds based on CLI-version witnesses; it does not change the OpenCode range or Beads minimum. Existing `autoMigrate` settings are ignored. Native store opens may migrate, so follow the [native upgrade procedure](docs/user-guide.md#native-beads-store-behavior) before upgrading `bd`. The patch has deterministic and packaged regression checks; the bounded native host evidence remains the recorded 2.2.0 baseline, not a new live qualification campaign.
 
 ### Upgrading to 2.2.0
 
