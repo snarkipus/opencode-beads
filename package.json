@@ -1,8 +1,8 @@
 {
   "name": "@snarkipus/opencode-beads",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "type": "module",
-  "description": "A maintained OpenCode V2 integration for the Beads issue tracker: bd prime context injection with a schema-migration guard, and a bounded task agent.",
+  "description": "A maintained OpenCode V2 integration for the Beads issue tracker: native bd prime context injection, and a bounded task agent.",
   "author": "Matt Jackson",
   "contributors": [
     {

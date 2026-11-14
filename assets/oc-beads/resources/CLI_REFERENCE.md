@@ -6,7 +6,7 @@ This resource deliberately does not copy the full command catalog. The installed
 `bd` binary and active repository policy determine current syntax.
 
 - Use `bd prime` for current agent workflow context, only when authorized and
-  not blocked by a context or migration hold.
+  not blocked by a context or permission hold.
 - Use `bd '<command>' --help` for a command's current flags and behavior.
 - Use `bd --help` to discover commands available in the installed binary.
 - Use `--json` when structured output is useful and supported by that command.

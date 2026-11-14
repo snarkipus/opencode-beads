@@ -240,7 +240,6 @@ describe("setupBeads", () => {
       runtime: { guard: async () => ({ kind: "ready" }), prime },
       continuityQualified: true, continuity: {
         bd, acknowledged, realpath: async (path) => path,
-        readText: async () => "1.3.1",
       },
     });
     await f.request("s1", "build");
@@ -285,7 +284,7 @@ describe("setupBeads", () => {
     Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
     const cleanup = await setupBeads(f.ctx, {
       continuityQualified: true, runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" },
-      continuity: { bd, realpath: async p => p, readText: async () => "1.3.1" },
+      continuity: { bd, realpath: async p => p },
     });
     try {
       await f.request("s1", "build");
@@ -351,7 +350,7 @@ describe("setupBeads", () => {
     expect(shell).toContain("direct shell tool");
     expect((await f.request("actual", "review", {}))[0]).toContain("Neither native Beads leaves nor direct shell access");
     expect(prime).toHaveBeenCalledTimes(1);
-    guard = { kind: "migration-pending", installed: "1.3.1", store: "1.2.0" };
+    guard = { kind: "unsupported", installed: "1.3.0" };
     f.events.push({ type: "session.compaction.ended", data: { sessionID: "actual" } }); await settle();
     const held = (await f.request("actual", "build", { execute: {}, shell: {} }))[0]!;
     expect(held).not.toContain("Beads namespace is registered");
@@ -363,7 +362,7 @@ describe("setupBeads", () => {
     const prime = mock(async () => "PRIME");
     Object.assign(f.ctx, { location: { directory: "/project", project: { directory: "/project" } }, permission: { assert: async () => {} } });
     Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
-    const cleanup = await setupBeads(f.ctx, { continuityQualified: true, runtime: { guard: async () => ({ kind: "ready" }), prime }, continuity: { realpath: async p => p, readText: async () => "1.3.1", bd: async (_cwd, args) => args[0] === "version" ? "1.3.1" : args[0] === "context" ? '{"beads_dir":"/project/.beads"}' : '[{"id":"task-1","notes":"evidence"}]' } });
+    const cleanup = await setupBeads(f.ctx, { continuityQualified: true, runtime: { guard: async () => ({ kind: "ready" }), prime }, continuity: { realpath: async p => p, bd: async (_cwd, args) => args[0] === "version" ? "1.3.1" : args[0] === "context" ? '{"beads_dir":"/project/.beads"}' : '[{"id":"task-1","notes":"evidence"}]' } });
     await f.request("s1", "build");
     await t.after({ ...invocation("s1", "build"), tool: "shell", input: {}, status: "error", error: new ToolError({ message: "test failed" }) });
     expect(await f.request("s1", "build")).toHaveLength(1);
@@ -506,7 +505,7 @@ describe("setupBeads", () => {
   test("minimizes bd's full AGENTS.md block only when prime is attached", async () => {
     const block =
       "<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:1 -->\nPRIME\n<!-- END BEADS INTEGRATION -->";
-    let guard: { kind: "ready" } | { kind: "migration-pending"; installed: string; store: string } = {
+    let guard: { kind: "ready" } | { kind: "unsupported"; installed: string } = {
       kind: "ready",
     };
     const f = fakeContext();
@@ -527,7 +526,7 @@ describe("setupBeads", () => {
     await hook(subagent);
     expect(subagent.system).toEqual([{ type: "text", text: block }]);
 
-    guard = { kind: "migration-pending", installed: "1.3.1", store: "1.2.2" };
+    guard = { kind: "unsupported", installed: "1.3.0" };
     const withNotice: ContextEvent = { sessionID: "s2", agent: "build", system: [{ type: "text", text: block }] };
     await hook(withNotice);
     expect(withNotice.system[0]?.text).toBe(block);
@@ -659,31 +658,29 @@ describe("setupBeads", () => {
     expect(f.events.aborted()).toBeTrue();
   });
 
-  test("withholds prime behind the store guard unless the autoMigrate option is set", async () => {
+  test("native full prime ignores CLI witnesses and retired autoMigrate values", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "beads-host-"));
     try {
-      await writeFile(path.join(directory, ".local_version"), "1.2.2\n");
-      const bd = mock(async (_cwd: string, args: readonly string[]) =>
-        args[0] === "version" ? "bd version 1.3.1 (abc)" : JSON.stringify({ beads_dir: directory })
-      );
-      const prime = mock(async (_directory: string) => "PRIME");
-
-      const guarded = fakeContext({ directory });
-      const cleanupGuarded = await setupBeads(guarded.ctx, { bd, runtime: { prime } });
-      const [notice] = await guarded.request("s1", "build");
-      expect(notice).toContain("<beads-notice>");
-      expect(notice).toContain("Do not run bd commands");
-      expect(prime).not.toHaveBeenCalled();
-      cleanupGuarded();
-
-      const optedIn = fakeContext({ directory, pluginOptions: { autoMigrate: true } });
-      const cleanupOptedIn = await setupBeads(optedIn.ctx, { bd, runtime: { prime } });
-      expect(await optedIn.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" })]);
-      expect(prime).toHaveBeenCalledWith(directory, expect.any(AbortSignal));
-      cleanupOptedIn();
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
+      for (const marker of [undefined, "1.3.2", "1.3.4", "1.4.0"]) {
+        const markerPath = path.join(directory, ".local_version");
+        if (marker === undefined) await rm(markerPath, { force: true });
+        else await writeFile(markerPath, marker);
+        for (const autoMigrate of [undefined, false, true]) {
+          const bd = mock(async (_cwd: string, args: readonly string[]) =>
+            args[0] === "version" ? "bd version 1.3.4" : JSON.stringify({ beads_dir: directory })
+          );
+          const text = "WORKFLOW\n## Persistent Memories\nNative selected memory\nNative partial-availability notice";
+          const runPrime = mock(async () => text);
+          const f = fakeContext({ directory, pluginOptions: { autoMigrate } });
+          const cleanup = await setupBeads(f.ctx, { bd, runPrime });
+          try {
+            expect(await f.request("s1", "build")).toEqual([renderBeadsContext(text, "primary", { sessionID: "s1", agent: "build" })]);
+            expect(runPrime).toHaveBeenCalledWith(directory, ["--full"]);
+            expect(bd.mock.calls.map(call => call[1])).toEqual([["version"], ["context", "--json"]]);
+          } finally { cleanup(); }
+        }
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
   test("rate-limits diagnostics and never lets them fail a request", async () => {
@@ -852,7 +849,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     });
     const prime = mock(async () => "CURRENT");
     const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime }, continuityQualified: true,
-      continuity: { bd, realpath: async (value) => value, readText: async () => "1.3.1" },
+      continuity: { bd, realpath: async (value) => value },
     });
     await f.request(String(child.sessionID), String(child.agent));
     await f.request(String(parent.sessionID), String(parent.agent));
@@ -880,7 +877,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     Object.assign(fresh.ctx, { location: f.ctx.location, permission: f.ctx.permission });
     Object.assign(fresh.ctx.session, { get: f.ctx.session.get });
     const freshCleanup = await setupBeads(fresh.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime }, continuityQualified: true,
-      continuity: { bd, realpath: async (value) => value, readText: async () => "1.3.1" },
+      continuity: { bd, realpath: async (value) => value },
     });
     const recovery = await fresh.request("fresh", "build");
     expect(recovery[0]).toContain("retrieve the assigned task and relevant reusable knowledge");
@@ -905,7 +902,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     Object.assign(f.ctx.session, { prompt, synthetic, get: async () => ({ agent: "human-default", location: { directory: "/project" } }) });
     const bd = mock(async (_cwd: string, args: readonly string[]) => args[0] === "version" ? "1.3.1" : '{"beads_dir":"/project/.beads"}');
     const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "CURRENT" }, continuityQualified: true,
-      continuity: { bd, realpath: async (value) => value, readText: async () => "1.3.1" },
+      continuity: { bd, realpath: async (value) => value },
     });
     await f.request("child", "beads-task-agent");
     const abort = new AbortController();
@@ -1440,7 +1437,7 @@ test("cleanup attempts every owned disposer and reports a failed disposal", asyn
 });
 
 test("registered diagnostics distinguishes missing, held, failed, loading and uncertain context using only config probes", async () => {
-  const f = fakeContext({ pluginOptions: { autoMigrate: true } });
+  const f = fakeContext();
   const c = commandFixture(f);
   let time = 0;
   let version = "1.3.1";
@@ -1485,6 +1482,8 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
   await pending;
   const observed = await report();
   expect(observed.context).toBe("ready");
+  expect(observed.guard).toEqual({ kind: "ready" });
+  expect(JSON.stringify(observed)).not.toMatch(/migration-pending|local_version|migrate schema/);
   expect(observed.requestCapability.agent).toBe("build");
   expect(observed.requestCapability.capabilities.typed).toBe("unknown");
   expect(observed.leafAvailability).toContain("unknown");

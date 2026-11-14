@@ -30,7 +30,7 @@ export interface HostDependencies {
   runtime?: Partial<Pick<ContextRuntime, "guard" | "prime">>;
   /** Override the `bd prime` runner (receives `--full`, plus `--stealth` when enabled). */
   runPrime?: (directory: string, flags: readonly string[]) => Promise<string>;
-  /** Override the bounded `bd` runner used by the store guard. */
+  /** Override the bounded `bd` runner used by CLI/workspace compatibility checks. */
   bd?: (directory: string, args: readonly string[]) => Promise<string>;
   warn?: (message: string) => void;
   diagnosticIntervalMs?: number;
@@ -73,7 +73,7 @@ export async function setupBeads(
   deps: HostDependencies = {}
 ): Promise<() => Promise<void>> {
   const directory = ctx.location.directory;
-  const autoMigrate = ctx.options?.autoMigrate === true;
+  // Legacy autoMigrate values are ignored: native Beads owns store opening and migrations.
   // `--full` defeats bd's MCP detection, which reads Claude Code's settings and would otherwise
   // shrink prime to MCP reminders; OpenCode has no Beads MCP tool. `--stealth` mirrors
   // `bd setup claude --stealth`: prime without git operations in the session-close protocol.
@@ -99,7 +99,7 @@ export async function setupBeads(
 
   const runtime: ContextRuntime = {
     guard: deps.runtime?.guard ?? ((cwd, signal) => checkBeadsStore(cwd,
-      createGuardRuntime(deps.bd ?? ((dir, args) => runBd(dir, args, { signal }))), { autoMigrate })),
+      createGuardRuntime(deps.bd ?? ((dir, args) => runBd(dir, args, { signal }))))),
     prime:
       deps.runtime?.prime ??
       ((cwd, signal) => deps.runPrime ? deps.runPrime(cwd, primeFlags) : runBdPrime(cwd, { signal }, primeFlags)),

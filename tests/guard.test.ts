@@ -1,10 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import {
   checkBeadsStore,
-  createGuardRuntime,
   guardNotice,
   parseVersion,
   type GuardRuntime,
@@ -31,7 +27,7 @@ function runtime(options: {
 }
 
 describe("parseVersion", () => {
-  test("reads bd version output and markers", () => {
+  test("reads bd version output", () => {
     expect(parseVersion("bd version 1.3.1 (c1c4b642a: HEAD@c1c4b642ac1c)")).toEqual([1, 3, 1]);
     expect(parseVersion("1.2.2\n")).toEqual([1, 2, 2]);
     expect(parseVersion("1.3.1-rc.2")).toEqual([1, 3, 1]);
@@ -40,12 +36,22 @@ describe("parseVersion", () => {
 });
 
 describe("checkBeadsStore", () => {
-  test("is ready when the store marker matches the installed binary", async () => {
+  test("does not read CLI witnesses or infer schema admission", async () => {
+    for (const marker of [undefined, "1.3.2", "1.3.4", "1.4.0", new Error("EACCES")]) {
+      const fake = runtime({ version: "1.3.4", context: CONTEXT, marker });
+      const result = await checkBeadsStore("/project", fake);
+      expect(result).toEqual({ kind: "ready" });
+      expect(fake.readText).not.toHaveBeenCalled();
+      expect(guardNotice(result)).toBeUndefined();
+    }
+  });
+
+  test("is ready when CLI and workspace checks succeed", async () => {
     const fake = runtime({ version: "bd version 1.3.1 (abc)", context: CONTEXT, marker: "1.3.1\n" });
     expect(await checkBeadsStore("/project", fake)).toEqual({ kind: "ready" });
     expect(fake.bd).toHaveBeenCalledWith("/project", ["version"]);
     expect(fake.bd).toHaveBeenCalledWith("/project", ["context", "--json"]);
-    expect(fake.readText).toHaveBeenCalledWith(path.join("/project/.beads", ".local_version"));
+    expect(fake.readText).not.toHaveBeenCalled();
   });
 
   test("never invokes a command that opens the store", async () => {
@@ -55,36 +61,9 @@ describe("checkBeadsStore", () => {
     expect(commands).toEqual(["version", "context"]);
   });
 
-  test("reports a pending migration for an older store marker", async () => {
-    const fake = runtime({ version: "bd version 1.3.1", context: CONTEXT, marker: "1.2.2" });
-    expect(await checkBeadsStore("/project", fake)).toEqual({
-      kind: "migration-pending",
-      installed: "1.3.1",
-      store: "1.2.2",
-    });
-  });
-
-  test("treats a missing or unreadable marker as possibly pending", async () => {
-    expect(
-      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: CONTEXT }))
-    ).toEqual({ kind: "migration-pending", installed: "1.3.1", store: undefined });
-    expect(
-      await checkBeadsStore(
-        "/p",
-        runtime({ version: "bd version 1.3.1", context: CONTEXT, marker: new Error("EACCES") })
-      )
-    ).toEqual({ kind: "migration-pending", installed: "1.3.1", store: undefined });
-  });
-
-  test("lets autoMigrate opt out of the marker check", async () => {
-    const fake = runtime({ version: "bd version 1.3.1", context: CONTEXT, marker: "1.2.2" });
-    expect(await checkBeadsStore("/project", fake, { autoMigrate: true })).toEqual({ kind: "ready" });
-    expect(fake.readText).not.toHaveBeenCalled();
-  });
-
-  test("rejects 1.3.0 before locating or opening the store, even with autoMigrate", async () => {
+  test("rejects 1.3.0 before locating or opening the store", async () => {
     const fake = runtime({ version: "bd version 1.3.0 (f45b249ce)", context: CONTEXT, marker: "1.3.0" });
-    expect(await checkBeadsStore("/project", fake, { autoMigrate: true })).toEqual({
+    expect(await checkBeadsStore("/project", fake)).toEqual({
       kind: "unsupported",
       installed: "1.3.0",
     });
@@ -151,28 +130,12 @@ describe("checkBeadsStore", () => {
   });
 });
 
-describe("createGuardRuntime", () => {
-  test("reads present markers and resolves undefined for missing ones", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "beads-guard-"));
-    try {
-      await writeFile(path.join(directory, ".local_version"), "1.3.1\n");
-      const guardRuntime = createGuardRuntime(async () => "");
-      expect(await guardRuntime.readText(path.join(directory, ".local_version"))).toBe("1.3.1\n");
-      expect(await guardRuntime.readText(path.join(directory, "missing"))).toBeUndefined();
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
-  });
-});
-
 describe("guardNotice", () => {
-  test("tells the agent not to run bd while a migration may be pending", () => {
-    const notice = guardNotice({ kind: "migration-pending", installed: "1.3.1", store: "1.2.2" });
-    expect(notice).toContain("<beads-notice>");
-    expect(notice).toContain("Do not run bd commands");
-    expect(notice).toContain("bd migrate schema");
-    expect(notice).toContain('"autoMigrate": true');
-    expect(notice).toContain("bd 1.2.2");
+  test("describes a failed workspace probe without calling it a hold", () => {
+    const notice = guardNotice({ kind: "probe-failed" });
+    expect(notice).toContain("Beads workflow context was not loaded");
+    expect(notice).toContain("workspace probe failed or returned an unsupported result");
+    expect(notice).not.toContain("withheld");
   });
 
   test("names the minimum version for unsupported binaries", () => {

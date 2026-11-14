@@ -76,7 +76,7 @@ work on this item; memory carries validated learning beyond it. Neither should
 override current user or repository instructions.
 
 Treat missing context, failed retrieval, and deliberately withheld context as
-different outcomes. A permission or migration hold is not an invitation to run a
+different outcomes. An explicit authority or permission hold is not an invitation to run a
 manual fallback. If a write timed out, read the issue before retrying; the first
 write may have landed. Preserve uncertainty explicitly until it is resolved.
 

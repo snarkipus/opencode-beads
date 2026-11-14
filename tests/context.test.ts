@@ -60,14 +60,14 @@ describe("context controller", () => {
     expect(direct).toContain("Stop/Cancel");
     expect(await f.controller.systemFor("s1", "review", { typed: "unavailable", execute: false, shell: false, direct: false })).toContain("Neither");
     expect(f.prime).toHaveBeenCalledTimes(1);
-    const held = fixture({ guard: { kind: "migration-pending", installed: "1.3.1", store: "1.2.0" } });
+    const held = fixture({ guard: { kind: "unsupported", installed: "1.3.0" } });
     expect(await held.controller.systemFor("s1", "build", typed)).not.toContain("direct shell");
   });
   test("distinguishes missing, withheld, failed and intentionally empty context", async () => {
     const missing = fixture({ guard: { kind: "uninitialized" } });
     await missing.controller.systemFor("s1", "build");
     expect(missing.controller.statusFor("s1", "primary")).toBe("missing");
-    const held = fixture({ guard: { kind: "migration-pending", installed: "1.3.1", store: "1.2.0" } });
+    const held = fixture({ guard: { kind: "unsupported", installed: "1.3.0" } });
     await held.controller.systemFor("s1", "build");
     expect(held.controller.statusFor("s1", "primary")).toBe("withheld");
     const failed = fixture({ prime: async () => { throw new Error("failure"); } });
@@ -148,7 +148,7 @@ describe("context controller", () => {
   });
 
   test("injects the guard notice instead of running prime, and rechecks after the retry window", async () => {
-    let guard: GuardResult = { kind: "migration-pending", installed: "1.3.1", store: "1.2.2" };
+    let guard: GuardResult = { kind: "unsupported", installed: "1.3.0" };
     const f = fixture({ guard: async () => guard });
     const withheld = await f.controller.systemFor("s1", "beads-task-agent");
     expect(withheld).toContain("<beads-notice>");

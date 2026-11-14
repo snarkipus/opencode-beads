@@ -17,7 +17,7 @@ record was found, a memory was returned, or a write was acknowledged.
 - Keep cognitive and workflow guidance in `SKILL.md` and its on-demand resources.
 - Use `bd prime` for current workflow context and `bd '<command>' --help` for
   exact syntax. Do not duplicate a broad CLI reference here.
-- Respect an explicit context, permission, or migration hold. A manual prime is
+- Respect an explicit context or permission hold. A manual prime is
   not a fallback around a hold.
 - Keep examples limited to supported CLI forms verified against the installed
   help. When an operation is unavailable, say what supported path or limitation

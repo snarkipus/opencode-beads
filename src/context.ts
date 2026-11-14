@@ -112,11 +112,11 @@ export function createContextController(
       if (entry.abort.signal.aborted) return undefined;
       entry.status = "failed";
       runtime.diagnose?.("guard_failed", sessionID);
-      return retryLater("<beads-notice>Beads workflow context failed during the store safety check. Store authority is unknown; do not bypass this failure with manual prime.</beads-notice>");
+      return retryLater("<beads-notice>Beads workflow context failed during the CLI/workspace check. Workspace discovery is unconfirmed; do not bypass this failure with manual prime.</beads-notice>");
     }
     if (entry.abort.signal.aborted) return undefined;
     if (guard.kind !== "ready") {
-      entry.status = guard.kind === "probe-failed" ? "failed" : guard.kind === "migration-pending" || guard.kind === "unsupported" ? "withheld" : "missing";
+      entry.status = guard.kind === "probe-failed" ? "failed" : guard.kind === "unsupported" ? "withheld" : "missing";
       return retryLater(guardNotice(guard));
     }
 

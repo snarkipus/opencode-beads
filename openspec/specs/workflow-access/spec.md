@@ -53,7 +53,9 @@ The integration SHALL preserve applicable user and repository authority across i
 
 #### Scenario: Migration hold conflicts with prime-first advice
 
-- **WHEN** workflow context is withheld because store access is not authorized
+This scenario covers explicit user or repository restrictions, not a plugin-generated schema hold.
+
+- **WHEN** an explicit user or repository restriction withholds store access, including a user-requested migration hold
 - **THEN** skill, command and worker recovery guidance preserves that restriction
 - **AND** reports the reason and required owner action without opening the store
 
@@ -164,7 +166,7 @@ The integration SHALL target exact OpenCode 2.3.0 qualification and `>=2.3.0 <2.
 
 ### Requirement: Restricted-agent typed operation boundary
 
-Typed tools and direct shell fallback SHALL respect shell visibility and operation-specific permissions using actual invocation identity, canonical resources and narrow saved grants. Guard holds, location, attribution and cancellation SHALL be rechecked after approval and before execution. Beads owns database/routing/consistency semantics; normal CLI equivalence does not promise filesystem confinement.
+Typed tools and direct shell fallback SHALL respect shell visibility and operation-specific permissions using actual invocation identity, canonical resources and narrow saved grants. CLI/workspace compatibility, location, attribution and cancellation SHALL be rechecked after approval and before execution. Beads owns database/routing/consistency semantics; normal CLI equivalence does not promise filesystem confinement.
 
 #### Scenario: Agent wholly denies shell
 
@@ -192,7 +194,7 @@ Typed tools and direct shell fallback SHALL respect shell visibility and operati
 
 #### Scenario: External target or held workspace
 
-- **WHEN** the explicit invocation/location requires external-directory access or the existing guard withholds store access
+- **WHEN** the explicit invocation/location requires external-directory access or CLI/workspace compatibility checks fail
 - **THEN** the operation preserves that restriction and refuses before store-opening execution unless invocation context and the required OpenCode authority are established
 - **AND** Beads retains ownership of its internal routing; no final-store attestation or additional internal-route confinement is promised
 - **AND** normal intended routing is not a speculative blocker or a prerequisite for upstream routing-disable support or local repair logic
@@ -226,7 +228,7 @@ Canonical execution SHALL allow continuation within an authorized batch or goal,
 
 ### Requirement: Read-only native diagnostics
 
-The package SHALL expose effective discovery, compatibility, ownership conflicts and context/persistence status through `oc-beads:diagnostics` without opening a withheld store, changing configuration or exposing credentials. Diagnostics SHALL distinguish unavailable, failed, withheld and uncertain outcomes.
+The package SHALL expose effective discovery, compatibility, ownership conflicts and context/persistence status through `oc-beads:diagnostics` without opening a store, changing configuration or exposing credentials. Diagnostics SHALL distinguish unavailable, failed, withheld and uncertain outcomes.
 
 #### Scenario: Discovery collision
 
@@ -239,6 +241,7 @@ The package SHALL expose effective discovery, compatibility, ownership conflicts
 
 - **WHEN** a user invokes diagnostics or stats
 - **THEN** diagnostics uses only the existing safe version/context probes and cached integration state without opening a store, while stats remains an issue-overview workflow using `bd status` (alias `bd stats`)
+- **AND** version/workspace/protocol observations do not certify SQL health or complete native memory delivery
 - **AND** diagnostic safety and observed qualification limits are preserved; the report identifies the loaded plugin package name/version from its own manifest alongside the observed host version, without inferring a unique build fingerprint
 
 #### Scenario: Compact diagnostic history
@@ -409,3 +412,34 @@ The integration SHALL offer independent opt-in Luna Max and Terra Medium task-ag
 
 - **WHEN** an enabled fixed profile cannot use its configured provider, model or variant
 - **THEN** the host-reported inability is preserved without a plugin-selected substitute model or a claim of successful execution
+
+### Requirement: Native Beads store ownership
+
+The integration SHALL delegate store opening, schema bounds and upgrade semantics to native Beads. It SHALL NOT read CLI version witnesses for store admission, infer pending SQL migration from them or add migration/remediation commands. It SHALL retain the supported CLI minimum and config-only workspace/protocol checks, ordinary full native prime and real per-operation authority.
+
+#### Scenario: CLI witness differs or is missing
+
+- **WHEN** a supported CLI and workspace pass integration checks with an older, matching, newer or missing CLI witness
+- **THEN** the integration does not impose a witness-based hold on context or authorized typed operations or prescribe marker recovery
+- **AND** native Beads determines store behavior and failures, including any native migration on ordinary open
+
+#### Scenario: Legacy autoMigrate configuration
+
+- **WHEN** an existing configuration sets autoMigrate true or false
+- **THEN** it loads with the option ignored, without migration-policy changes or repeated warnings
+
+#### Scenario: Full native context and partial results
+
+- **WHEN** eligible context loads through ordinary bd prime --full
+- **THEN** native workflow and persistent-memory output, including native partial-availability notices, is preserved without local memory reconstruction
+- **AND** command failures are reported honestly and success does not certify complete memory delivery or store health
+
+#### Scenario: Missing or failed prerequisites
+
+- **WHEN** CLI availability, minimum version or config-only workspace/protocol observation fails
+- **THEN** the integration preserves the distinction between missing prerequisites and failed or unsupported observations without substituting a store-opening probe
+
+#### Scenario: Explicit administration
+
+- **WHEN** an agent considers migration, repair, initialization, update, bootstrap or synchronization as an administrative action
+- **THEN** that action still requires its own applicable user authority and permissions; ordinary native open semantics do not authorize extra administration
