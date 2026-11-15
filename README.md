@@ -18,7 +18,7 @@ The installed `bd` CLI stays authoritative for issues, project initialization, s
 
 ## Supported versions
 
-Version **2.2.1** targets OpenCode 2.3.
+Version **2.3.0** targets OpenCode 2.3.
 
 | Component | Supported | Evidence |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includ
 
    ```json
    {
-     "plugins": ["@snarkipus/opencode-beads@2.2.1"]
+     "plugins": ["@snarkipus/opencode-beads@2.3.0"]
    }
    ```
 
@@ -52,9 +52,9 @@ The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includ
 
 3. Check the install: `opencode debug agents` lists `beads-task-agent`, and `/oc-beads:diagnostics` reports native registration and observed capabilities.
 
-### Upgrading to 2.2.1
+### Upgrading to 2.3.0
 
-Replace the existing exact plugin pin with `2.2.1`. This patch removes false schema holds based on CLI-version witnesses; it does not change the OpenCode range or Beads minimum. Existing `autoMigrate` settings are ignored. Native store opens may migrate, so follow the [native upgrade procedure](docs/user-guide.md#native-beads-store-behavior) before upgrading `bd`. The patch has deterministic and packaged regression checks; the bounded native host evidence remains the recorded 2.2.0 baseline, not a new live qualification campaign.
+Replace the existing exact plugin pin with `2.3.0`, rather than adding another entry. This release adds integrated Plugin / Beads diagnostic tables, `details` and static `help`, with code-populated DATE / VERSION / repository-root PATH under the heading. It retains the OpenCode range and Beads minimum. Native store behavior and ignored legacy `autoMigrate` settings are unchanged; follow the [native upgrade procedure](docs/user-guide.md#native-beads-store-behavior) before upgrading `bd`. The unchanged base retains its recorded 2.2.0 native qualification; diagnostics additionally has deterministic/package checks and owner-reported normal-output canaries on OpenCode 2.3.0. See the [acceptance record](docs/diagnostics-acceptance-2026-11-15.md).
 
 ### Upgrading to 2.2.0
 
