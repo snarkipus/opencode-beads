@@ -1,10 +1,12 @@
+import { Effect } from "effect";
+import { fromRequest as serializeChatRequest } from "@opencode/ai/protocols/openai-chat";
 import { createHash } from "node:crypto";
 import { make } from "@opencode/ai";
 import { Message } from "@opencode/ai/effect";
 import { configure } from "@opencode/ai/providers/openai";
 import baseline from "./fixtures/non-sync-command-baseline.json";
 import { describe, expect, mock, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import * as pluginModule from "../src/plugin";
@@ -15,6 +17,9 @@ import type { ContinuityHost } from "../src/continuity";
 import { Error as ToolError, type Info, type ToolContext, type ToolDomain } from "@opencode/plugin/promise/tool";
 import type { SessionContext, SessionCompaction } from "@opencode/plugin/promise/session";
 import { executorActor } from "../src/continuity";
+import { PrimeTimeoutError } from "../src/prime";
+import { renderHealthReport } from "../src/diagnostics";
+import * as diagnosticPresentation from "../src/diagnostics";
 import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
 import { BEADS_COMPACTION_GUIDANCE, primeFailureNotice } from "../src/guidance";
 
@@ -745,7 +750,7 @@ function commandFixture(f: ReturnType<typeof fakeContext>) {
     text: "literal '$ARGUMENTS' $(touch nope) `text`", files: [{ uri: "file:///tmp/a%20b" }],
     agents: [{ name: "build" }], skills: [{ id: "oc-beads" }],
   } } as unknown as CommandInvocation;
-  return { callbacks, commands, transform, prompt, invocation,
+  return { callbacks, commands, transform, prompt, invocation, detailsInvocation: { ...invocation, prompt: { ...invocation.prompt, text: "details" } },
     failLookup: (failed: boolean) => { lookupFailed = failed; },
     omit: (name?: string) => { omitted = name; },
   };
@@ -1184,7 +1189,7 @@ describe("owned workflow registration", () => {
         expect(serialized).toBe(candidate);
         expect(serialized).toBe(await serialize(expected));
         expect(serialized).not.toMatch(/ocBeadsWorkflow|ocBeadsSync/);
-        for (const stem of stems) expect(serialized.match(new RegExp(stem === "diagnostics" ? "Report these observed Beads diagnostics" : `Invoked command: /oc-beads:${stem}`, "g"))).toHaveLength(1);
+        for (const stem of stems) expect(serialized.match(new RegExp(stem === "diagnostics" ? "Reproduce only the finished Markdown" : `Invoked command: /oc-beads:${stem}`, "g"))).toHaveLength(1);
         expect(serialized).toContain("current turn exact details");
         const once = JSON.stringify(event.messages);
         await f.hooks.get(kind)!(event);
@@ -1198,7 +1203,7 @@ describe("owned workflow registration", () => {
       expect(JSON.stringify(projected)).toBe(projectedStorage);
       const auxiliary = await serialize(projected);
       expect(auxiliary).not.toContain("Invoked command:");
-      expect(auxiliary).not.toContain("Report these observed Beads diagnostics");
+      expect(auxiliary).not.toContain("Reproduce only the finished Markdown");
       expect(auxiliary).not.toMatch(/ocBeadsWorkflow|ocBeadsSync/);
       expect([...f.hooks.keys()].sort()).toEqual(["compaction", "context"]);
       expect(c.prompt).toHaveBeenCalledTimes(stems.length);
@@ -1216,14 +1221,17 @@ describe("owned workflow registration", () => {
     const prime = mock(async () => "PRIME");
     const cleanup = await setupBeads(f.ctx, { warn: () => {}, runtime: { guard: async () => ({kind: "ready"}), prime } });
     try {
-      await c.commands().get("oc-beads:diagnostics")!.execute(c.invocation);
+      await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
       const sent = c.prompt.mock.calls.at(-1)![0];
       const metadata = sent.metadata as {ocBeadsWorkflow: {version: number; instructions: string}};
       const snapshot = metadata.ocBeadsWorkflow;
-      const report = JSON.parse(snapshot.instructions.split("\n")[1]!);
+      const report = JSON.parse(snapshot.instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
       const manifest = await Bun.file(new URL("../package.json", import.meta.url)).json();
       expect(report.plugin).toEqual({name: manifest.name, version: manifest.version});
       expect(report.host).toBe("2.3.0");
+      expect(snapshot.instructions).toContain(`DATE: \`${report.capturedAt}\``);
+      expect(snapshot.instructions).toContain(`VERSION: ${manifest.name} \`${manifest.version}\``);
+      expect(snapshot.instructions).toContain("PATH: `not observed`");
       expect(prime).not.toHaveBeenCalled();
       const stored = storedUserMessage("diagnostics-message", String(sent.text), { ocBeadsWorkflow: snapshot });
       const request = Message.make({ id: stored.id, role: "user", content: String(sent.text) });
@@ -1240,7 +1248,7 @@ describe("owned workflow registration", () => {
       for (const kind of ["title", "generate"]) {
         const event: ContextEvent = {sessionID:"s1", agent:"build", system:[], messages:[Message.make(request)]};
         await f.hooks.get(kind)?.(event);
-        expect(JSON.stringify(event.messages!.map(message => message.content))).not.toContain('Report these observed Beads diagnostics');
+        expect(JSON.stringify(event.messages!.map(message => message.content))).not.toContain('Reproduce only the finished Markdown');
       }
       expect(JSON.stringify(stored)).toBe(raw);
       expect(c.prompt).toHaveBeenCalledTimes(1);
@@ -1287,9 +1295,9 @@ describe("owned workflow registration", () => {
     const ready = c.commands().get("oc-beads:ready")!;
     const diagnostics = c.commands().get("oc-beads:diagnostics")!;
     const report = async () => {
-      await diagnostics.execute(c.invocation);
+      await diagnostics.execute(c.detailsInvocation);
       const metadata = c.prompt.mock.calls.at(-1)![0].metadata as {ocBeadsWorkflow: {instructions: string}};
-      return JSON.parse(metadata.ocBeadsWorkflow.instructions.split("\n")[1]!);
+      return JSON.parse(metadata.ocBeadsWorkflow.instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
     };
     let observed = await report();
     expect(observed.commands.registration).toBe("registered");
@@ -1455,13 +1463,13 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
   const cleanup = await setupBeads(f.ctx, { bd, runtime: { prime }, now: () => time, retryMs: 1, warn: () => {} });
   const diagnostics = c.commands().get("oc-beads:diagnostics")!;
   const report = async () => {
-    await diagnostics.execute(c.invocation);
+    await diagnostics.execute(c.detailsInvocation);
     const metadata = c.prompt.mock.calls.at(-1)![0].metadata as {ocBeadsWorkflow: {instructions: string}};
-    return JSON.parse(metadata.ocBeadsWorkflow.instructions.split("\n")[1]!);
+    return JSON.parse(metadata.ocBeadsWorkflow.instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
   };
   const initial = await report();
   expect(initial.liveQualification).toBe("not measured by diagnostics; see release acceptance evidence");
-  expect(initial.context).toBe("missing: not loaded");
+  expect(initial.context).toBe("unobserved: no cached context");
   expect(initial.requestCapability).toBe("unknown: no actual request observation");
   await f.request("s1", "build");
   expect((await report()).context).toBe("missing");
@@ -1482,8 +1490,8 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
   await pending;
   const observed = await report();
   expect(observed.context).toBe("ready");
-  expect(observed.guard).toEqual({ kind: "ready" });
-  expect(JSON.stringify(observed)).not.toMatch(/migration-pending|local_version|migrate schema/);
+  expect(observed.guard).toEqual({ kind: "ready", version: "1.3.1", workspace: { path: "/unused-fixture/.beads" } });
+  expect(JSON.stringify(observed)).not.toMatch(/migration-pending|migrate schema/);
   expect(observed.requestCapability.agent).toBe("build");
   expect(observed.requestCapability.capabilities.typed).toBe("unknown");
   expect(observed.leafAvailability).toContain("unknown");
@@ -1498,7 +1506,7 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
   expect(unknown.guard.kind).toBe("withheld");
   expect(unknown.persistence).toContain("uncertain: no final-write guarantee");
   expect(bd).toHaveBeenCalledTimes(count);
-  expect(new Set(bd.mock.calls.map(([, args]) => args.join(" ")))).toEqual(new Set(["version", "context --json"]));
+  expect(new Set(bd.mock.calls.map(([, args]) => args.join(" ")))).toEqual(new Set(["version", "context --json", "hooks list --json"]));
   await cleanup();
 });
 
@@ -1514,7 +1522,7 @@ test("unload aborts an in-flight native diagnostics without submitting a late pr
       return { kind: "ready" };
     },
   } });
-  const pending = c.commands().get("oc-beads:diagnostics")!.execute(c.invocation);
+  const pending = c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
   await settle();
   await cleanup();
   expect(signal?.aborted).toBe(true);
@@ -1535,4 +1543,555 @@ test("a failed native command registration diagnoses failure and releases earlie
   await expect(setupBeads(f.ctx, { warn: (message) => warnings.push(message) })).rejects.toThrow("native registration failed");
   expect(warnings.join("\n")).toContain("command-registration-failed");
   expect(disposed).toHaveBeenCalledTimes(1);
+});
+
+test("registered diagnostics captures native hooks without store probes", async () => {
+  const f = fakeContext();
+  const c = commandFixture(f);
+  const bd = mock(async (_directory: string, args: readonly string[]) => {
+    if (args.join(" ") === "version") return "bd version 1.3.4";
+    if (args.join(" ") === "context --json") return JSON.stringify({ beads_dir: "/unused/.beads" });
+    if (args.join(" ") === "hooks list --json") return JSON.stringify({ hooks: [{ Name: "pre-commit", Installed: false, Version: "", IsShim: false, Outdated: false }] });
+    throw new Error("unexpected invocation");
+  });
+  const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
+  try {
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    const metadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
+    expect(metadata.ocBeadsWorkflow.instructions).toContain("pre-commit");
+    expect(bd.mock.calls.map(([, args]) => args.join(" "))).toContain("hooks list --json");
+  } finally { await cleanup(); }
+});
+
+test("diagnostics reports preceding context version and request instruction counts", async () => {
+  const f = fakeContext();
+  const c = commandFixture(f);
+  let version = "1.3.1";
+  const bd = mock(async (_directory: string, args: readonly string[]) => {
+    if (args[0] === "version") return `bd version ${version}`;
+    if (args[0] === "context") return JSON.stringify({ beads_dir: "/unused/.beads", cwd_repo_root: "/project" });
+    if (args[0] === "hooks") return JSON.stringify({ hooks: [] });
+    throw new Error("unexpected invocation");
+  });
+  const cleanup = await setupBeads(f.ctx, { bd, runPrime: async () => "prime body", warn: () => {} });
+  try {
+    await f.request("s1", "build");
+    version = "1.3.4";
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    const metadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
+    expect(metadata.ocBeadsWorkflow.instructions).toContain("1.3.1");
+    expect(metadata.ocBeadsWorkflow.instructions).toContain("1.3.4");
+    expect(metadata.ocBeadsWorkflow.instructions).toContain("requestInstructions");
+  } finally { await cleanup(); }
+});
+
+
+test("diagnostics captures witness and scoped managed guidance without remote secrets", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "health-diag-"));
+  const beads = path.join(root, ".beads");
+  await mkdir(beads);
+  await writeFile(path.join(beads, ".local_version"), "1.3.1\n");
+  await writeFile(path.join(root, "AGENTS.md"), "<!-- BEGIN BEADS INTEGRATION v:1 profile:full -->body<!-- END BEADS INTEGRATION -->");
+  const f = fakeContext();
+  Object.assign(f.ctx, { location: { directory: root } });
+  const c = commandFixture(f);
+  Object.assign(f.ctx.session, { get: async () => ({ agent: "build", location: { directory: root } }) });
+  const bd = async (_dir: string, args: readonly string[]) => args[0] === "version" ? "bd 1.3.4" : args[0] === "context" ? JSON.stringify({ beads_dir: beads, cwd_repo_root: root, sync_remote: "https://user:secret@example.invalid" }) : JSON.stringify({ hooks: [] });
+  const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
+  try {
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    const metadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
+    const text = metadata.ocBeadsWorkflow.instructions;
+    expect(text).toContain("1.3.1");
+    expect(text).toContain("differ");
+    expect(text).toContain("managedInstructions");
+    expect(text).not.toContain("secret");
+    expect(text).toContain('"sharedSkill":"missing"');
+    expect(text).toContain(`PATH: \`${root}\``);
+    expect(JSON.parse(text.split("\nDetails: ")[1]!.split("\n")[0]!).guard.workspace).toEqual({ path: beads, repoRoot: root, remote: true });
+    await mkdir(path.join(root, ".agents", "skills", "beads"), { recursive: true });
+    await writeFile(path.join(root, ".agents", "skills", "beads", "SKILL.md"), "local skill");
+    await writeFile(path.join(beads, ".local_version"), "1.3.4\n");
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    let latest = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    expect(latest).toContain("Recorded 1.3.4 matches running 1.3.4");
+    expect(latest).toContain('"sharedSkill":"readable"');
+    await rm(path.join(beads, ".local_version"));
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    latest = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    expect(latest).toContain("Witness missing");
+  } finally { await cleanup(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("captured diagnostics renders compact hook summary before explicit evidence", async () => {
+  const f = fakeContext(); const c = commandFixture(f);
+  const bd = async (_directory: string, args: readonly string[]) => args[0] === "version" ? "bd 1.3.4" : args[0] === "context" ? '{"beads_dir":"/none"}' : JSON.stringify({ hooks: [{ Name: "pre-commit", Installed: false, Version: "", IsShim: false, Outdated: false }] });
+  const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
+  try {
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    const metadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
+    const text = metadata.ocBeadsWorkflow.instructions;
+    expect(text).toContain("**Plugin**");
+    expect(text).toContain("**Beads**");
+    expect(text.indexOf("0/1 installed")).toBeLessThan(text.indexOf("**Evidence**"));
+    expect(JSON.parse(text.split("\nDetails: ")[1]!.split("\n")[0]!).hooks[0].name).toBe("pre-commit");
+    expect(text).toContain("bd hooks list");
+  } finally { await cleanup(); }
+});
+
+test("diagnostic hook failures and native classifications do not open a store", async () => {
+  const f = fakeContext(); const c = commandFixture(f);
+  let hookOutput = "broken";
+  let timedOut = false;
+  const calls: string[] = [];
+  const bd = async (_directory: string, args: readonly string[]) => {
+    const command = args.join(" "); calls.push(command);
+    if (command === "version") return "bd 1.3.4";
+    if (command === "context --json") return '{"beads_dir":"/none"}';
+    if (command === "hooks list --json") { if (timedOut) throw new PrimeTimeoutError(5, "bd hooks list --json"); return hookOutput; }
+    throw new Error("unexpected store probe");
+  };
+  const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
+  const capture = async () => {
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    return (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+  };
+  try {
+    expect(await capture()).toContain("hooks list observation unavailable or unsupported");
+    timedOut = true;
+    expect(await capture()).toContain("hooks list observation unavailable or unsupported");
+    timedOut = false;
+    hookOutput = JSON.stringify({ hooks: [
+      { Name: "pre-commit", Installed: true, Version: "", IsShim: false, Outdated: false },
+      { Name: "post-merge", Installed: true, Version: "1.2.0", IsShim: false, Outdated: true },
+      { Name: "pre-push", Installed: true, Version: "1.3.4", IsShim: true, Outdated: false },
+    ] });
+    const report = await capture();
+    expect(report).toContain("installed without a reported version");
+    expect(report).toContain("outdated");
+    expect(report).toContain("shim does not certify current wrapper policy");
+    expect(new Set(calls)).toEqual(new Set(["version", "context --json", "hooks list --json"]));
+  } finally { await cleanup(); }
+});
+
+test("diagnostics identifies incomplete root guidance and a missing shared skill", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "health-incomplete-"));
+  const f = fakeContext({ directory: root });
+  const c = commandFixture(f);
+  Object.assign(f.ctx.session, { get: async () => ({ agent: "build", location: { directory: root } }) });
+  const bd = async (_directory: string, args: readonly string[]) => args[0] === "version" ? "bd 1.3.4" : args[0] === "context" ? JSON.stringify({ beads_dir: path.join(root, ".beads"), cwd_repo_root: root }) : '{"hooks":[]}';
+  const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
+  const capture = async () => {
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    return (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+  };
+  try {
+    await mkdir(path.join(root, "AGENTS.md"));
+    let report = await capture();
+    expect(report.split("\nDetails: ")[0]).toContain("| AGENTS Configured | — | unreadable |");
+    expect(report.split("\nDetails: ")[0]).toContain("unreadable");
+    expect(report.split("\nDetails: ")[0]).toContain("shared: absent");
+    expect(report).toContain("not a plugin failure");
+    let details = JSON.parse(report.split("\nDetails: ")[1]!.split("\n")[0]!);
+    expect(details.findings.find((finding: { id: string }) => finding.id === "shared-skill-missing").class).toBe("note");
+    await mkdir(path.join(root, ".agents", "skills", "beads", "SKILL.md"), { recursive: true });
+    report = await capture();
+    expect(report.split("\nDetails: ")[0]).toContain("shared: unreadable");
+    details = JSON.parse(report.split("\nDetails: ")[1]!.split("\n")[0]!);
+    expect(details.findings.find((finding: { id: string }) => finding.id === "shared-skill-unreadable").class).toBe("failed");
+    await rm(path.join(root, "AGENTS.md"), { recursive: true });
+    await writeFile(path.join(root, "AGENTS.md"), "x".repeat(65_537));
+    report = await capture();
+    expect(report.split("\nDetails: ")[0]).toContain("truncated");
+    expect(report).toContain("last-request");
+  } finally { await cleanup(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("diagnostics withholds hook observation when session location is unconfirmed", async () => {
+  const f = fakeContext(); const c = commandFixture(f);
+  Object.assign(f.ctx.session, { get: async () => { throw new Error("session lookup failed"); } });
+  const bd = mock(async (_directory: string, _args: readonly string[]) => { throw new Error("unexpected native collection"); });
+  const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
+  try {
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    const instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    const snapshot = JSON.parse(instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
+    const hookFinding = snapshot.findings.find((finding: { id: string }) => finding.id === "hooks-unavailable");
+    expect(hookFinding.class).toBe("unknown");
+    expect(hookFinding.observation).toContain("withheld: session location unconfirmed");
+    expect(instructions.split("\nDetails: ")[0]).not.toContain("[failed] beads / bd hooks list");
+    expect(bd).not.toHaveBeenCalled();
+  } finally { await cleanup(); }
+});
+
+
+test("diagnostics groups repeated hooks while retaining other findings and exact native evidence", () => {
+  const names = ["pre-commit", "post-merge", "pre-push", "post-checkout", "prepare-commit-msg"];
+  const missing = names.map((name) => ({ name, installed: false, version: "", shim: false, outdated: false }));
+  const shims = names.map((name) => ({ name, installed: true, version: "1.3.4", shim: true, outdated: false }));
+  const base = { plugin: { name: "fixture", version: "1" }, host: "2.3.0", context: "ready", guard: { kind: "ready", version: "1.3.4" } };
+  for (const hooks of [missing, shims]) {
+    const snapshot = { ...base, hooks, local: { witness: { state: "differ", recorded: "1.3.1", running: "1.3.4" }, managedInstructions: { state: "available", full: 0 }, sharedSkill: "readable" }, contextObservation: { version: "1.3.1", loadedAt: 1000 } };
+    const report = renderHealthReport(snapshot, 2000, true);
+    const [summary, details] = report.split("\nDetails: ");
+    expect(summary).toContain("1.3.1 ≠ CLI 1.3.4");
+    expect(summary).toContain("| Context | ⚠️ | Loaded under bd 1.3.1 |");
+    const captured = JSON.parse(details!);
+    expect(captured.hooks).toEqual(hooks);
+    expect(captured.findings.filter((finding: { producer: string }) => finding.producer === "bd hooks list")).toHaveLength(1);
+    expect(report).toContain("https://github.com/gastownhall/beads/blob/7ef2fd05eb0cd3bdbde051f93cfc14ccf270cdde/docs/getting-started/upgrading.md");
+  }
+});
+
+test("diagnostic duplicate findings preserve root and last-request provenance", () => {
+  const requestAt = 1700000000000;
+  const captureAt = 1700000060000;
+  const report = renderHealthReport({ plugin: {}, host: "2.3.0", context: "ready", guard: { kind: "ready" }, hooks: [], local: { scope: "context cwd_repo_root", managedInstructions: { state: "available", full: 2 }, sharedSkill: "readable" }, requestInstructions: { at: requestAt, full: 2, retained: 1 } }, captureAt, true);
+  const captured = JSON.parse(report.split("\nDetails: ")[1]!);
+  const root = captured.findings.find((f: { id: string }) => f.id === "duplicate-full");
+  const request = captured.findings.find((f: { id: string }) => f.id === "request-full-duplicates");
+  expect(root.scope).toBe("root-file observation: context cwd_repo_root");
+  expect(root.observedAt).toBe(new Date(captureAt).toISOString());
+  expect(request.scope).toBe("last observed request");
+  expect(request.observedAt).toBe(new Date(requestAt).toISOString());
+  expect(captured.requestInstructions.at).toBe(requestAt);
+});
+
+test("witness guidance links the pinned release guide", () => {
+  const report = renderHealthReport({ plugin: {}, host: "2.3.0", context: "ready", guard: { kind: "ready" }, hooks: [], local: { witness: { state: "differ", recorded: "1.3.1", running: "1.3.4" } } }, 0, true);
+  expect(report).toContain("https://github.com/gastownhall/beads/blob/7ef2fd05eb0cd3bdbde051f93cfc14ccf270cdde/docs/getting-started/upgrading.md");
+});
+
+test("registered diagnostics uses the last request time for duplicate guidance", async () => {
+  const f = fakeContext(); const c = commandFixture(f);
+  let now = 1_700_000_000_000;
+  const cleanup = await setupBeads(f.ctx, { now: () => now, warn: () => {}, runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "BODY" } });
+  try {
+    const block = "<!-- BEGIN BEADS INTEGRATION v:1 profile:full -->BODY<!-- END BEADS INTEGRATION -->";
+    const event: ContextEvent = { sessionID: "s1", agent: "build", system: [{ type: "text", text: `${block}\n${block}` }] };
+    await f.hooks.get("context")!(event);
+    const observedAt = now;
+    now += 60_000;
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    const instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    const report = JSON.parse(instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
+    const finding = report.findings.find((item: { id: string }) => item.id === "request-full-duplicates");
+    expect(finding.scope).toBe("last observed request");
+    expect(finding.observedAt).toBe(new Date(observedAt).toISOString());
+    expect(report.requestInstructions.at).toBe(observedAt);
+  } finally { await cleanup(); }
+});
+
+/** Fixed observed fields shared by the representative compact-presentation cases. */
+function presentationFixture() {
+  return {
+    plugin: { name: "@snarkipus/opencode-beads", version: "2.2.1" }, host: "2.3.0",
+    commands: { registration: "registered", lookup: "available", truncated: true, membershipTruncated: false, expectedCount: 30, effective: [], missing: [], mismatches: [] },
+    skill: { effective: ["oc-beads"], collision: "none detected" }, typedContinuity: "enabled: qualified beta registration", typedRegistration: "registered: beads namespace, code-mode-only",
+    requestCapability: { agent: "build", capabilities: { execute: true } }, context: "ready", contextObservation: { status: "ready", version: "1.3.4", loadedAt: 1000 },
+    guard: { kind: "ready", version: "1.3.4", workspace: { path: "/fixture/.beads", repoRoot: "/fixture" } },
+    local: { scope: "context cwd_repo_root", managedInstructions: { state: "available", full: 1, minimal: 0, codex: 1 }, sharedSkill: "missing", witness: { state: "match", recorded: "1.3.4", running: "1.3.4" } },
+    hooks: ["pre-commit", "post-merge", "pre-push", "post-checkout", "prepare-commit-msg"].map((name) => ({ name, installed: true, shim: true, outdated: false, version: "1.3.4" })),
+    requestInstructions: { at: 1000, full: 1, minimal: 0, codex: 1, replaced: 1, retained: 1 }, persistence: "uncertain: no final-write guarantee",
+  };
+}
+
+test("normal diagnostics uses compact tables and assessed severity with literal coverage", () => {
+  const ready = presentationFixture();
+  const report = renderHealthReport(ready, 2000);
+  expect(report).toBe(`## Beads diagnostics — ✅ Healthy
+
+DATE: \`1970-01-01T00:00:02.000Z\`
+
+VERSION: @snarkipus/opencode-beads \`2.2.1\`
+
+PATH: \`/fixture\`
+
+**Plugin** ✅ Healthy
+
+| Check | Status | Value |
+|---|---|---|
+| Host | ✅ | OpenCode 2.3.0 |
+| Commands | ✅ | 30/30 present |
+| Skill | ✅ | oc-beads active · shared: absent |
+| Typed tools | ✅ | Registered |
+| Context | ✅ | Loaded |
+| AGENTS Configured | ✅ | bd block |
+
+**Beads** ✅ Healthy
+
+| Check | Status | Value |
+|---|---|---|
+| bd CLI | ✅ | 1.3.4 |
+| Workspace | ✅ | Located |
+| Recorded bd version | ✅ | 1.3.4 = CLI |
+| Git hooks | ✅ | 5/5 installed (shims) |`);
+  expect(report).toContain("## Beads diagnostics — ✅ Healthy");
+  expect(report).toContain("**Plugin**");
+  expect(report).toContain("**Beads**");
+  expect(report).toContain("| Check | Status | Value |");
+  expect(report).toContain("| Recorded bd version | ✅ | 1.3.4 = CLI |");
+  expect(report).not.toMatch(/partial|Request instructions|Codex|descriptions/i);
+  expect(report).not.toMatch(/Details:|Limits:|does not establish|model-mediated|unique build|liveQualification|no final-write guarantee|remote freshness/i);
+  const first = renderHealthReport({ ...ready, context: "unobserved: no cached context", contextObservation: undefined, requestInstructions: "unobserved", requestCapability: undefined }, 2000);
+  expect(first).toBe(`## Beads diagnostics — ✅ Healthy
+
+DATE: \`1970-01-01T00:00:02.000Z\`
+
+VERSION: @snarkipus/opencode-beads \`2.2.1\`
+
+PATH: \`/fixture\`
+
+**Plugin** ✅ Healthy
+
+| Check | Status | Value |
+|---|---|---|
+| Host | ✅ | OpenCode 2.3.0 |
+| Commands | ✅ | 30/30 present |
+| Skill | ✅ | oc-beads active · shared: absent |
+| Typed tools | ✅ | Registered |
+| Context | — | Not yet loaded |
+| AGENTS Configured | ✅ | bd block |
+
+**Beads** ✅ Healthy
+
+| Check | Status | Value |
+|---|---|---|
+| bd CLI | ✅ | 1.3.4 |
+| Workspace | ✅ | Located |
+| Recorded bd version | ✅ | 1.3.4 = CLI |
+| Git hooks | ✅ | 5/5 installed (shims) |`);
+  expect(first).toContain("| Context | — | Not yet loaded |");
+  expect(first).toContain("✅ Healthy");
+  const unreadableSkill = renderHealthReport({ ...ready, local: { ...ready.local, sharedSkill: "unreadable" } }, 2000);
+  expect(unreadableSkill).toContain("| Skill | — | oc-beads active · shared: unreadable |");
+  expect(renderHealthReport({ ...ready, local: { ...ready.local, scope: "confirmed session directory" } }, 2000)).toContain("| AGENTS Configured | ✅ | bd block |");
+  const vps = renderHealthReport({ ...ready, hooks: ready.hooks.map((h) => ({ ...h, installed: false, shim: false, version: "" })) }, 2000);
+  expect(vps).toBe(`## Beads diagnostics — ⚠️ Mismatch
+
+DATE: \`1970-01-01T00:00:02.000Z\`
+
+VERSION: @snarkipus/opencode-beads \`2.2.1\`
+
+PATH: \`/fixture\`
+
+Git hooks need attention.
+
+**Plugin** ✅ Healthy
+
+| Check | Status | Value |
+|---|---|---|
+| Host | ✅ | OpenCode 2.3.0 |
+| Commands | ✅ | 30/30 present |
+| Skill | ✅ | oc-beads active · shared: absent |
+| Typed tools | ✅ | Registered |
+| Context | ✅ | Loaded |
+| AGENTS Configured | ✅ | bd block |
+
+**Beads** ⚠️ Mismatch
+
+| Check | Status | Value |
+|---|---|---|
+| bd CLI | ✅ | 1.3.4 |
+| Workspace | ✅ | Located |
+| Recorded bd version | ✅ | 1.3.4 = CLI |
+| Git hooks | ⚠️ | 0/5 installed · 5 missing/unreadable/unresolved |
+
+**Actions**
+
+- Install or refresh hooks: \`bd hooks install\` (\`--beads\` / \`--shared\` for those layouts; writes hooks and may change core.hooksPath). Check: \`bd hooks list\`.`);
+  expect(vps).toContain("⚠️ Mismatch");
+  expect(vps).toContain("0/5 installed");
+  expect(vps).toContain("missing/unreadable/unresolved");
+  expect(vps).toContain("**Actions**");
+  const incompatible = renderHealthReport({ ...ready, guard: { kind: "unsupported", installed: "1.3.0" }, context: "withheld", hooks: "failed: unsupported" }, 2000);
+  expect(incompatible).toBe(`## Beads diagnostics — ❌ Unhealthy
+
+DATE: \`1970-01-01T00:00:02.000Z\`
+
+VERSION: @snarkipus/opencode-beads \`2.2.1\`
+
+PATH: \`not observed\`
+
+bd CLI unavailable or below the supported minimum.
+
+**Plugin** ❌ Unhealthy
+
+| Check | Status | Value |
+|---|---|---|
+| Host | ✅ | OpenCode 2.3.0 |
+| Commands | ✅ | 30/30 present |
+| Skill | ✅ | oc-beads active · shared: absent |
+| Typed tools | ✅ | Registered |
+| Context | ❌ | Withheld |
+| AGENTS Configured | ✅ | bd block |
+
+**Beads** ❌ Unhealthy
+
+| Check | Status | Value |
+|---|---|---|
+| bd CLI | ❌ | 1.3.0 (needs ≥1.3.1) |
+| Workspace | — | not observed |
+| Recorded bd version | ✅ | 1.3.4 = CLI |
+| Git hooks | — | observation failed |
+
+**Actions**
+
+- Install or upgrade bd to ≥1.3.1, then start a new session. Check: \`bd version\`.`);
+  expect(incompatible).toContain("❌ Unhealthy");
+  expect(incompatible).toContain("| Git hooks | — | observation failed |");
+  const noEvidence = renderHealthReport({}, 2000);
+  expect(noEvidence).not.toContain("✅ Healthy");
+  expect(noEvidence).toContain("No checks assessed");
+});
+
+test("normal command membership, witness and write uncertainty keep distinct severity", () => {
+  const ready = presentationFixture();
+  const partial = renderHealthReport({ ...ready, commands: { ...ready.commands, membershipTruncated: true, missing: undefined } }, 2000);
+  expect(partial).toContain("| Commands | — | list incomplete |");
+  const partialChanged = renderHealthReport({ ...ready, commands: { ...ready.commands, membershipTruncated: true, missing: undefined, mismatches: [{ name: "oc-beads:show" }] } }, 2000);
+  expect(partialChanged).toContain("| Commands | — | list incomplete · 1 changed |");
+  const differs = renderHealthReport({ ...ready, local: { ...ready.local, witness: { state: "differ", recorded: "1.3.1", running: "1.3.4" } } }, 2000);
+  expect(differs).toContain("| Recorded bd version | ⚠️ | 1.3.1 ≠ CLI 1.3.4 |");
+  expect(differs).not.toContain("❌ Unhealthy");
+  const gap = renderHealthReport({ ...ready, persistence: "update task-1: uncertain; readback required" }, 2000);
+  expect(gap).toContain("update task-1");
+  expect(gap).toContain("⚠️ Mismatch");
+});
+
+test("registered diagnostics selects normal, details or help once and replays captured output", async () => {
+  const f = fakeContext(); const c = commandFixture(f);
+  const bd = mock(async () => '{"hooks":[]}');
+  const cleanup = await setupBeads(f.ctx, { bd, now: () => 2000, warn: () => {}, runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" } });
+  try {
+    for (const text of ["", " DeTaIlS ", "explain details please", " HeLp ", "help me", "help\n"]) {
+      const input = { ...c.invocation, prompt: { ...c.invocation.prompt, text } };
+      const beforeCalls = bd.mock.calls.length;
+      await c.commands().get("oc-beads:diagnostics")!.execute(input);
+      const sent = c.prompt.mock.calls.at(-1)![0];
+      const snapshot = (sent.metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow;
+      expect(snapshot.instructions.includes("Details: ")).toBe(text.trim().toLowerCase() === "details");
+      const framedReport = snapshot.instructions.split("\nBEGIN_DIAGNOSTIC_REPORT\n")[1]?.split("\nEND_DIAGNOSTIC_REPORT\n")[0];
+      expect(framedReport).toBeDefined();
+      expect(snapshot.instructions).toEndWith("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n");
+      expect(framedReport).not.toContain("/oc-beads:diagnostics explain details please");
+      if (text.trim().toLowerCase() === "help") {
+        expect(bd.mock.calls.length).toBe(beforeCalls);
+        expect(snapshot.instructions).toContain(diagnosticPresentation.DIAGNOSTICS_HELP);
+      }
+      expect(sent.text).toBe(`/oc-beads:diagnostics${text ? `${/[\r\n]/.test(text) ? "\n" : " "}${text}` : ""}`);
+      expect(sent.files).toBe(input.prompt.files);
+      expect(sent.delivery).toBe(input.delivery);
+      const count = bd.mock.calls.length;
+      const stored = storedUserMessage("presented", String(sent.text), { ocBeadsWorkflow: { version: 1, ...snapshot } });
+      Object.assign(f.ctx.session, { context: async () => [stored] });
+      for (const kind of ["context", "compaction"]) {
+        const event: ContextEvent = { sessionID: "s1", agent: "build", system: [], messages: [Message.make({ id: stored.id, role: "user", content: String(sent.text) })] };
+        await f.hooks.get(kind)!(event);
+        expect(event.messages![0]!.content[0]).toEqual(Message.text(snapshot.instructions));
+        expect(event.messages![0]!.content[1]).toEqual(Message.text(String(sent.text)));
+        const once = JSON.stringify(event.messages);
+        await f.hooks.get(kind)!(event);
+        expect(JSON.stringify(event.messages)).toBe(once);
+      }
+      expect(bd.mock.calls.length).toBe(count);
+    }
+  } finally { await cleanup(); }
+});
+
+test("registered command completeness separates membership truncation from description clipping", async () => {
+  const f = fakeContext(); const c = commandFixture(f);
+  const cleanup = await setupBeads(f.ctx, { bd: async () => '{"hooks":[]}', warn: () => {}, runtime: { guard: async () => ({ kind: "ready" }) } });
+  try {
+    const owned = c.commands().get("oc-beads:ready")!;
+    c.callbacks.push((editor) => editor.add({ ...owned, description: "x".repeat(600) }));
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    let instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    let report = JSON.parse(instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
+    expect(report.commands.truncated).toBe(true);
+    expect(report.commands.membershipTruncated).toBe(false);
+    expect(report.commands.expectedCount).toBe(30);
+    expect(instructions).toContain("| Commands | ✅ | 30/30 present |");
+    c.callbacks.push((editor) => editor.add({ ...owned, description: "custom changed" }));
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    expect(instructions).toContain("| Commands | ⚠️ | 30/30 · 1 changed |");
+    c.callbacks.push((editor) => { for (let i = 0; i < 130; i++) editor.add({ name: `custom-${i}`, description: "custom", execute: async () => {} }); });
+    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    report = JSON.parse(instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
+    expect(report.commands.membershipTruncated).toBe(true);
+    expect(instructions).toContain("| Commands | — | list incomplete · 1 changed |");
+  } finally { await cleanup(); }
+});
+
+
+test("AGENTS Configured recognizes markers while unknown guidance stays neutral", () => {
+  const ready = presentationFixture();
+  for (const managedInstructions of [
+    { state: "available", full: 0, minimal: 0, codex: 0 },
+    { state: "missing" }, { state: "unreadable" }, { state: "truncated" },
+  ]) {
+    const report = renderHealthReport({ ...ready, local: { ...ready.local, managedInstructions } }, 2000);
+    expect(report).toContain("| AGENTS Configured | — |");
+    expect(report).not.toMatch(/partial|Request instructions|full ·|Codex/);
+  }
+  for (const counts of [{ full: 0, minimal: 1, codex: 0 }, { full: 0, minimal: 0, codex: 1 }]) {
+    expect(renderHealthReport({ ...ready, local: { ...ready.local, managedInstructions: { state: "available", ...counts } } }, 2000)).toContain("| AGENTS Configured | ✅ | bd block |");
+  }
+  expect(renderHealthReport({ ...ready, local: { ...ready.local, managedInstructions: { state: "available", full: 2 } } }, 2000)).toContain("| AGENTS Configured | ⚠️ | duplicate bd blocks |");
+  const unrecognized = renderHealthReport({ ...ready, hooks: [{ name: "pre-commit", installed: true, version: "", shim: false, outdated: false }] }, 2000);
+  expect(unrecognized).toContain("1 unrecognized");
+  expect(unrecognized).not.toContain("not bd");
+});
+
+test("command names remain measurable without hiding missing or changed entries", () => {
+  const ready = presentationFixture();
+  expect(renderHealthReport({ ...ready, commands: { ...ready.commands, missing: ["oc-beads:ready"], mismatches: [{ name: "oc-beads:show" }] } }, 2000)).toContain("| Commands | ⚠️ | 29/30 · 1 missing · 1 changed |");
+  expect(renderHealthReport({ ...ready, commands: { ...ready.commands, lookup: "failed" } }, 2000)).toContain("| Commands | — | not observed |");
+  const details = renderHealthReport(ready, 2000, true);
+  expect(details).toContain('"requestInstructions":{"at":1000');
+  expect(details).toContain('"truncated":true');
+  for (const row of renderHealthReport({ ...ready, persistence: "update unresolved" }, 2000).split("\n").filter(line => line.startsWith("| ") && !line.startsWith("| Check"))) {
+    expect(diagnosticPresentation.DIAGNOSTICS_HELP).toContain(row.split(" | ")[0]!.slice(2));
+  }
+});
+
+
+test("diagnostic header metadata uses observed root and exact code-populated values", () => {
+  const fixture = presentationFixture();
+  const report = renderHealthReport(fixture, 2000);
+  expect(report).toStartWith("## Beads diagnostics — ✅ Healthy\n\nDATE: `1970-01-01T00:00:02.000Z`\n\nVERSION: @snarkipus/opencode-beads `2.2.1`\n\nPATH: `/fixture`\n\n**Plugin**");
+  expect(report.match(/DATE:/g)).toHaveLength(1);
+  expect(report.match(/VERSION:/g)).toHaveLength(1);
+  expect(report.match(/PATH:/g)).toHaveLength(1);
+  expect(report).not.toContain("/fixture/.beads");
+  const missingRoot = renderHealthReport({ ...fixture, guard: { ...fixture.guard, workspace: { path: "/fixture/.beads" } } }, 2000, true);
+  expect(missingRoot).toContain("PATH: `not observed`");
+  expect(missingRoot).toContain('"path":"/fixture/.beads"');
+  expect(renderHealthReport({ ...fixture, guard: { ...fixture.guard, workspace: { path: "/different/.beads", repoRoot: "/observed/root/" } } }, 2000)).toContain("PATH: `/observed/root/`");
+  const mismatch = renderHealthReport({ ...fixture, hooks: fixture.hooks.map(hook => ({ ...hook, installed: false })) }, 2000);
+  expect(mismatch.indexOf("PATH:")).toBeLessThan(mismatch.indexOf("Git hooks need attention."));
+});
+
+test("actual Chat serializer keeps a registered diagnostic report separated from its invocation", async () => {
+  const f = fakeContext(); const c = commandFixture(f);
+  const cleanup = await setupBeads(f.ctx, { bd: async () => '{"hooks":[]}', now: () => 2000, warn: () => {}, runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" } });
+  try {
+    await c.commands().get("oc-beads:diagnostics")!.execute({ ...c.invocation, prompt: { ...c.invocation.prompt, text: "" } });
+    const sent = c.prompt.mock.calls.at(-1)![0];
+    const snapshot = (sent.metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow;
+    const stored = storedUserMessage("serialized-diagnostic", String(sent.text), sent.metadata as StoredUserMessage["metadata"]);
+    Object.assign(f.ctx.session, { context: async () => [stored] });
+    const event: ContextEvent = { sessionID: "s1", agent: "build", system: [], messages: [Message.make({ id: stored.id, role: "user", content: String(sent.text) })] };
+    await f.hooks.get("context")!(event);
+    const body = await Effect.runPromise(serializeChatRequest({
+      model: { id: "fixture-no-network", provider: "openai", route: { endpoint: { baseURL: "https://fixture.invalid/v1" } }, capabilities: {}, compatibility: {} },
+      system: [], messages: event.messages, tools: [],
+    } as unknown as Parameters<typeof serializeChatRequest>[0]));
+    const content = body.messages.find(message => message.role === "user")?.content;
+    expect(content).toContain("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n/oc-beads:diagnostics");
+    expect(content).toBe(`${snapshot.instructions}${String(sent.text)}`);
+    expect(content).not.toContain("`/oc-beads:diagnostics");
+  } finally { await cleanup(); }
 });

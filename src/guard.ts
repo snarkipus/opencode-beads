@@ -7,7 +7,7 @@ export type Version = readonly [number, number, number];
 
 /** CLI and config-only workspace compatibility; not a store health assessment. */
 export type GuardResult =
-  | { kind: "ready" }
+  | { kind: "ready"; version?: string; workspace?: BeadsWorkspace }
   | { kind: "uninitialized" }
   | { kind: "unavailable" }
   | { kind: "probe-failed" }
@@ -20,6 +20,8 @@ export interface GuardRuntime {
 
 export interface BeadsWorkspace {
   path: string;
+  repoRoot?: string;
+  remote?: boolean;
 }
 
 /** Config-only context avoids `where`'s opportunistic embedded-store prefix lookup. */
@@ -44,7 +46,7 @@ export async function probeBeadsWorkspace(directory: string, runtime: GuardRunti
   const data = location as Record<string, unknown>;
   if (typeof data.beads_dir !== "string") throw new Error("Unsupported bd context response");
   if (!data.beads_dir) return undefined;
-  return { path: data.beads_dir };
+  return { path: data.beads_dir, ...(typeof data.cwd_repo_root === "string" ? { repoRoot: data.cwd_repo_root } : {}), ...(typeof data.sync_remote === "string" || typeof data.sync_git_remote === "string" ? { remote: Boolean(data.sync_remote || data.sync_git_remote) } : {}) };
 }
 
 /** Parse the leading `major.minor.patch` triple; pre-release suffixes are ignored. */
@@ -95,7 +97,7 @@ export async function checkBeadsStore(
   const beadsPath = location?.path;
   if (typeof beadsPath !== "string" || !beadsPath) return { kind: "uninitialized" };
 
-  return { kind: "ready" };
+  return { kind: "ready", version: formatVersion(installed), workspace: location };
 }
 
 /** Build config-only compatibility observation from a bounded `bd` runner. */

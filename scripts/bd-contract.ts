@@ -148,6 +148,9 @@ try {
     "CLI/workspace compatibility checks pass (not SQL health certification)"
   );
 
+  const hooks = json(await attempt("bd hooks list --json", () => bd(repo, ["hooks", "list", "--json"]))) as { hooks?: unknown } | undefined;
+  check(Array.isArray(hooks?.hooks) && hooks.hooks.every((hook: unknown) => typeof hook === "object" && hook !== null && typeof Reflect.get(hook, "Name") === "string" && typeof Reflect.get(hook, "Version") === "string" && ["Installed", "IsShim", "Outdated"].every((key) => typeof Reflect.get(hook, key) === "boolean")), "native hook-list JSON has the supported status fields");
+
   const initialFullPrime = await attempt("prime before issue writes", () => bd(repo, ["prime", "--full"]));
 
   // Commands named by the task-agent prompt and guidance.

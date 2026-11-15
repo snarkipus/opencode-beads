@@ -11,8 +11,10 @@ import {
   type ContextRuntime,
 } from "./context";
 import { checkBeadsStore, createGuardRuntime } from "./guard";
-import { minimizeSystemParts } from "./instructions";
+import type { GuardResult } from "./guard";
+import { countManagedBlocks, minimizeSystemParts } from "./instructions";
 import { runBd, runBdPrime } from "./prime";
+import { collectBeadsHealth, collectHooks, collectPluginHealth, DIAGNOSTIC_ENV, renderHealthReport } from "./diagnostics";
 import { createContinuityTools, type ContinuityDependencies, type ContinuityResult } from "./continuity";
 
 /** The slice of the OpenCode V2 plugin context this adapter uses. */
@@ -145,6 +147,7 @@ export async function setupBeads(
   const gaps = new Map<string, Set<string>>();
   const workflowSnapshotReads = new Map<string, symbol>();
   const requestCapabilities = new Map<string, { agent: string; capabilities: RequestCapabilities }>();
+  const requestInstructions = new Map<string, { at: number; full: number; minimal: number; codex: number; replaced: number; retained: number }>();
   let typedRegistration = deps.continuityQualified === true ? "unavailable: host tool/permission/session interface missing" : "disabled: registration not requested";
 
   /** Retain distinct unresolved outcomes without a read, success or lifecycle cue erasing them. */
@@ -169,6 +172,7 @@ export async function setupBeads(
     gaps.delete(sessionID);
     workflowSnapshotReads.delete(sessionID);
     requestCapabilities.delete(sessionID);
+    requestInstructions.delete(sessionID);
     for (const key of diagnosticTimes.keys()) {
       if (key.endsWith(`:${sessionID}`)) diagnosticTimes.delete(key);
     }
@@ -187,6 +191,7 @@ export async function setupBeads(
     gaps.clear();
     workflowSnapshotReads.clear();
     requestCapabilities.clear();
+    requestInstructions.clear();
     diagnosticTimes.clear();
     const pending = registrations.splice(0).reverse().map((registration) => {
       try { return registration.dispose(); } catch (error) { return Promise.reject(error); }
@@ -255,6 +260,7 @@ export async function setupBeads(
     }
 
     let skillFailure: string | undefined;
+    let skillCollision = "not observed";
     if (ctx.skill) {
       let skill;
       try { skill = await loadBeadsSkill(deps.workflowAssets); }
@@ -265,7 +271,10 @@ export async function setupBeads(
       if (skill) {
         const packagedSkill = skill;
         registrations.push(await ctx.skill.transform((editor) => {
-          if (!abort.signal.aborted) applyBeadsSkill(editor, packagedSkill, workflowDiagnostic);
+          if (!abort.signal.aborted) {
+            skillCollision = "none detected";
+            applyBeadsSkill(editor, packagedSkill, (message) => { skillCollision = message; workflowDiagnostic(message); });
+          }
         }));
       }
     }
@@ -274,9 +283,10 @@ export async function setupBeads(
     // plugins use the same ordinary ordering; initial lookup is diagnostic only.
     if (ctx.command && ctx.session.prompt) {
       let commandRegistration = "pending";
-      const definitions = createBeadsCommands({ prompt: ctx.session.prompt }, async (sessionID) => {
+      const definitions = createBeadsCommands({ prompt: ctx.session.prompt }, async (sessionID, text) => {
         let context: string = "uncertain";
         let locationKnown = false;
+        let contextObservation: ReturnType<typeof controller.observationFor>;
         if (ctx.session.get) {
           try {
             const info = await ctx.session.get({ sessionID: sessionID as Parameters<NonNullable<typeof ctx.session.get>>[0]["sessionID"] });
@@ -288,39 +298,52 @@ export async function setupBeads(
               const observedAgent = requestCapabilities.get(sessionID)?.agent;
               const audience = observedAgent && BEADS_TASK_AGENTS.has(observedAgent) ? "task-agent" : "primary";
               const cached = controller.statusFor(sessionID, audience);
-              context = cached === "loading" ? "uncertain: context refresh in progress" : cached ?? "missing: not loaded";
+              contextObservation = controller.observationFor(sessionID, audience);
+              context = cached === "loading" ? "uncertain: context refresh in progress" : cached ?? "unobserved: no cached context";
             }
           } catch { forgetSession(sessionID); context = "uncertain: session lookup failed"; }
         }
         let guard: unknown = { kind: "withheld", reason: "session location unconfirmed" };
         if (locationKnown && !abort.signal.aborted) {
-          try { guard = await runtime.guard(directory, abort.signal); }
+          try { guard = deps.runtime?.guard ? await runtime.guard(directory, abort.signal) : await checkBeadsStore(directory, createGuardRuntime(deps.bd ?? ((dir, args) => runBd(dir, args, { signal: abort.signal, env: DIAGNOSTIC_ENV })))); }
           catch { guard = { kind: "probe-failed" }; }
         }
+        const local = locationKnown && !abort.signal.aborted ? { ...await collectPluginHealth(directory, guard as GuardResult), ...await collectBeadsHealth(guard as GuardResult) } : "withheld";
+        const hooks = locationKnown && !abort.signal.aborted ? await collectHooks(directory, deps.bd ?? ((dir, args) => runBd(dir, args, { signal: abort.signal, env: DIAGNOSTIC_ENV }))) : "withheld: session location unconfirmed";
         let effectiveCommands: Array<{ name: string; description?: string }> | undefined;
+        let registryTruncated = false;
+        let registryMembershipTruncated = false;
         let effectiveSkills: string[] | string;
-        try { effectiveCommands = (await ctx.command!.list()).data.map(({ name, description }) => ({ name, description })); }
+        try {
+          const entries = (await ctx.command!.list()).data;
+          registryMembershipTruncated = entries.length > 128 || entries.some(({ name }) => name.length > 128);
+          registryTruncated = registryMembershipTruncated || entries.some(({ name, description }) => name.length > 128 || (description?.length ?? 0) > 512);
+          effectiveCommands = entries.slice(0, 128).map(({ name, description }) => ({ name: name.slice(0, 128), description: description?.slice(0, 512) }));
+        }
         catch { /* Absence of lookup evidence is unknown, not an empty registry. */ }
-        try { effectiveSkills = ctx.skill ? (await ctx.skill.list()).data.map((entry) => String(entry.id)) : "unavailable"; }
+        try { effectiveSkills = ctx.skill ? (await ctx.skill.list()).data.slice(0, 128).map((entry) => String(entry.id).slice(0, 128)) : "unavailable"; }
         catch { effectiveSkills = "unavailable: registry lookup failed"; }
         const observedRequest = requestCapabilities.get(sessionID);
-        return JSON.stringify({
+        return renderHealthReport({
           plugin: { name: packageManifest.name, version: packageManifest.version },
           host: hostVersion, admission: SUPPORTED_OPENCODE_RANGE, liveQualification: "not measured by diagnostics; see release acceptance evidence",
           commands: {
             registration: commandRegistration,
             lookup: effectiveCommands ? "available" : "failed",
+            truncated: registryTruncated,
+            membershipTruncated: registryMembershipTruncated,
+            expectedCount: definitions.length,
             effective: effectiveCommands ?? "unknown: registry lookup failed",
             mismatches: effectiveCommands && definitions.flatMap((expected) => {
               const effective = effectiveCommands.find((entry) => entry.name === expected.name);
-              return effective && effective.description !== expected.description
+              return effective && (effective.description?.length ?? 0) < 512 && (expected.description?.length ?? 0) < 512 && effective.description !== expected.description
                 ? [{ name: expected.name, expectedDescription: expected.description, effectiveDescription: effective.description }]
                 : [];
             }),
-            missing: effectiveCommands && definitions.filter((expected) => !effectiveCommands.some((entry) => entry.name === expected.name)).map((entry) => entry.name),
+            missing: effectiveCommands && !registryMembershipTruncated && definitions.filter((expected) => !effectiveCommands.some((entry) => entry.name === expected.name)).map((entry) => entry.name),
             ownership: "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
           },
-          skill: { failure: skillFailure, effective: effectiveSkills },
+          skill: { failure: skillFailure, effective: effectiveSkills, collision: skillCollision },
           typedContinuity: deps.continuityQualified === true ? "enabled: qualified beta registration" : "disabled: registration not requested",
           typedRegistration,
           requestCapability: observedRequest ?? "unknown: no actual request observation",
@@ -329,8 +352,8 @@ export async function setupBeads(
             : observedRequest?.capabilities.typed === "registered-execute-visible"
               ? "execute is visible; the native catalog and each operation-specific permission determine leaf availability"
               : "unknown until native catalog discovery and per-operation permission checks",
-          context, guard, persistence: gapFor(sessionID) ?? "uncertain: no final-write guarantee",
-        });
+          local, context, contextObservation, requestInstructions: requestInstructions.get(sessionID) ?? "unobserved", guard, hooks, persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
+        }, now(), text?.trim().toLowerCase() === "details");
       }, deps.workflowAssets?.skillPath, abort.signal);
       let existing: string[];
       try { existing = (await ctx.command.list()).data.map((entry) => entry.name); }
@@ -429,15 +452,19 @@ export async function setupBeads(
             : "unavailable",
       } : { ...UNKNOWN_CAPABILITIES };
       requestCapabilities.set(event.sessionID, { agent: event.agent, capabilities });
+      const counts = countManagedBlocks(event.system.filter((part) => part.type === "text").map((part) => part.text ?? "").join("\n"));
       const text = await controller.systemFor(event.sessionID, event.agent, capabilities);
-      if (!text || abort.signal.aborted) return;
+      let replaced = 0;
+      if (abort.signal.aborted) return;
+      if (!text) { requestInstructions.set(event.sessionID, { at: now(), ...counts, replaced: 0, retained: counts.full + counts.minimal + counts.codex }); return; }
       if (text.startsWith("<beads-context")) {
         const eligible = beadsSessions.get(event.sessionID) ?? new Set<string>();
         eligible.add(event.agent);
         beadsSessions.set(event.sessionID, eligible);
         // Reduce only complete bodies already supplied here; marker ownership alone is insufficient.
-        minimizeSystemParts(event.system, text);
+        replaced = minimizeSystemParts(event.system, text);
       }
+      requestInstructions.set(event.sessionID, { at: now(), ...counts, replaced, retained: counts.full + counts.minimal + counts.codex - replaced });
       event.system.push({ type: "text", text });
       const cue = recoveryCues.get(event.sessionID);
       const gap = gapFor(event.sessionID);

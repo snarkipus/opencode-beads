@@ -40,7 +40,7 @@ describe("checkBeadsStore", () => {
     for (const marker of [undefined, "1.3.2", "1.3.4", "1.4.0", new Error("EACCES")]) {
       const fake = runtime({ version: "1.3.4", context: CONTEXT, marker });
       const result = await checkBeadsStore("/project", fake);
-      expect(result).toEqual({ kind: "ready" });
+      expect(result).toEqual({ kind: "ready", version: "1.3.4", workspace: { path: "/project/.beads" } });
       expect(fake.readText).not.toHaveBeenCalled();
       expect(guardNotice(result)).toBeUndefined();
     }
@@ -48,7 +48,7 @@ describe("checkBeadsStore", () => {
 
   test("is ready when CLI and workspace checks succeed", async () => {
     const fake = runtime({ version: "bd version 1.3.1 (abc)", context: CONTEXT, marker: "1.3.1\n" });
-    expect(await checkBeadsStore("/project", fake)).toEqual({ kind: "ready" });
+    expect(await checkBeadsStore("/project", fake)).toEqual({ kind: "ready", version: "1.3.1", workspace: { path: "/project/.beads" } });
     expect(fake.bd).toHaveBeenCalledWith("/project", ["version"]);
     expect(fake.bd).toHaveBeenCalledWith("/project", ["context", "--json"]);
     expect(fake.readText).not.toHaveBeenCalled();

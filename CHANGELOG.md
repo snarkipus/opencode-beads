@@ -18,6 +18,14 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+### Added
+
+- Integrated `/oc-beads:diagnostics` Plugin / Beads health reporting with bounded native hook, guidance and context observations, compact tables, explicit `details`, and static `help`.
+
+### Changed
+
+- Populate diagnostic DATE, executing package VERSION and observed repository-root PATH in code directly below the heading. Capture the finished report once with explicit report/invocation boundaries, preserving literal history and replay without recollection.
+
 ## [2.2.1]
 
 ### Fixed

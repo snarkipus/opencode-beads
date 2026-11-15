@@ -30,14 +30,16 @@ export interface PrimeExecutionOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
   drainTimeoutMs?: number;
-  spawn?: (directory: string, args: readonly string[]) => PrimeProcess;
+  spawn?: (directory: string, args: readonly string[], env?: NodeJS.ProcessEnv) => PrimeProcess;
+  env?: NodeJS.ProcessEnv;
   scheduleTimeout?: (callback: () => void, delayMs: number) => () => void;
   scheduleDrainTimeout?: (callback: () => void, delayMs: number) => () => void;
 }
 
-function spawnBd(directory: string, args: readonly string[]): PrimeProcess {
+function spawnBd(directory: string, args: readonly string[], env?: NodeJS.ProcessEnv): PrimeProcess {
   const child = Bun.spawn(["bd", ...args], {
     cwd: directory,
+    ...(env ? { env: { ...process.env, ...env } } : {}),
     stdin: "ignore",
     stdout: "pipe",
     stderr: "pipe",
@@ -110,7 +112,7 @@ async function runBdAttempt(
   const drainTimeoutMs = options.drainTimeoutMs ?? DEFAULT_PRIME_DRAIN_TIMEOUT_MS;
   const command = ["bd", ...args].join(" ");
   options.signal?.throwIfAborted();
-  const child = (options.spawn ?? spawnBd)(directory, args);
+  const child = options.env ? (options.spawn ?? spawnBd)(directory, args, options.env) : (options.spawn ?? spawnBd)(directory, args);
   const stdout = new Response(child.stdout).text();
   const stderr = new Response(child.stderr).text();
 
