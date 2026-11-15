@@ -18,6 +18,14 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [2.3.1]
+
+### Fixed
+
+- Preserve saved workflow instructions and applicable context/compaction guidance across valid overlapping snapshot reads; retain session movement, deletion, fork and unload invalidation.
+- Acknowledge successful last-label removal when native Beads omits the empty labels field, while preserving identity, requested-field and positive label-addition checks.
+- Add a review-customization hint for observed command mismatches and remove stale beta/prerelease wording from current diagnostics and entrypoint comments.
+
 ## [2.3.0]
 
 ### Added
@@ -416,7 +424,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.3.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.3.1...HEAD
+[2.3.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.3.1
 [2.3.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.3.0
 [2.2.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.2.1
 [2.2.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.2.0
