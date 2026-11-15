@@ -18,6 +18,8 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [2.3.0]
+
 ### Added
 
 - Integrated `/oc-beads:diagnostics` Plugin / Beads health reporting with bounded native hook, guidance and context observations, compact tables, explicit `details`, and static `help`.
@@ -414,7 +416,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.2.1...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.3.0
 [2.2.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.2.1
 [2.2.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.2.0
 [2.1.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.1.0
