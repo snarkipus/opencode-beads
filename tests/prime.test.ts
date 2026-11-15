@@ -1,4 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { DIAGNOSTIC_ENV } from "../src/diagnostics";
 import {
   PrimeProcessError,
   PrimeTimeoutError,
@@ -131,4 +135,30 @@ describe("runBdPrime", () => {
     expect(settled).toBeTrue();
     closeStdout();
   });
+});
+
+
+test.skipIf(process.platform === "win32")("diagnostic overlay reaches a POSIX child while ordinary execution inherits its parent", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "bd-env-"));
+  const binary = path.join(directory, "bd");
+  await writeFile(binary, '#!/bin/sh\nprintf "%s|%s|%s|%s" "$BD_DISABLE_METRICS" "$BD_DISABLE_EVENT_FLUSH" "$OTEL_SDK_DISABLED" "$DIAGNOSTIC_TEST_SENTINEL"\n');
+  await chmod(binary, 0o755);
+  const code = `import { runBd } from ${JSON.stringify(new URL("../src/prime.ts", import.meta.url).href)};
+const overlay = ${JSON.stringify(DIAGNOSTIC_ENV)};
+console.log(await runBd(${JSON.stringify(directory)}, ["version"], { env: overlay }));
+console.log(await runBd(${JSON.stringify(directory)}, ["prime"]));`;
+  try {
+    const child = Bun.spawn([process.execPath, "-e", code], { cwd: directory, stdout: "pipe", stderr: "pipe", env: { PATH: `${directory}:/usr/bin:/bin`, HOME: directory, XDG_CONFIG_HOME: directory, XDG_CACHE_HOME: directory, TMPDIR: directory, BD_DISABLE_METRICS: "true", BD_DISABLE_EVENT_FLUSH: "true", OTEL_SDK_DISABLED: "TRUE", DIAGNOSTIC_TEST_SENTINEL: "preserved" } });
+    const output = await new Response(child.stdout).text();
+    const errors = await new Response(child.stderr).text();
+    expect({ exit: await child.exited, output, errors }).toEqual({ exit: 0, output: "1|1|true|preserved\ntrue|true|TRUE|preserved\n", errors: "" });
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test("passes a diagnostic environment overlay through the injected spawn seam", async () => {
+  const spawn = mock((_directory: string, _args: readonly string[], _env?: NodeJS.ProcessEnv) => completedProcess(0));
+  await runBd("/project", ["version"], { spawn, env: DIAGNOSTIC_ENV });
+  expect(spawn).toHaveBeenCalledWith("/project", ["version"], DIAGNOSTIC_ENV);
+  await runBdPrime("/project", { spawn });
+  expect(spawn).toHaveBeenLastCalledWith("/project", ["prime"]);
 });

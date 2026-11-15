@@ -1,3 +1,4 @@
+import { DIAGNOSTICS_HELP } from "./diagnostics";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -142,7 +143,7 @@ export function expandBeadsWorkflowContext(
 /** Build native prompt commands with compact text and durable static workflow instructions. */
 export function createBeadsCommands(
   session: Pick<Plugin.Context["session"], "prompt">,
-  diagnostics: (sessionID: string) => Promise<string>,
+  diagnostics: (sessionID: string, text?: string) => Promise<string>,
   skillPath = BEADS_SKILL_PATH,
   signal?: AbortSignal,
 ): CommandDefinition[] {
@@ -176,12 +177,15 @@ export function createBeadsCommands(
     description: "Inspect OpenCode Beads integration discovery, conflicts, compatibility and context/persistence diagnostics without opening a store; use oc-beads:stats for the issue-database overview.",
     async execute(input) {
       if (signal?.aborted) throw new Error("Beads workflow unloaded");
-      const report = await diagnostics(input.sessionID);
+      const help = input.prompt.text?.trim().toLowerCase() === "help";
+      const report = help
+        ? DIAGNOSTICS_HELP
+        : await diagnostics(input.sessionID, input.prompt.text);
       if (signal?.aborted) throw new Error("Beads workflow unloaded");
       await session.prompt({
         ...input.prompt, sessionID: input.sessionID, delivery: input.delivery,
         text: `/oc-beads:diagnostics${input.prompt.text ? `${/[\r\n]/.test(input.prompt.text) ? "\n" : " "}${input.prompt.text}` : ""}`,
-        metadata: { ocBeadsWorkflow: { version: 1, instructions: `Report these observed Beads diagnostics. This is read-only; do not run store-opening commands, change configuration or infer live qualification.\n${report}\nInclude the loaded plugin name/version and observed OpenCode host version near the start of your report. Preserve unavailable, withheld and uncertain observations; do not infer a unique build identity from a version label.` } },
+        metadata: { ocBeadsWorkflow: { version: 1, instructions: `Reproduce only the finished Markdown between BEGIN_DIAGNOSTIC_REPORT and END_DIAGNOSTIC_REPORT. Preserve values, labels, order and Markdown exactly. Do not include the markers or original invocation, infer or reconstruct values, or add diagnoses or commentary.\n\nBEGIN_DIAGNOSTIC_REPORT\n${report}\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n` } },
       });
     },
   });

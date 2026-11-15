@@ -43,13 +43,14 @@ export interface ContextController {
   forget(sessionID: string): void;
   /** Context state is distinct from an absent text part (including intentional empty prime). */
   statusFor(sessionID: string, audience: ContextAudience): ContextStatus | undefined;
+  observationFor(sessionID: string, audience: ContextAudience): { status?: ContextStatus; loadedAt?: number; version?: string } | undefined;
   /** A write can affect every cached session in this location. */
   invalidateAll(): void;
   /** Abort owned loads and prevent late context injection after unload. */
   dispose(): void;
 }
 
-type CacheEntry = { value: Promise<string | undefined>; expiresAt?: number; lastUsed: number; abort: AbortController; status?: ContextStatus };
+type CacheEntry = { value: Promise<string | undefined>; expiresAt?: number; lastUsed: number; abort: AbortController; status?: ContextStatus; loadedAt?: number; version?: string };
 
 /** Wrap prime output in the envelope and shared guidance for one audience. */
 export function renderBeadsContext(prime: string, audience: ContextAudience, request?: { sessionID: string; agent: string; capabilities?: RequestCapabilities }): string {
@@ -131,6 +132,8 @@ export function createContextController(
       return retryLater(primeFailureNotice(timedOut ? "timed out" : "failed"));
     }
     if (entry.abort.signal.aborted) return undefined;
+    entry.loadedAt = now();
+    entry.version = guard.version;
     if (!output) {
       entry.status = "empty";
       return retryLater(undefined);
@@ -179,6 +182,10 @@ export function createContextController(
     invalidate: dropSession,
     forget: dropSession,
     statusFor: (sessionID, audience) => cache.get(`${sessionID}\0${audience}`)?.status,
+    observationFor: (sessionID, audience) => {
+      const entry = cache.get(`${sessionID}\0${audience}`);
+      return entry ? { status: entry.status, loadedAt: entry.loadedAt, version: entry.version } : undefined;
+    },
     invalidateAll() {
       for (const entry of cache.values()) entry.abort.abort();
       cache.clear();

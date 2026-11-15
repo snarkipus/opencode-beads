@@ -279,8 +279,9 @@ describe("packaged native workflows", () => {
         const snapshot = (sent.metadata as {ocBeadsWorkflow: {version: number; instructions: string}}).ocBeadsWorkflow;
         expect(snapshot.version).toBe(1);
         expect(snapshot.instructions.split(report)).toHaveLength(2);
-        expect(snapshot.instructions).toContain("do not run store-opening commands");
-        expect(snapshot.instructions).toContain("plugin name/version");
+        expect(snapshot.instructions).toContain("or add diagnoses or commentary");
+        expect(diagnostics).toHaveBeenLastCalledWith(input.sessionID, text);
+        expect(snapshot.instructions).not.toContain("unique build");
         const storageText = JSON.stringify(sent);
         const stored = storedUserMessage("diagnostic-command", String(sent.text), {
           ocBeadsWorkflow: (sent.metadata as {ocBeadsWorkflow: {version: number; instructions: string}}).ocBeadsWorkflow,
@@ -447,13 +448,13 @@ describe("packaged native workflows", () => {
       if (c.name === "oc-beads:diagnostics") {
         const {metadata, ...native} = submitted;
         const snapshot = (metadata as {ocBeadsWorkflow: {instructions: string}}).ocBeadsWorkflow;
-        // Restore the historical report/read-only preface and native payload without regenerating hashes.
-        // The new identity-reporting instruction and compact presentation have dedicated coverage.
+        // Only the diagnostics preamble digest changes for the accepted report framing.
+        // Exact full framing has dedicated coverage; generic workflow digests remain frozen.
         sent = {...native, text: `${snapshot.instructions.split("\n").slice(0, 2).join("\n")}\n\nUser request:\n${String(submitted.text).slice("/oc-beads:diagnostics\n".length)}`};
       }
       actual[c.name] = createHash("sha256").update(JSON.stringify({ description: c.description, sent })).digest("hex");
     }
-    expect(actual).toEqual({ ...baseline.commands, "oc-beads:update": "b4f6a0e8b2729bab4361a6252a86217eac825b6c66f2db8d3dcc0f1803de7b25" });
+    expect(actual).toEqual({ ...baseline.commands, "oc-beads:diagnostics": "9c93d2da3350003af1d73668d898e615d87f76aeed9f04364b67a93df46b1d4a", "oc-beads:update": "b4f6a0e8b2729bab4361a6252a86217eac825b6c66f2db8d3dcc0f1803de7b25" });
   });
 
   test("forwards exact scope and partial-handoff authority cues without selecting or claiming work", async () => {
@@ -632,4 +633,61 @@ test("explicit installed skill base survives ignored/hidden roots beyond the hos
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+
+test("static diagnostics help skips its callback and preserves literal input and v1 replay", async () => {
+  const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
+  const diagnostics = mock(async () => { throw new Error("help must not collect"); });
+  const command = createBeadsCommands({ prompt }, diagnostics).find(c => c.name === "oc-beads:diagnostics")!;
+  for (const text of ["help", " HeLp ", "help\n"]) {
+    const input = { sessionID: "help-session", delivery: "queue", prompt: { text, files: [{ uri: "file:///fixture.txt" }] } } as unknown as CommandInvocation;
+    await command.execute(input);
+    const sent = prompt.mock.calls.at(-1)![0] as Record<string, unknown>;
+    const snapshot = (sent.metadata as { ocBeadsWorkflow: { version: number; instructions: string } }).ocBeadsWorkflow;
+    expect(snapshot.version).toBe(1);
+    expect(snapshot.instructions).toContain("Beads diagnostics help");
+    expect(snapshot.instructions).toStartWith("Reproduce only the finished Markdown");
+    expect(snapshot.instructions).toContain("\nBEGIN_DIAGNOSTIC_REPORT\n## Beads diagnostics help");
+    expect(snapshot.instructions).toEndWith("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n");
+    expect(snapshot.instructions).toContain("https://github.com/snarkipus/opencode-beads/blob/main/docs/diagnostics.md");
+    expect(sent.files).toBe(input.prompt.files);
+    expect(sent.delivery).toBe(input.delivery);
+    expect(sent.text).toBe(`/oc-beads:diagnostics${text.includes("\n") ? "\n" : " "}${text}`);
+    const persisted = storedUserMessage("help-id", String(sent.text), sent.metadata as StoredUserMessage["metadata"]);
+    const messages = [Message.make({ id: persisted.id, role: "user", content: String(sent.text) })];
+    expandBeadsWorkflowContext(messages, [persisted]);
+    expect(messages[0]!.content[0]).toEqual(Message.text(snapshot.instructions));
+    const once = JSON.stringify(messages);
+    expandBeadsWorkflowContext(messages, [persisted]);
+    expect(JSON.stringify(messages)).toBe(once);
+  }
+  expect(diagnostics).not.toHaveBeenCalled();
+});
+
+
+test("diagnostics captures only a finished delimited report before the unchanged invocation", async () => {
+  const prompt = mock(async (_input: unknown) => ({} as Awaited<ReturnType<Plugin.Context["session"]["prompt"]>>));
+  const report = "## Beads diagnostics — ✅ Healthy\n\nDATE: `1970-01-01T00:00:02.000Z`\n\nVERSION: fixture `2.2.1`\n\nPATH: `/observed/root`\n\n| Check | Status | Value |\n|---|---|---|\n| Workspace | ✅ | Located |";
+  const diagnostics = mock(async () => report);
+  const command = createBeadsCommands({ prompt }, diagnostics).find(command => command.name === "oc-beads:diagnostics")!;
+  const input = { sessionID: "framed", delivery: "queue", prompt: { text: "exact literal\nsecond line", files: [{ uri: "file:///fixture.txt" }] } } as unknown as CommandInvocation;
+  await command.execute(input);
+  const sent = prompt.mock.calls[0]![0] as Record<string, unknown>;
+  const snapshot = (sent.metadata as { ocBeadsWorkflow: { version: number; instructions: string } }).ocBeadsWorkflow;
+  expect(snapshot).toEqual({ version: 1, instructions: `Reproduce only the finished Markdown between BEGIN_DIAGNOSTIC_REPORT and END_DIAGNOSTIC_REPORT. Preserve values, labels, order and Markdown exactly. Do not include the markers or original invocation, infer or reconstruct values, or add diagnoses or commentary.\n\nBEGIN_DIAGNOSTIC_REPORT\n${report}\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n` });
+  expect(sent.text).toBe("/oc-beads:diagnostics\nexact literal\nsecond line");
+  expect(snapshot.instructions).not.toContain("exact literal");
+  expect(sent.files).toBe(input.prompt.files);
+  expect(sent.delivery).toBe(input.delivery);
+  expect(diagnostics).toHaveBeenCalledTimes(1);
+  const oldInstructions = "Original saved report\n\n`/old/.beads`";
+  const old = storedUserMessage("old", "/oc-beads:diagnostics", { ocBeadsWorkflow: { version: 1, instructions: oldInstructions } });
+  const messages = [Message.make({ id: old.id, role: "user", content: old.text })];
+  expandBeadsWorkflowContext(messages, [old]);
+  expect(messages[0]!.content[0]).toEqual(Message.text(oldInstructions));
+  expect(JSON.stringify(messages)).not.toContain("BEGIN_DIAGNOSTIC_REPORT");
+  const once = JSON.stringify(messages);
+  expandBeadsWorkflowContext(messages, [old]);
+  expect(JSON.stringify(messages)).toBe(once);
 });

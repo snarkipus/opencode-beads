@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   MINIMAL_BEADS_POINTER,
+  countManagedBlocks,
   minimizeBeadsInstructions,
   minimizeSystemParts,
 } from "../src/instructions";
@@ -65,3 +66,9 @@ describe("minimizeSystemParts", () => {
   });
 });
 
+
+
+test("counts complete managed blocks separately from unmarked prose", () => {
+  expect(countManagedBlocks([USER_BEFORE, FULL_BLOCK, FULL_BLOCK, MINIMAL_BLOCK, CODEX_BLOCK, USER_AFTER].join("\n"))).toEqual({ full: 2, minimal: 1, codex: 1 });
+  expect(countManagedBlocks("ordinary Beads instructions without markers")).toEqual({ full: 0, minimal: 0, codex: 0 });
+});

@@ -71,7 +71,7 @@ In an initialized project:
 /oc-beads:ready
 ```
 
-Diagnostics confirms what loaded and which capabilities this request actually has. `ready` lists actionable work; listing alone never claims anything. Then ask in plain language, for example:
+Diagnostics shows compact Plugin and Beads check tables; use `/oc-beads:diagnostics details` for bounded evidence and `/oc-beads:diagnostics help` for a static reference without diagnostic collection. See the [diagnostics reference](docs/diagnostics.md) for rows, states and remedies. Collection is local; the normal submitted prompt can still load native full prime. The visible answer is model-mediated. `ready` lists actionable work; listing alone never claims anything. Then ask in plain language, for example:
 
 ```text
 Claim bd-a1b2 and work it to its acceptance criteria. Checkpoint what you learn.

@@ -256,6 +256,7 @@ try {
     const prompts: Array<Record<string, unknown>> = [];
     const storedMessages: StoredSessionMessage[] = [];
     let invoking = false;
+    let diagnosticReads = 0;
     const cleanup = await (plugin!.setup as (ctx: unknown) => Promise<unknown>)({
       app: { name: "OpenCode", version: "2.3.0", channel: "stable" },
       location: { directory: consumerDir, project: { directory: consumerDir } },
@@ -274,14 +275,14 @@ try {
         },
       },
       command: {
-        list: async () => ({ data: [...commands.values()].map(({ name, description }) => ({ name, description })) }),
+        list: async () => { diagnosticReads++; return { data: [...commands.values()].map(({ name, description }) => ({ name, description })) }; },
         transform: async (callback: (editor: { add(definition: CommandDefinition): void }) => void) => {
           callback({ add: (definition) => commands.set(definition.name, definition) });
           return own("command");
         },
       },
       skill: {
-        list: async () => ({ data: [...skills.values()] }),
+        list: async () => { diagnosticReads++; return { data: [...skills.values()] }; },
         transform: async (callback: (editor: unknown) => void) => {
           callback({ list: () => [...skills.values()], add: (skill: { id: string; name: string; content: string; path: string }) => skills.set(skill.id, skill) });
           return own("skill");
@@ -296,7 +297,7 @@ try {
         },
       },
       session: {
-        get: async () => ({ location: { directory: consumerDir } }),
+        get: async () => { diagnosticReads++; return { location: { directory: consumerDir } }; },
         context: async () => [...storedMessages],
         prompt: async (input: Record<string, unknown>) => {
           if (!invoking) throw new Error("Setup must not submit a prompt");
@@ -335,7 +336,7 @@ try {
     for (const definition of commands.values()) {
       if (typeof definition.execute !== "function" || !definition.description) throw new Error(`Missing native body: ${definition.name}`);
       await definition.execute(invocation);
-      const submitted = prompts.at(-1);
+      let submitted = prompts.at(-1);
       if (!submitted || typeof submitted.text !== "string" || !submitted.text.includes(invocation.prompt.text)
         || submitted.sessionID !== invocation.sessionID || submitted.delivery !== invocation.delivery
         || submitted.files !== invocation.prompt.files || submitted.agents !== invocation.prompt.agents || submitted.skills !== invocation.prompt.skills) {
@@ -343,11 +344,22 @@ try {
       }
       if (definition.name === "oc-beads:diagnostics") {
         if (submitted.text !== `/${definition.name} ${invocation.prompt.text}`) throw new Error("Packed diagnostics history is not compact");
+        const normal = (submitted.metadata as {ocBeadsWorkflow: {instructions: string}}).ocBeadsWorkflow.instructions;
+        if (!normal.includes("**Plugin**") || normal.includes("Details: ") || normal.includes("Limits:")) throw new Error("Packed diagnostics normal presentation differs");
+        const normalReport = normal.split("\nBEGIN_DIAGNOSTIC_REPORT\n")[1]?.split("\nEND_DIAGNOSTIC_REPORT\n")[0];
+        if (!normalReport?.startsWith("## Beads diagnostics — ") || !normalReport.includes(`\n\nVERSION: ${manifest.name} \`${manifest.version}\``)
+          || !/\n\nDATE: `[^`]+`\n\nVERSION:/.test(normalReport) || !normalReport.includes("\n\nPATH: ")
+          || normalReport.includes(invocation.prompt.text) || !normal.endsWith("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n")) throw new Error("Packed diagnostic header/framing differs");
+        await definition.execute({ ...invocation, prompt: { ...invocation.prompt, text: "details" } });
+        submitted = prompts.at(-1)!;
+        if (submitted.text !== "/oc-beads:diagnostics details" || submitted.files !== invocation.prompt.files || submitted.delivery !== invocation.delivery) throw new Error("Packed diagnostics details input differs");
         const metadata = submitted.metadata as {ocBeadsWorkflow: {version: number; instructions: string}};
         const snapshot = metadata?.ocBeadsWorkflow;
         if (!snapshot || snapshot.version !== 1) throw new Error("Packed diagnostics lost its snapshot");
-        const status = JSON.parse(snapshot.instructions.split("\n")[1]!);
+        const status = JSON.parse(snapshot.instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
         if (status.plugin?.name !== manifest.name || status.plugin?.version !== manifest.version) throw new Error("Packed diagnostics did not identify the loaded package");
+        if (!snapshot.instructions.includes(`PATH: \`${status.guard?.workspace?.repoRoot ?? "not observed"}\``)
+          || !snapshot.instructions.endsWith("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n")) throw new Error("Packed diagnostics did not preserve native root and framing");
         const stored = JSON.stringify(submitted);
         for (const kind of ["context", "compaction"]) {
           const id = `packed-diagnostics-${kind}`;
@@ -367,6 +379,29 @@ try {
           || status.typedRegistration !== "registered: beads namespace, code-mode-only") {
           throw new Error("Packed diagnostics did not report observed registration and qualification limits");
         }
+        const beforeHelp = diagnosticReads;
+        await definition.execute({ ...invocation, prompt: { ...invocation.prompt, text: " HeLp " } });
+        const helpSubmission = prompts.at(-1)!;
+        const helpSnapshot = (helpSubmission.metadata as { ocBeadsWorkflow: { version: number; instructions: string } }).ocBeadsWorkflow;
+        if (diagnosticReads !== beforeHelp || helpSubmission.text !== "/oc-beads:diagnostics  HeLp "
+          || helpSubmission.files !== invocation.prompt.files || helpSubmission.delivery !== invocation.delivery
+          || helpSnapshot.version !== 1 || !helpSnapshot.instructions.includes("Beads diagnostics help")
+          || !helpSnapshot.instructions.includes("https://github.com/snarkipus/opencode-beads/blob/main/docs/diagnostics.md")
+          || helpSnapshot.instructions.includes("Details: ")
+          || !helpSnapshot.instructions.includes("\nBEGIN_DIAGNOSTIC_REPORT\n## Beads diagnostics help")
+          || !helpSnapshot.instructions.endsWith("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n")) throw new Error("Packed static help collected or changed input/snapshot");
+        const persistedHelp = JSON.stringify(helpSubmission);
+        for (const kind of ["context", "compaction"]) {
+          const id = `packed-help-${kind}`;
+          storedMessages.splice(0, storedMessages.length, storedUserMessage(id, String(helpSubmission.text), helpSubmission.metadata as StoredUserMessage["metadata"]));
+          const event = {sessionID: invocation.sessionID, agent: "build", system: [], messages: [projectedUserMessage(id, String(helpSubmission.text))], tools: {}, options: {}} as unknown as SessionContext;
+          await requestHooks.get(kind)!(event);
+          if (event.messages[0]?.content[0]?.type !== "text" || event.messages[0].content[0].text !== helpSnapshot.instructions) throw new Error(`Packed help replay changed: ${kind}`);
+          const once = JSON.stringify(event.messages);
+          await requestHooks.get(kind)!(event);
+          if (JSON.stringify(event.messages) !== once) throw new Error("Packed help replay duplicates");
+        }
+        if (JSON.stringify(helpSubmission) !== persistedHelp) throw new Error("Packed help mutated persisted input");
       } else {
         if (submitted.text !== `/${definition.name} ${invocation.prompt.text}`) throw new Error(`Packed workflow history is not compact: ${definition.name}`);
         const metadata = submitted.metadata as { ocBeadsWorkflow?: { version: number; instructions: string } };
@@ -396,7 +431,7 @@ try {
         if (requestHooks.has("title") || requestHooks.has("generate")) throw new Error("Packed workflow expanded auxiliary context");
       }
     }
-    if (prompts.length !== commands.size) throw new Error("Packed native commands did not each submit one prompt");
+    if (prompts.length !== commands.size + 2) throw new Error("Packed native invocations did not each submit one prompt (including explicit diagnostics details and help)");
     for (const stem of Object.keys(workflows.WORKFLOWS)) {
       for (const text of ["", "explain only", "  ", "first line\r\n  second line\r\n"]) {
         await commands.get(`oc-beads:${stem}`)!.execute({ ...invocation, prompt: { ...invocation.prompt, text } });
