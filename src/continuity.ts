@@ -220,6 +220,7 @@ function normalize(operation: Operation, d: Data, stdout: string, actor: string)
     case "update":
       accepted = Object.entries(d.set as Data).every(([key, value]) => {
         if (key === "addLabels" || key === "removeLabels") {
+          if (key === "removeLabels" && !Object.hasOwn(row, "labels")) return true;
           if (!Array.isArray(row.labels)) return false;
           const labels = row.labels;
           return (value as string[]).every(label => key === "addLabels" ? labels.includes(label) : !labels.includes(label));
