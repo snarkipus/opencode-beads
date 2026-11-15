@@ -165,6 +165,7 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
       const membership = count === undefined ? (missing ? "" : "expected names present") : `${count - missing}/${count}`;
       const value = [membership, missing ? `${missing} missing` : "", overrides ? `${overrides} changed` : ""].filter(Boolean).join(" · ");
       pluginRows.push(["Commands", missing || overrides ? 1 : 0, missing || overrides ? value : count === undefined ? membership : `${membership} present`]);
+      if (missing || overrides) actions.push("Review command customization and rerun diagnostics.");
     }
   }
   const shared = guidance?.sharedSkill === "missing" ? "absent" : guidance?.sharedSkill ?? "not observed";

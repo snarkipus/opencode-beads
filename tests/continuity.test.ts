@@ -84,6 +84,28 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
     f.output(JSON.stringify(c.name === "memories" ? { schema_version: 2 } : {}));
     expect((await f.execute(c.name, c.input)).output.status).toBe(["find", "get", "edges", "memories", "recall"].includes(c.name) ? "failed" : "uncertain");
   });
+  test("last-label removal acknowledges the native omitted-empty response only when all requested effects match", async () => {
+    // Saved stdout from bd 1.3.4 after removing the fixture's last label.
+    const native = { id: "confirm-3dz", title: "Last label fixture", status: "open", priority: 2, issue_type: "task", created_at: "2026-11-15T02:32:57Z", created_by: "codex:review-confirm", updated_at: "2026-11-15T02:32:57Z" };
+    const cases = [
+      { row: native, set: { removeLabels: ["last"] }, status: "acknowledged" },
+      { row: { ...native, labels: [] }, set: { removeLabels: ["last"] }, status: "acknowledged" },
+      { row: native, set: { removeLabels: ["last"], status: "open" }, status: "acknowledged" },
+      { row: native, set: { removeLabels: ["last"], status: "blocked" }, status: "uncertain" },
+      { row: native, set: { addLabels: ["new"] }, status: "uncertain" },
+      { row: { ...native, labels: null }, set: { removeLabels: ["last"] }, status: "uncertain" },
+      { row: { ...native, labels: "bad" }, set: { removeLabels: ["last"] }, status: "uncertain" },
+      { row: { ...native, labels: ["last"] }, set: { removeLabels: ["last"] }, status: "uncertain" },
+      { row: { ...native, id: "wrong" }, set: { removeLabels: ["last"] }, status: "uncertain" },
+    ];
+    for (const c of cases) {
+      const f = fixture(); f.output(JSON.stringify([c.row]));
+      const result = await f.execute("update", { id: native.id, set: c.set });
+      expect(result.output.status).toBe(c.status);
+      expect(f.acknowledged).toHaveBeenCalledWith("session-1", expect.objectContaining({ status: c.status }));
+      expect(f.bd.mock.calls.filter(([, args]) => args[0] === "update")).toHaveLength(1);
+    }
+  });
   test("batch get preserves per-ID failures; rechecks before the next child spawn", async () => {
     const f = fixture();
     f.bd.mockImplementation(async (_cwd, args) => {

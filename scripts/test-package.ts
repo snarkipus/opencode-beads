@@ -375,7 +375,7 @@ try {
         if (JSON.stringify(submitted) !== stored) throw new Error("Packed diagnostics mutated persisted input");
         if (status.commands.registration !== "registered" || status.commands.lookup !== "available"
           || !status.commands.ownership.includes("identical-description") || status.liveQualification !== "not measured by diagnostics; see release acceptance evidence"
-          || status.typedContinuity !== "enabled: qualified beta registration"
+          || status.typedContinuity !== "enabled: qualified registration"
           || status.typedRegistration !== "registered: beads namespace, code-mode-only") {
           throw new Error("Packed diagnostics did not report observed registration and qualification limits");
         }

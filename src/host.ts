@@ -38,7 +38,7 @@ export interface HostDependencies {
   diagnosticIntervalMs?: number;
   now?: () => number;
   retryMs?: number;
-  /** Enable the accepted code-mode registration; public beta entrypoint supplies true. Tests may omit it. */
+  /** Enable the accepted code-mode registration; public entrypoint supplies true. Tests may omit it. */
   continuityQualified?: boolean;
   /** Test overrides for the accepted adapter dependencies; public setup uses production defaults. */
   continuity?: ContinuityDependencies;
@@ -91,7 +91,7 @@ export async function setupBeads(
   if (!isSupportedOpenCodeVersion(hostVersion)) {
     try {
       warn(
-        `[opencode-beads] unsupported-host OpenCode ${hostVersion}; supported beta/next range is ${SUPPORTED_OPENCODE_RANGE}. No Beads agents or hooks were registered.`
+        `[opencode-beads] unsupported-host OpenCode ${hostVersion}; supported range is ${SUPPORTED_OPENCODE_RANGE}. No Beads agents or hooks were registered.`
       );
     } catch {
       // Host-version diagnostics never affect plugin loading.
@@ -228,7 +228,7 @@ export async function setupBeads(
     }
 
     function beginWorkflowSnapshotRead(sessionID: string): symbol {
-      const generation = Symbol(sessionID);
+      const generation = workflowSnapshotReads.get(sessionID) ?? Symbol(sessionID);
       workflowSnapshotReads.set(sessionID, generation);
       return generation;
     }
@@ -254,8 +254,6 @@ export async function setupBeads(
         }
         reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
         return true;
-      } finally {
-        if (workflowSnapshotReads.get(event.sessionID) === generation) workflowSnapshotReads.delete(event.sessionID);
       }
     }
 
@@ -344,7 +342,7 @@ export async function setupBeads(
             ownership: "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
           },
           skill: { failure: skillFailure, effective: effectiveSkills, collision: skillCollision },
-          typedContinuity: deps.continuityQualified === true ? "enabled: qualified beta registration" : "disabled: registration not requested",
+          typedContinuity: deps.continuityQualified === true ? "enabled: qualified registration" : "disabled: registration not requested",
           typedRegistration,
           requestCapability: observedRequest ?? "unknown: no actual request observation",
           leafAvailability: observedRequest?.capabilities.direct === true
@@ -395,7 +393,7 @@ export async function setupBeads(
       }
     }
 
-    // The public beta entrypoint enables this path; registration still requires native interfaces.
+    // The public entrypoint enables this path; registration still requires native interfaces.
     if (deps.continuityQualified === true && ctx.tool && ctx.permission && ctx.session.get) {
       registrations.push(await ctx.tool.transform((editor) => {
         if (abort.signal.aborted) return;
@@ -435,11 +433,9 @@ export async function setupBeads(
           return;
         }
       } else {
-        workflowSnapshotReads.delete(event.sessionID);
         reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
       }
       if (ctx.session.get && !(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
-      else if (!ctx.session.get && workflowSnapshotReads.get(event.sessionID) === snapshotGeneration) workflowSnapshotReads.delete(event.sessionID);
       if (abort.signal.aborted) return;
       const knownTools = event.tools && typeof event.tools === "object";
       const capabilities: RequestCapabilities = knownTools ? {
@@ -499,7 +495,6 @@ export async function setupBeads(
         }
         if (!(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
       } else {
-        workflowSnapshotReads.delete(event.sessionID);
         reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
       }
       if (abort.signal.aborted) return;

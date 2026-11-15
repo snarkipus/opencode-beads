@@ -1099,6 +1099,36 @@ describe("owned workflow registration", () => {
     }
   });
 
+  test("overlapping snapshot reads share a lifecycle while actual invalidations reject late results", async () => {
+    for (const seam of ["get", "context"] as const) for (const action of ["context", "compaction", "session.moved", "session.deleted", "session.forked", "unload"] as const) {
+      const f = fakeContext(); commandFixture(f);
+      const stored = storedUserMessage("overlap", "/oc-beads:show fixture", { ocBeadsWorkflow: { version: 1, instructions: "SAVED OVERLAP" } });
+      Object.assign(f.ctx.session, { context: async () => [stored] });
+      const cleanup = await setupBeads(f.ctx, { warn: () => {}, runtime: { guard: async () => ({ kind: "ready", version: "1.3.4", workspace: { path: "/project/.beads" } }), prime: async () => "PRIME FIXTURE" } });
+      const event = (): ContextEvent => ({ sessionID: "s1", agent: "build", system: [], messages: [Message.make({ id: "overlap", role: "user", content: stored.text })] });
+      await f.hooks.get("context")!(event());
+      const original = f.ctx.session[seam]!;
+      let release: (value: never) => void = () => {};
+      let calls = 0;
+      Object.assign(f.ctx.session, { [seam]: async (input: never) => ++calls === 1 ? new Promise(resolve => { release = resolve; }) : original(input) });
+      const firstKind = action === "context" ? "compaction" : "context";
+      const first = event(); const pending = f.hooks.get(firstKind)!(first);
+      await settle();
+      if (action === "context" || action === "compaction") {
+        const second = event(); await f.hooks.get(action)!(second);
+        expect(JSON.stringify(second.messages)).toContain("SAVED OVERLAP");
+        expect(JSON.stringify(second.system)).toContain(action === "context" ? "<beads-context" : "<beads-compaction>");
+      } else if (action === "unload") await cleanup();
+      else { f.events.push({ type: action, data: { sessionID: "s1" } }); await settle(); }
+      release(await original({ sessionID: "s1" } as never) as never); await pending;
+      const valid = action === "context" || action === "compaction";
+      expect(JSON.stringify(first.messages).includes("SAVED OVERLAP")).toBe(valid);
+      if (valid) expect(JSON.stringify(first.system)).toContain(firstKind === "context" ? "<beads-context" : "<beads-compaction>");
+      else if (action !== "unload") expect(JSON.stringify(first.system)).toContain("Saved Beads workflow instructions or diagnostics are unavailable");
+      await cleanup();
+    }
+  });
+
   test("discards a late native snapshot after session generation changes", async () => {
     const f = fakeContext();
     const c = commandFixture(f);
@@ -1795,6 +1825,20 @@ function presentationFixture() {
     requestInstructions: { at: 1000, full: 1, minimal: 0, codex: 1, replaced: 1, retained: 1 }, persistence: "uncertain: no final-write guarantee",
   };
 }
+
+test("command observations suggest reviewing customization only for complete missing or changed membership", () => {
+  const ready = presentationFixture();
+  const hint = "Review command customization and rerun diagnostics.";
+  const cases = [
+    { commands: { ...ready.commands, missing: ["oc-beads:show"] }, expected: true },
+    { commands: { ...ready.commands, mismatches: [{ name: "oc-beads:show" }] }, expected: true },
+    { commands: ready.commands, expected: false },
+    { commands: { ...ready.commands, lookup: "failed", missing: ["oc-beads:show"] }, expected: false },
+    { commands: { ...ready.commands, membershipTruncated: true, missing: ["oc-beads:show"] }, expected: false },
+    { commands: { ...ready.commands, missing: undefined }, expected: false },
+  ];
+  for (const c of cases) expect(renderHealthReport({ ...ready, commands: c.commands }, 2000).includes(hint)).toBe(c.expected);
+});
 
 test("normal diagnostics uses compact tables and assessed severity with literal coverage", () => {
   const ready = presentationFixture();

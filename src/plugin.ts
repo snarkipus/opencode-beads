@@ -3,7 +3,7 @@
 import type { Plugin } from "@opencode/plugin";
 import { setupBeads } from "./host";
 
-// The prerelease artifact opts into the accepted code-mode registration.
+// The public entrypoint opts into the accepted code-mode registration.
 // A plain object satisfies Plugin.define's identity contract without a runtime import.
 const BeadsPlugin: Plugin.Plugin = {
   id: "opencode-beads",
