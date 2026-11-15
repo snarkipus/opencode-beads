@@ -153,5 +153,5 @@ it does not establish connectivity. Details contains bounded observations and
 finding explanations, not raw prime, memories, instruction bodies or configuration.
 
 For intended behavior see [Read-only native diagnostics](../openspec/specs/workflow-access/spec.md#requirement-read-only-native-diagnostics)
-and the active [diagnostics change](../openspec/changes/add-integrated-beads-diagnostics/specs/workflow-access/spec.md).
+and the [accepted diagnostics change](../openspec/changes/archive/2026-11-15-add-integrated-beads-diagnostics/specs/workflow-access/spec.md).
 For native evidence boundaries see the [Beads artifact policy](beads-artifact-policy.md).

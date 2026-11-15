@@ -1,6 +1,6 @@
 # Tasks
 
-This is implementation scope, not dispatch authority or live status. Beads record `opencode-beads-aoy` is the sole owner of task IDs **1.1, 2.1, 2.2, 2.3 and 3.1**. This static scope mapping was created after strict package validation. Live assignment, gates and acceptance live in Beads. No task has been executed by drafting this package.
+This archived checklist records accepted implementation scope. All task IDs were independently accepted before archival; executor-facing dispatch and unchecked-marker instructions below describe the historical workflow, not pending work. Beads record `opencode-beads-aoy` owns task IDs **1.1, 2.1, 2.2, 2.3 and 3.1**; subsequent owners are mapped in their sections. Live execution status remains in Beads.
 
 ## Apply-wide proportionality boundary
 
