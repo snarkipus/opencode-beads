@@ -369,7 +369,7 @@ describe("setupBeads", () => {
     Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
     const cleanup = await setupBeads(f.ctx, { continuityQualified: true, runtime: { guard: async () => ({ kind: "ready" }), prime }, continuity: { realpath: async p => p, bd: async (_cwd, args) => args[0] === "version" ? "1.3.1" : args[0] === "context" ? '{"beads_dir":"/project/.beads"}' : '[{"id":"task-1","notes":"evidence"}]' } });
     await f.request("s1", "build");
-    await t.after({ ...invocation("s1", "build"), tool: "shell", input: {}, status: "error", error: new ToolError({ message: "test failed" }) });
+    await t.after({ ...invocation("s1", "build"), ...{ codemode: false }, tool: "shell", input: {}, status: "error", error: new ToolError({ message: "test failed" }) });
     expect(await f.request("s1", "build")).toHaveLength(1);
     expect(prime).toHaveBeenCalledTimes(1);
     await t.tools.find(tool => tool.name === "note")!.execute({ id: "task-1", text: "evidence" }, invocation("s1", "build"));
@@ -771,7 +771,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     const child = invocation("child", "beads-task-agent");
     const handoff = `Task fixture-1 only; actor ${executorActor(child)}; session child; tried A; failed validation; because B; reference task:fixture-1; candidate fixture-rev; blocker acceptance; next authorized action C; partial.`;
     const input = { agent: "beads-task-agent", description: "bounded fixture", prompt: handoff };
-    const base = { tool: "subagent", sessionID: parent.sessionID, agent: parent.agent, messageID: parent.messageID, id: parent.id, input };
+    const base = { tool: "subagent", codemode: false, sessionID: parent.sessionID, agent: parent.agent, messageID: parent.messageID, id: parent.id, input };
     // Exercise the 2.3 launch handle and error boundary alongside earlier result
     // forms; execute.after has no status="cancelled".
     const event: ToolAfterEvent = outcome === "failed" || outcome === "cancelled"
@@ -811,7 +811,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     f.events.push({ type: "session.execution.interrupted", data: { sessionID: "parent", reason: "user" } });
     await settle();
     const context = invocation("parent", "build");
-    const event: ToolAfterEvent = { tool: "subagent", sessionID: context.sessionID, agent: context.agent, messageID: context.messageID, id: context.id,
+    const event: ToolAfterEvent = { tool: "subagent", ...{ codemode: false }, sessionID: context.sessionID, agent: context.agent, messageID: context.messageID, id: context.id,
       input: { agent: "beads-task-agent", prompt: "exact fixture-1" }, status: "completed",
       result: { output: { sessionID: "child", status: "completed", output: "late partial evidence" }, metadata: { sessionID: "child", status: "completed" } },
     };
