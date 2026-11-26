@@ -18,11 +18,11 @@ The installed `bd` CLI stays authoritative for issues, project initialization, s
 
 ## Supported versions
 
-Version **2.4.0** admits stable OpenCode 2.3.x and exact OpenCode 2.4.1. Other 2.4.x hosts are not admitted.
+Version **2.4.1** admits stable OpenCode 2.3.x and exact OpenCode 2.4.1 and 2.4.2. Other 2.4.x hosts are not admitted.
 
 | Component | Supported | Evidence |
 | --- | --- | --- |
-| OpenCode | `>=2.3.0 <2.4` or `2.4.1` | Bounded native qualification on exact [2.3.0](docs/opencode-23-qualification-xwq.md) and [2.4.1](docs/opencode-241-qualification.md) |
+| OpenCode | `>=2.3.0 <2.4`, `2.4.1`, or `2.4.2` | Bounded native qualification on exact [2.3.0](docs/opencode-23-qualification-xwq.md), [2.4.1](docs/opencode-241-qualification.md), and [2.4.2](docs/opencode-242-qualification.md) |
 | `bd` CLI | 1.3.1 through 1.x | 1.3.4 contract baseline |
 
 The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includes real delegation, report freshness and Code Mode reads. Repeated idle reports with outstanding work and cancellation during real `bd` execution were deferred and remain unexecuted. A compatible range is admission, not proof that every future patch was tested. The plugin refuses to register on hosts outside the range. Older hosts: see [Compatibility](docs/user-guide.md#compatibility).
@@ -44,7 +44,7 @@ The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includ
 
    ```json
    {
-     "plugins": ["@snarkipus/opencode-beads@2.4.0"]
+     "plugins": ["@snarkipus/opencode-beads@2.4.1"]
    }
    ```
 
@@ -52,9 +52,9 @@ The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includ
 
 3. Check the install: `opencode debug agents` lists `beads-task-agent`, and `/oc-beads:diagnostics` reports native registration and observed capabilities.
 
-### Upgrading to 2.4.0
+### Upgrading to 2.4.1
 
-Replace the existing plugin pin with `2.4.0` rather than adding another entry. If using OpenCode 2.4, use exact `2.4.1`; no host upgrade is required on stable 2.3.x. Run `/oc-beads:diagnostics` to verify registration and host admission.
+Replace the existing plugin pin with `2.4.1` rather than adding another entry. No host upgrade is required on stable 2.3.x or exact OpenCode 2.4.1; exact OpenCode 2.4.2 is newly admitted. Run `/oc-beads:diagnostics` to verify registration and host admission.
 
 ### Upgrading to 2.3.1
 
