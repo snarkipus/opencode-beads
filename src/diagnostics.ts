@@ -1,6 +1,7 @@
 import { open } from "node:fs/promises";
 import path from "node:path";
 import { countManagedBlocks } from "./instructions";
+import { isSupportedOpenCodeVersion, SUPPORTED_OPENCODE_RANGE } from "./host-admission";
 import type { GuardResult, GuardRuntime } from "./guard";
 
 /** Scoped only to diagnostic subprocesses; ordinary Beads operations retain their environment. */
@@ -149,7 +150,8 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
   const cached = snapshot.contextObservation as { version?: string } | undefined;
   const guidance = snapshot.local as { managedInstructions?: { state?: string; full?: number; minimal?: number; codex?: number }; sharedSkill?: string; witness?: { state?: string; recorded?: string; running?: string } } | undefined;
   const host = typeof snapshot.host === "string" && snapshot.host !== "unknown" ? snapshot.host : undefined;
-  pluginRows.push(["Host", host ? (/^2\.3\.\d+(?:\+.*)?$/.test(host) ? 0 : 2) : null, host ? `OpenCode ${host}${/^2\.3\.\d+(?:\+.*)?$/.test(host) ? "" : " unsupported"}` : "not observed"]);
+  const hostSupported = host !== undefined && isSupportedOpenCodeVersion(host);
+  pluginRows.push(["Host", host === undefined ? null : hostSupported ? 0 : 2, host ? `OpenCode ${host}${hostSupported ? "" : " unsupported"}` : "not observed"]);
   if (commands?.registration === "failed") pluginRows.push(["Commands", 2, "registration failed"]);
   else if (commands?.lookup !== "available") pluginRows.push(["Commands", null, "not observed"]);
   else if (commands.membershipTruncated || (commands.membershipTruncated !== false && commands.truncated)) {
@@ -250,7 +252,7 @@ Only exact trimmed, case-insensitive details or help selects a special view; oth
 
 | Check | Source, values and useful response |
 |---|---|
-| Host | Observed OpenCode version; supported 2.3.x is healthy, unsupported is unhealthy, unknown is neutral. Check the operator's OpenCode version; upgrades are operator-owned. |
+| Host | Observed OpenCode version; admitted versions (${SUPPORTED_OPENCODE_RANGE}) are healthy, unsupported is unhealthy, unknown is neutral. Check the operator's OpenCode version; upgrades are operator-owned. |
 | Commands | Effective command registry vs package definitions: present/expected when membership is complete, missing or changed is mismatch, registration failed is unhealthy, list incomplete or lookup unavailable is neutral. Review overrides, then rerun diagnostics. Matching descriptions do not prove ownership; clipping at our 512-character evidence cap is details-only. |
 | Skill | Packaged oc-beads and effective skill registry plus scoped shared Beads skill readability: active, absent, overridden or unavailable. Packaged load failure is unhealthy, absent/overridden is mismatch; missing shared skill alone is informational. Review configured skill overrides, then rerun diagnostics. |
 | Typed tools | Registration state: Registered, Requested, not registered (unhealthy), Not requested (neutral) or not observed. Registration does not grant operation permissions. Check diagnostics details and actual tool discovery. |

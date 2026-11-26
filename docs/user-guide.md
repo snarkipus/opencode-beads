@@ -166,6 +166,7 @@ Remove the `plugins` entry to unload the plugin. Cleanup aborts owned context/pr
 | OpenCode (2.2.1) | `>=2.3.0 <2.4` | Deterministic/package regression checks; inherits 2.2.0 native baseline |
 | OpenCode (2.3.0) | `>=2.3.0 <2.4` | Inherited native baseline plus integrated diagnostics checks and owner normal-output canaries on exact 2.3.0 |
 | OpenCode (2.3.1) | `>=2.3.0 <2.4` | Inherits the 2.3.0 baseline; focused lifecycle/acknowledgement regressions and package checks |
+| OpenCode (current source) | `>=2.3.0 <2.4` or `2.4.1` | [Exact 2.4.1 bounded native qualification](opencode-241-qualification.md); does not change the published 2.3.1 package |
 | OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |
 | `bd` CLI | 1.3.1 through 1.x | 1.3.4 |
 | Bun (OpenCode host runtime) | >=1.3.14 | 1.4.2 |
@@ -189,7 +190,7 @@ The daily/manual `beads-contract` workflow also has an independent source-compar
 - **A Beads notice instead of context:** Follow the reported CLI minimum or workspace-probe failure. A probe failure is not evidence of a missing store or pending migration; report the actual error without bypassing the check.
 - **Canonical skill missing:** For a new workspace, run `bd init`. For an existing workspace, follow current upstream Beads guidance; this plugin does not install or repair skills.
 - **Task agent asks before committing or pushing:** Intentional; see [Task agent](#task-agent). Approve the command, or set the agent's `permissions` in OpenCode configuration.
-- **Nothing registered:** Check the `[opencode-beads]` warning; the host may be outside `>=2.3.0 <2.4`.
+- **Nothing registered:** Check the `[opencode-beads]` warning for the range supported by the loaded package.
 - **Regular subagent has no context:** Intentional. Delegate Beads work to `beads-task-agent` or run the required `bd` command explicitly.
 - **Behavior changed after upgrade:** Compare `opencode --version`, `bd version`, and `bun --version` with the compatibility table, then inspect [Beads releases](https://github.com/gastownhall/beads/releases) and the [changelog](../CHANGELOG.md).
 

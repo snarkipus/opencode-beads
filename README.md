@@ -18,11 +18,12 @@ The installed `bd` CLI stays authoritative for issues, project initialization, s
 
 ## Supported versions
 
-Version **2.3.1** targets OpenCode 2.3.
+This source admits stable OpenCode 2.3.x and exact 2.4.1. The published
+**2.3.1** package still targets OpenCode 2.3; the 2.4.1 source change is not a release.
 
 | Component | Supported | Evidence |
 | --- | --- | --- |
-| OpenCode | `>=2.3.0 <2.4` | Exact 2.3.0 bounded native qualification |
+| OpenCode | `>=2.3.0 <2.4` or `2.4.1` | Bounded native qualification on exact [2.3.0](docs/opencode-23-qualification-xwq.md) and [2.4.1](docs/opencode-241-qualification.md) |
 | `bd` CLI | 1.3.1 through 1.x | 1.3.4 contract baseline |
 
 The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includes real delegation, report freshness and Code Mode reads. Repeated idle reports with outstanding work and cancellation during real `bd` execution were deferred and remain unexecuted. A compatible range is admission, not proof that every future patch was tested. The plugin refuses to register on hosts outside the range. Older hosts: see [Compatibility](docs/user-guide.md#compatibility).

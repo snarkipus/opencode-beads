@@ -2,6 +2,7 @@ import type { SessionContext } from "@opencode/plugin/promise/session";
 import type { Info } from "@opencode/plugin/promise/tool";
 import { Message } from "@opencode/ai/effect";
 import type { Plugin } from "@opencode/plugin";
+import { SUPPORTED_OPENCODE_RANGE } from "../src/host-admission";
 import { createHash } from "node:crypto";
 import type { CommandDefinition, CommandInvocation } from "@opencode/plugin/promise/command";
 import * as fs from "node:fs/promises";
@@ -137,11 +138,10 @@ try {
   if (manifest.bin !== undefined) {
     throw new Error("Packed package unexpectedly registers a companion CLI");
   }
-  const opencodeRange = ">=2.3.0 <2.4";
   if (
     manifest.dependencies !== undefined ||
     JSON.stringify(manifest.peerDependencies) !==
-      JSON.stringify({ "@opencode/plugin": opencodeRange }) ||
+      JSON.stringify({ "@opencode/plugin": SUPPORTED_OPENCODE_RANGE }) ||
     !manifest.peerDependenciesMeta["@opencode/plugin"]?.optional
   ) {
     throw new Error("Packed package has an unexpected OpenCode dependency contract");

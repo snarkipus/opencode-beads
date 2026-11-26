@@ -369,7 +369,7 @@ describe("setupBeads", () => {
     Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
     const cleanup = await setupBeads(f.ctx, { continuityQualified: true, runtime: { guard: async () => ({ kind: "ready" }), prime }, continuity: { realpath: async p => p, bd: async (_cwd, args) => args[0] === "version" ? "1.3.1" : args[0] === "context" ? '{"beads_dir":"/project/.beads"}' : '[{"id":"task-1","notes":"evidence"}]' } });
     await f.request("s1", "build");
-    await t.after({ ...invocation("s1", "build"), tool: "shell", input: {}, status: "error", error: new ToolError({ message: "test failed" }) });
+    await t.after({ ...invocation("s1", "build"), ...{ codemode: false }, tool: "shell", input: {}, status: "error", error: new ToolError({ message: "test failed" }) });
     expect(await f.request("s1", "build")).toHaveLength(1);
     expect(prime).toHaveBeenCalledTimes(1);
     await t.tools.find(tool => tool.name === "note")!.execute({ id: "task-1", text: "evidence" }, invocation("s1", "build"));
@@ -415,22 +415,24 @@ describe("setupBeads", () => {
     expect(prime).toHaveBeenCalledTimes(1);
     cleanup();
   });
-  test("reports and skips setup for an unsupported OpenCode host", async () => {
-    for (const appVersion of ["2.0.29", "2.1.1", "2.2.5", "2.2.6", "2.2.8", "2.4.0", "3.0.0", "2.3.0-beta.1", "2.3", "unknown"]) {
+  test("host admission and diagnostics agree on unsupported versions", async () => {
+    for (const appVersion of ["2.0.29", "2.1.1", "2.2.5", "2.2.6", "2.2.8", "2.4.0", "2.4.2", "3.0.0", "2.3.0-beta.1", "2.3", "unknown"]) {
       const f = fakeContext({ appVersion });
       const warn = mock(() => {});
 
       const cleanup = await setupBeads(f.ctx, { warn });
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining(`OpenCode ${appVersion}`));
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.3.0 <2.4"));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.3.0 <2.4 || 2.4.1"));
       expect(f.agents.size).toBe(0);
       expect(f.hooks.size).toBe(0);
+      expect(renderHealthReport({ ...presentationFixture(), host: appVersion }, 2000))
+        .toContain(appVersion === "unknown" ? "| Host | — | not observed |" : `| Host | ❌ | OpenCode ${appVersion} unsupported |`);
       cleanup();
     }
   });
 
-  test.each(["2.3.0", "2.3.8"])("admits candidate host %s within the selected 2.3 line", async (appVersion) => {
+  test.each(["2.3.0", "2.3.8", "2.4.1"])("host admission and diagnostics agree on supported version %s", async (appVersion) => {
     const f = fakeContext({ appVersion });
     const cleanup = await setupBeads(f.ctx, {
       runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" },
@@ -438,6 +440,8 @@ describe("setupBeads", () => {
 
     expect([...f.hooks.keys()]).toEqual(["context", "compaction"]);
     expect([...f.agents.keys()]).toEqual(["beads-task-agent"]);
+    expect(renderHealthReport({ ...presentationFixture(), host: appVersion }, 2000))
+      .toContain(`| Host | ✅ | OpenCode ${appVersion} |`);
     cleanup();
   });
 
@@ -771,7 +775,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     const child = invocation("child", "beads-task-agent");
     const handoff = `Task fixture-1 only; actor ${executorActor(child)}; session child; tried A; failed validation; because B; reference task:fixture-1; candidate fixture-rev; blocker acceptance; next authorized action C; partial.`;
     const input = { agent: "beads-task-agent", description: "bounded fixture", prompt: handoff };
-    const base = { tool: "subagent", sessionID: parent.sessionID, agent: parent.agent, messageID: parent.messageID, id: parent.id, input };
+    const base = { tool: "subagent", codemode: false, sessionID: parent.sessionID, agent: parent.agent, messageID: parent.messageID, id: parent.id, input };
     // Exercise the 2.3 launch handle and error boundary alongside earlier result
     // forms; execute.after has no status="cancelled".
     const event: ToolAfterEvent = outcome === "failed" || outcome === "cancelled"
@@ -811,7 +815,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     f.events.push({ type: "session.execution.interrupted", data: { sessionID: "parent", reason: "user" } });
     await settle();
     const context = invocation("parent", "build");
-    const event: ToolAfterEvent = { tool: "subagent", sessionID: context.sessionID, agent: context.agent, messageID: context.messageID, id: context.id,
+    const event: ToolAfterEvent = { tool: "subagent", ...{ codemode: false }, sessionID: context.sessionID, agent: context.agent, messageID: context.messageID, id: context.id,
       input: { agent: "beads-task-agent", prompt: "exact fixture-1" }, status: "completed",
       result: { output: { sessionID: "child", status: "completed", output: "late partial evidence" }, metadata: { sessionID: "child", status: "completed" } },
     };
