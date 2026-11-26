@@ -18,8 +18,7 @@ The installed `bd` CLI stays authoritative for issues, project initialization, s
 
 ## Supported versions
 
-This source admits stable OpenCode 2.3.x and exact 2.4.1. The published
-**2.3.1** package still targets OpenCode 2.3; the 2.4.1 source change is not a release.
+Version **2.4.0** admits stable OpenCode 2.3.x and exact OpenCode 2.4.1. Other 2.4.x hosts are not admitted.
 
 | Component | Supported | Evidence |
 | --- | --- | --- |
@@ -45,13 +44,17 @@ The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includ
 
    ```json
    {
-     "plugins": ["@snarkipus/opencode-beads@2.3.1"]
+     "plugins": ["@snarkipus/opencode-beads@2.4.0"]
    }
    ```
 
    OpenCode reloads configuration automatically. Update the pin explicitly when upgrading. Options such as `luna`, `terra`, `stealth` use the [object form](docs/user-guide.md#plugin-options).
 
 3. Check the install: `opencode debug agents` lists `beads-task-agent`, and `/oc-beads:diagnostics` reports native registration and observed capabilities.
+
+### Upgrading to 2.4.0
+
+Replace the existing plugin pin with `2.4.0` rather than adding another entry. If using OpenCode 2.4, use exact `2.4.1`; no host upgrade is required on stable 2.3.x. Run `/oc-beads:diagnostics` to verify registration and host admission.
 
 ### Upgrading to 2.3.1
 
