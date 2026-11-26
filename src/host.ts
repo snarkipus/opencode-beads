@@ -1,4 +1,5 @@
 import type { Plugin } from "@opencode/plugin";
+import { isSupportedOpenCodeVersion, SUPPORTED_OPENCODE_RANGE } from "./host-admission";
 import type { SessionContext } from "@opencode/plugin/promise/session";
 import packageManifest from "../package.json";
 import { applyBeadsSkill, createBeadsCommands, expandBeadsWorkflowContext, loadBeadsSkill, type SkillLoadDependencies } from "./workflows";
@@ -47,19 +48,10 @@ export interface HostDependencies {
 }
 
 const DEFAULT_DIAGNOSTIC_INTERVAL_MS = 60_000;
-const SUPPORTED_OPENCODE_RANGE = ">=2.3.0 <2.4";
 const DIRECT_BEADS_TOOLS = new Set([
   "beads_find", "beads_get", "beads_edges", "beads_memories", "beads_recall", "beads_claim",
   "beads_note", "beads_update", "beads_close", "beads_create", "beads_remember",
 ]);
-
-function isSupportedOpenCodeVersion(version: string): boolean {
-  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\+[0-9A-Za-z.-]+)?$/.exec(version);
-  if (!match) return false;
-  const major = Number(match[1]);
-  const minor = Number(match[2]);
-  return major === 2 && minor === 3;
-}
 
 function eventSessionID(event: unknown): string | undefined {
   if (typeof event !== "object" || event === null) return undefined;

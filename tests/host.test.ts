@@ -415,22 +415,24 @@ describe("setupBeads", () => {
     expect(prime).toHaveBeenCalledTimes(1);
     cleanup();
   });
-  test("reports and skips setup for an unsupported OpenCode host", async () => {
-    for (const appVersion of ["2.0.29", "2.1.1", "2.2.5", "2.2.6", "2.2.8", "2.4.0", "3.0.0", "2.3.0-beta.1", "2.3", "unknown"]) {
+  test("host admission and diagnostics agree on unsupported versions", async () => {
+    for (const appVersion of ["2.0.29", "2.1.1", "2.2.5", "2.2.6", "2.2.8", "2.4.0", "2.4.2", "3.0.0", "2.3.0-beta.1", "2.3", "unknown"]) {
       const f = fakeContext({ appVersion });
       const warn = mock(() => {});
 
       const cleanup = await setupBeads(f.ctx, { warn });
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining(`OpenCode ${appVersion}`));
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.3.0 <2.4"));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.3.0 <2.4 || 2.4.1"));
       expect(f.agents.size).toBe(0);
       expect(f.hooks.size).toBe(0);
+      expect(renderHealthReport({ ...presentationFixture(), host: appVersion }, 2000))
+        .toContain(appVersion === "unknown" ? "| Host | — | not observed |" : `| Host | ❌ | OpenCode ${appVersion} unsupported |`);
       cleanup();
     }
   });
 
-  test.each(["2.3.0", "2.3.8"])("admits candidate host %s within the selected 2.3 line", async (appVersion) => {
+  test.each(["2.3.0", "2.3.8", "2.4.1"])("host admission and diagnostics agree on supported version %s", async (appVersion) => {
     const f = fakeContext({ appVersion });
     const cleanup = await setupBeads(f.ctx, {
       runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" },
@@ -438,6 +440,8 @@ describe("setupBeads", () => {
 
     expect([...f.hooks.keys()]).toEqual(["context", "compaction"]);
     expect([...f.agents.keys()]).toEqual(["beads-task-agent"]);
+    expect(renderHealthReport({ ...presentationFixture(), host: appVersion }, 2000))
+      .toContain(`| Host | ✅ | OpenCode ${appVersion} |`);
     cleanup();
   });
 

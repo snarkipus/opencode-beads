@@ -140,7 +140,7 @@ Selected workflows SHALL preserve the user's requested execution scope, distingu
 
 ### Requirement: Explicit native availability and fallback
 
-The integration SHALL target exact OpenCode 2.3.0 qualification and `>=2.3.0 <2.4` admission. It SHALL distinguish admission from measured compatibility, preserve existing version pins and refuse unsupported host registration with diagnostics. It SHALL NOT retain a 2.1 compatibility layer or silently migrate installations. Publication remains separately authorized.
+The integration SHALL target bounded qualification on exact OpenCode 2.3.0 and 2.4.1. It SHALL admit stable OpenCode versions matching `>=2.3.0 <2.4 || 2.4.1`, with the same selector for registration and diagnostics. It SHALL distinguish admission from measured compatibility, preserve existing version pins and refuse unsupported host registration with diagnostics. It SHALL NOT retain a 2.1 compatibility layer or silently migrate installations. Publication remains separately authorized.
 
 #### Scenario: A different host version is considered
 

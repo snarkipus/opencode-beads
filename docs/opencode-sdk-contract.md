@@ -11,11 +11,12 @@ to live at this path is preserved as
 
 ## Versions and sources
 
-- Package declarations: optional peer `@opencode/plugin` `>=2.3.0 <2.4`, and
+- Package declarations in this source: optional peer `@opencode/plugin` `>=2.3.0 <2.4 || 2.4.1`, and
   `2.3.0` for development typing only. The only import is
   `import type { Plugin } from "@opencode/plugin"`, so the package installs
   nothing from OpenCode and runs on the host's runtime.
 - Pinned host source for 2.3.0: `anomalyco/opencode` [`a6b15d33daf6ab7d35569f6d711fdb630b9f04e7`](https://github.com/anomalyco/opencode/tree/a6b15d33daf6ab7d35569f6d711fdb630b9f04e7). The [bounded native qualification](opencode-23-qualification-xwq.md) covers exact 2.3.0; repeated idle reports with outstanding work and cancellation during real `bd` execution remain deferred and unexecuted. SDK and fixture checks alone do not establish native behavior.
+- Pinned host source for 2.4.1: `anomalyco/opencode` [`6f0514052a3c859894ad01bb14cc14dda1e44b96`](https://github.com/anomalyco/opencode/tree/6f0514052a3c859894ad01bb14cc14dda1e44b96). The [bounded native qualification](opencode-241-qualification.md) covers exact 2.4.1 only.
 - Earlier host source for 2.2.6: `anomalyco/opencode`
   [`dc2ffcf8bf26f9e669b6aa22b95f50e12be15e06`](https://github.com/anomalyco/opencode/tree/dc2ffcf8bf26f9e669b6aa22b95f50e12be15e06).
   The 2.1→2.2 adaptation rationale is in the archived
@@ -36,6 +37,9 @@ to live at this path is preserved as
   packaged guidance with updated version metadata.
 
 ## Release monitoring
+
+Use the [opt-in native release probe](native-release-probe.md) for host checks;
+model-backed cases are not part of scheduled SDK CI.
 
 The daily/manual [`beads-contract` workflow](../.github/workflows/beads-contract.yml)
 has an independent OpenCode stable-release job alongside the existing Beads checks.
@@ -85,8 +89,9 @@ The package default-exports `{ id: "opencode-beads", setup }` (the shape
 plugin as `<name>/server`, then `<name>`; the package exports both to
 `src/plugin.ts`, and the package smoke test checks both.
 
-`setup` reads `ctx.app.version` and registers nothing outside `>=2.3.0 <2.4`,
-emitting one `[opencode-beads]` warning instead (`src/host.ts`). Governing rule:
+`setup` reads `ctx.app.version` and registers nothing outside `>=2.3.0 <2.4 || 2.4.1`,
+emitting one `[opencode-beads]` warning instead. Diagnostics uses the same selector
+(`src/host-admission.ts`). Governing rule:
 [Explicit native availability and fallback](../openspec/specs/workflow-access/spec.md#requirement-explicit-native-availability-and-fallback).
 
 ## Interface map

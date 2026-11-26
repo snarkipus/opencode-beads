@@ -33,6 +33,7 @@ publication or activation authority.
 - [OpenCode integration reference](opencode-sdk-contract.md): pinned host interfaces and where the adapter uses them.
 - [Beads artifact policy](beads-artifact-policy.md): what is and is not taken from upstream Beads, and the `bd` contract check.
 - [2.2.6 qualification](opencode-22-qualification-5rj2.md): the frozen evidence summary behind the current host support.
+- [2.4.1 qualification](opencode-241-qualification.md): bounded native evidence for exact 2.4.1 and the measured limits.
 
 Dated analyses, reviews and qualification/evaluation records describe their named
 revisions. Read them to trace decisions and evidence, not as current operating
