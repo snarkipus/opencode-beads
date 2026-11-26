@@ -416,14 +416,14 @@ describe("setupBeads", () => {
     cleanup();
   });
   test("host admission and diagnostics agree on unsupported versions", async () => {
-    for (const appVersion of ["2.0.29", "2.1.1", "2.2.5", "2.2.6", "2.2.8", "2.4.0", "2.4.2", "3.0.0", "2.3.0-beta.1", "2.3", "unknown"]) {
+    for (const appVersion of ["2.0.29", "2.1.1", "2.2.5", "2.2.6", "2.2.8", "2.4.0", "2.4.3", "3.0.0", "2.3.0-beta.1", "2.4.2-beta.1", "2.3", "unknown"]) {
       const f = fakeContext({ appVersion });
       const warn = mock(() => {});
 
       const cleanup = await setupBeads(f.ctx, { warn });
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining(`OpenCode ${appVersion}`));
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.3.0 <2.4 || 2.4.1"));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.3.0 <2.4 || 2.4.1 || 2.4.2"));
       expect(f.agents.size).toBe(0);
       expect(f.hooks.size).toBe(0);
       expect(renderHealthReport({ ...presentationFixture(), host: appVersion }, 2000))
@@ -432,7 +432,7 @@ describe("setupBeads", () => {
     }
   });
 
-  test.each(["2.3.0", "2.3.8", "2.4.1"])("host admission and diagnostics agree on supported version %s", async (appVersion) => {
+  test.each(["2.3.0", "2.3.8", "2.4.1", "2.4.2"])("host admission and diagnostics agree on supported version %s", async (appVersion) => {
     const f = fakeContext({ appVersion });
     const cleanup = await setupBeads(f.ctx, {
       runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" },

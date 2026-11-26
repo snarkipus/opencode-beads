@@ -242,11 +242,11 @@ describe("documentation contracts", () => {
   test("keeps the OpenCode reference current and the former ledger historical", () => {
     expect(sdkContract).toContain("# OpenCode integration reference");
     expect(sdkContract).toMatch(/\*\*not a\s+behavioral contract\*\*/);
-    expect(packageManifest.peerDependencies["@opencode/plugin"]).toBe(">=2.3.0 <2.4 || 2.4.1");
-    expect(sdkContract).toContain("`>=2.3.0 <2.4 || 2.4.1`");
+    expect(packageManifest.peerDependencies["@opencode/plugin"]).toBe(">=2.3.0 <2.4 || 2.4.1 || 2.4.2");
+    expect(sdkContract).toContain("`>=2.3.0 <2.4 || 2.4.1 || 2.4.2`");
     expect(packageManifest.peerDependenciesMeta["@opencode/plugin"]?.optional).toBeTrue();
     expect(packageManifest.devDependencies["@opencode/plugin"]).toBe("2.3.0");
-    expect(sdkContract).toContain("`@opencode/plugin` `>=2.3.0 <2.4 || 2.4.1`");
+    expect(sdkContract).toContain("`@opencode/plugin` `>=2.3.0 <2.4 || 2.4.1 || 2.4.2`");
     expect(sdkContract).toContain("`2.3.0` for development typing only");
     expect(sdkContract).toContain("`<name>/server`, then `<name>`");
     expect(sdkContract).toContain("`session.compaction.ended`");
@@ -278,13 +278,13 @@ describe("documentation contracts", () => {
     expect(userGuide).toContain("| OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
     expect(userGuide).toContain("| OpenCode (2.0.0) | `>=2.2.6 <2.3` | 2.2.6 (accepted native and genuine-model qualification) |");
     expect(userGuide).toContain("| OpenCode (2.3.1) | `>=2.3.0 <2.4` |");
-    expect(userGuide).toContain(`| OpenCode (${packageManifest.version}) | \`>=2.3.0 <2.4\` or \`2.4.1\` |`);
+    expect(userGuide).toContain(`| OpenCode (${packageManifest.version}) | \`>=2.3.0 <2.4\`, \`2.4.1\`, or \`2.4.2\` |`);
     expect(userGuide).toContain("| OpenCode (2.1.0 released) | `>=2.2.6 <2.3` |");
     expect(userGuide).toContain("| OpenCode (2.2.0) | `>=2.3.0 <2.4` | Exact 2.3.0 bounded native qualification |");
     expect(userGuide).toContain("Deterministic/package regression checks; inherits 2.2.0 native baseline");
     expect(userGuide).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
     expect(userGuide).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.4 |");
-    expect(readme).toContain("| OpenCode | `>=2.3.0 <2.4` or `2.4.1` |");
+    expect(readme).toContain("| OpenCode | `>=2.3.0 <2.4`, `2.4.1`, or `2.4.2` |");
     expect(readme).toContain("bounded native qualification");
     for (const document of [readme, userGuide, sdkContract]) {
       expect(document).toContain("opencode-23-qualification-xwq.md");

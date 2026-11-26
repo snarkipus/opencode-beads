@@ -18,6 +18,16 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [2.4.1]
+
+### Added
+
+- Admit exact OpenCode 2.4.2 alongside stable 2.3.x and exact 2.4.1. Other 2.4.x hosts remain unadmitted.
+
+### Changed
+
+- Record OpenCode 2.4.2 as the reviewed monitor baseline after exact SDK checks and a six-case native canary.
+
 ## [2.4.0]
 
 ### Added
@@ -439,7 +449,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.4.0...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.4.1...HEAD
+[2.4.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.4.1
 [2.4.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.4.0
 [2.3.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.3.1
 [2.3.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.3.0
