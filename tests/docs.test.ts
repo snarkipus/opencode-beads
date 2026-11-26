@@ -277,8 +277,8 @@ describe("documentation contracts", () => {
   test("separates accepted base compatibility from the representative Terra qualification", () => {
     expect(userGuide).toContain("| OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
     expect(userGuide).toContain("| OpenCode (2.0.0) | `>=2.2.6 <2.3` | 2.2.6 (accepted native and genuine-model qualification) |");
-    expect(userGuide).toContain(`| OpenCode (${packageManifest.version}) | \`>=2.3.0 <2.4\` |`);
-    expect(userGuide).toContain("| OpenCode (current source) | `>=2.3.0 <2.4` or `2.4.1` |");
+    expect(userGuide).toContain("| OpenCode (2.3.1) | `>=2.3.0 <2.4` |");
+    expect(userGuide).toContain(`| OpenCode (${packageManifest.version}) | \`>=2.3.0 <2.4\` or \`2.4.1\` |`);
     expect(userGuide).toContain("| OpenCode (2.1.0 released) | `>=2.2.6 <2.3` |");
     expect(userGuide).toContain("| OpenCode (2.2.0) | `>=2.3.0 <2.4` | Exact 2.3.0 bounded native qualification |");
     expect(userGuide).toContain("Deterministic/package regression checks; inherits 2.2.0 native baseline");

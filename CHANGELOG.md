@@ -18,6 +18,21 @@ and this project attempts to adhere to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [2.4.0]
+
+### Added
+
+- Admit exact OpenCode 2.4.1 alongside stable 2.3.x. Other 2.4.x hosts remain unadmitted.
+- Add an opt-in native release probe covering registration, typed reads, permission denial, Stop, session reopen and subagent handoff.
+
+### Fixed
+
+- Use the same host admission check for registration and diagnostics.
+
+### Changed
+
+- Record OpenCode 2.4.1 as the reviewed monitor baseline and update tool-event fixtures for its SDK.
+
 ## [2.3.1]
 
 ### Fixed
@@ -424,7 +439,8 @@ Documentation-only release; the plugin code is unchanged from 1.0.0. It updates 
 
 - Josh Thomas <josh@joshthomas.dev> (maintainer)
 
-[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.3.1...HEAD
+[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.4.0
 [2.3.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.3.1
 [2.3.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.3.0
 [2.2.1]: https://github.com/snarkipus/opencode-beads/releases/tag/v2.2.1
