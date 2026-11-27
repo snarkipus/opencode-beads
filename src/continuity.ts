@@ -191,6 +191,34 @@ function list(data: Data, key: string): string[] {
     throw new Error(`Invalid ${key}`);
   return value.map((v) => stringField({ [key]: v }, key, true));
 }
+/**
+ * Validate view-specific filters in error precedence order, before permission is requested.
+ *
+ * @param d - Operation input after unknown keys and undefined values have been handled.
+ */
+function validateFind(d: Data): void {
+  if (!["ready", "list", "search", "blocked"].includes(String(d.view))) throw new Error("Invalid view");
+  if (d.limit !== undefined && (!Number.isInteger(d.limit) || Number(d.limit) < 1 || Number(d.limit) > 50))
+    throw new Error("Invalid limit");
+  if (d.view === "search") stringField(d, "text");
+  else if (d.text !== undefined) throw new Error("text requires search");
+  if (d.parent !== undefined) {
+    stringField(d, "parent", true);
+    if (d.view === "search") throw new Error("parent unsupported for search");
+  }
+  if (d.assignee !== undefined) {
+    stringField(d, "assignee");
+    if (d.view === "blocked") throw new Error("assignee unsupported for blocked");
+  }
+  if (
+    d.status !== undefined &&
+    (!["list", "search"].includes(String(d.view)) ||
+      !["open", "in_progress", "blocked", "deferred", "closed"].includes(String(d.status)))
+  )
+    throw new Error("Invalid status filter");
+  if (d.labels !== undefined) list(d, "labels");
+}
+
 function validate(operation: Operation, input: unknown): Data {
   const allowed: Record<Operation, string[]> = {
     find: ["view", "parent", "assignee", "status", "labels", "text", "limit"],
@@ -217,28 +245,7 @@ function validate(operation: Operation, input: unknown): Data {
     // One qualified CLI --type per operation; arbitrary dependency types remain CLI-owned.
     if (d.types !== undefined && list(d, "types").length !== 1) throw new Error("Expected one dependency type");
   }
-  if (operation === "find") {
-    if (!["ready", "list", "search", "blocked"].includes(String(d.view))) throw new Error("Invalid view");
-    if (d.limit !== undefined && (!Number.isInteger(d.limit) || Number(d.limit) < 1 || Number(d.limit) > 50))
-      throw new Error("Invalid limit");
-    if (d.view === "search") stringField(d, "text");
-    else if (d.text !== undefined) throw new Error("text requires search");
-    if (d.parent !== undefined) {
-      stringField(d, "parent", true);
-      if (d.view === "search") throw new Error("parent unsupported for search");
-    }
-    if (d.assignee !== undefined) {
-      stringField(d, "assignee");
-      if (d.view === "blocked") throw new Error("assignee unsupported for blocked");
-    }
-    if (
-      d.status !== undefined &&
-      (!["list", "search"].includes(String(d.view)) ||
-        !["open", "in_progress", "blocked", "deferred", "closed"].includes(String(d.status)))
-    )
-      throw new Error("Invalid status filter");
-    if (d.labels !== undefined) list(d, "labels");
-  }
+  if (operation === "find") validateFind(d);
   if (operation === "update") {
     const set = fields(d.set, ["status", "priority", "addLabels", "removeLabels"]);
     if (!Object.values(set).some((v) => v !== undefined)) throw new Error("Empty update");

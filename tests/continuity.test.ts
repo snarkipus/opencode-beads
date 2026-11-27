@@ -419,6 +419,13 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
       await expect(f.execute(name, input)).rejects.toThrow();
     expect(f.permission).not.toHaveBeenCalled();
   });
+  test("find reports the first invalid filter before requesting permission", async () => {
+    const f = fixture();
+    await expect(f.execute("find", { view: "invalid", limit: 0 })).rejects.toThrow("Invalid view");
+    await expect(f.execute("find", { view: "search", limit: 0, parent: "epic" })).rejects.toThrow("Invalid limit");
+    await expect(f.execute("find", { view: "search", parent: "epic" })).rejects.toThrow("Invalid text");
+    expect(f.permission).not.toHaveBeenCalled();
+  });
   test("derives stable audit attribution from actual session and executor, independently of Git identity", () => {
     expect(executorActor(invocation())).toBe("opencode:restricted-worker:960defe988fd");
     expect(executorActor({ ...invocation(), id: "another-call" } as unknown as ToolContext)).toBe(
