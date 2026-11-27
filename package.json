@@ -56,7 +56,7 @@
     "test:bd-contract": "bun scripts/bd-contract.ts",
     "typecheck": "tsc --noEmit",
     "check": "bun run lint && bun run format:check && bun run typecheck",
-    "lint": "oxlint -D correctness src tests scripts",
+    "lint": "oxlint -c .oxlintrc.json src tests scripts",
     "format": "prettier --write \"{src,tests,scripts}/**/*.ts\"",
     "format:check": "prettier --check \"{src,tests,scripts}/**/*.ts\"",
     "health": "bun x fallow@3.49.0 health --no-cache --complexity --report-only --sort cognitive src"

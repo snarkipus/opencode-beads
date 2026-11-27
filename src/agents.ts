@@ -79,17 +79,14 @@ type AgentEditor = Parameters<Parameters<Plugin.Context["agent"]["transform"]>[0
 export function applyBeadsAgents(editor: AgentEditor, agents: Record<string, BeadsAgentDefinition>): void {
   for (const [id, definition] of Object.entries(agents)) {
     editor.update(id, (agent) => {
-      // DeepMutable widens branded string IDs into object types; the runtime values are strings.
+      // SDK IDs are branded strings. Keep the optional SDK type-only so the packed entrypoint loads without it.
       agent.name = id as unknown as typeof agent.name;
       agent.description = definition.description;
       agent.system = definition.system;
       agent.mode = "subagent";
       if (definition.model) agent.model = { ...definition.model } as unknown as typeof agent.model;
       if (definition.steps !== undefined) agent.steps = definition.steps;
-      agent.permissions = [
-        ...(agent.permissions ?? []),
-        ...TASK_AGENT_PERMISSIONS.map((rule) => ({ ...rule })),
-      ] as unknown as typeof agent.permissions;
+      agent.permissions = [...(agent.permissions ?? []), ...TASK_AGENT_PERMISSIONS.map((rule) => ({ ...rule }))];
     });
   }
 }
