@@ -8,10 +8,12 @@ saved result. The timestamp describes capture time, not current live state on re
 | --- | --- |
 | `/oc-beads:diagnostics` or other free text | Collect once and show normal tables, labeled header metadata and conditional actions. |
 | `/oc-beads:diagnostics details` | Collect once and append bounded evidence, provenance and explanations. |
+| `/oc-beads:diagnostics remote` | Show normal tables and explain why a fresh history comparison is unavailable. |
+| `/oc-beads:diagnostics details remote` | Explain the unavailable comparison and include bounded local evidence. |
 | `/oc-beads:diagnostics help` | Capture a self-contained static reference without invoking diagnostic collection. |
 
-Selectors are exact after trimming and case folding: ` HeLp ` selects help;
-`help me` and `explain details please` select normal output. Literal user text,
+Selectors are exact after trimming and case folding. For example, ` HeLp ` selects
+help. `help me`, `remote please`, `remote details` and `details  remote` select normal output. Literal user text,
 attachments and native delivery remain intact in history. Help is built into the
 package because this repository's `docs/` directory is not shipped. No extra skill
 resource or public command is needed.
@@ -102,7 +104,9 @@ native memory delivery.
 | bd CLI | Native `bd version`: version, below-minimum version (`needs ≥1.3.1`), `not found`, or not observed. | Unsupported/unavailable is unhealthy; failed version evidence can be neutral. Install/upgrade in an authorized workflow and start a new session; check `bd version`. The qualified baseline is 1.3.4, not a maximum. |
 | Workspace | Config-only `bd context --json`: `Located`, `Not initialized`, `Probe failed`, `Withheld` or not observed. | Located identifies native-resolved context, not integrity. Failed/withheld/uninitialized is unhealthy; absent evidence neutral. Inspect context/location evidence; initialization is human-directed, never automatic repair. |
 | Recorded bd version | Bounded `.local_version` under the resolved `beads_dir`. | `1.3.4 = CLI` is healthy; `1.3.1 ≠ CLI 1.3.4` is mismatch. `none`, unreadable, truncated, unsupported, unavailable or running-version unavailable stays neutral. Compare the recorded value and `bd version`; review native upgrade guidance if they differ. |
-| Git hooks | Qualified native `bd hooks list --json`, not independent filesystem verification. | Installed/total counts, optional overlapping `(shims)` or `(N shims)`, and missing/unreadable/unresolved, outdated or unrecognized counts. Those differences are mismatch; empty/failed/withheld evidence is neutral. Review intended layout/customization before installation, then verify with `bd hooks list`. |
+| Git hooks | Qualified native `bd hooks list --json`. | Installed/total counts include shims. Optional missing/unreadable/unresolved hooks and empty, failed or withheld evidence are neutral. Outdated or unrecognized installed hooks are mismatch. Review layout and customization before installation, then verify with `bd hooks list`. |
+| Sync target | Config-only native context and strict-readonly native Dolt remote listing. | `Resolved · origin` means the native default name is listed in a supported direct Dolt context. `Local-only` means an empty listing in a confirmed embedded store. Both are healthy target observations. Missing, failed or ambiguous evidence leaves the target `Unknown` and neutral. |
+| Remote history | Availability of a fresh Beads comparison. | `Not applicable` for established local-only operation and `Not checked` otherwise. Both are neutral. Exact remote selectors explain the unavailable probe. |
 
 ### Version witnesses
 
@@ -124,21 +128,40 @@ hooks. Shims are healthy observed installations, not certification of wrapper
 policy freshness; diagnostics does not compare shim versions against the CLI.
 Exact bounded per-hook entries are available in details.
 
-For missing/outdated hooks, review local customization and the intended default,
-`--beads` or `--shared` layout before `bd hooks install`. Installation writes hook
-files and may change `core.hooksPath`; diagnostics never executes it. Verify with
-`bd hooks list`. An unrecognized identity warrants inspection rather than automatic
-replacement. A collection failure warrants checking the producer, not claiming all
-hooks absent.
+For outdated or unrecognized installations, review hook identity, local
+customization and the intended default, `--beads` or `--shared` layout before any
+refresh. `bd hooks install` writes hook files and may change `core.hooksPath`.
+Verify with `bd hooks list`. Diagnostics lists installations without running hooks.
+
+### Sync target and remote history
+
+An empty listing in server mode is inconclusive. So are non-origin-only listings,
+failed or incomplete listings and missing, conflicting or unsupported native
+context. A labelled embedded context with a server endpoint is conflicting
+evidence. Known proxied-server mode lacks strict-readonly listing support on the
+current pins, so diagnostics reports the context limitation without opening that
+store. A configured remote hint is shown as presence only. URLs and credentials
+are discarded before capture. A registered `origin` establishes the target name
+only. Reachability and synchronization remain unmeasured.
+
+Local-only describes the current embedded store. Native push may offer Git-origin
+adoption with consent. The history comparison is unperformed on Beads 1.3.1 and
+1.3.4. No qualified native probe establishes that a comparison uses the remote
+branch fetched during that invocation. Diagnostics leaves cached counts out of
+the report. Source-Git freshness remains unchecked in all views.
 
 ## Collection and native responsibility
 
-Normal/details diagnostic collection uses only native `version`, config-only
-`context --json`, qualified `hooks list --json`, cached integration state and bounded
-local files. Diagnostic child processes retain scoped metrics/event/OTel suppression.
-It does not invoke prime, doctor, where, SQL, init, upgrades, hook installation,
-repairs, synchronization or network freshness checks. Help skips the diagnostic
-callback entirely, including its file reads and registry lookups.
+Collected views use native `version`, config-only `context --json`, qualified
+`hooks list --json`, `bd --readonly dolt remote list --json --sandbox` in supported
+workspaces, cached integration state and bounded local files. Diagnostic child
+processes retain scoped metrics/event/OTel suppression. The strict-readonly
+listing can open the store and skips native auto-start and maintenance, including
+automatic export. Disposable checks observed incidental locks, an empty metrics
+marker and journal timestamp changes while sampled store, version and configuration
+contents held steady. Server mode may connect to the configured database. No
+selector contacts the sync remote or fetches history. Help skips collection,
+including its file reads and registry lookups.
 
 Every view still submits an ordinary prompt. Its later normal eligible lifecycle
 can load full native prime and persistent memories and may open/migrate a store
@@ -146,11 +169,10 @@ under native rules. The help guarantee concerns diagnostic collection, not the
 whole subsequent model request. The native CLI owns store routing and consistency;
 the plugin does not emulate or repair those internals.
 
-SQL/schema health, historical maintenance completion, remote freshness, complete
-memory delivery and unique build identity are not measured. Optional remote presence
-is reduced to configured/not configured/not reported without URLs or credentials;
-it does not establish connectivity. Details contains bounded observations and
-finding explanations, not raw prime, memories, instruction bodies or configuration.
+SQL/schema health, historical maintenance completion, complete memory delivery and
+unique build identity remain unmeasured. Details contains bounded observations
+and finding explanations. Prime, memories, instruction bodies and raw configuration
+stay outside the captured diagnostic evidence.
 
 For intended behavior see [Read-only native diagnostics](../openspec/specs/workflow-access/spec.md#requirement-read-only-native-diagnostics)
 and the [accepted diagnostics change](../openspec/changes/archive/2026-11-15-add-integrated-beads-diagnostics/specs/workflow-access/spec.md).

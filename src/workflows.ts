@@ -174,7 +174,7 @@ export function createBeadsCommands(
   }));
   commands.push({
     name: "oc-beads:diagnostics",
-    description: "Inspect OpenCode Beads integration discovery, conflicts, compatibility and context/persistence diagnostics without opening a store; use oc-beads:stats for the issue-database overview.",
+    description: "Inspect OpenCode Beads integration and the native sync target with strict-readonly store access. Server mode may connect to its configured database. All selectors skip remote history fetches. Use oc-beads:stats for the issue-database overview.",
     async execute(input) {
       if (signal?.aborted) throw new Error("Beads workflow unloaded");
       const help = input.prompt.text?.trim().toLowerCase() === "help";

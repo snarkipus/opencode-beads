@@ -15,7 +15,7 @@ import { checkBeadsStore, createGuardRuntime } from "./guard";
 import type { GuardResult } from "./guard";
 import { countManagedBlocks, minimizeSystemParts } from "./instructions";
 import { runBd, runBdPrime } from "./prime";
-import { collectBeadsHealth, collectHooks, collectPluginHealth, DIAGNOSTIC_ENV, renderHealthReport } from "./diagnostics";
+import { collectBeadsHealth, collectHooks, collectPluginHealth, collectSyncTarget, DIAGNOSTIC_ENV, renderHealthReport } from "./diagnostics";
 import { createContinuityTools, type ContinuityDependencies, type ContinuityResult } from "./continuity";
 
 /** The slice of the OpenCode V2 plugin context this adapter uses. */
@@ -273,7 +273,9 @@ export async function setupBeads(
     // plugins use the same ordinary ordering; initial lookup is diagnostic only.
     if (ctx.command && ctx.session.prompt) {
       let commandRegistration = "pending";
+      const diagnosticBd = deps.bd ?? ((dir: string, args: readonly string[]) => runBd(dir, args, { signal: abort.signal, env: DIAGNOSTIC_ENV }));
       const definitions = createBeadsCommands({ prompt: ctx.session.prompt }, async (sessionID, text) => {
+        const selector = text?.trim().toLowerCase();
         let context: string = "uncertain";
         let locationKnown = false;
         let contextObservation: ReturnType<typeof controller.observationFor>;
@@ -293,13 +295,16 @@ export async function setupBeads(
             }
           } catch { forgetSession(sessionID); context = "uncertain: session lookup failed"; }
         }
-        let guard: unknown = { kind: "withheld", reason: "session location unconfirmed" };
+        let guard: GuardResult | { kind: "withheld"; reason: string } = { kind: "withheld", reason: "session location unconfirmed" };
         if (locationKnown && !abort.signal.aborted) {
-          try { guard = deps.runtime?.guard ? await runtime.guard(directory, abort.signal) : await checkBeadsStore(directory, createGuardRuntime(deps.bd ?? ((dir, args) => runBd(dir, args, { signal: abort.signal, env: DIAGNOSTIC_ENV })))); }
+          try { guard = deps.runtime?.guard ? await runtime.guard(directory, abort.signal) : await checkBeadsStore(directory, createGuardRuntime(diagnosticBd)); }
           catch { guard = { kind: "probe-failed" }; }
         }
-        const local = locationKnown && !abort.signal.aborted ? { ...await collectPluginHealth(directory, guard as GuardResult), ...await collectBeadsHealth(guard as GuardResult) } : "withheld";
-        const hooks = locationKnown && !abort.signal.aborted ? await collectHooks(directory, deps.bd ?? ((dir, args) => runBd(dir, args, { signal: abort.signal, env: DIAGNOSTIC_ENV }))) : "withheld: session location unconfirmed";
+        const local = guard.kind !== "withheld" && !abort.signal.aborted ? { ...await collectPluginHealth(directory, guard), ...await collectBeadsHealth(guard) } : "withheld";
+        const hooks = locationKnown && !abort.signal.aborted ? await collectHooks(directory, diagnosticBd) : "withheld: session location unconfirmed";
+        const syncTarget = guard.kind === "ready" && guard.workspace && !abort.signal.aborted
+          ? await collectSyncTarget(directory, guard.workspace, diagnosticBd)
+          : undefined;
         let effectiveCommands: Array<{ name: string; description?: string }> | undefined;
         let registryTruncated = false;
         let registryMembershipTruncated = false;
@@ -342,8 +347,10 @@ export async function setupBeads(
             : observedRequest?.capabilities.typed === "registered-execute-visible"
               ? "execute is visible; the native catalog and each operation-specific permission determine leaf availability"
               : "unknown until native catalog discovery and per-operation permission checks",
-          local, context, contextObservation, requestInstructions: requestInstructions.get(sessionID) ?? "unobserved", guard, hooks, persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
-        }, now(), text?.trim().toLowerCase() === "details");
+          local, context, contextObservation, requestInstructions: requestInstructions.get(sessionID) ?? "unobserved", guard, hooks, syncTarget,
+          historyRequested: selector === "remote" || selector === "details remote",
+          persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
+        }, now(), selector === "details" || selector === "details remote");
       }, deps.workflowAssets?.skillPath, abort.signal);
       let existing: string[];
       try { existing = (await ctx.command.list()).data.map((entry) => entry.name); }

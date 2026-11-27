@@ -440,11 +440,15 @@ test("diagnostics reference and static help remain discoverable without adding p
   expect(index).toContain("[Diagnostics reference](diagnostics.md)");
   expect(readme).toContain("docs/diagnostics.md");
   expect(userGuide).toContain("[diagnostics reference](diagnostics.md)");
-  for (const label of ["Host", "Commands", "Skill", "Typed tools", "Context", "AGENTS Configured", "Write outcomes", "bd CLI", "Workspace", "Recorded bd version", "Git hooks"]) {
+  for (const label of ["Host", "Commands", "Skill", "Typed tools", "Context", "AGENTS Configured", "Write outcomes", "bd CLI", "Workspace", "Recorded bd version", "Git hooks", "Sync target", "Remote history"]) {
     expect(reference).toContain(`| ${label} |`);
     expect(DIAGNOSTICS_HELP).toContain(`| ${label} |`);
   }
-  for (const term of ["512", "64 KiB", "256 bytes", "unrecognized", "shims", "last observed request", "ordinary prompt", "not measured"]) expect(reference).toContain(term);
+  for (const term of ["details remote", "--readonly dolt remote list --json --sandbox", "configured database", "sync remote", "Not applicable", "Not checked"]) {
+    expect(reference).toContain(term);
+    expect(DIAGNOSTICS_HELP).toContain(term);
+  }
+  for (const term of ["512", "64 KiB", "256 bytes", "unrecognized", "shims", "last observed request", "ordinary prompt", "remain unmeasured"]) expect(reference).toContain(term);
   expect(DIAGNOSTICS_HELP).toContain("https://github.com/snarkipus/opencode-beads/blob/main/docs/diagnostics.md");
   for (const term of ["DATE", "VERSION", "PATH", "cwd_repo_root"]) {
     expect(reference).toContain(term);
