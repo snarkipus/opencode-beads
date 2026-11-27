@@ -170,6 +170,11 @@ export function applyBeadsSkill(editor: SkillEditor, skill: BeadsSkill, diagnose
   editor.add(skill);
 }
 
+/**
+ * Recover captured instructions from the current metadata key, falling back to legacy sync snapshots.
+ *
+ * @param metadata - Stored message metadata, not yet validated as a workflow snapshot.
+ */
 function storedWorkflowInstructions(metadata: unknown): string | undefined {
   if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) return undefined;
   const snapshotInstructions = (snapshot: unknown): string | undefined => {
@@ -184,8 +189,8 @@ function storedWorkflowInstructions(metadata: unknown): string | undefined {
     return snapshot.instructions;
   };
   return (
-    snapshotInstructions(Reflect.get(metadata, "ocBeadsWorkflow")) ??
-    snapshotInstructions(Reflect.get(metadata, "ocBeadsSync"))
+    snapshotInstructions("ocBeadsWorkflow" in metadata ? metadata.ocBeadsWorkflow : undefined) ??
+    snapshotInstructions("ocBeadsSync" in metadata ? metadata.ocBeadsSync : undefined)
   );
 }
 

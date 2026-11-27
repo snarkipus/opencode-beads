@@ -1,0 +1,16 @@
+{
+  "categories": { "correctness": "error" },
+  "jsPlugins": [{ "name": "oc-beads", "specifier": "./scripts/oxlint-plugin.mjs" }],
+  "overrides": [
+    {
+      "files": ["src/**/*.ts"],
+      "rules": {
+        "oc-beads/no-chained-type-assertions": "warn",
+        "no-restricted-globals": [
+          "error",
+          { "name": "Reflect", "message": "Use typed property access or direct invocation. Suppress only for genuine reflection." }
+        ]
+      }
+    }
+  ]
+}
