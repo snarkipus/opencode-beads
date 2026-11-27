@@ -259,6 +259,24 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
         ["find", "get", "edges", "memories", "recall"].includes(c.name) ? "failed" : "uncertain",
       );
     });
+  test("create accepts a legacy single-row array and preserves the raw issue", async () => {
+    const f = fixture();
+    const created = { ...row, id: "generated-1", created_by: actor, extra: { source: "cli" } };
+    const input = { title: row.title, type: row.issue_type, priority: row.priority };
+    f.output(JSON.stringify([created]));
+    const result = await f.execute("create", input);
+    expect(result.output).toMatchObject({ status: "acknowledged", reference: created.id });
+    expect(result.output.issue).toEqual(created);
+
+    for (const reply of [[created, created], [{ ...created, assignee: null }]]) {
+      f.output(JSON.stringify(reply));
+      expect((await f.execute("create", input)).output).toMatchObject({
+        status: "uncertain",
+        detail: "Unsupported CLI acknowledgement; inspect current durable state before another write",
+      });
+    }
+  });
+
   test("last-label removal acknowledges the native omitted-empty response only when all requested effects match", async () => {
     // Saved stdout from bd 1.3.4 after removing the fixture's last label.
     const native = {

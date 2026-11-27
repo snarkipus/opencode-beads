@@ -578,80 +578,113 @@ function decodeEdges(d: Data, value: unknown): Partial<ContinuityResult> {
  */
 function normalize(operation: Operation, d: Data, stdout: string, actor: string): Partial<ContinuityResult> {
   const value: unknown = JSON.parse(stdout);
-  if (operation === "find") return decodeFind(d, value);
-  if (operation === "edges") return decodeEdges(d, value);
-  if (operation === "memories" && record(value)) {
-    const memories = { ...value };
-    if (Object.hasOwn(memories, "schema_version") && memories.schema_version !== 1) return fail();
-    if (memories.schema_version === 1) delete memories.schema_version;
-    if (Object.values(memories).every((v) => typeof v === "string"))
-      return { status: "found", memories: memories as Record<string, string> };
-  }
-  if (
-    operation === "recall" &&
-    record(value) &&
-    value.key === d.key &&
-    typeof value.value === "string" &&
-    typeof value.found === "boolean" &&
-    (value.found || value.value === "")
-  )
-    return value.found
-      ? { status: "found", reference: String(d.key), value: value.value }
-      : { status: "missing", reference: String(d.key) };
-  if (
-    operation === "remember" &&
-    record(value) &&
-    value.key === d.key &&
-    value.value === d.text &&
-    ["remembered", "updated"].includes(String(value.action))
-  )
-    return {
-      status:
-        value.committed === false || value.commit_error !== undefined || value.commit_indeterminate === true
-          ? "landed-uncommitted"
-          : "acknowledged",
-      reference: String(d.key),
-      data: value,
-      commitIndeterminate: value.commit_indeterminate === true,
-    };
-  const row =
-    operation === "create" && record(value)
-      ? value
-      : Array.isArray(value) && value.length === 1 && record(value[0])
-        ? value[0]
-        : undefined;
-  if (!isIssue(row)) return fail();
-  if (operation === "get") return row.id === d.id ? { issue: row } : fail();
-  if (operation !== "create" && row.id !== d.id) return fail();
-  let accepted = false;
   switch (operation) {
+    case "find":
+      return decodeFind(d, value);
+    case "edges":
+      return decodeEdges(d, value);
+    case "memories": {
+      if (!record(value)) return fail();
+      const memories = { ...value };
+      if (Object.hasOwn(memories, "schema_version") && memories.schema_version !== 1) return fail();
+      if (memories.schema_version === 1) delete memories.schema_version;
+      if (!Object.values(memories).every((entry) => typeof entry === "string")) return fail();
+      return { status: "found", memories: memories as Record<string, string> };
+    }
+    case "recall":
+      if (
+        !record(value) ||
+        value.key !== d.key ||
+        typeof value.value !== "string" ||
+        typeof value.found !== "boolean" ||
+        (!value.found && value.value !== "")
+      )
+        return fail();
+      return value.found
+        ? { status: "found", reference: String(d.key), value: value.value }
+        : { status: "missing", reference: String(d.key) };
+    case "remember":
+      if (
+        !record(value) ||
+        value.key !== d.key ||
+        value.value !== d.text ||
+        !["remembered", "updated"].includes(String(value.action))
+      )
+        return fail();
+      return {
+        status:
+          value.committed === false || value.commit_error !== undefined || value.commit_indeterminate === true
+            ? "landed-uncommitted"
+            : "acknowledged",
+        reference: String(d.key),
+        data: value,
+        commitIndeterminate: value.commit_indeterminate === true,
+      };
+    default:
+      return decodeIssueReply(operation, d, value, actor);
+  }
+}
+
+/**
+ * Check the shared issue-row shape and identity before checking the requested effect.
+ * Create also accepts a bare object and reports its generated ID. Successful replies retain the raw row.
+ *
+ * @param operation - Operation that reads or acknowledges a single issue row.
+ * @param d - Validated request, with a single requested ID for get.
+ * @param value - Parsed CLI reply, still untrusted.
+ * @param actor - Actual invocation actor required as the assignee in a claim acknowledgement.
+ * @throws If the row does not establish the requested identity or effect.
+ */
+function decodeIssueReply(
+  operation: Exclude<Operation, "find" | "edges" | "memories" | "recall" | "remember">,
+  d: Data,
+  value: unknown,
+  actor: string,
+): Partial<ContinuityResult> {
+  let row: unknown;
+  if (operation === "create" && record(value)) row = value;
+  else if (Array.isArray(value) && value.length === 1 && record(value[0])) row = value[0];
+
+  if (!isIssue(row)) return fail();
+  if (operation !== "create" && row.id !== d.id) return fail();
+
+  switch (operation) {
+    case "get":
+      return { issue: row };
     case "claim":
-      accepted = row.assignee === actor && row.status === "in_progress";
+      if (row.assignee !== actor || row.status !== "in_progress") return fail();
       break;
     case "note":
-      accepted = typeof row.notes === "string" && row.notes.endsWith(String(d.text));
+      if (typeof row.notes !== "string" || !row.notes.endsWith(String(d.text))) return fail();
       break;
     case "close":
-      accepted = row.status === "closed";
+      if (row.status !== "closed") return fail();
       break;
     case "create":
-      accepted = row.title === d.title && row.issue_type === d.type && row.priority === d.priority && !row.assignee;
+      if (row.title !== d.title || row.issue_type !== d.type || row.priority !== d.priority || row.assignee)
+        return fail();
       break;
-    case "update":
-      accepted = Object.entries(d.set as Data).every(([key, value]) => {
-        if (key === "addLabels" || key === "removeLabels") {
-          if (key === "removeLabels" && !Object.hasOwn(row, "labels")) return true;
-          if (!Array.isArray(row.labels)) return false;
-          const labels = row.labels;
-          return (value as string[]).every((label) =>
-            key === "addLabels" ? labels.includes(label) : !labels.includes(label),
-          );
-        }
-        return row[key] === value;
+    case "update": {
+      const matches = Object.entries(d.set as Data).every(([key, requested]) => {
+        if (key !== "addLabels" && key !== "removeLabels") return row[key] === requested;
+        // The CLI can omit labels after removing the last one.
+        if (key === "removeLabels" && !Object.hasOwn(row, "labels")) return true;
+        if (!Array.isArray(row.labels)) return false;
+        const labels = row.labels;
+        return (requested as string[]).every((label) =>
+          key === "addLabels" ? labels.includes(label) : !labels.includes(label),
+        );
       });
+      if (!matches) return fail();
       break;
+    }
+    default: {
+      // A new operation must define its acknowledgement before it can succeed.
+      const unhandled: never = operation;
+      void unhandled;
+      return fail();
+    }
   }
-  if (!accepted) return fail();
   return { status: "acknowledged", reference: row.id, issue: row };
 }
 const inputs: Record<Operation, JS> = {
