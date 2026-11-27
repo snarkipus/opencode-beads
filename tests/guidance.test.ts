@@ -24,7 +24,7 @@ describe("project-owned task-agent contract", () => {
     expect(prompt).not.toMatch(unsupportedPattern);
     expect(prompt).toContain("Full `bd prime` workflow context is injected");
     expect(prompt).toContain(
-      "For status or graph analysis, never claim, update, close, or modify a bead. Return the analysis and stop."
+      "For status or graph analysis, never claim, update, close, or modify a bead. Return the analysis and stop.",
     );
     expect(prompt).toContain("An exact assignment or explicit one-bead mode ends with that bead");
     expect(prompt).toContain("already-authorized batch or goal");
@@ -34,7 +34,7 @@ describe("project-owned task-agent contract", () => {
     expect(showIndex).toBeGreaterThanOrEqual(0);
     expect(claimIndex).toBeGreaterThan(showIndex);
     expect(prompt).toContain(
-      "If an assigned bead is closed, blocked, unsuitable, missing, or otherwise not actionable, report and return without mutation or substitution."
+      "If an assigned bead is closed, blocked, unsuitable, missing, or otherwise not actionable, report and return without mutation or substitution.",
     );
     expect(prompt).toContain("claim fails or readback does not confirm your assignment, stop");
     expect(prompt).toContain("Discovery does not add execution authority");
@@ -60,7 +60,11 @@ describe("project-owned task-agent contract", () => {
   });
 
   test("carries executor attribution and separates planning/review acceptance", () => {
-    for (const text of [BEADS_TASK_AGENT_PROMPT, beadsGuidance("primary"), BEADS_TASK_AGENT_PROMPT + beadsGuidance("task-agent")]) {
+    for (const text of [
+      BEADS_TASK_AGENT_PROMPT,
+      beadsGuidance("primary"),
+      BEADS_TASK_AGENT_PROMPT + beadsGuidance("task-agent"),
+    ]) {
       expect(text).toContain("command-scoped");
       expect(text).toContain("heartbeat");
       expect(text).toContain("created_by");
@@ -68,7 +72,6 @@ describe("project-owned task-agent contract", () => {
       expect(text).toContain("assignee");
       expect(text).toContain("human Git identity");
       expect(text).toContain("deliberate handoff");
-
     }
     const planning = readFileSync(new URL("../assets/oc-beads/resources/WORKFLOWS.md", import.meta.url), "utf8");
     expect(planning).toContain("same review item");
@@ -113,14 +116,24 @@ describe("project-owned task-agent contract", () => {
   });
 
   test("describes composed, direct-leaf, shell, and wholly denied requests separately", () => {
-    const composed = capabilityGuidance({ typed: "registered-execute-visible", execute: true, shell: true, direct: false });
+    const composed = capabilityGuidance({
+      typed: "registered-execute-visible",
+      execute: true,
+      shell: true,
+      direct: false,
+    });
     expect(composed).toContain("Beads namespace is registered and execute is visible");
     expect(composed).toContain("Each operation still checks its own permissions");
     expect(composed).toContain("rejected operation is not success");
     expect(composed).toContain("Stop/Cancel");
     expect(composed).toContain("Do not call tools.shell inside execute");
 
-    const direct = capabilityGuidance({ typed: "registered-direct-visible", execute: false, shell: false, direct: true });
+    const direct = capabilityGuidance({
+      typed: "registered-direct-visible",
+      execute: false,
+      shell: false,
+      direct: true,
+    });
     expect(direct).toContain("Native Beads leaf tools are directly visible");
     expect(direct).toContain("Use only the listed direct leaves");
     expect(direct).toContain("rejected operation is not success");

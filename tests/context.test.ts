@@ -1,10 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import {
-  createContextController,
-  renderBeadsContext,
-  type AgentMode,
-  type ContextRuntime,
-} from "../src/context";
+import { createContextController, renderBeadsContext, type AgentMode, type ContextRuntime } from "../src/context";
 import type { GuardResult } from "../src/guard";
 import { PrimeTimeoutError } from "../src/prime";
 import { primeFailureNotice } from "../src/guidance";
@@ -15,12 +10,12 @@ function fixture(
     prime?: () => Promise<string>;
     modes?: Record<string, AgentMode>;
     idleRefreshMs?: number;
-  } = {}
+  } = {},
 ) {
   let time = 0;
   const guard = mock(
     async (_directory: string): Promise<GuardResult> =>
-      typeof options.guard === "function" ? options.guard() : (options.guard ?? { kind: "ready" })
+      typeof options.guard === "function" ? options.guard() : (options.guard ?? { kind: "ready" }),
   );
   const prime = mock(async (_directory: string, _signal?: AbortSignal) => (options.prime ? options.prime() : "PRIME"));
   const agentMode = mock(async (agentID: string) => options.modes?.[agentID]);
@@ -48,17 +43,34 @@ describe("context controller", () => {
     const f = fixture();
     const typed = { typed: "registered-execute-visible", execute: true, shell: true, direct: false } as const;
     const a = await f.controller.systemFor("s1", "build", typed);
-    const b = await f.controller.systemFor("s1", "review", { typed: "unavailable", execute: false, shell: true, direct: false });
+    const b = await f.controller.systemFor("s1", "review", {
+      typed: "unavailable",
+      execute: false,
+      shell: true,
+      direct: false,
+    });
     expect(a).toContain("opencode:build:");
     expect(a).toContain("namespace");
     expect(b).toContain("opencode:review:");
     expect(b).not.toContain("opencode:build:");
     expect(b).toContain("direct shell");
-    const direct = await f.controller.systemFor("s1", "restricted", { typed: "registered-direct-visible", execute: false, shell: false, direct: true });
+    const direct = await f.controller.systemFor("s1", "restricted", {
+      typed: "registered-direct-visible",
+      execute: false,
+      shell: false,
+      direct: true,
+    });
     expect(direct).toContain("Native Beads leaf tools are directly visible");
     expect(direct).toContain("rejected operation is not success");
     expect(direct).toContain("Stop/Cancel");
-    expect(await f.controller.systemFor("s1", "review", { typed: "unavailable", execute: false, shell: false, direct: false })).toContain("Neither");
+    expect(
+      await f.controller.systemFor("s1", "review", {
+        typed: "unavailable",
+        execute: false,
+        shell: false,
+        direct: false,
+      }),
+    ).toContain("Neither");
     expect(f.prime).toHaveBeenCalledTimes(1);
     const held = fixture({ guard: { kind: "unsupported", installed: "1.3.0" } });
     expect(await held.controller.systemFor("s1", "build", typed)).not.toContain("direct shell");
@@ -70,7 +82,11 @@ describe("context controller", () => {
     const held = fixture({ guard: { kind: "unsupported", installed: "1.3.0" } });
     await held.controller.systemFor("s1", "build");
     expect(held.controller.statusFor("s1", "primary")).toBe("withheld");
-    const failed = fixture({ prime: async () => { throw new Error("failure"); } });
+    const failed = fixture({
+      prime: async () => {
+        throw new Error("failure");
+      },
+    });
     await failed.controller.systemFor("s1", "build");
     expect(failed.controller.statusFor("s1", "primary")).toBe("failed");
     const empty = fixture({ prime: async () => "" });
@@ -84,7 +100,9 @@ describe("context controller", () => {
     const f = fixture();
     f.prime.mockImplementation(async (_directory, abortSignal?: AbortSignal) => {
       signal = abortSignal;
-      return new Promise<string>((resolve) => { release = resolve; });
+      return new Promise<string>((resolve) => {
+        release = resolve;
+      });
     });
     const pending = f.controller.systemFor("s1", "build");
     for (let i = 0; i < 5; i++) await Promise.resolve();
@@ -109,10 +127,10 @@ describe("context controller", () => {
   test("gives task agents the task-agent audience without an agent lookup", async () => {
     const f = fixture();
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toBe(
-      renderBeadsContext("PRIME", "task-agent", { sessionID: "s1", agent: "beads-task-agent" })
+      renderBeadsContext("PRIME", "task-agent", { sessionID: "s1", agent: "beads-task-agent" }),
     );
     expect(await f.controller.systemFor("s2", "beads-task-agent-luna")).toBe(
-      renderBeadsContext("PRIME", "task-agent", { sessionID: "s2", agent: "beads-task-agent-luna" })
+      renderBeadsContext("PRIME", "task-agent", { sessionID: "s2", agent: "beads-task-agent-luna" }),
     );
     expect(f.agentMode).not.toHaveBeenCalled();
   });
@@ -120,8 +138,12 @@ describe("context controller", () => {
   test("excludes regular subagents and fails open for unknown agents", async () => {
     const f = fixture({ modes: { explore: "subagent", custom: "all" } });
     expect(await f.controller.systemFor("s1", "explore")).toBeUndefined();
-    expect(await f.controller.systemFor("s1", "custom")).toBe(renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "custom" }));
-    expect(await f.controller.systemFor("s2", "mystery")).toBe(renderBeadsContext("PRIME", "primary", { sessionID: "s2", agent: "mystery" }));
+    expect(await f.controller.systemFor("s1", "custom")).toBe(
+      renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "custom" }),
+    );
+    expect(await f.controller.systemFor("s2", "mystery")).toBe(
+      renderBeadsContext("PRIME", "primary", { sessionID: "s2", agent: "mystery" }),
+    );
   });
 
   test("fails open and diagnoses when the agent lookup throws, then retries the lookup", async () => {
@@ -129,7 +151,9 @@ describe("context controller", () => {
     f.agentMode.mockImplementationOnce(async () => {
       throw new Error("lookup failed");
     });
-    expect(await f.controller.systemFor("s1", "build")).toBe(renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" }));
+    expect(await f.controller.systemFor("s1", "build")).toBe(
+      renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" }),
+    );
     expect(f.diagnose).toHaveBeenCalledWith("agent_lookup_failed", "s1");
     await f.controller.systemFor("s2", "build");
     expect(f.agentMode).toHaveBeenCalledTimes(2);
@@ -138,7 +162,10 @@ describe("context controller", () => {
   test("coalesces concurrent requests for the same session", async () => {
     let release: (value: string) => void = () => {};
     const f = fixture({ prime: () => new Promise<string>((resolve) => (release = resolve)) });
-    const pending = [f.controller.systemFor("s1", "beads-task-agent"), f.controller.systemFor("s1", "beads-task-agent")];
+    const pending = [
+      f.controller.systemFor("s1", "beads-task-agent"),
+      f.controller.systemFor("s1", "beads-task-agent"),
+    ];
     await Promise.resolve();
     await Promise.resolve();
     release("PRIME");
@@ -160,7 +187,7 @@ describe("context controller", () => {
     guard = { kind: "ready" };
     f.advance(1_001);
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toBe(
-      renderBeadsContext("PRIME", "task-agent", { sessionID: "s1", agent: "beads-task-agent" })
+      renderBeadsContext("PRIME", "task-agent", { sessionID: "s1", agent: "beads-task-agent" }),
     );
     expect(f.prime).toHaveBeenCalledTimes(1);
   });
@@ -211,7 +238,7 @@ describe("context controller", () => {
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toBeUndefined();
     f.advance(1_001);
     expect(await f.controller.systemFor("s1", "beads-task-agent")).toBe(
-      renderBeadsContext("PRIME", "task-agent", { sessionID: "s1", agent: "beads-task-agent" })
+      renderBeadsContext("PRIME", "task-agent", { sessionID: "s1", agent: "beads-task-agent" }),
     );
   });
 
@@ -267,7 +294,12 @@ describe("context controller", () => {
 
 test("pending context is distinguishable from missing context for read-only diagnostics", async () => {
   let release: (value: string) => void = () => {};
-  const f = fixture({ prime: async () => new Promise<string>((resolve) => { release = resolve; }) });
+  const f = fixture({
+    prime: async () =>
+      new Promise<string>((resolve) => {
+        release = resolve;
+      }),
+  });
   expect(f.controller.statusFor("s1", "primary")).toBeUndefined();
   const pending = f.controller.systemFor("s1", "build");
   for (let index = 0; index < 5; index++) await Promise.resolve();

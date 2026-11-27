@@ -87,17 +87,21 @@ export const UNKNOWN_CAPABILITIES: RequestCapabilities = { typed: "unknown", exe
 
 /** Capability statements describe observations, never a permission grant. */
 export function capabilityGuidance(capabilities: RequestCapabilities): string {
-  if (capabilities.typed === "registered-execute-visible") return "Beads namespace is registered and execute is visible. Discover current signatures with native search({namespace: \"beads\"}); compose only operations found in the native catalog. Some or all leaves may be filtered out. Each operation still checks its own permissions; a rejected operation is not success and must not be retried through another surface. Honor explicit Stop/Cancel. Native shell is direct-only; run repository work and validation in direct shell turns. Do not call tools.shell inside execute.";
-  if (capabilities.typed === "registered-direct-visible") return "Native Beads leaf tools are directly visible for this request, while execute is unavailable. Use only the listed direct leaves and their current signatures, one operation at a time. Each operation still checks its own permission; a rejected operation is not success and must not be retried through shell or another surface. Honor explicit Stop/Cancel. Direct shell is available only if separately listed and permissioned.";
-  if (capabilities.shell === true) return "Native Beads operations are not visible for this request. Use permissioned bd through the independently available direct shell tool only when authorized and no hold applies. Shell cannot run inside execute.";
-  if (capabilities.execute !== null && capabilities.shell === false) return "Neither native Beads leaves nor direct shell access are available for this request. Report unavailable capability and stop the affected work; do not route around it.";
+  if (capabilities.typed === "registered-execute-visible")
+    return 'Beads namespace is registered and execute is visible. Discover current signatures with native search({namespace: "beads"}); compose only operations found in the native catalog. Some or all leaves may be filtered out. Each operation still checks its own permissions; a rejected operation is not success and must not be retried through another surface. Honor explicit Stop/Cancel. Native shell is direct-only; run repository work and validation in direct shell turns. Do not call tools.shell inside execute.';
+  if (capabilities.typed === "registered-direct-visible")
+    return "Native Beads leaf tools are directly visible for this request, while execute is unavailable. Use only the listed direct leaves and their current signatures, one operation at a time. Each operation still checks its own permission; a rejected operation is not success and must not be retried through shell or another surface. Honor explicit Stop/Cancel. Direct shell is available only if separately listed and permissioned.";
+  if (capabilities.shell === true)
+    return "Native Beads operations are not visible for this request. Use permissioned bd through the independently available direct shell tool only when authorized and no hold applies. Shell cannot run inside execute.";
+  if (capabilities.execute !== null && capabilities.shell === false)
+    return "Neither native Beads leaves nor direct shell access are available for this request. Report unavailable capability and stop the affected work; do not route around it.";
   return "Beads request capability is unknown. Check actual native catalog/tools before choosing typed composition or direct shell; do not infer permission or bypass a hold.";
 }
 
 /** Build the single shared guidance layer for one injected audience. */
 export function beadsGuidance(
   audience: "primary" | "task-agent",
-  capabilities: RequestCapabilities = UNKNOWN_CAPABILITIES
+  capabilities: RequestCapabilities = UNKNOWN_CAPABILITIES,
 ): string {
   const sections = [BEADS_HOST_GUIDANCE, capabilityGuidance(capabilities), BEADS_RECOVERY_GUIDANCE];
   if (audience === "primary") sections.push(BEADS_EXECUTOR_GUIDANCE);

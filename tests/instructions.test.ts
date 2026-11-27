@@ -29,7 +29,10 @@ const USER_AFTER = "## Release process\n\nUser-owned section.";
 
 describe("minimizeBeadsInstructions", () => {
   test("preserves unique local policy inside managed markers", () => {
-    const customized = FULL_BLOCK.replace("Long command reference duplicated by bd prime.", "Never push without Matt's approval.");
+    const customized = FULL_BLOCK.replace(
+      "Long command reference duplicated by bd prime.",
+      "Never push without Matt's approval.",
+    );
     expect(minimizeBeadsInstructions(customized, "canonical prime")).toEqual({ text: customized, replaced: 0 });
   });
   test("collapses bd's full-profile and Codex blocks into one pointer", () => {
@@ -66,9 +69,9 @@ describe("minimizeSystemParts", () => {
   });
 });
 
-
-
 test("counts complete managed blocks separately from unmarked prose", () => {
-  expect(countManagedBlocks([USER_BEFORE, FULL_BLOCK, FULL_BLOCK, MINIMAL_BLOCK, CODEX_BLOCK, USER_AFTER].join("\n"))).toEqual({ full: 2, minimal: 1, codex: 1 });
+  expect(
+    countManagedBlocks([USER_BEFORE, FULL_BLOCK, FULL_BLOCK, MINIMAL_BLOCK, CODEX_BLOCK, USER_AFTER].join("\n")),
+  ).toEqual({ full: 2, minimal: 1, codex: 1 });
   expect(countManagedBlocks("ordinary Beads instructions without markers")).toEqual({ full: 0, minimal: 0, codex: 0 });
 });

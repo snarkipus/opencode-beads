@@ -28,8 +28,8 @@ jobs:
       - name: Test
         run: bun test
 
-      - name: Typecheck
-        run: bun run typecheck
+      - name: Lint, format check, and typecheck
+        run: bun run check
 
       - name: Test packed package
         run: bun run test:package

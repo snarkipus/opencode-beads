@@ -68,56 +68,86 @@ async function entrypoint(data: Record<string, unknown>, args: string[] = [], wo
   const directory = await fs.mkdtemp(join(tmpdir(), "oc-upstream-entrypoint-"));
   temporaryDirectories.push(directory);
   const preload = join(directory, "fetch.ts");
-  await fs.writeFile(preload, `
+  await fs.writeFile(
+    preload,
+    `
 const data = ${JSON.stringify(data)};
 globalThis.fetch = async (url) => {
   if (!(String(url) in data)) throw new Error("Unexpected fixture request");
   return new Response(JSON.stringify(data[String(url)]), { status: 200 });
 };
-`);
-  const workflow = (workflowText ?? await fs.readFile(resolve(import.meta.dir, "../.github/workflows/beads-contract.yml"), "utf8"))
-    .replace(/\r\n/g, "\n");
-  const runBlocks = [...workflow.split("  source-comparison:")[1]!.matchAll(/        run: \|\n((?:          .*\n|\n)+)/g)]
-    .map(match => match[1]!.replace(/^          /gm, ""));
+`,
+  );
+  const workflow = (
+    workflowText ?? (await fs.readFile(resolve(import.meta.dir, "../.github/workflows/beads-contract.yml"), "utf8"))
+  ).replace(/\r\n/g, "\n");
+  const runBlocks = [
+    ...workflow.split("  source-comparison:")[1]!.matchAll(/        run: \|\n((?:          .*\n|\n)+)/g),
+  ].map((match) => match[1]!.replace(/^          /gm, ""));
   expect(runBlocks).toHaveLength(2);
   const [collect, summarize] = runBlocks as [string, string];
   // Exercise the literal workflow shell; only add the existing HTTP preload to its real collector invocation.
-  const command = collect.replace("bun scripts/check-beads-integration.ts", '"$BUN_EXECUTABLE" --preload "$FETCH_PRELOAD" "$COLLECTOR"');
+  const command = collect.replace(
+    "bun scripts/check-beads-integration.ts",
+    '"$BUN_EXECUTABLE" --preload "$FETCH_PRELOAD" "$COLLECTOR"',
+  );
   const summaryPath = join(directory, "summary.md");
-  const env = { ...process.env, GH_TOKEN: "fixture-secret-never-print", RUNNER_TEMP: directory,
-    GITHUB_STEP_SUMMARY: summaryPath, BUN_EXECUTABLE: process.execPath, FETCH_PRELOAD: preload, COLLECTOR: script };
-  const proc = Bun.spawn(args.length ? [process.execPath, "--preload", preload, script, ...args] : ["bash", "-e", "-c", command], {
-    cwd: directory,
-    stdout: "pipe",
-    stderr: "pipe",
-    env,
-  });
+  const env = {
+    ...process.env,
+    GH_TOKEN: "fixture-secret-never-print",
+    RUNNER_TEMP: directory,
+    GITHUB_STEP_SUMMARY: summaryPath,
+    BUN_EXECUTABLE: process.execPath,
+    FETCH_PRELOAD: preload,
+    COLLECTOR: script,
+  };
+  const proc = Bun.spawn(
+    args.length ? [process.execPath, "--preload", preload, script, ...args] : ["bash", "-e", "-c", command],
+    {
+      cwd: directory,
+      stdout: "pipe",
+      stderr: "pipe",
+      env,
+    },
+  );
   const [exitCode, output, stderr] = await Promise.all([
-    proc.exited, new Response(proc.stdout).text(), new Response(proc.stderr).text(),
+    proc.exited,
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
   ]);
   let stdout = output;
   let summary = "";
   if (!args.length) {
     stdout = await fs.readFile(join(directory, "beads-source.json"), "utf8");
     expect(await fs.readFile(join(directory, "beads-source.exit"), "utf8")).toBe(`${exitCode}\n`);
-    const reporting = Bun.spawn(["bash", "-e", "-c", summarize], { cwd: directory, env, stdout: "pipe", stderr: "pipe" });
+    const reporting = Bun.spawn(["bash", "-e", "-c", summarize], {
+      cwd: directory,
+      env,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     expect(await reporting.exited).toBe(0);
     summary = await fs.readFile(summaryPath, "utf8");
     expect(summary).toContain(`Collector exit status: ${exitCode}`);
     expect(summary).toContain(stdout);
     expect(summary).not.toMatch(/::(?:error|warning)::|fixture-secret-never-print/);
   }
-  expect((await fs.readdir(directory)).sort()).toEqual(args.length ? ["fetch.ts"]
-    : ["beads-source.exit", "beads-source.json", "fetch.ts", "summary.md"]);
+  expect((await fs.readdir(directory)).sort()).toEqual(
+    args.length ? ["fetch.ts"] : ["beads-source.exit", "beads-source.json", "fetch.ts", "summary.md"],
+  );
   return { exitCode, stdout, stderr, summary, report: JSON.parse(stdout) };
 }
 
 describe("advisory marketplace MAIN source collector", () => {
   test("unchanged selection succeeds despite unrelated paths and prefix noise", async () => {
-    const result = await run(responses([...entries,
-      blob("README.md", "7"), blob("plugins/beads-extra/noise.md", "8"),
-      blob("internal/templates/skills/beads-other/noise.md", "9"),
-    ]));
+    const result = await run(
+      responses([
+        ...entries,
+        blob("README.md", "7"),
+        blob("plugins/beads-extra/noise.md", "8"),
+        blob("internal/templates/skills/beads-other/noise.md", "9"),
+      ]),
+    );
     expect(result.exitCode).toBe(0);
     expect(result.report.kind).toBe("completed");
     expect(result.report.status).toBe("unchanged");
@@ -139,8 +169,13 @@ describe("advisory marketplace MAIN source collector", () => {
     const result = await run(data);
     expect(result.exitCode).toBe(0);
     expect(result.report.status).toBe("changed");
-    expect(result.report.changes.map((c: { kind: string; path: string; previousPath?: string }) =>
-      [c.kind, c.path, c.previousPath ?? null])).toEqual([
+    expect(
+      result.report.changes.map((c: { kind: string; path: string; previousPath?: string }) => [
+        c.kind,
+        c.path,
+        c.previousPath ?? null,
+      ]),
+    ).toEqual([
       ["edited", "cmd/bd/prime.go", null],
       ["edited", "internal/templates/skills/beads/SKILL.md", null],
       ["added", "plugins/beads/added.md", null],
@@ -151,8 +186,12 @@ describe("advisory marketplace MAIN source collector", () => {
     expect(result.report.baselineCommit).toBe(baseline);
     expect(result.report.candidateCommit).toBe(candidate);
     expect(result.report.reviewUrl).toContain(`${baseline}..${candidate}`);
-    expect(result.report.changes.every((c: { beforeUrl?: string; afterUrl?: string }) =>
-      c.beforeUrl?.includes(baseline) || c.afterUrl?.includes(candidate))).toBeTrue();
+    expect(
+      result.report.changes.every(
+        (c: { beforeUrl?: string; afterUrl?: string }) =>
+          c.beforeUrl?.includes(baseline) || c.afterUrl?.includes(candidate),
+      ),
+    ).toBeTrue();
     expect((await run(responses([...next].reverse()))).stdout).toBe(result.stdout);
     expect((await run(data)).stdout).toBe(result.stdout);
     expect(inventory.marketplace_main.commit).toBe(baseline);
@@ -206,7 +245,9 @@ describe("advisory marketplace MAIN source collector", () => {
     for (const fetchSource of [
       async () => new Response('{"message":"denied"}', { status: 403 }),
       async () => new Response("not JSON"),
-      async () => { throw new Error("network unavailable"); },
+      async () => {
+        throw new Error("network unavailable");
+      },
       fixtureFetch({ [api]: {} }),
     ]) {
       const result = await runSourceCheck(inventory, fetchSource);
@@ -224,8 +265,14 @@ describe("advisory marketplace MAIN source collector", () => {
 
   test("actual workflow shell accepts CRLF line endings", async () => {
     const workflow = await fs.readFile(resolve(import.meta.dir, "../.github/workflows/beads-contract.yml"), "utf8");
-    const selected = JSON.parse(await fs.readFile(inventoryPath, "utf8")).marketplace_main.files
-      .map((file: { path: string; git_blob: string }) => ({ path: file.path, sha: file.git_blob, type: "blob", mode: "100644" }));
+    const selected = JSON.parse(await fs.readFile(inventoryPath, "utf8")).marketplace_main.files.map(
+      (file: { path: string; git_blob: string }) => ({
+        path: file.path,
+        sha: file.git_blob,
+        type: "blob",
+        mode: "100644",
+      }),
+    );
     const data = responses(selected);
     data[`${api}/git/trees/${baseTree}?recursive=1`] = { sha: baseTree, truncated: false, tree: selected };
     const result = await entrypoint(data, [], workflow.replace(/\r?\n/g, "\r\n"));
@@ -240,9 +287,14 @@ describe("advisory marketplace MAIN source collector", () => {
     const actualPackage = await fs.readFile(packagePath, "utf8");
     const main = JSON.parse(actualInventory).marketplace_main;
     expect(main.commit).toBe("4a67d0d0288c1b4ee23e17fc896f47616931ba2d");
-    expect(main.files.find((f: { path: string }) => f.path === "LICENSE")?.git_blob).toBe("2a187917a0b9e8ea3ab3db2d9e60649f0e2e4ea5");
+    expect(main.files.find((f: { path: string }) => f.path === "LICENSE")?.git_blob).toBe(
+      "2a187917a0b9e8ea3ab3db2d9e60649f0e2e4ea5",
+    );
     const selected = main.files.map((f: { path: string; git_blob: string }) => ({
-      path: f.path, sha: f.git_blob, type: "blob", mode: "100644",
+      path: f.path,
+      sha: f.git_blob,
+      type: "blob",
+      mode: "100644",
     }));
     const stableCLIResult = Object.freeze({ taggedRelease: "v1.3.1", compatible: true, exitCode: 0 });
     const stableCLIFailure = Object.freeze({ taggedRelease: "v1.3.1", compatible: false, exitCode: 1 });
@@ -253,7 +305,9 @@ describe("advisory marketplace MAIN source collector", () => {
     expect(unchanged.exitCode).toBe(0);
     expect(unchanged.report.status).toBe("unchanged");
     data[`${api}/git/trees/${nextTree}?recursive=1`] = {
-      sha: nextTree, truncated: false, tree: [...selected, blob("plugins/beads/new-main-work.md", "a")],
+      sha: nextTree,
+      truncated: false,
+      tree: [...selected, blob("plugins/beads/new-main-work.md", "a")],
     };
     const changed = await entrypoint(data);
     expect(changed.exitCode).toBe(0);

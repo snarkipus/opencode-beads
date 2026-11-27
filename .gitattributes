@@ -1,0 +1,2 @@
+# Keep TypeScript formatting identical in Linux and Windows checkouts.
+*.ts text eol=lf

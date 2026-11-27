@@ -58,13 +58,9 @@ async function capture(command: string[], cwd: string): Promise<string> {
 
 async function readManifest(projectDirectory: string): Promise<PackageManifest> {
   try {
-    return JSON.parse(
-      await fs.readFile(path.join(projectDirectory, "package.json"), "utf8")
-    ) as PackageManifest;
+    return JSON.parse(await fs.readFile(path.join(projectDirectory, "package.json"), "utf8")) as PackageManifest;
   } catch (error) {
-    throw new Error(
-      `Invalid package.json: ${error instanceof Error ? error.message : String(error)}`
-    );
+    throw new Error(`Invalid package.json: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -100,7 +96,9 @@ export function releaseChannel(version: string): ReleaseChannel {
 function validateChannel(version: string, metadata: ReleaseChannel): void {
   const expected = releaseChannel(version);
   if (metadata.distTag !== expected.distTag || metadata.prerelease !== expected.prerelease) {
-    throw new Error(`Release channel mismatch: ${version} requires --tag ${expected.distTag} and prerelease=${expected.prerelease}`);
+    throw new Error(
+      `Release channel mismatch: ${version} requires --tag ${expected.distTag} and prerelease=${expected.prerelease}`,
+    );
   }
 }
 
@@ -108,7 +106,7 @@ function validateChannel(version: string, metadata: ReleaseChannel): void {
 export async function validateReleaseMetadata(
   projectDirectory: string,
   releaseTag: string,
-  channel?: ReleaseChannel
+  channel?: ReleaseChannel,
 ): Promise<{ name: string; version: string }> {
   const manifest = await readManifest(projectDirectory);
   const identity = requireIdentity(manifest);
@@ -125,26 +123,16 @@ export async function validateReleaseMetadata(
 
   const readme = await fs.readFile(path.join(projectDirectory, "README.md"), "utf8");
   const legacyRemoval = `bunx ${identity.name}@0.8.0 remove`;
-  const legacyRemovalLine = new RegExp(
-    `^[\\t ]*${escapeRegex(legacyRemoval)}[\\t ]*\\r?$`,
-    "gm"
-  );
+  const legacyRemovalLine = new RegExp(`^[\\t ]*${escapeRegex(legacyRemoval)}[\\t ]*\\r?$`, "gm");
   const releaseReferences = readme.replace(legacyRemovalLine, "");
-  const referencePattern = new RegExp(
-    `${escapeRegex(identity.name)}@(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)`,
-    "g"
-  );
-  const documentedVersions = [...releaseReferences.matchAll(referencePattern)].map(
-    (match) => match[1]
-  );
+  const referencePattern = new RegExp(`${escapeRegex(identity.name)}@(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)`, "g");
+  const documentedVersions = [...releaseReferences.matchAll(referencePattern)].map((match) => match[1]);
   if (!documentedVersions.includes(identity.version)) {
     throw new Error(`README.md has no versioned ${identity.name} installation example; expected ${identity.version}`);
   }
   const staleVersion = documentedVersions.find((version) => version !== identity.version);
   if (staleVersion) {
-    throw new Error(
-      `README.md references ${identity.name}@${staleVersion}, expected ${identity.version}`
-    );
+    throw new Error(`README.md references ${identity.name}@${staleVersion}, expected ${identity.version}`);
   }
   return identity;
 }
@@ -152,20 +140,13 @@ export async function validateReleaseMetadata(
 async function expectedArchiveInventory(projectDirectory: string): Promise<string[]> {
   const expected = ["LICENSE", "README.md", "package.json"];
   for (const directory of ["src", "assets/oc-beads"]) {
-    expected.push(
-      ...(await filesBelow(path.join(projectDirectory, directory))).map(
-        (file) => `${directory}/${file}`
-      )
-    );
+    expected.push(...(await filesBelow(path.join(projectDirectory, directory))).map((file) => `${directory}/${file}`));
   }
   return expected.sort();
 }
 
 /** Inspect one packed archive and return the digest used by all later release steps. */
-export async function inspectReleaseArchive(
-  projectDirectory: string,
-  archivePath: string
-): Promise<ReleaseArchive> {
+export async function inspectReleaseArchive(projectDirectory: string, archivePath: string): Promise<ReleaseArchive> {
   const archive = path.resolve(projectDirectory, archivePath);
   const listed = await capture(["tar", "-tzf", archive], projectDirectory);
   const inventory = listed
@@ -176,12 +157,12 @@ export async function inspectReleaseArchive(
   const expected = await expectedArchiveInventory(projectDirectory);
   if (inventory.join("\0") !== expected.join("\0")) {
     throw new Error(
-      `Release archive inventory differs:\nexpected ${expected.join("\n")}\nactual ${inventory.join("\n")}`
+      `Release archive inventory differs:\nexpected ${expected.join("\n")}\nactual ${inventory.join("\n")}`,
     );
   }
 
   const packedManifest = JSON.parse(
-    await capture(["tar", "-xOzf", archive, "package/package.json"], projectDirectory)
+    await capture(["tar", "-xOzf", archive, "package/package.json"], projectDirectory),
   ) as PackageManifest;
   const sourceManifest = await readManifest(projectDirectory);
   requireIdentity(packedManifest);
@@ -191,7 +172,9 @@ export async function inspectReleaseArchive(
 
   return {
     path: archive,
-    sha256: createHash("sha256").update(await fs.readFile(archive)).digest("hex"),
+    sha256: createHash("sha256")
+      .update(await fs.readFile(archive))
+      .digest("hex"),
   };
 }
 
@@ -200,7 +183,7 @@ export async function prepareReleaseArchive(
   projectDirectory: string,
   releaseTag: string,
   outputDirectory: string,
-  channel?: ReleaseChannel
+  channel?: ReleaseChannel,
 ): Promise<ReleaseArchive> {
   await validateReleaseMetadata(projectDirectory, releaseTag, channel);
   const output = path.resolve(projectDirectory, outputDirectory);
@@ -220,16 +203,14 @@ export async function prepareReleaseArchive(
 export async function verifyReleaseArchive(
   projectDirectory: string,
   archivePath: string,
-  expectedSha256: string
+  expectedSha256: string,
 ): Promise<ReleaseArchive> {
   const resolvedArchive = path.resolve(projectDirectory, archivePath);
   const actualSha256 = createHash("sha256")
     .update(await fs.readFile(resolvedArchive))
     .digest("hex");
   if (actualSha256 !== expectedSha256) {
-    throw new Error(
-      `Release archive digest changed: expected ${expectedSha256}, got ${actualSha256}`
-    );
+    throw new Error(`Release archive digest changed: expected ${expectedSha256}, got ${actualSha256}`);
   }
   return inspectReleaseArchive(projectDirectory, resolvedArchive);
 }
@@ -257,34 +238,29 @@ async function main(args: string[]): Promise<void> {
       process.cwd(),
       argument(args, "--tag"),
       argument(args, "--output"),
-      channel
+      channel,
     );
     const archiveOutput = releaseOutputPath(process.cwd(), result.path);
     console.log(`Validated release archive ${archiveOutput} (${result.sha256})`);
     if (process.env.GITHUB_OUTPUT) {
       await fs.appendFile(
         process.env.GITHUB_OUTPUT,
-        `archive=${archiveOutput}\nsha256=${result.sha256}\ndist_tag=${channel.distTag}\n`
+        `archive=${archiveOutput}\nsha256=${result.sha256}\ndist_tag=${channel.distTag}\n`,
       );
     }
     return;
   }
   if (command === "verify") {
     await validateReleaseMetadata(process.cwd(), argument(args, "--tag"), {
-      distTag: argument(args, "--dist-tag"), prerelease: prereleaseArgument(args),
+      distTag: argument(args, "--dist-tag"),
+      prerelease: prereleaseArgument(args),
     });
-    const result = await verifyReleaseArchive(
-      process.cwd(),
-      argument(args, "--archive"),
-      argument(args, "--sha256")
-    );
-    console.log(
-      `Verified release archive ${path.relative(process.cwd(), result.path)} (${result.sha256})`
-    );
+    const result = await verifyReleaseArchive(process.cwd(), argument(args, "--archive"), argument(args, "--sha256"));
+    console.log(`Verified release archive ${path.relative(process.cwd(), result.path)} (${result.sha256})`);
     return;
   }
   throw new Error(
-    "Usage: bun scripts/release.ts prepare --tag <tag> --prerelease <true|false> --output <dir> | verify --archive <tgz> --sha256 <digest> --tag <tag> --dist-tag <next|latest> --prerelease <true|false>"
+    "Usage: bun scripts/release.ts prepare --tag <tag> --prerelease <true|false> --output <dir> | verify --archive <tgz> --sha256 <digest> --tag <tag> --dist-tag <next|latest> --prerelease <true|false>",
   );
 }
 
