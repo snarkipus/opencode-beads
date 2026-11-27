@@ -185,6 +185,11 @@ function fields(data: unknown, allowed: readonly string[]): Data {
   // Optional undefined values are omitted in JSON; keep target/content JSON-consistent too.
   return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
 }
+/** @param value - A required priority, or a supplied optional priority. */
+function validatePriority(value: unknown): void {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 4)
+    throw new Error("Invalid priority");
+}
 function list(data: Data, key: string): string[] {
   const value = data[key];
   if (!Array.isArray(value) || !value.length || value.length > 25 || new Set(value).size !== value.length)
@@ -219,6 +224,39 @@ function validateFind(d: Data): void {
   if (d.labels !== undefined) list(d, "labels");
 }
 
+/**
+ * Validate the update patch in error precedence order, leaving the original input intact for argv construction.
+ *
+ * @param patch - The unvalidated value of the update's `set` field.
+ */
+function validateUpdate(patch: unknown): void {
+  const set = fields(patch, ["status", "priority", "addLabels", "removeLabels"]);
+  if (Object.keys(set).length === 0) throw new Error("Empty update");
+  if (set.status !== undefined && !["open", "in_progress", "blocked", "deferred"].includes(String(set.status)))
+    throw new Error("Invalid update status; use close separately");
+  if (set.priority !== undefined) validatePriority(set.priority);
+  const addLabels = set.addLabels === undefined ? undefined : list(set, "addLabels");
+  const removeLabels = set.removeLabels === undefined ? undefined : list(set, "removeLabels");
+  if (addLabels?.some((label) => removeLabels?.includes(label))) throw new Error("Conflicting label update");
+}
+
+/**
+ * Validate required create fields before optional text, references, and labels.
+ *
+ * @param data - Create input after unknown keys and undefined values have been handled.
+ */
+function validateCreate(data: Data): void {
+  stringField(data, "title");
+  if (!["bug", "feature", "task", "epic", "chore"].includes(String(data.type))) throw new Error("Invalid issue type");
+  validatePriority(data.priority);
+  for (const key of ["description", "acceptance", "design"]) {
+    if (data[key] !== undefined) stringField(data, key);
+  }
+  if (data.parent !== undefined) stringField(data, "parent", true);
+  if (data.discoveredFrom !== undefined) stringField(data, "discoveredFrom", true);
+  if (data.labels !== undefined) list(data, "labels");
+}
+
 function validate(operation: Operation, input: unknown): Data {
   const allowed: Record<Operation, string[]> = {
     find: ["view", "parent", "assignee", "status", "labels", "text", "limit"],
@@ -246,29 +284,8 @@ function validate(operation: Operation, input: unknown): Data {
     if (d.types !== undefined && list(d, "types").length !== 1) throw new Error("Expected one dependency type");
   }
   if (operation === "find") validateFind(d);
-  if (operation === "update") {
-    const set = fields(d.set, ["status", "priority", "addLabels", "removeLabels"]);
-    if (!Object.values(set).some((v) => v !== undefined)) throw new Error("Empty update");
-    if (set.status !== undefined && !["open", "in_progress", "blocked", "deferred"].includes(String(set.status)))
-      throw new Error("Invalid update status; use close separately");
-    if (
-      set.priority !== undefined &&
-      (!Number.isInteger(set.priority) || Number(set.priority) < 0 || Number(set.priority) > 4)
-    )
-      throw new Error("Invalid priority");
-    for (const k of ["addLabels", "removeLabels"]) if (set[k] !== undefined) list(set, k);
-    if ((set.addLabels as string[] | undefined)?.some((v) => (set.removeLabels as string[] | undefined)?.includes(v)))
-      throw new Error("Conflicting label update");
-  }
-  if (operation === "create") {
-    stringField(d, "title");
-    if (!["bug", "feature", "task", "epic", "chore"].includes(String(d.type))) throw new Error("Invalid issue type");
-    if (!Number.isInteger(d.priority) || Number(d.priority) < 0 || Number(d.priority) > 4)
-      throw new Error("Invalid priority");
-    for (const k of ["description", "acceptance", "design", "parent", "discoveredFrom"])
-      if (d[k] !== undefined) stringField(d, k, ["parent", "discoveredFrom"].includes(k));
-    if (d.labels !== undefined) list(d, "labels");
-  }
+  if (operation === "update") validateUpdate(d.set);
+  if (operation === "create") validateCreate(d);
   return d;
 }
 

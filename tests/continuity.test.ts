@@ -426,6 +426,17 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
     await expect(f.execute("find", { view: "search", parent: "epic" })).rejects.toThrow("Invalid text");
     expect(f.permission).not.toHaveBeenCalled();
   });
+  test("update validates both label lists before checking overlap or requesting permission", async () => {
+    const f = fixture();
+    for (const [set, message] of [
+      [{ addLabels: [], removeLabels: [] }, "Invalid addLabels"],
+      [{ addLabels: ["a"], removeLabels: ["a", "a"] }, "Invalid removeLabels"],
+      [{ addLabels: ["a"], removeLabels: ["a"] }, "Conflicting label update"],
+    ] as const) {
+      await expect(f.execute("update", { id: "task-1", set })).rejects.toThrow(message);
+    }
+    expect(f.permission).not.toHaveBeenCalled();
+  });
   test("derives stable audit attribution from actual session and executor, independently of Git identity", () => {
     expect(executorActor(invocation())).toBe("opencode:restricted-worker:960defe988fd");
     expect(executorActor({ ...invocation(), id: "another-call" } as unknown as ToolContext)).toBe(
