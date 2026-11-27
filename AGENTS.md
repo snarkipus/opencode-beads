@@ -3,7 +3,7 @@
 ## Commands
 - **Code checks**: `bun run check` (lint, formatting, and TypeScript); use `bun run format` for mechanical formatting.
 - **Tests**: `bun test`
-- **Advisory diagnostics**: `bun run test:coverage` and `bun run health`; neither is a percentage or complexity gate.
+- **Advisory diagnostics**: `bun run test:coverage` and `bun run health`; neither is a percentage or complexity gate. For planned cleanup, compare the pinned Fallow complexity scan on the exact baseline and candidate before sending the patch to Claude. Share the affected functions and any remaining or newly surfaced hotspots with the reviewer; use the findings to guide inspection, not to require a lower score.
 - **Package smoke test**: `bun run test:package`
 - **bd contract check** (needs `bd` on PATH): `bun run test:bd-contract`; install a pinned release with `./scripts/install-bd.sh <version> <dir>`
 - **Install deps**: `bun install --frozen-lockfile`. When intentionally changing dependencies, use `bun install` and commit the resulting `bun.lock`.
@@ -25,7 +25,7 @@ Start with [`docs/README.md`](docs/README.md). It indexes current documents and 
 - Keep simple code inline. Extract a nearby helper for real reuse, a complex boundary, or a concept whose name makes the caller clearer. Don't add wrappers to lower a metric or transplant OpenCode internals.
 - Across production TypeScript, document exported APIs and private helpers with non-obvious behavior using concise JSDoc. Follow the OpenCode GUI SDK convention for function and method docs: use `@param` for each parameter by name, describing its role or constraints without repeating its TypeScript type. Document non-obvious return, error, and side-effect semantics. Use `//` for local rationale, precedence, or invariants; do not narrate obvious control flow. Apply this to new and substantially changed code, not as a drive-by rewrite of untouched files.
 - Before adding complexity for a speculative or vanishingly unlikely race or security edge case, explain the concrete failure mode, likelihood, and complexity cost to the user and get their buy-in. Do not silently expand scope for theoretical robustness.
-- Before staging substantial code changes, make a bounded simplification pass over the changed surface, review the diff, and rerun the relevant checks. Keep mechanical formatting separate from changes to behavior.
+- For planned cleanup slices, use Codex with the repo-local [`$code-simplification` skill](.agents/skills/code-simplification/SKILL.md). Invoke it explicitly; if native activation cannot be verified, have Codex read `SKILL.md` directly and record which path was used. The coordinating agent owns scope and acceptance. Before staging substantial code changes, keep the simplification pass bounded to the changed surface, review the diff, and rerun the relevant checks. Keep mechanical formatting separate from changes to behavior.
 
 ## Tests
 

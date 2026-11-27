@@ -6,11 +6,13 @@ import { isAbsolute, parse, relative, sep } from "node:path";
 import { checkBeadsStore, createGuardRuntime } from "./guard";
 import { PrimeProcessError, runBd } from "./prime";
 
+/** Host location and session authority used to verify the invocation before spawning Beads. */
 export type ContinuityHost = Pick<Plugin.Context, "location"> & {
   permission: Pick<Plugin.Context["permission"], "assert">;
   session: Pick<Plugin.Context["session"], "get">;
 };
 
+/** Operation-specific result; an uncertain write may have landed and needs readback, not automatic retry. */
 export interface ContinuityResult {
   operation: Operation;
   target: string | string[] | Record<string, unknown>;
@@ -28,20 +30,29 @@ export interface ContinuityResult {
   direction?: "down" | "up";
   scope?: Record<string, unknown>;
   limit?: number;
+  /** Null means the reply could not establish completeness; false means results are known to be incomplete. */
   complete?: boolean | null;
   detail?: string;
   commitIndeterminate?: boolean;
 }
 
+/** Runner and path overrides for testing, plus optional result notification and lifecycle cancellation. */
 export interface ContinuityDependencies {
   /** Override the normal bounded runner in tests. */
   bd?: typeof runBd;
   realpath?: (path: string) => Promise<string>;
+  /** Receives an assembled result, including an uncertain write on abort; not proof of persistence. */
   acknowledged?: (sessionID: string, result: ContinuityResult) => void;
+  /** Additional cancellation source combined with the individual tool invocation's signal. */
   signal?: AbortSignal;
 }
 
-/** Audit attribution from host invocation identity; not authentication or an assignment handoff. */
+/**
+ * Derive stable audit attribution, not authentication or an assignment handoff.
+ *
+ * @param context - Session and agent of the actual invocation, not the session's default agent.
+ * @throws If either part of the invocation identity is unavailable or invalid.
+ */
 export function executorActor(context: { sessionID: string; agent: string }): string {
   if (
     [context.sessionID, context.agent].some(
@@ -60,6 +71,7 @@ export function executorActor(context: { sessionID: string; agent: string }): st
   return `opencode:${label}:${suffix}`;
 }
 
+/** Names exposed in the typed `beads` namespace, not necessarily native CLI subcommand names. */
 export type Operation =
   | "find"
   | "get"
@@ -130,7 +142,11 @@ const createSchema = obj(
 function record(value: unknown): value is Data {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-/** Validate the declared issue fields; preserve other CLI fields without inventing values. */
+/**
+ * Check the declared issue fields without stripping additional CLI data or inventing values.
+ *
+ * @param value - Untrusted issue row from the parsed CLI reply.
+ */
 function isIssue(value: unknown): value is Data & { id: string } {
   if (
     !record(value) ||
@@ -167,6 +183,13 @@ function isIssue(value: unknown): value is Data & { id: string } {
     return false;
   return true;
 }
+/**
+ * Check nonblank text without trimming it; identifier-like fields use the stricter token grammar.
+ *
+ * @param data - Input object containing the field.
+ * @param key - Field checked and named in the validation error.
+ * @param isToken - Whether the field must be safe as a token rather than free text.
+ */
 function stringField(data: Data, key: string, isToken = false): string {
   const value = data[key];
   if (
@@ -179,18 +202,106 @@ function stringField(data: Data, key: string, isToken = false): string {
     throw new Error(`Invalid ${key}`);
   return value;
 }
+/**
+ * Reject unknown keys, then shallow-copy the input with optional undefined values omitted to match JSON.
+ *
+ * @param data - Untrusted input object.
+ * @param allowed - Keys accepted by this operation or nested patch.
+ */
 function fields(data: unknown, allowed: readonly string[]): Data {
   if (!record(data)) throw new Error("Expected operation input");
   for (const key of Object.keys(data)) if (!allowed.includes(key)) throw new Error(`Unsupported input: ${key}`);
-  // Optional undefined values are omitted in JSON; keep target/content JSON-consistent too.
   return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
 }
+/**
+ * Require an integer priority from 0 through 4.
+ *
+ * @param value - Required create priority or the supplied optional update priority.
+ */
+function validatePriority(value: unknown): void {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 4)
+    throw new Error("Invalid priority");
+}
+/**
+ * Validate an ordered list of 1–25 unique tokens without trimming or deduplicating it.
+ *
+ * @param data - Input object containing the list.
+ * @param key - List field checked and named in the validation error.
+ */
 function list(data: Data, key: string): string[] {
   const value = data[key];
   if (!Array.isArray(value) || !value.length || value.length > 25 || new Set(value).size !== value.length)
     throw new Error(`Invalid ${key}`);
   return value.map((v) => stringField({ [key]: v }, key, true));
 }
+/**
+ * Validate view-specific filters in error precedence order, before permission is requested.
+ *
+ * @param d - Operation input after unknown keys and undefined values have been handled.
+ */
+function validateFind(d: Data): void {
+  if (!["ready", "list", "search", "blocked"].includes(String(d.view))) throw new Error("Invalid view");
+  if (d.limit !== undefined && (!Number.isInteger(d.limit) || Number(d.limit) < 1 || Number(d.limit) > 50))
+    throw new Error("Invalid limit");
+  if (d.view === "search") stringField(d, "text");
+  else if (d.text !== undefined) throw new Error("text requires search");
+  if (d.parent !== undefined) {
+    stringField(d, "parent", true);
+    if (d.view === "search") throw new Error("parent unsupported for search");
+  }
+  if (d.assignee !== undefined) {
+    stringField(d, "assignee");
+    if (d.view === "blocked") throw new Error("assignee unsupported for blocked");
+  }
+  if (
+    d.status !== undefined &&
+    (!["list", "search"].includes(String(d.view)) ||
+      !["open", "in_progress", "blocked", "deferred", "closed"].includes(String(d.status)))
+  )
+    throw new Error("Invalid status filter");
+  if (d.labels !== undefined) list(d, "labels");
+}
+
+/**
+ * Validate the update patch in error precedence order, leaving the original input intact for argv construction.
+ *
+ * @param patch - The unvalidated value of the update's `set` field.
+ */
+function validateUpdate(patch: unknown): void {
+  const set = fields(patch, ["status", "priority", "addLabels", "removeLabels"]);
+  if (Object.keys(set).length === 0) throw new Error("Empty update");
+  if (set.status !== undefined && !["open", "in_progress", "blocked", "deferred"].includes(String(set.status)))
+    throw new Error("Invalid update status; use close separately");
+  if (set.priority !== undefined) validatePriority(set.priority);
+  const addLabels = set.addLabels === undefined ? undefined : list(set, "addLabels");
+  const removeLabels = set.removeLabels === undefined ? undefined : list(set, "removeLabels");
+  if (addLabels?.some((label) => removeLabels?.includes(label))) throw new Error("Conflicting label update");
+}
+
+/**
+ * Validate required create fields before optional text, references, and labels.
+ *
+ * @param data - Create input after unknown keys and undefined values have been handled.
+ */
+function validateCreate(data: Data): void {
+  stringField(data, "title");
+  if (!["bug", "feature", "task", "epic", "chore"].includes(String(data.type))) throw new Error("Invalid issue type");
+  validatePriority(data.priority);
+  for (const key of ["description", "acceptance", "design"]) {
+    if (data[key] !== undefined) stringField(data, key);
+  }
+  if (data.parent !== undefined) stringField(data, "parent", true);
+  if (data.discoveredFrom !== undefined) stringField(data, "discoveredFrom", true);
+  if (data.labels !== undefined) list(data, "labels");
+}
+
+/**
+ * Validate input before permission is requested; return the checked request for argv and reply matching.
+ *
+ * @param operation - Operation that determines allowed fields and validation order.
+ * @param input - Raw tool input, checked even when the host supplied an input schema.
+ * @throws On the first invalid field or unsupported combination, before invoking Beads.
+ */
 function validate(operation: Operation, input: unknown): Data {
   const allowed: Record<Operation, string[]> = {
     find: ["view", "parent", "assignee", "status", "labels", "text", "limit"],
@@ -217,54 +328,19 @@ function validate(operation: Operation, input: unknown): Data {
     // One qualified CLI --type per operation; arbitrary dependency types remain CLI-owned.
     if (d.types !== undefined && list(d, "types").length !== 1) throw new Error("Expected one dependency type");
   }
-  if (operation === "find") {
-    if (!["ready", "list", "search", "blocked"].includes(String(d.view))) throw new Error("Invalid view");
-    if (d.limit !== undefined && (!Number.isInteger(d.limit) || Number(d.limit) < 1 || Number(d.limit) > 50))
-      throw new Error("Invalid limit");
-    if (d.view === "search") stringField(d, "text");
-    else if (d.text !== undefined) throw new Error("text requires search");
-    if (d.parent !== undefined) {
-      stringField(d, "parent", true);
-      if (d.view === "search") throw new Error("parent unsupported for search");
-    }
-    if (d.assignee !== undefined) {
-      stringField(d, "assignee");
-      if (d.view === "blocked") throw new Error("assignee unsupported for blocked");
-    }
-    if (
-      d.status !== undefined &&
-      (!["list", "search"].includes(String(d.view)) ||
-        !["open", "in_progress", "blocked", "deferred", "closed"].includes(String(d.status)))
-    )
-      throw new Error("Invalid status filter");
-    if (d.labels !== undefined) list(d, "labels");
-  }
-  if (operation === "update") {
-    const set = fields(d.set, ["status", "priority", "addLabels", "removeLabels"]);
-    if (!Object.values(set).some((v) => v !== undefined)) throw new Error("Empty update");
-    if (set.status !== undefined && !["open", "in_progress", "blocked", "deferred"].includes(String(set.status)))
-      throw new Error("Invalid update status; use close separately");
-    if (
-      set.priority !== undefined &&
-      (!Number.isInteger(set.priority) || Number(set.priority) < 0 || Number(set.priority) > 4)
-    )
-      throw new Error("Invalid priority");
-    for (const k of ["addLabels", "removeLabels"]) if (set[k] !== undefined) list(set, k);
-    if ((set.addLabels as string[] | undefined)?.some((v) => (set.removeLabels as string[] | undefined)?.includes(v)))
-      throw new Error("Conflicting label update");
-  }
-  if (operation === "create") {
-    stringField(d, "title");
-    if (!["bug", "feature", "task", "epic", "chore"].includes(String(d.type))) throw new Error("Invalid issue type");
-    if (!Number.isInteger(d.priority) || Number(d.priority) < 0 || Number(d.priority) > 4)
-      throw new Error("Invalid priority");
-    for (const k of ["description", "acceptance", "design", "parent", "discoveredFrom"])
-      if (d[k] !== undefined) stringField(d, k, ["parent", "discoveredFrom"].includes(k));
-    if (d.labels !== undefined) list(d, "labels");
-  }
+  if (operation === "find") validateFind(d);
+  if (operation === "update") validateUpdate(d.set);
+  if (operation === "create") validateCreate(d);
   return d;
 }
 
+/**
+ * Build direct CLI argument arrays before invocation-scoped flags are added. Get uses one command per ID;
+ * bounded find views request one extra row so the decoder can detect truncation.
+ *
+ * @param operation - Operation that selects the CLI command form.
+ * @param d - Input already checked by the operation validator.
+ */
 function argv(operation: Operation, d: Data): string[][] {
   const flags = (value: Data, mapping: Record<string, string>): string[] =>
     Object.entries(mapping).flatMap(([key, flag]) => (value[key] === undefined ? [] : [flag, String(value[key])]));
@@ -348,6 +424,13 @@ function argv(operation: Operation, d: Data): string[][] {
   }
 }
 
+/**
+ * Describe operation-specific results, including partial reads and uncertainty after a write.
+ * The schema describes the output; the decoder establishes whether a CLI reply supports that outcome.
+ *
+ * @param operation - Operation whose result branches are declared.
+ * @param write - Whether an invocation actor is required in every result branch.
+ */
 function outputFor(operation: Operation, write: boolean): JS {
   const base: Record<string, JS> = {
     operation: { const: operation },
@@ -472,127 +555,195 @@ interface OperationDefinition {
   argv(data: Data): string[][];
   normalize(data: Data, stdout: string, actor: string): Partial<ContinuityResult>;
 }
+/** Reject an unsupported reply without implying that a write did not land. */
+function fail(): never {
+  throw new Error("Unsupported CLI acknowledgement; inspect current durable state before another write");
+}
+
+/**
+ * Validate the entire reply before returning capped records; search and blocked views cannot certify completeness.
+ *
+ * @param d - Validated find input carrying the requested view and limit.
+ * @param value - Parsed CLI reply, still untrusted.
+ * @throws If any row is unsupported, even beyond the returned limit.
+ */
+function decodeFind(d: Data, value: unknown): Partial<ContinuityResult> {
+  if (!Array.isArray(value)) return fail();
+  const cap = Number(d.limit ?? 20);
+  const records: Data[] = [];
+  for (const row of value) {
+    if (
+      !isIssue(row) ||
+      typeof row.title !== "string" ||
+      typeof row.status !== "string" ||
+      !Number.isInteger(row.priority) ||
+      typeof row.issue_type !== "string" ||
+      (row.assignee !== undefined && row.assignee !== null && typeof row.assignee !== "string")
+    )
+      return fail();
+    if (records.length < cap) {
+      records.push({
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        priority: row.priority,
+        type: row.issue_type,
+        ...(Object.hasOwn(row, "assignee") ? { assignee: row.assignee } : {}),
+      });
+    }
+  }
+  const view = String(d.view);
+  const complete = ["blocked", "search"].includes(view) ? null : true;
+  return {
+    status: "acknowledged",
+    view,
+    records,
+    scope: { ...d, limit: cap },
+    limit: cap,
+    complete: value.length > cap ? false : complete,
+  };
+}
+
+/**
+ * Validate every direct edge and retain the original fields; an untruncated list does not certify completeness.
+ *
+ * @param d - Validated edges input carrying the requested scope and direction.
+ * @param value - Parsed CLI reply, still untrusted.
+ * @throws If any row is unsupported, even beyond the returned limit.
+ */
+function decodeEdges(d: Data, value: unknown): Partial<ContinuityResult> {
+  if (!Array.isArray(value)) return fail();
+  for (const row of value) {
+    if (!isIssue(row) || typeof row.dependency_type !== "string") return fail();
+  }
+  const cap = 50;
+  return {
+    status: "acknowledged",
+    records: value.slice(0, cap),
+    direction: d.direction as "down" | "up",
+    scope: { id: d.id, direction: d.direction, ...(d.types ? { types: d.types } : {}) },
+    complete: value.length > cap ? false : null,
+  };
+}
+
+/**
+ * Parse the CLI reply once and check it against the operation's acknowledgement contract.
+ *
+ * @param operation - Operation whose reply contract applies.
+ * @param d - Validated request used to check the acknowledgement and report its scope.
+ * @param stdout - CLI reply as received, before JSON parsing.
+ * @param actor - Invocation actor used to check attribution in write acknowledgements.
+ * @throws The original JSON parse error for malformed JSON, or an unsupported acknowledgement error for a contract mismatch.
+ */
 function normalize(operation: Operation, d: Data, stdout: string, actor: string): Partial<ContinuityResult> {
   const value: unknown = JSON.parse(stdout);
-  const fail = () => {
-    throw new Error("Unsupported CLI acknowledgement; inspect current durable state before another write");
-  };
-  if (operation === "memories" && record(value)) {
-    const memories = { ...value };
-    if (Object.hasOwn(memories, "schema_version") && memories.schema_version !== 1) return fail();
-    if (memories.schema_version === 1) delete memories.schema_version;
-    if (Object.values(memories).every((v) => typeof v === "string"))
+  switch (operation) {
+    case "find":
+      return decodeFind(d, value);
+    case "edges":
+      return decodeEdges(d, value);
+    case "memories": {
+      if (!record(value)) return fail();
+      const memories = { ...value };
+      if (Object.hasOwn(memories, "schema_version") && memories.schema_version !== 1) return fail();
+      if (memories.schema_version === 1) delete memories.schema_version;
+      if (!Object.values(memories).every((entry) => typeof entry === "string")) return fail();
       return { status: "found", memories: memories as Record<string, string> };
-  }
-  if (
-    operation === "recall" &&
-    record(value) &&
-    value.key === d.key &&
-    typeof value.value === "string" &&
-    typeof value.found === "boolean" &&
-    (value.found || value.value === "")
-  )
-    return value.found
-      ? { status: "found", reference: String(d.key), value: value.value }
-      : { status: "missing", reference: String(d.key) };
-  if (
-    operation === "remember" &&
-    record(value) &&
-    value.key === d.key &&
-    value.value === d.text &&
-    ["remembered", "updated"].includes(String(value.action))
-  )
-    return {
-      status:
-        value.committed === false || value.commit_error !== undefined || value.commit_indeterminate === true
-          ? "landed-uncommitted"
-          : "acknowledged",
-      reference: String(d.key),
-      data: value,
-      commitIndeterminate: value.commit_indeterminate === true,
-    };
-  if (operation === "find" || operation === "edges") {
-    if (!Array.isArray(value)) return fail();
-    for (const row of value) {
+    }
+    case "recall":
       if (
-        !isIssue(row) ||
-        (operation === "edges"
-          ? typeof row.dependency_type !== "string"
-          : typeof row.title !== "string" ||
-            typeof row.status !== "string" ||
-            !Number.isInteger(row.priority) ||
-            typeof row.issue_type !== "string" ||
-            (row.assignee !== undefined && row.assignee !== null && typeof row.assignee !== "string"))
+        !record(value) ||
+        value.key !== d.key ||
+        typeof value.value !== "string" ||
+        typeof value.found !== "boolean" ||
+        (!value.found && value.value !== "")
       )
         return fail();
-    }
-    const cap = operation === "edges" ? 50 : Number(d.limit ?? 20);
-    return operation === "edges"
-      ? {
-          status: "acknowledged",
-          records: value.slice(0, cap),
-          direction: d.direction as "down" | "up",
-          scope: { id: d.id, direction: d.direction, ...(d.types ? { types: d.types } : {}) },
-          complete: value.length > cap ? false : null,
-        }
-      : {
-          status: "acknowledged",
-          view: String(d.view),
-          records: value.slice(0, cap).map((row) => ({
-            id: row.id,
-            title: row.title,
-            status: row.status,
-            priority: row.priority,
-            type: row.issue_type,
-            ...(Object.hasOwn(row, "assignee") ? { assignee: row.assignee } : {}),
-          })),
-          scope: { ...d, limit: cap },
-          limit: cap,
-          complete: ["blocked", "search"].includes(String(d.view))
-            ? value.length > cap
-              ? false
-              : null
-            : value.length <= cap,
-        };
+      return value.found
+        ? { status: "found", reference: String(d.key), value: value.value }
+        : { status: "missing", reference: String(d.key) };
+    case "remember":
+      if (
+        !record(value) ||
+        value.key !== d.key ||
+        value.value !== d.text ||
+        !["remembered", "updated"].includes(String(value.action))
+      )
+        return fail();
+      return {
+        status:
+          value.committed === false || value.commit_error !== undefined || value.commit_indeterminate === true
+            ? "landed-uncommitted"
+            : "acknowledged",
+        reference: String(d.key),
+        data: value,
+        commitIndeterminate: value.commit_indeterminate === true,
+      };
+    default:
+      return decodeIssueReply(operation, d, value, actor);
   }
-  const row =
-    operation === "create" && record(value)
-      ? value
-      : Array.isArray(value) && value.length === 1 && record(value[0])
-        ? value[0]
-        : undefined;
+}
+
+/**
+ * Check the shared issue-row shape and identity before checking the requested effect.
+ * Create also accepts a bare object and reports its generated ID. Successful replies retain the raw row.
+ *
+ * @param operation - Operation that reads or acknowledges a single issue row.
+ * @param d - Validated request, with a single requested ID for get.
+ * @param value - Parsed CLI reply, still untrusted.
+ * @param actor - Actual invocation actor required as the assignee in a claim acknowledgement.
+ * @throws If the row does not establish the requested identity or effect.
+ */
+function decodeIssueReply(
+  operation: Exclude<Operation, "find" | "edges" | "memories" | "recall" | "remember">,
+  d: Data,
+  value: unknown,
+  actor: string,
+): Partial<ContinuityResult> {
+  let row: unknown;
+  if (operation === "create" && record(value)) row = value;
+  else if (Array.isArray(value) && value.length === 1 && record(value[0])) row = value[0];
+
   if (!isIssue(row)) return fail();
-  if (operation === "get") return row.id === d.id ? { issue: row } : fail();
   if (operation !== "create" && row.id !== d.id) return fail();
-  let accepted = false;
+
   switch (operation) {
+    case "get":
+      return { issue: row };
     case "claim":
-      accepted = row.assignee === actor && row.status === "in_progress";
+      if (row.assignee !== actor || row.status !== "in_progress") return fail();
       break;
     case "note":
-      accepted = typeof row.notes === "string" && row.notes.endsWith(String(d.text));
+      if (typeof row.notes !== "string" || !row.notes.endsWith(String(d.text))) return fail();
       break;
     case "close":
-      accepted = row.status === "closed";
+      if (row.status !== "closed") return fail();
       break;
     case "create":
-      accepted = row.title === d.title && row.issue_type === d.type && row.priority === d.priority && !row.assignee;
+      if (row.title !== d.title || row.issue_type !== d.type || row.priority !== d.priority || row.assignee)
+        return fail();
       break;
-    case "update":
-      accepted = Object.entries(d.set as Data).every(([key, value]) => {
-        if (key === "addLabels" || key === "removeLabels") {
-          if (key === "removeLabels" && !Object.hasOwn(row, "labels")) return true;
-          if (!Array.isArray(row.labels)) return false;
-          const labels = row.labels;
-          return (value as string[]).every((label) =>
-            key === "addLabels" ? labels.includes(label) : !labels.includes(label),
-          );
-        }
-        return row[key] === value;
+    case "update": {
+      const matches = Object.entries(d.set as Data).every(([key, requested]) => {
+        if (key !== "addLabels" && key !== "removeLabels") return row[key] === requested;
+        // The CLI can omit labels after removing the last one.
+        if (key === "removeLabels" && !Object.hasOwn(row, "labels")) return true;
+        if (!Array.isArray(row.labels)) return false;
+        const labels = row.labels;
+        return (requested as string[]).every((label) =>
+          key === "addLabels" ? labels.includes(label) : !labels.includes(label),
+        );
       });
+      if (!matches) return fail();
       break;
+    }
+    default: {
+      // A new operation must define its acknowledgement before it can succeed.
+      const unhandled: never = operation;
+      void unhandled;
+      return fail();
+    }
   }
-  if (!accepted) return fail();
   return { status: "acknowledged", reference: row.id, issue: row };
 }
 const inputs: Record<Operation, JS> = {
@@ -651,18 +802,32 @@ const OPERATIONS: OperationDefinition[] = (Object.keys(inputs) as Operation[]).m
   };
 });
 
-/** Canonical shell resource only; execution always uses the separate argv array. */
+/**
+ * Quote the canonical shell permission resource without using it to execute the command.
+ *
+ * @param args - Exact CLI argv, including the invocation flags.
+ */
 function shellResource(args: readonly string[]): string {
   return ["bd", ...args]
     .map((arg) => (/^[a-zA-Z0-9_./:=-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", "'\\''")}'`))
     .join(" ");
 }
+/**
+ * Keep the CLI diagnostic streams available when an execution failed.
+ *
+ * @param error - Rejected invocation or decoder error.
+ */
 function failureDetail(error: unknown): string {
   if (error instanceof PrimeProcessError)
     return [error.message, error.stderr.trim(), error.stdout.trim()].filter(Boolean).join(": ");
   return error instanceof Error ? error.message : String(error);
 }
-/** Only the observed single-target JSON diagnostic establishes a non-claim. */
+/**
+ * Recognize only the observed single-target JSON conflict; other write failures remain uncertain.
+ *
+ * @param error - CLI failure that may carry the conflict diagnostic.
+ * @param id - Requested issue ID the diagnostic must match.
+ */
 function claimConflict(error: unknown, id: unknown): boolean {
   if (!(error instanceof PrimeProcessError) || error.exitCode !== 1 || error.stdout.trim()) return false;
   try {
@@ -684,14 +849,23 @@ function claimConflict(error: unknown, id: unknown): boolean {
   }
 }
 
+/**
+ * Test lexical containment, including equality; callers resolve aliases separately.
+ *
+ * @param root - Directory boundary.
+ * @param target - Candidate path checked against that boundary.
+ */
 function contains(root: string, target: string): boolean {
   const path = relative(root, target);
   return path === "" || (!isAbsolute(path) && path !== ".." && !path.startsWith(`..${sep}`));
 }
 
 /**
- * Fixed N1 definitions using the same runner in production and tests. Ordinary setup must not
- * register these before 1.1 qualification. Beads owns its normal routing and storage semantics.
+ * Build the permissioned `beads` tool definitions; the host owns registration.
+ * Beads remains responsible for routing and storage once a command is allowed to run.
+ *
+ * @param host - Host location, session lookup, and permission surface for the definitions.
+ * @param deps - Optional runner/path overrides, result observer, and lifecycle cancellation.
  */
 export function createContinuityTools(host: ContinuityHost, deps: ContinuityDependencies = {}): Info[] {
   const bd = deps.bd ?? runBd;
@@ -705,6 +879,13 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
       description: `Beads ${operation}: fixed permissioned operation. No new saved grant; ask may prompt again.`,
       input: definition.input,
       output: definition.output,
+      /**
+       * Check the request and authority before spawn, then classify only what the CLI reply establishes.
+       *
+       * @param input - Raw operation request.
+       * @param context - Actual invocation identity and cancellation signal.
+       * @throws For validation, permission, guard, or cancellation failures that prevent a normal result.
+       */
       async execute(input, context) {
         const data = validate(operation, input);
         const write = definition.write;
@@ -732,6 +913,12 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
           save: [],
         };
 
+        /**
+         * Wait for a per-invocation assertion without letting late approval resume aborted work.
+         *
+         * @param action - Host permission being asserted.
+         * @param resources - Exact directory or command resources, with no saved grant.
+         */
         async function assertPermission(action: string, resources: string[]): Promise<void> {
           signal.throwIfAborted();
           // The public API owns its prompt and exposes no cancellation endpoint. Stop this
@@ -748,6 +935,7 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
         }
 
         const directory = host.location.directory;
+        /** Re-read the session location before resolving its path; a moved session is not authorized here. */
         async function invocationDirectory(): Promise<string> {
           signal.throwIfAborted();
           const response = await host.session.get({ sessionID: context.sessionID });
@@ -756,6 +944,7 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
           return canonical(directory);
         }
 
+        /** Withhold execution unless the native CLI and workspace guard reports ready. */
         async function assertGuard(): Promise<void> {
           const guard = await checkBeadsStore(directory, runtime);
           if (guard.kind !== "ready") throw new Error(`Beads store held: ${guard.kind}`);
@@ -823,6 +1012,11 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
           result = Object.keys(issues).length
             ? { ...base, status: "acknowledged", issues, failed, complete: failed.length === 0 }
             : { ...base, status: "failed", detail: failed.map((f) => `${f.id}: ${f.detail}`).join("; ") };
+        /**
+         * Notify the observer without turning its failure into a different persistence outcome.
+         *
+         * @param value - Established result to annotate if the observer fails.
+         */
         function notify(value: ContinuityResult): void {
           try {
             deps.acknowledged?.(context.sessionID, value);

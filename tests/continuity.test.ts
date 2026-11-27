@@ -259,6 +259,24 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
         ["find", "get", "edges", "memories", "recall"].includes(c.name) ? "failed" : "uncertain",
       );
     });
+  test("create accepts a legacy single-row array and preserves the raw issue", async () => {
+    const f = fixture();
+    const created = { ...row, id: "generated-1", created_by: actor, extra: { source: "cli" } };
+    const input = { title: row.title, type: row.issue_type, priority: row.priority };
+    f.output(JSON.stringify([created]));
+    const result = await f.execute("create", input);
+    expect(result.output).toMatchObject({ status: "acknowledged", reference: created.id });
+    expect(result.output.issue).toEqual(created);
+
+    for (const reply of [[created, created], [{ ...created, assignee: null }]]) {
+      f.output(JSON.stringify(reply));
+      expect((await f.execute("create", input)).output).toMatchObject({
+        status: "uncertain",
+        detail: "Unsupported CLI acknowledgement; inspect current durable state before another write",
+      });
+    }
+  });
+
   test("last-label removal acknowledges the native omitted-empty response only when all requested effects match", async () => {
     // Saved stdout from bd 1.3.4 after removing the fixture's last label.
     const native = {
@@ -336,6 +354,20 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
     expect((await f.execute("get", { ids: ["task-1"] })).output.status).toBe("failed");
     f.output('{"schema_version":1}');
     expect((await f.execute("memories", { search: undefined })).output.target).toEqual({});
+  });
+  test("find and edges reject invalid rows beyond the result cap", async () => {
+    const f = fixture();
+    const edge = { ...row, dependency_type: "blocks" };
+    f.output(JSON.stringify([row, { id: "task-2" }]));
+    expect((await f.execute("find", { view: "list", limit: 1 })).output).toMatchObject({
+      status: "failed",
+      detail: expect.stringContaining("Unsupported CLI acknowledgement"),
+    });
+    f.output(JSON.stringify([...Array.from({ length: 50 }, () => edge), { id: "task-2" }]));
+    expect((await f.execute("edges", { id: "task-1", direction: "down" })).output).toMatchObject({
+      status: "failed",
+      detail: expect.stringContaining("Unsupported CLI acknowledgement"),
+    });
   });
   test("claim uses observed non-claim evidence; ambiguous claim/create keep target and actor without retry", async () => {
     const f = fixture();
@@ -417,6 +449,24 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
       ["get", { ids: ["task-1", "task-1"] }],
     ] as const)
       await expect(f.execute(name, input)).rejects.toThrow();
+    expect(f.permission).not.toHaveBeenCalled();
+  });
+  test("find reports the first invalid filter before requesting permission", async () => {
+    const f = fixture();
+    await expect(f.execute("find", { view: "invalid", limit: 0 })).rejects.toThrow("Invalid view");
+    await expect(f.execute("find", { view: "search", limit: 0, parent: "epic" })).rejects.toThrow("Invalid limit");
+    await expect(f.execute("find", { view: "search", parent: "epic" })).rejects.toThrow("Invalid text");
+    expect(f.permission).not.toHaveBeenCalled();
+  });
+  test("update validates both label lists before checking overlap or requesting permission", async () => {
+    const f = fixture();
+    for (const [set, message] of [
+      [{ addLabels: [], removeLabels: [] }, "Invalid addLabels"],
+      [{ addLabels: ["a"], removeLabels: ["a", "a"] }, "Invalid removeLabels"],
+      [{ addLabels: ["a"], removeLabels: ["a"] }, "Conflicting label update"],
+    ] as const) {
+      await expect(f.execute("update", { id: "task-1", set })).rejects.toThrow(message);
+    }
     expect(f.permission).not.toHaveBeenCalled();
   });
   test("derives stable audit attribution from actual session and executor, independently of Git identity", () => {
