@@ -18,8 +18,9 @@ import { Error as ToolError, type Info, type ToolContext, type ToolDomain } from
 import type { SessionContext, SessionCompaction } from "@opencode/plugin/promise/session";
 import { executorActor } from "../src/continuity";
 import { PrimeProcessError, PrimeTimeoutError } from "../src/prime";
-import { renderHealthReport } from "../src/diagnostics";
+import { renderHealthReport, type DiagnosticsSnapshot } from "../src/diagnostics";
 import * as diagnosticPresentation from "../src/diagnostics";
+import type { PluginHealthObservation } from "../src/diagnostics-collection";
 import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
 import { BEADS_COMPACTION_GUIDANCE, primeFailureNotice } from "../src/guidance";
 
@@ -2619,9 +2620,9 @@ test("diagnostics groups repeated hooks while retaining other findings and exact
     host: "2.3.0",
     context: "ready",
     guard: { kind: "ready", version: "1.3.4" },
-  };
+  } satisfies DiagnosticsSnapshot;
   for (const hooks of [missing, shims]) {
-    const snapshot = {
+    const snapshot: DiagnosticsSnapshot = {
       ...base,
       hooks,
       local: {
@@ -2764,13 +2765,13 @@ function presentationFixture() {
     syncTarget: { state: "resolved", name: "origin" },
     requestInstructions: { at: 1000, full: 1, minimal: 0, codex: 1, replaced: 1, retained: 1 },
     persistence: "uncertain: no final-write guarantee",
-  };
+  } satisfies DiagnosticsSnapshot;
 }
 
 test("command observations suggest reviewing customization only for complete missing or changed membership", () => {
   const ready = presentationFixture();
   const hint = "Review command customization and rerun diagnostics.";
-  const cases = [
+  const cases: Array<{ commands: DiagnosticsSnapshot["commands"]; expected: boolean }> = [
     { commands: { ...ready.commands, missing: ["oc-beads:show"] }, expected: true },
     { commands: { ...ready.commands, mismatches: [{ name: "oc-beads:show" }] }, expected: true },
     { commands: ready.commands, expected: false },
@@ -3128,12 +3129,13 @@ test("registered command completeness separates membership truncation from descr
 
 test("AGENTS Configured recognizes markers while unknown guidance stays neutral", () => {
   const ready = presentationFixture();
-  for (const managedInstructions of [
+  const rootObservations: PluginHealthObservation["managedInstructions"][] = [
     { state: "available", full: 0, minimal: 0, codex: 0 },
     { state: "missing" },
     { state: "unreadable" },
     { state: "truncated" },
-  ]) {
+  ];
+  for (const managedInstructions of rootObservations) {
     const report = renderHealthReport({ ...ready, local: { ...ready.local, managedInstructions } }, 2000);
     expect(report).toContain("| AGENTS Configured | — |");
     expect(report).not.toMatch(/partial|Request instructions|full ·|Codex/);

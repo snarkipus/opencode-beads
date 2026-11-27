@@ -23,6 +23,7 @@ import {
   collectSyncTarget,
   DIAGNOSTIC_ENV,
   renderHealthReport,
+  type DiagnosticsSnapshot,
 } from "./diagnostics";
 import { createContinuityTools, type ContinuityDependencies, type ContinuityResult } from "./continuity";
 
@@ -333,7 +334,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
     // Native package transforms precede config/file command transforms. Competing
     // plugins use the same ordinary ordering; initial lookup is diagnostic only.
     if (ctx.command && ctx.session.prompt) {
-      let commandRegistration = "pending";
+      let commandRegistration: NonNullable<DiagnosticsSnapshot["commands"]>["registration"] = "pending";
       const diagnosticBd =
         deps.bd ??
         ((dir: string, args: readonly string[]) => runBd(dir, args, { signal: abort.signal, env: DIAGNOSTIC_ENV }));
@@ -396,7 +397,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
           let effectiveCommands: Array<{ name: string; description?: string }> | undefined;
           let registryTruncated = false;
           let registryMembershipTruncated = false;
-          let effectiveSkills: string[] | string;
+          let effectiveSkills: NonNullable<DiagnosticsSnapshot["skill"]>["effective"];
           try {
             const entries = (await ctx.command!.list()).data;
             registryMembershipTruncated = entries.length > 128 || entries.some(({ name }) => name.length > 128);
@@ -478,7 +479,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
               syncTarget,
               historyRequested: selector === "remote" || selector === "details remote",
               persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
-            },
+            } satisfies DiagnosticsSnapshot,
             now(),
             selector === "details" || selector === "details remote",
           );

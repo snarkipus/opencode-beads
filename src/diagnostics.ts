@@ -1,9 +1,12 @@
+import type { ContextController } from "./context";
 import type {
   BeadsHealthObservation,
-  HookObservation,
   PluginHealthObservation,
   SyncTargetObservation,
+  collectHooks,
 } from "./diagnostics-collection";
+import type { BeadsWorkspace, GuardResult } from "./guard";
+import type { RequestCapabilities } from "./guidance";
 import { isSupportedOpenCodeVersion, SUPPORTED_OPENCODE_RANGE } from "./host-admission";
 
 export {
@@ -13,6 +16,62 @@ export {
   collectSyncTarget,
   DIAGNOSTIC_ENV,
 } from "./diagnostics-collection";
+
+// Workspace status and any available CLI version are assessed independently.
+type GuardObservation = {
+  kind: GuardResult["kind"] | "withheld";
+  version?: string;
+  installed?: string;
+  workspace?: BeadsWorkspace;
+  reason?: string;
+};
+
+type CommandObservation = {
+  name: string;
+  description?: string;
+};
+
+/** Captured host evidence. Missing fields, partial observations and producer sentinels are retained in details. */
+export interface DiagnosticsSnapshot {
+  plugin?: { name?: string; version?: string };
+  host?: string;
+  admission?: string;
+  liveQualification?: string;
+  commands?: {
+    registration?: "pending" | "registered" | "failed";
+    lookup?: "available" | "failed";
+    truncated?: boolean;
+    membershipTruncated?: boolean;
+    expectedCount?: number;
+    effective?: CommandObservation[] | "unknown: registry lookup failed";
+    mismatches?: Array<{ name: string; expectedDescription?: string; effectiveDescription?: string }>;
+    // An incomplete membership listing leaves the missing names unmeasured.
+    missing?: string[] | false;
+    ownership?: string;
+  };
+  skill?: {
+    failure?: string;
+    effective?: string[] | "unavailable" | "unavailable: registry lookup failed";
+    collision?: string;
+  };
+  typedContinuity?: string;
+  typedRegistration?: string;
+  requestCapability?:
+    | { agent: string; capabilities: Partial<RequestCapabilities> }
+    | "unknown: no actual request observation";
+  leafAvailability?: string;
+  local?: Partial<PluginHealthObservation & BeadsHealthObservation> | "withheld";
+  context?: string;
+  contextObservation?: ReturnType<ContextController["observationFor"]>;
+  requestInstructions?:
+    | { at?: number; full?: number; minimal?: number; codex?: number; replaced?: number; retained?: number }
+    | "unobserved";
+  guard?: GuardObservation;
+  hooks?: Awaited<ReturnType<typeof collectHooks>> | `withheld: ${string}` | `failed: ${string}`;
+  syncTarget?: SyncTargetObservation;
+  historyRequested?: boolean;
+  persistence?: string;
+}
 
 type FindingClass =
   | "incompatible"
@@ -37,7 +96,12 @@ type Finding = {
 
 type Row = [check: string, status: 0 | 1 | 2 | null, value: string];
 
-function workspaceRow(kind: string | undefined): Row {
+/**
+ * Render workspace location status for the report.
+ *
+ * @param kind - Captured guard outcome, if any.
+ */
+function workspaceRow(kind: GuardObservation["kind"] | undefined): Row {
   switch (kind) {
     case "ready":
       return ["Workspace", 0, "Located"];
@@ -59,7 +123,7 @@ function workspaceRow(kind: string | undefined): Row {
  * @param observedAt - Timestamp shared by the captured findings.
  */
 function assessHooks(
-  hooks: unknown,
+  hooks: DiagnosticsSnapshot["hooks"],
   observedAt: string,
 ): {
   row: Row;
@@ -89,8 +153,8 @@ function assessHooks(
       ...(action ? { action } : {}),
     });
 
-  if (!Array.isArray(hooks)) {
-    if (typeof hooks === "string" && hooks.startsWith("withheld:")) {
+  if (hooks === undefined || typeof hooks === "string") {
+    if (hooks?.startsWith("withheld:")) {
       add(
         "hooks-unavailable",
         "unknown",
@@ -102,7 +166,7 @@ function assessHooks(
       return { row: ["Git hooks", null, "Withheld"], findings };
     }
     add("hooks-unavailable", "failed", String(hooks), "Hook status is not established.");
-    const value = typeof hooks === "string" && hooks.startsWith("failed:") ? "observation failed" : "not observed";
+    const value = hooks?.startsWith("failed:") ? "observation failed" : "not observed";
     return { row: ["Git hooks", null, value], findings };
   }
   if (!hooks.length) return { row: ["Git hooks", null, "no entries reported"], findings };
@@ -111,7 +175,7 @@ function assessHooks(
   const outdated: string[] = [];
   const unidentified: string[] = [];
   const shims: string[] = [];
-  for (const hook of hooks as HookObservation[]) {
+  for (const hook of hooks) {
     // Outdated wins over shim; an unversioned shim is not itself unidentified.
     if (!hook.installed) missing.push(hook.name);
     else if (hook.outdated) outdated.push(hook.name);
@@ -253,9 +317,9 @@ function assessRemote(
  * @param observedAt - Timestamp for the version finding.
  */
 function assessContext(
-  state: unknown,
+  state: DiagnosticsSnapshot["context"],
   cachedVersion: string | undefined,
-  guard: { kind?: string; version?: string } | undefined,
+  guard: DiagnosticsSnapshot["guard"],
   observedAt: string,
 ): { row: Row; finding?: Finding; action?: string } {
   const currentVersion = guard?.version;
@@ -276,7 +340,7 @@ function assessContext(
         "Use the next session or configured idle refresh; normal full prime can access the store. Verify the observed context version in diagnostics afterward.",
     };
   }
-  const context = typeof state === "string" ? state : "";
+  const context = state ?? "";
   switch (context) {
     case "ready":
       if (differs) {
@@ -381,7 +445,7 @@ function worstStatus(rows: Row[]): Row[1] {
  * @param snapshot - Captured observations, including absent or partial evidence.
  * @param time - ISO timestamp shared by findings unless their evidence carries its own time.
  */
-function interpretHealthReport(snapshot: Record<string, unknown>, time: string) {
+function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
   const findings: Finding[] = [];
   const add = (
     id: string,
@@ -405,9 +469,7 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
       meaning,
       ...(action ? { action } : {}),
     });
-  const guard = snapshot.guard as
-    | { kind?: string; version?: string; installed?: string; workspace?: { repoRoot?: string } }
-    | undefined;
+  const { guard, skill, plugin: identity, commands } = snapshot;
   if (guard?.kind === "unsupported")
     add(
       "cli-unsupported",
@@ -429,7 +491,7 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
     );
   const hooks = assessHooks(snapshot.hooks, time);
   findings.push(...hooks.findings);
-  const local = snapshot.local as Partial<PluginHealthObservation & BeadsHealthObservation> | undefined;
+  const local = snapshot.local === "withheld" ? undefined : snapshot.local;
   const fileScope = `root-file observation: ${local?.scope ?? "confirmed session directory"}`;
   if (local?.managedInstructions?.state === "unreadable" || local?.managedInstructions?.state === "truncated") {
     add(
@@ -481,7 +543,7 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
       fileScope,
     );
   if (witness.finding && witness.finding.id !== "witness-differs") findings.push(witness.finding);
-  const request = snapshot.requestInstructions as { at?: number; full?: number; retained?: number } | undefined;
+  const request = snapshot.requestInstructions === "unobserved" ? undefined : snapshot.requestInstructions;
   if ((request?.full ?? 0) > 1)
     add(
       "request-full-duplicates",
@@ -494,7 +556,6 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
       "last observed request",
       typeof request?.at === "number" ? new Date(request.at).toISOString() : "unavailable",
     );
-  const skill = snapshot.skill as { effective?: string[]; collision?: string; failure?: string } | undefined;
   if (Array.isArray(skill?.effective) && skill.effective.includes("beads"))
     add(
       "shared-skill-effective",
@@ -514,32 +575,19 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
       "Native customization precedence is preserved.",
     );
   const remote = assessRemote(
-    snapshot.syncTarget as SyncTargetObservation | undefined,
+    snapshot.syncTarget,
     guard?.kind === "withheld",
     snapshot.historyRequested === true,
     time,
   );
   findings.push(...remote.findings);
-  const contextObservation = snapshot.contextObservation as { version?: string } | undefined;
-  const context = assessContext(snapshot.context, contextObservation?.version, guard, time);
+  const context = assessContext(snapshot.context, snapshot.contextObservation?.version, guard, time);
   if (context.finding) findings.push(context.finding);
   const pluginRows: Row[] = [];
   const beadsRows: Row[] = [];
   const actions: string[] = [];
   const comments: string[] = [];
-  const identity = snapshot.plugin as { name?: string; version?: string } | undefined;
-  const commands = snapshot.commands as
-    | {
-        registration?: string;
-        lookup?: string;
-        truncated?: boolean;
-        membershipTruncated?: boolean;
-        expectedCount?: number;
-        missing?: string[];
-        mismatches?: unknown[];
-      }
-    | undefined;
-  const host = typeof snapshot.host === "string" && snapshot.host !== "unknown" ? snapshot.host : undefined;
+  const host = snapshot.host !== "unknown" ? snapshot.host : undefined;
   const hostSupported = host !== undefined && isSupportedOpenCodeVersion(host);
   pluginRows.push([
     "Host",
@@ -552,7 +600,7 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
     const changed = commands.mismatches?.length ?? 0;
     pluginRows.push(["Commands", null, `list incomplete${changed ? ` · ${changed} changed` : ""}`]);
   } else {
-    const missing = commands.missing?.length;
+    const missing = commands.missing === false ? undefined : commands.missing?.length;
     const overrides = commands.mismatches?.length ?? 0;
     if (missing === undefined) pluginRows.push(["Commands", null, "membership not observed"]);
     else {
@@ -582,9 +630,9 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
       `oc-beads ${active ? "active" : "absent"} · shared: ${shared}`,
     ]);
   } else pluginRows.push(["Skill", null, `registry not observed · shared: ${shared}`]);
-  const typed = typeof snapshot.typedRegistration === "string" ? snapshot.typedRegistration : "";
+  const typed = snapshot.typedRegistration ?? "";
   if (typed.startsWith("registered")) pluginRows.push(["Typed tools", 0, "Registered"]);
-  else if (typeof snapshot.typedContinuity === "string" && snapshot.typedContinuity.startsWith("enabled"))
+  else if (snapshot.typedContinuity?.startsWith("enabled"))
     pluginRows.push(["Typed tools", 2, "Requested, not registered"]);
   else pluginRows.push(["Typed tools", null, typed.startsWith("disabled") ? "Not requested" : "not observed"]);
   pluginRows.push(context.row);
@@ -607,10 +655,7 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
     actions.push(
       "Review duplicate full instruction blocks before editing local guidance. Check: root-file counts in diagnostics details.",
     );
-  const gap =
-    typeof snapshot.persistence === "string" && snapshot.persistence !== "uncertain: no final-write guarantee"
-      ? snapshot.persistence
-      : undefined;
+  const gap = snapshot.persistence !== "uncertain: no final-write guarantee" ? snapshot.persistence : undefined;
   if (gap) pluginRows.push(["Write outcomes", 1, gap.length > 180 ? `${gap.slice(0, 177)}...` : gap]);
   if (guard?.kind === "ready") beadsRows.push(["bd CLI", guard.version ? 0 : null, guard.version ?? "not observed"]);
   else if (guard?.kind === "unsupported" || guard?.kind === "unavailable") {
@@ -678,7 +723,7 @@ function renderCheckTable(rows: Row[]): string {
  * @param capturedAt - Capture time in milliseconds since the Unix epoch.
  * @param details - Whether to include the underlying observations and findings.
  */
-export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt: number, details = false): string {
+export function renderHealthReport(snapshot: DiagnosticsSnapshot, capturedAt: number, details = false): string {
   const time = new Date(capturedAt).toISOString();
   const {
     findings,
