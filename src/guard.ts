@@ -22,6 +22,10 @@ export interface BeadsWorkspace {
   path: string;
   repoRoot?: string;
   remote?: boolean;
+  backend?: "dolt" | "other";
+  doltMode?: "embedded" | "server" | "proxied-server" | "other";
+  serverEndpoint?: true;
+  proxied?: true;
 }
 
 /** Config-only context avoids `where`'s opportunistic embedded-store prefix lookup. */
@@ -46,7 +50,18 @@ export async function probeBeadsWorkspace(directory: string, runtime: GuardRunti
   const data = location as Record<string, unknown>;
   if (typeof data.beads_dir !== "string") throw new Error("Unsupported bd context response");
   if (!data.beads_dir) return undefined;
-  return { path: data.beads_dir, ...(typeof data.cwd_repo_root === "string" ? { repoRoot: data.cwd_repo_root } : {}), ...(typeof data.sync_remote === "string" || typeof data.sync_git_remote === "string" ? { remote: Boolean(data.sync_remote || data.sync_git_remote) } : {}) };
+  const workspace: BeadsWorkspace = { path: data.beads_dir };
+  if (typeof data.cwd_repo_root === "string") workspace.repoRoot = data.cwd_repo_root;
+  if (typeof data.sync_remote === "string" || typeof data.sync_git_remote === "string") workspace.remote = Boolean(data.sync_remote || data.sync_git_remote);
+  // Diagnostic evidence only. Keep topology labels and presence without endpoint values.
+  if (typeof data.backend === "string" && data.backend) workspace.backend = data.backend === "dolt" ? "dolt" : "other";
+  if (typeof data.dolt_mode === "string" && data.dolt_mode) {
+    const mode = data.dolt_mode;
+    workspace.doltMode = mode === "embedded" || mode === "server" || mode === "proxied-server" ? mode : "other";
+  }
+  if ((typeof data.server_host === "string" && data.server_host) || (typeof data.server_port === "number" && data.server_port > 0)) workspace.serverEndpoint = true;
+  if (typeof data.proxied_dir === "string" && data.proxied_dir) workspace.proxied = true;
+  return workspace;
 }
 
 /** Parse the leading `major.minor.patch` triple; pre-release suffixes are ignored. */

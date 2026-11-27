@@ -2,7 +2,8 @@ import { open } from "node:fs/promises";
 import path from "node:path";
 import { countManagedBlocks } from "./instructions";
 import { isSupportedOpenCodeVersion, SUPPORTED_OPENCODE_RANGE } from "./host-admission";
-import type { GuardResult, GuardRuntime } from "./guard";
+import type { BeadsWorkspace, GuardResult, GuardRuntime } from "./guard";
+import { PrimeProcessError, PrimeTimeoutError } from "./prime";
 
 /** Scoped only to diagnostic subprocesses; ordinary Beads operations retain their environment. */
 export const DIAGNOSTIC_ENV = {
@@ -33,6 +34,45 @@ export async function collectHooks(directory: string, bd: GuardRuntime["bd"]): P
   }
 }
 
+type SyncTargetObservation =
+  | { state: "resolved"; name: "origin" }
+  | { state: "local-only" }
+  | { state: "unknown"; reason: string; listingSkipped?: true };
+
+/** Observe the native default target using only a strict-readonly listing and native context. */
+export async function collectSyncTarget(directory: string, workspace: BeadsWorkspace, bd: GuardRuntime["bd"]): Promise<SyncTargetObservation> {
+  let skipReason: string | undefined;
+  // The supported CLI pins refuse strict readonly before opening a proxied store.
+  if (workspace.proxied || workspace.doltMode === "proxied-server") skipReason = "proxied-server mode is unsupported";
+  else if (!workspace.backend) skipReason = "native backend was not reported";
+  else if (workspace.backend !== "dolt") skipReason = "native backend is not Dolt";
+  else if (!workspace.doltMode) skipReason = "native Dolt mode was not reported";
+  else if (workspace.doltMode === "other") skipReason = "unrecognized native Dolt mode";
+  else if (workspace.doltMode === "embedded" && workspace.serverEndpoint) skipReason = "embedded mode conflicts with server endpoint evidence";
+  if (skipReason) return { state: "unknown", reason: skipReason, listingSkipped: true };
+
+  try {
+    const remotes: unknown = JSON.parse(await bd(directory, ["--readonly", "dolt", "remote", "list", "--json", "--sandbox"]));
+    if (!Array.isArray(remotes) || !remotes.every((remote: unknown): remote is { name: string; status: "ok" } =>
+      typeof remote === "object" && remote !== null && "name" in remote && typeof remote.name === "string" && remote.name.length > 0
+      && "status" in remote && remote.status === "ok"
+    )) return { state: "unknown", reason: "native listing returned an unsupported response" };
+    if (remotes.some((remote) => remote.name === "origin")) return { state: "resolved", name: "origin" };
+    if (remotes.length === 0) {
+      return workspace.doltMode === "embedded"
+        ? { state: "local-only" }
+        : { state: "unknown", reason: "empty native listing in server mode" };
+    }
+    return { state: "unknown", reason: "native origin was not listed" };
+  } catch (error) {
+    // Native stdout and stderr may contain remote URLs or credentials.
+    let reason = "native listing failed";
+    if (error instanceof PrimeTimeoutError) reason = "native listing timed out";
+    else if (error instanceof PrimeProcessError) reason = `native listing exited with code ${error.exitCode}`;
+    else if (error instanceof SyntaxError) reason = "native listing returned an unsupported response";
+    return { state: "unknown", reason };
+  }
+}
 
 /** Read only a bounded portion and distinguish missing, unreadable and truncated observations. */
 async function boundedFile(file: string, limit: number): Promise<{ state: string; text?: string }> {
@@ -80,7 +120,7 @@ export async function collectBeadsHealth(guard: GuardResult): Promise<object> {
   return {
     witness: witnessObservation,
     remote: workspace?.remote === undefined ? "not reported" : workspace.remote ? "configured" : "not configured",
-    limitations: "Witnesses do not establish schema, reconciliation, hook freshness or maintenance completion; remote freshness is not checked.",
+    limitations: "Witnesses do not establish schema, reconciliation, hook freshness or maintenance completion.",
   };
 }
 
@@ -96,22 +136,21 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
   if (guard?.kind === "unsupported") add("cli-unsupported", "beads", "incompatible", "bd version", `CLI ${guard.installed ?? "unknown"} is below the supported minimum`, "Context admission remains unchanged.", "Upgrade bd in an authorized workflow; verify the version and context.");
   else if (guard?.kind !== "ready") add("workspace-unknown", "beads", guard?.kind === "probe-failed" ? "failed" : "unknown", "bd version/context", `Workspace observation: ${guard?.kind ?? "unknown"}`, "This does not establish store health.");
   const hooks = snapshot.hooks;
+  const missingHooks: string[] = [];
+  const outdatedHooks: string[] = [];
+  const unidentifiedHooks: string[] = [];
+  const shims: string[] = [];
+  const hookAction = "Review hook identity, local customization and the intended default, `--beads` or `--shared` layout before any refresh. `bd hooks install` writes hooks and may change core.hooksPath. Verify with `bd hooks list`.";
   if (Array.isArray(hooks)) {
-    const missing: string[] = [];
-    const outdated: string[] = [];
-    const unknownIdentity: string[] = [];
-    const shims: string[] = [];
     for (const hook of hooks as Array<{ name: string; installed: boolean; version: string; shim: boolean; outdated: boolean }>) {
-      if (!hook.installed) missing.push(hook.name);
-      else if (hook.outdated) outdated.push(hook.name);
-      else if (!hook.version) unknownIdentity.push(hook.name);
+      if (!hook.installed) missingHooks.push(hook.name);
+      else if (hook.outdated) outdatedHooks.push(hook.name);
       else if (hook.shim) shims.push(hook.name);
+      else if (!hook.version) unidentifiedHooks.push(hook.name);
     }
-    const hookAction = "Review intended default, `--beads` or `--shared` layout and local customization before `bd hooks install`; installation writes hooks and may change core.hooksPath. Verify with `bd hooks list`.";
-    const hookLimit = "Native status can also reflect an unresolved hook directory; installed files need not be Beads hooks.";
-    if (missing.length) add("hooks-missing", "beads", "action-recommended", "bd hooks list", `${missing.join(", ")}: missing or unreadable`, hookLimit, hookAction);
-    if (outdated.length) add("hooks-outdated", "beads", "action-recommended", "bd hooks list", `${outdated.join(", ")}: outdated`, hookLimit, hookAction);
-    if (unknownIdentity.length) add("hooks-identity-unknown", "beads", "note", "bd hooks list", `${unknownIdentity.join(", ")}: installed without a reported version`, "Installed may be a non-Beads hook; identity is not established.");
+    if (missingHooks.length) add("hooks-missing", "beads", "note", "bd hooks list", `${missingHooks.join(", ")}: missing/unreadable/unresolved`, "The optional hook installation was not established by the native listing.");
+    if (outdatedHooks.length) add("hooks-outdated", "beads", "action-recommended", "bd hooks list", `${outdatedHooks.join(", ")}: outdated`, "Native status describes hook installation only.", hookAction);
+    if (unidentifiedHooks.length) add("hooks-identity-unknown", "beads", "review-needed", "bd hooks list", `${unidentifiedHooks.join(", ")}: installed without a reported version`, "The native listing did not establish the installed hook's identity.", hookAction);
     if (shims.length) add("hooks-shim", "beads", "note", "bd hooks list", `${shims.join(", ")}: installed shim`, "A shim does not certify current wrapper policy; review native hook refresh guidance after upgrades.");
   } else if (typeof hooks === "string" && hooks.startsWith("withheld:")) {
     add("hooks-unavailable", "beads", "unknown", "bd hooks list", hooks, "Native hook collection was not attempted; hook status is unobserved.", undefined, "session location unconfirmed");
@@ -135,7 +174,26 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
   const skill = snapshot.skill as { effective?: string[]; collision?: string } | undefined;
   if (Array.isArray(skill?.effective) && skill.effective.includes("beads")) add("shared-skill-effective", "plugin", "note", "effective skill registry", "A Beads skill is registered alongside oc-beads", "Registration does not establish use or freshness.");
   if (skill?.collision && skill.collision.startsWith("skill-collision")) add("skill-collision", "plugin", "review-needed", "skill rebuild", skill.collision, "Native customization precedence is preserved.");
-  add("remote-freshness", "beads", "not-checked", "local diagnostic scope", "Source Git and Beads remote freshness were not checked", "No network or synchronization was attempted; local configuration is not reachability evidence.");
+  const target = snapshot.syncTarget as SyncTargetObservation | undefined;
+  const localOnly = target?.state === "local-only";
+  const targetAssessed = target?.state === "resolved" || localOnly;
+  const missingTarget = guard?.kind === "withheld" ? "session location unconfirmed" : "native listing not performed";
+  const targetValue = target?.state === "resolved" ? `Resolved · ${target.name}`
+    : localOnly ? "Local-only"
+    : `Unknown · ${target?.state === "unknown" ? target.reason : missingTarget}`;
+  const listingSkipped = target?.state === "unknown" && target.listingSkipped;
+  const targetProducer = listingSkipped ? "bd context --json"
+    : target ? "bd --readonly dolt remote list --json --sandbox and bd context --json"
+    : "local diagnostic scope";
+  const targetMeaning = listingSkipped ? "The strict-readonly remote listing was skipped because native context could not establish a supported direct Dolt workspace."
+    : localOnly ? "This embedded store has no registered native remotes. Native push may offer Git-origin adoption with consent."
+    : "The target check observes native registration of origin. Reachability and synchronization remain unmeasured.";
+  add("sync-target", "beads", targetAssessed ? "ok" : "unknown", targetProducer, targetValue, targetMeaning);
+  const historyValue = localOnly ? "Not applicable" : "Not checked";
+  const historyUnavailable = "No qualified Beads history probe is available";
+  const historyRequested = snapshot.historyRequested === true;
+  const historyReason = localOnly ? "This embedded store has no registered native remotes." : historyRequested ? `${historyUnavailable}.` : "The invocation did not request a remote history comparison.";
+  add("remote-history", "beads", "not-checked", "diagnostics invocation", historyValue, `Comparison was not attempted. ${historyReason} Source-Git freshness was not checked.`);
   const context = snapshot.contextObservation as { version?: string; loadedAt?: number } | undefined;
   const current = guard?.kind === "ready" ? (guard as { version?: string }).version : undefined;
   if (context?.version && current && context.version !== current) add("context-version-differs", "plugin", "review-needed", "context cache", `Context loaded with preceding CLI ${context.version}; current observation ${current}`, "These observations are not atomic; age alone does not prove staleness.", "Use the next session or configured idle refresh; normal full prime can access the store. Verify the observed context version in diagnostics afterward.");
@@ -205,20 +263,28 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
   const witness = guidance?.witness;
   beadsRows.push(["Recorded bd version", witness?.state === "match" ? 0 : witness?.state === "differ" ? 1 : null, witness?.state === "differ" ? `${witness.recorded} ≠ CLI ${witness.running}` : witness?.state === "match" ? `${witness.recorded} = CLI` : witness?.state === "missing" ? "none" : witness?.state ?? "not observed"]);
   if (Array.isArray(hooks) && hooks.length) {
-    const entries = hooks as Array<{ installed: boolean; shim: boolean; outdated: boolean; version: string }>;
-    const installed = entries.filter((h) => h.installed).length;
-    const missing = entries.length - installed;
-    const outdated = entries.filter((h) => h.installed && h.outdated).length;
-    const unidentified = entries.filter((h) => h.installed && !h.version).length;
-    const shimCount = entries.filter((h) => h.installed && h.shim).length;
-    const shims = shimCount ? (shimCount === installed ? " (shims)" : ` (${shimCount} shims)`) : "";
-    const value = [`${installed}/${entries.length} installed${shims}`, missing ? `${missing} missing/unreadable/unresolved` : "", outdated ? `${outdated} outdated` : "", unidentified ? `${unidentified} unrecognized` : ""].filter(Boolean).join(" · ");
-    beadsRows.push(["Git hooks", missing || outdated || unidentified ? 1 : 0, value]);
-    if (missing || outdated) {
+    const missing = missingHooks.length;
+    const installed = hooks.length - missing;
+    const outdated = outdatedHooks.length;
+    const unidentified = unidentifiedHooks.length;
+    const shimCount = shims.length;
+    const shimLabel = shimCount ? (shimCount === installed ? " (shims)" : ` (${shimCount} shim${shimCount > 1 ? "s" : ""})`) : "";
+    const value = [
+      `${installed}/${hooks.length} installed${shimLabel}`,
+      missing ? `${missing} missing/unreadable/unresolved` : "",
+      outdated ? `${outdated} outdated` : "",
+      unidentified ? `${unidentified} unrecognized` : "",
+    ].filter(Boolean).join(" · ");
+    const mismatch = outdated > 0 || unidentified > 0;
+    beadsRows.push(["Git hooks", mismatch ? 1 : installed ? 0 : null, value]);
+    if (mismatch) {
       comments.push("Git hooks need attention.");
-      actions.push("Install or refresh hooks: `bd hooks install` (`--beads` / `--shared` for those layouts; writes hooks and may change core.hooksPath). Check: `bd hooks list`.");
-    } else if (unidentified) actions.push("Review hook identities. Check: `bd hooks list`.");
-  } else beadsRows.push(["Git hooks", null, typeof hooks === "string" && hooks.startsWith("withheld:") ? "Withheld" : typeof hooks === "string" && hooks.startsWith("failed:") ? "observation failed" : "not observed"]);
+      actions.push(hookAction);
+    }
+  } else beadsRows.push(["Git hooks", null, Array.isArray(hooks) ? "no entries reported" : typeof hooks === "string" && hooks.startsWith("withheld:") ? "Withheld" : typeof hooks === "string" && hooks.startsWith("failed:") ? "observation failed" : "not observed"]);
+  beadsRows.push(["Sync target", targetAssessed ? 0 : null, targetValue]);
+  beadsRows.push(["Remote history", null, historyRequested && !localOnly ? `${historyValue} · ${historyUnavailable}` : historyValue]);
+  const summary = [comments[0], localOnly ? undefined : "Remote history not checked."].filter(Boolean).join(" ");
   const markers = ["✅", "⚠️", "❌"];
   const labels = ["Healthy", "Mismatch", "Unhealthy"];
   const rollup = (rows: Row[]) => {
@@ -233,12 +299,12 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
     `## Beads diagnostics — ${rollup([...pluginRows, ...beadsRows])}`,
     "", `DATE: ${code(time)}`, "", `VERSION: ${cell(identity?.name ?? "plugin not observed")} ${code(identity?.version ?? "version not observed")}`,
     "", `PATH: ${code(cli?.workspace?.repoRoot ?? "not observed")}`,
-    ...(comments.length ? ["", comments[0]!] : []),
+    ...(summary ? ["", summary] : []),
     "", `**Plugin** ${rollup(pluginRows)}`, "", table(pluginRows),
     "", `**Beads** ${rollup(beadsRows)}`, "", table(beadsRows),
     ...(actions.length ? ["", "**Actions**", "", ...actions.map((action) => `- ${action}`)] : []),
   ];
-  if (details) output.push("", "**Evidence**", "Local observations do not establish SQL health, historical maintenance, remote freshness or complete memory delivery. Model relay is not guaranteed verbatim.", `Details: ${JSON.stringify({ ...snapshot, capturedAt: time, findings })}`);
+  if (details) output.push("", "**Evidence**", "SQL health, historical maintenance completion and complete memory delivery remain unmeasured. Model relay is not guaranteed verbatim.", `Details: ${JSON.stringify({ ...snapshot, capturedAt: time, findings })}`);
   return output.join("\n");
 }
 
@@ -246,7 +312,7 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
 export const DIAGNOSTICS_HELP = `## Beads diagnostics help
 
 Use /oc-beads:diagnostics for current observations, /oc-beads:diagnostics details for bounded evidence, or /oc-beads:diagnostics help for this reference.
-Only exact trimmed, case-insensitive details or help selects a special view; other free text selects normal output. Each view is captured once and replayed unchanged.
+Use /oc-beads:diagnostics remote or /oc-beads:diagnostics details remote to request a history comparison, with bounded evidence in details remote. Beads 1.3.1 and 1.3.4 have no qualified history probe, so both views use the same local collection. Selectors are exact after trimming and case folding. Other free text selects normal output. Each view is captured once and replayed unchanged.
 
 ✅ Healthy: an assessed check matches. ⚠️ Mismatch: an observed setup difference. ❌ Unhealthy: known incompatibility or integration failure. —: unobserved or unassessed. Neutral rows stay visible and do not affect severity or add heading counts. The worst assessed check sets each heading.
 
@@ -262,11 +328,13 @@ Only exact trimmed, case-insensitive details or help selects a special view; oth
 | bd CLI | Native version observation: supported version, below minimum 1.3.1 or not found. Install/upgrade only in an authorized workflow; check bd version and a new session. |
 | Workspace | Config-only native context: Located, Not initialized, Probe failed, Withheld or not observed. Located identifies a directory, not database integrity. Review location/context evidence; onboarding is human-directed, never automatic repair. |
 | Recorded bd version | Bounded .local_version under resolved beads_dir: equals CLI, differs from CLI (mismatch), none, unreadable, unsupported, truncated or unavailable (neutral). Compare bd version and the recorded value; review native upgrade guidance for a difference. This is no schema or maintenance diagnosis. |
-| Git hooks | Native bd hooks list: installed counts include shims; missing/unreadable/unresolved, outdated or unrecognized installed identity is mismatch. Empty/failed/withheld observations are neutral. Review intended default, --beads or --shared layout and customization before bd hooks install (writes hooks and may change core.hooksPath); check bd hooks list. Shims do not certify wrapper freshness; unrecognized does not prove foreign identity. |
+| Git hooks | Native bd hooks list reports installation counts including shims. Missing/unreadable/unresolved optional hooks and empty/failed/withheld observations are neutral. Outdated and unrecognized installations are mismatches. Review hook identity, layout and customization before bd hooks install, which writes hooks and may change core.hooksPath. Verify with bd hooks list. This row covers installation only. |
+| Sync target | Native bd context --json and strict-readonly bd remote listing. Resolved means native origin is registered. Local-only means the native list is empty in a confirmed embedded store. Missing, failed or ambiguous evidence leaves the target Unknown. Review the evidence in details. Reachability remains unmeasured. |
+| Remote history | Not applicable for Local-only, otherwise Not checked. Both states are neutral. Exact remote selectors explain the unavailable history probe. Source-Git freshness remains unmeasured. |
 
 Below the title and before the summary, DATE is the exact capture timestamp, VERSION the executing package name/version, and PATH the observed native repository root (cwd_repo_root), each in a separate paragraph. Missing root is explicitly not observed; no root is inferred from beads_dir or session cwd. The Beads directory remains in details. Details retains raw command inventory/clipping, hook entries, root marker counts, last-request counts/times, context provenance and finding explanations.
 
-Help invokes no diagnostic collection. Normal/details collection uses only version, config-only context, qualified hooks list, cached integration observations and bounded local files; it performs no setup, repair, sync or network check. The later ordinary prompt lifecycle can still load full native prime and memories and open or migrate a store.
-SQL/schema health, maintenance history, remote freshness, complete memory delivery and unique build identity are not measured. Model relay of the saved Markdown is not guaranteed verbatim; styling is theme-controlled.
+Help skips diagnostic collection. All collected views use version, config-only context, qualified hook listing, bd --readonly dolt remote list --json --sandbox in supported workspaces, cached integration observations and bounded local files. Native listing may open the store, take locks and leave incidental files or timestamp changes. Strict readonly skips native auto-start and maintenance. Server mode may use its configured database connection. No selector contacts the sync remote or fetches history.
+The later ordinary prompt lifecycle can still load full native prime and memories and open or migrate a store. SQL/schema health, maintenance history, complete memory delivery and unique build identity remain unmeasured. Model relay of the saved Markdown is not guaranteed verbatim.
 
 Full reference: https://github.com/snarkipus/opencode-beads/blob/main/docs/diagnostics.md`;

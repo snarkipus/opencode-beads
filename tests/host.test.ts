@@ -17,7 +17,7 @@ import type { ContinuityHost } from "../src/continuity";
 import { Error as ToolError, type Info, type ToolContext, type ToolDomain } from "@opencode/plugin/promise/tool";
 import type { SessionContext, SessionCompaction } from "@opencode/plugin/promise/session";
 import { executorActor } from "../src/continuity";
-import { PrimeTimeoutError } from "../src/prime";
+import { PrimeProcessError, PrimeTimeoutError } from "../src/prime";
 import { renderHealthReport } from "../src/diagnostics";
 import * as diagnosticPresentation from "../src/diagnostics";
 import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
@@ -1296,7 +1296,9 @@ describe("owned workflow registration", () => {
     expect(c.commands().size).toBe(30);
     expect(c.commands().has("oc-beads:status")).toBe(false);
     const diagnostics = c.commands().get("oc-beads:diagnostics")!;
-    expect(diagnostics.description).toBe("Inspect OpenCode Beads integration discovery, conflicts, compatibility and context/persistence diagnostics without opening a store; use oc-beads:stats for the issue-database overview.");
+    expect(diagnostics.description).toContain("strict-readonly store access");
+    expect(diagnostics.description).toContain("configured database");
+    expect(diagnostics.description).toContain("All selectors skip remote history fetches");
     const oldStatus = { name: "oc-beads:status", description: "USER OLD STATUS", execute: mock(async () => {}) };
     const override = { ...diagnostics, description: "USER DIAGNOSTICS", execute: mock(async () => {}) };
     const oldConfig = (editor: { add(definition: CommandDefinition): void }) => editor.add(oldStatus);
@@ -1478,7 +1480,7 @@ test("cleanup attempts every owned disposer and reports a failed disposal", asyn
   expect(f.events.aborted()).toBe(true);
 });
 
-test("registered diagnostics distinguishes missing, held, failed, loading and uncertain context using only config probes", async () => {
+test("registered diagnostics distinguishes missing, held, failed, loading and uncertain context", async () => {
   const f = fakeContext();
   const c = commandFixture(f);
   let time = 0;
@@ -1490,7 +1492,8 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
       if (probe === "failed") throw new Error("probe failed");
       return JSON.stringify({ beads_dir: probe === "ready" ? "/unused-fixture/.beads" : "" });
     }
-    throw new Error("unexpected store-opening probe");
+    if (args.join(" ") === "hooks list --json") return '{"hooks":[]}';
+    throw new Error("unexpected command");
   });
   let release: (text: string) => void = () => {};
   const prime = mock(async () => new Promise<string>((resolve) => { release = resolve; }));
@@ -1525,6 +1528,7 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
   const observed = await report();
   expect(observed.context).toBe("ready");
   expect(observed.guard).toEqual({ kind: "ready", version: "1.3.1", workspace: { path: "/unused-fixture/.beads" } });
+  expect(observed.syncTarget).toEqual({ state: "unknown", reason: "native backend was not reported", listingSkipped: true });
   expect(JSON.stringify(observed)).not.toMatch(/migration-pending|migrate schema/);
   expect(observed.requestCapability.agent).toBe("build");
   expect(observed.requestCapability.capabilities.typed).toBe("unknown");
@@ -1565,6 +1569,35 @@ test("unload aborts an in-flight native diagnostics without submitting a late pr
   expect(c.prompt).not.toHaveBeenCalled();
 });
 
+test("unload prevents a pending native target listing from submitting a report", async () => {
+  const f = fakeContext();
+  const c = commandFixture(f);
+  const { promise: listingStarted, resolve: startListing } = Promise.withResolvers<void>();
+  const { promise: listing, resolve: finishListing } = Promise.withResolvers<string>();
+  const cleanup = await setupBeads(f.ctx, { warn: () => {}, bd: async (_directory, args) => {
+    switch (args.join(" ")) {
+      case "version": return "bd version 1.3.4";
+      case "context --json": return '{"beads_dir":"/fixture/.beads","backend":"dolt","dolt_mode":"embedded"}';
+      case "hooks list --json": return '{"hooks":[]}';
+      case "--readonly dolt remote list --json --sandbox":
+        startListing();
+        return listing;
+      default: throw new Error("unexpected command");
+    }
+  } });
+  const pending = c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+  try {
+    await Promise.race([listingStarted, pending]);
+    await cleanup();
+    finishListing("[]");
+    await expect(pending).rejects.toThrow("unloaded");
+    expect(c.prompt).not.toHaveBeenCalled();
+  } finally {
+    finishListing("[]");
+    await cleanup();
+  }
+});
+
 test("a failed native command registration diagnoses failure and releases earlier owned registrations", async () => {
   const f = fakeContext();
   commandFixture(f);
@@ -1579,21 +1612,98 @@ test("a failed native command registration diagnoses failure and releases earlie
   expect(disposed).toHaveBeenCalledTimes(1);
 });
 
-test("registered diagnostics captures native hooks without store probes", async () => {
+test("registered diagnostics reports an embedded store with no native remotes or installed hooks", async () => {
   const f = fakeContext();
   const c = commandFixture(f);
   const bd = mock(async (_directory: string, args: readonly string[]) => {
     if (args.join(" ") === "version") return "bd version 1.3.4";
-    if (args.join(" ") === "context --json") return JSON.stringify({ beads_dir: "/unused/.beads" });
+    if (args.join(" ") === "context --json") return JSON.stringify({ beads_dir: "/unused/.beads", backend: "dolt", dolt_mode: "embedded" });
     if (args.join(" ") === "hooks list --json") return JSON.stringify({ hooks: [{ Name: "pre-commit", Installed: false, Version: "", IsShim: false, Outdated: false }] });
+    if (args.join(" ") === "--readonly dolt remote list --json --sandbox") return "[]";
     throw new Error("unexpected invocation");
   });
   const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
   try {
-    await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+    await c.commands().get("oc-beads:diagnostics")!.execute({ ...c.detailsInvocation, prompt: { ...c.detailsInvocation.prompt, text: "details remote" } });
     const metadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
-    expect(metadata.ocBeadsWorkflow.instructions).toContain("pre-commit");
-    expect(bd.mock.calls.map(([, args]) => args.join(" "))).toContain("hooks list --json");
+    const report = metadata.ocBeadsWorkflow.instructions;
+    expect(report).toContain("| Git hooks | — | 0/1 installed · 1 missing/unreadable/unresolved |");
+    expect(report).toContain("| Sync target | ✅ | Local-only |");
+    expect(report).toContain("| Remote history | — | Not applicable |");
+    expect(report).not.toContain("No qualified Beads history probe is available");
+    expect(report).toContain("Git-origin adoption with consent");
+    expect(report).toContain("Source-Git freshness was not checked");
+    expect(report).toContain("pre-commit");
+    expect(report).not.toContain("Git hooks need attention");
+    expect(report).not.toContain("bd hooks install");
+    expect(bd.mock.calls).toEqual([
+      [f.ctx.location.directory, ["version"]],
+      [f.ctx.location.directory, ["context", "--json"]],
+      [f.ctx.location.directory, ["hooks", "list", "--json"]],
+      [f.ctx.location.directory, ["--readonly", "dolt", "remote", "list", "--json", "--sandbox"]],
+    ]);
+  } finally { await cleanup(); }
+});
+
+test("registered diagnostics keeps incomplete or ambiguous native target evidence neutral", async () => {
+  const f = fakeContext();
+  const c = commandFixture(f);
+  const origin = { name: "origin", status: "ok", url: "https://user:listing-secret@example.invalid" };
+  const remoteList = ["--readonly", "dolt", "remote", "list", "--json", "--sandbox"];
+  let context: Record<string, unknown>;
+  let listing: string | Error;
+  const bd = mock(async (_directory: string, args: readonly string[]) => {
+    switch (args.join(" ")) {
+      case "version": return "bd version 1.3.4";
+      case "context --json": return JSON.stringify({ beads_dir: "/fixture/.beads", ...context });
+      case "hooks list --json": return '{"hooks":[]}';
+      case "--readonly dolt remote list --json --sandbox":
+        if (listing instanceof Error) throw listing;
+        return listing;
+      default: throw new Error("unexpected command");
+    }
+  });
+  const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
+  const embedded = { backend: "dolt", dolt_mode: "embedded" };
+  const server = { backend: "dolt", dolt_mode: "server", server_host: "server-secret.example.invalid", server_port: 3307 };
+  const cases = [
+    { context: server, output: "[]", reason: "empty native listing in server mode" },
+    { context: embedded, output: JSON.stringify([{ ...origin, name: "alternate" }]), reason: "native origin was not listed" },
+    { context: { ...server, ...embedded }, output: JSON.stringify([origin]), reason: "embedded mode conflicts with server endpoint evidence", skipListing: true },
+    { context: { backend: "dolt" }, output: JSON.stringify([origin]), reason: "native Dolt mode was not reported", skipListing: true },
+    { context: { ...embedded, dolt_mode: "unknown-mode" }, output: "[]", reason: "unrecognized native Dolt mode", skipListing: true },
+    { context: { dolt_mode: "embedded" }, output: "[]", reason: "native backend was not reported", skipListing: true },
+    { context: { ...embedded, backend: "unknown-backend" }, output: "[]", reason: "native backend is not Dolt", skipListing: true },
+    { context: { backend: "dolt", dolt_mode: "proxied-server", proxied_dir: "/proxy-secret" }, output: "[]", reason: "proxied-server mode is unsupported", skipListing: true },
+    { context: embedded, output: JSON.stringify([origin, { name: "incomplete" }]), reason: "native listing returned an unsupported response" },
+    { context: embedded, output: "invalid JSON", reason: "native listing returned an unsupported response" },
+    { context: embedded, output: new PrimeProcessError(1, origin.url, "bd dolt remote list", origin.url), reason: "native listing exited with code 1" },
+    { context: embedded, output: new PrimeTimeoutError(5, "bd dolt remote list"), reason: "native listing timed out" },
+  ];
+  try {
+    for (const example of cases) {
+      context = example.context;
+      listing = example.output;
+      const start = bd.mock.calls.length;
+      await c.commands().get("oc-beads:diagnostics")!.execute({ ...c.detailsInvocation, prompt: { ...c.detailsInvocation.prompt, text: "details remote" } });
+      const { ocBeadsWorkflow } = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
+      const report = ocBeadsWorkflow.instructions;
+      expect(report).toContain(`| Sync target | — | Unknown · ${example.reason} |`);
+      expect(report).toContain("| Remote history | — | Not checked · No qualified Beads history probe is available |");
+      expect(report).toContain("Comparison was not attempted");
+      expect(report).not.toMatch(/secret|Check failed|Unresolved|❌ Unhealthy/);
+      expect(bd.mock.calls.slice(start).map(([, args]) => args)).toEqual([
+        ["version"], ["context", "--json"], ["hooks", "list", "--json"], ...(example.skipListing ? [] : [remoteList]),
+      ]);
+      const details = JSON.parse(report.split("\nDetails: ")[1]!.split("\n")[0]!) as {
+        findings: Array<{ id: string; producer: string; meaning: string }>;
+      };
+      const target = details.findings.find(({ id }) => id === "sync-target");
+      expect(target?.producer).toBe(example.skipListing
+        ? "bd context --json"
+        : "bd --readonly dolt remote list --json --sandbox and bd context --json");
+      if (example.skipListing) expect(target?.meaning).toContain("The strict-readonly remote listing was skipped");
+    }
   } finally { await cleanup(); }
 });
 
@@ -1673,7 +1783,7 @@ test("captured diagnostics renders compact hook summary before explicit evidence
   } finally { await cleanup(); }
 });
 
-test("diagnostic hook failures and native classifications do not open a store", async () => {
+test("native hook failures and installation mismatches stay independent of the sync target", async () => {
   const f = fakeContext(); const c = commandFixture(f);
   let hookOutput = "broken";
   let timedOut = false;
@@ -1681,9 +1791,10 @@ test("diagnostic hook failures and native classifications do not open a store", 
   const bd = async (_directory: string, args: readonly string[]) => {
     const command = args.join(" "); calls.push(command);
     if (command === "version") return "bd 1.3.4";
-    if (command === "context --json") return '{"beads_dir":"/none"}';
+    if (command === "context --json") return '{"beads_dir":"/none","backend":"dolt","dolt_mode":"embedded"}';
     if (command === "hooks list --json") { if (timedOut) throw new PrimeTimeoutError(5, "bd hooks list --json"); return hookOutput; }
-    throw new Error("unexpected store probe");
+    if (command === "--readonly dolt remote list --json --sandbox") return '[{"name":"origin","url":"file:///fixture","status":"ok"}]';
+    throw new Error("unexpected command");
   };
   const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
   const capture = async () => {
@@ -1691,10 +1802,23 @@ test("diagnostic hook failures and native classifications do not open a store", 
     return (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
   };
   try {
-    expect(await capture()).toContain("hooks list observation unavailable or unsupported");
+    const failed = await capture();
+    expect(failed).toContain("hooks list observation unavailable or unsupported");
+    expect(failed).toContain("| Git hooks | — | observation failed |");
+    expect(failed).toContain("| Sync target | ✅ | Resolved · origin |");
     timedOut = true;
     expect(await capture()).toContain("hooks list observation unavailable or unsupported");
     timedOut = false;
+    const shim = { Name: "pre-push", Installed: true, Version: "", IsShim: true, Outdated: false };
+    hookOutput = JSON.stringify({ hooks: [shim] });
+    const ordinaryShim = await capture();
+    expect(ordinaryShim).toContain("| Git hooks | ✅ | 1/1 installed (shims) |");
+    expect(ordinaryShim).not.toContain("bd hooks install");
+    hookOutput = JSON.stringify({ hooks: [{ ...shim, Outdated: true }] });
+    const outdatedShim = await capture();
+    expect(outdatedShim).toContain("| Git hooks | ⚠️ | 1/1 installed · 1 outdated |");
+    expect(outdatedShim).toContain("pre-push: outdated");
+    expect(outdatedShim).toContain("Verify with `bd hooks list`.");
     hookOutput = JSON.stringify({ hooks: [
       { Name: "pre-commit", Installed: true, Version: "", IsShim: false, Outdated: false },
       { Name: "post-merge", Installed: true, Version: "1.2.0", IsShim: false, Outdated: true },
@@ -1704,7 +1828,12 @@ test("diagnostic hook failures and native classifications do not open a store", 
     expect(report).toContain("installed without a reported version");
     expect(report).toContain("outdated");
     expect(report).toContain("shim does not certify current wrapper policy");
-    expect(new Set(calls)).toEqual(new Set(["version", "context --json", "hooks list --json"]));
+    expect(report).toContain("| Git hooks | ⚠️ | 3/3 installed (1 shim) · 1 outdated · 1 unrecognized |");
+    expect(report).toContain("| Sync target | ✅ | Resolved · origin |");
+    expect(report).toContain("**Plugin** ✅ Healthy");
+    expect(report).toContain("**Beads** ⚠️ Mismatch");
+    expect(report).not.toMatch(/no.configured.remote|hook execution succeeded/);
+    expect(new Set(calls)).toEqual(new Set(["version", "context --json", "hooks list --json", "--readonly dolt remote list --json --sandbox"]));
   } finally { await cleanup(); }
 });
 
@@ -1826,6 +1955,7 @@ function presentationFixture() {
     guard: { kind: "ready", version: "1.3.4", workspace: { path: "/fixture/.beads", repoRoot: "/fixture" } },
     local: { scope: "context cwd_repo_root", managedInstructions: { state: "available", full: 1, minimal: 0, codex: 1 }, sharedSkill: "missing", witness: { state: "match", recorded: "1.3.4", running: "1.3.4" } },
     hooks: ["pre-commit", "post-merge", "pre-push", "post-checkout", "prepare-commit-msg"].map((name) => ({ name, installed: true, shim: true, outdated: false, version: "1.3.4" })),
+    syncTarget: { state: "resolved", name: "origin" },
     requestInstructions: { at: 1000, full: 1, minimal: 0, codex: 1, replaced: 1, retained: 1 }, persistence: "uncertain: no final-write guarantee",
   };
 }
@@ -1855,6 +1985,8 @@ VERSION: @snarkipus/opencode-beads \`2.2.1\`
 
 PATH: \`/fixture\`
 
+Remote history not checked.
+
 **Plugin** ✅ Healthy
 
 | Check | Status | Value |
@@ -1873,7 +2005,9 @@ PATH: \`/fixture\`
 | bd CLI | ✅ | 1.3.4 |
 | Workspace | ✅ | Located |
 | Recorded bd version | ✅ | 1.3.4 = CLI |
-| Git hooks | ✅ | 5/5 installed (shims) |`);
+| Git hooks | ✅ | 5/5 installed (shims) |
+| Sync target | ✅ | Resolved · origin |
+| Remote history | — | Not checked |`);
   expect(report).toContain("## Beads diagnostics — ✅ Healthy");
   expect(report).toContain("**Plugin**");
   expect(report).toContain("**Beads**");
@@ -1889,6 +2023,8 @@ DATE: \`1970-01-01T00:00:02.000Z\`
 VERSION: @snarkipus/opencode-beads \`2.2.1\`
 
 PATH: \`/fixture\`
+
+Remote history not checked.
 
 **Plugin** ✅ Healthy
 
@@ -1908,14 +2044,16 @@ PATH: \`/fixture\`
 | bd CLI | ✅ | 1.3.4 |
 | Workspace | ✅ | Located |
 | Recorded bd version | ✅ | 1.3.4 = CLI |
-| Git hooks | ✅ | 5/5 installed (shims) |`);
+| Git hooks | ✅ | 5/5 installed (shims) |
+| Sync target | ✅ | Resolved · origin |
+| Remote history | — | Not checked |`);
   expect(first).toContain("| Context | — | Not yet loaded |");
   expect(first).toContain("✅ Healthy");
   const unreadableSkill = renderHealthReport({ ...ready, local: { ...ready.local, sharedSkill: "unreadable" } }, 2000);
   expect(unreadableSkill).toContain("| Skill | — | oc-beads active · shared: unreadable |");
   expect(renderHealthReport({ ...ready, local: { ...ready.local, scope: "confirmed session directory" } }, 2000)).toContain("| AGENTS Configured | ✅ | bd block |");
   const vps = renderHealthReport({ ...ready, hooks: ready.hooks.map((h) => ({ ...h, installed: false, shim: false, version: "" })) }, 2000);
-  expect(vps).toBe(`## Beads diagnostics — ⚠️ Mismatch
+  expect(vps).toBe(`## Beads diagnostics — ✅ Healthy
 
 DATE: \`1970-01-01T00:00:02.000Z\`
 
@@ -1923,7 +2061,7 @@ VERSION: @snarkipus/opencode-beads \`2.2.1\`
 
 PATH: \`/fixture\`
 
-Git hooks need attention.
+Remote history not checked.
 
 **Plugin** ✅ Healthy
 
@@ -1936,23 +2074,17 @@ Git hooks need attention.
 | Context | ✅ | Loaded |
 | AGENTS Configured | ✅ | bd block |
 
-**Beads** ⚠️ Mismatch
+**Beads** ✅ Healthy
 
 | Check | Status | Value |
 |---|---|---|
 | bd CLI | ✅ | 1.3.4 |
 | Workspace | ✅ | Located |
 | Recorded bd version | ✅ | 1.3.4 = CLI |
-| Git hooks | ⚠️ | 0/5 installed · 5 missing/unreadable/unresolved |
-
-**Actions**
-
-- Install or refresh hooks: \`bd hooks install\` (\`--beads\` / \`--shared\` for those layouts; writes hooks and may change core.hooksPath). Check: \`bd hooks list\`.`);
-  expect(vps).toContain("⚠️ Mismatch");
-  expect(vps).toContain("0/5 installed");
-  expect(vps).toContain("missing/unreadable/unresolved");
-  expect(vps).toContain("**Actions**");
-  const incompatible = renderHealthReport({ ...ready, guard: { kind: "unsupported", installed: "1.3.0" }, context: "withheld", hooks: "failed: unsupported" }, 2000);
+| Git hooks | — | 0/5 installed · 5 missing/unreadable/unresolved |
+| Sync target | ✅ | Resolved · origin |
+| Remote history | — | Not checked |`);
+  const incompatible = renderHealthReport({ ...ready, guard: { kind: "unsupported", installed: "1.3.0" }, context: "withheld", hooks: "failed: unsupported", syncTarget: undefined }, 2000);
   expect(incompatible).toBe(`## Beads diagnostics — ❌ Unhealthy
 
 DATE: \`1970-01-01T00:00:02.000Z\`
@@ -1961,7 +2093,7 @@ VERSION: @snarkipus/opencode-beads \`2.2.1\`
 
 PATH: \`not observed\`
 
-bd CLI unavailable or below the supported minimum.
+bd CLI unavailable or below the supported minimum. Remote history not checked.
 
 **Plugin** ❌ Unhealthy
 
@@ -1982,6 +2114,8 @@ bd CLI unavailable or below the supported minimum.
 | Workspace | — | not observed |
 | Recorded bd version | ✅ | 1.3.4 = CLI |
 | Git hooks | — | observation failed |
+| Sync target | — | Unknown · native listing not performed |
+| Remote history | — | Not checked |
 
 **Actions**
 
@@ -1990,6 +2124,8 @@ bd CLI unavailable or below the supported minimum.
   expect(incompatible).toContain("| Git hooks | — | observation failed |");
   const noEvidence = renderHealthReport({}, 2000);
   expect(noEvidence).not.toContain("✅ Healthy");
+  expect(noEvidence).toContain("| Sync target | — | Unknown · native listing not performed |");
+  expect(noEvidence).toContain("| Remote history | — | Not checked |");
   expect(noEvidence).toContain("No checks assessed");
 });
 
@@ -2007,29 +2143,55 @@ test("normal command membership, witness and write uncertainty keep distinct sev
   expect(gap).toContain("⚠️ Mismatch");
 });
 
-test("registered diagnostics selects normal, details or help once and replays captured output", async () => {
+test("registered diagnostics handles exact selectors locally and replays captured output once", async () => {
   const f = fakeContext(); const c = commandFixture(f);
-  const bd = mock(async () => '{"hooks":[]}');
-  const cleanup = await setupBeads(f.ctx, { bd, now: () => 2000, warn: () => {}, runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" } });
+  const bd = mock(async (_directory: string, args: readonly string[]) => {
+    switch (args.join(" ")) {
+      case "version": return "bd version 1.3.4";
+      case "context --json": return '{"beads_dir":"/fixture/.beads","backend":"dolt","dolt_mode":"server","server_port":3307}';
+      case "hooks list --json": return '{"hooks":[]}';
+      case "--readonly dolt remote list --json --sandbox":
+        return '[{"name":"origin","url":"https://user:remote-secret@example.invalid","sql_url":"https://sql-secret.example.invalid","cli_url":"https://cli-secret.example.invalid","status":"ok"}]';
+      default: throw new Error("unexpected command");
+    }
+  });
+  const prime = mock(async () => "PRIME INCLUDING MEMORY");
+  const cleanup = await setupBeads(f.ctx, { bd, now: () => 2000, warn: () => {}, runPrime: prime });
   try {
-    for (const text of ["", " DeTaIlS ", "explain details please", " HeLp ", "help me", "help\n"]) {
+    for (const text of ["", " DeTaIlS ", " ReMoTe ", " DeTaIlS ReMoTe\n", "remote please", "remote details", "details  remote", " HeLp ", "help me", "help\n"]) {
       const input = { ...c.invocation, prompt: { ...c.invocation.prompt, text } };
       const beforeCalls = bd.mock.calls.length;
       await c.commands().get("oc-beads:diagnostics")!.execute(input);
       const sent = c.prompt.mock.calls.at(-1)![0];
       const snapshot = (sent.metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow;
-      expect(snapshot.instructions.includes("Details: ")).toBe(text.trim().toLowerCase() === "details");
+      const selector = text.trim().toLowerCase();
+      expect(snapshot.instructions.includes("Details: ")).toBe(selector === "details" || selector === "details remote");
       const framedReport = snapshot.instructions.split("\nBEGIN_DIAGNOSTIC_REPORT\n")[1]?.split("\nEND_DIAGNOSTIC_REPORT\n")[0];
       expect(framedReport).toBeDefined();
       expect(snapshot.instructions).toEndWith("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n");
-      expect(framedReport).not.toContain("/oc-beads:diagnostics explain details please");
-      if (text.trim().toLowerCase() === "help") {
+      if (selector === "help") {
         expect(bd.mock.calls.length).toBe(beforeCalls);
         expect(snapshot.instructions).toContain(diagnosticPresentation.DIAGNOSTICS_HELP);
+      } else {
+        expect(bd.mock.calls.slice(beforeCalls)).toEqual([
+          [f.ctx.location.directory, ["version"]],
+          [f.ctx.location.directory, ["context", "--json"]],
+          [f.ctx.location.directory, ["hooks", "list", "--json"]],
+          [f.ctx.location.directory, ["--readonly", "dolt", "remote", "list", "--json", "--sandbox"]],
+        ]);
+        expect(framedReport).toContain("| Sync target | ✅ | Resolved · origin |");
+        expect(framedReport).toContain("| Remote history | — | Not checked");
+        expect(framedReport!.includes("No qualified Beads history probe is available")).toBe(selector === "remote" || selector === "details remote");
+        expect(snapshot.instructions).not.toMatch(/secret|Check failed|cannot resolve|no.configured.remote/);
       }
       expect(sent.text).toBe(`/oc-beads:diagnostics${text ? `${/[\r\n]/.test(text) ? "\n" : " "}${text}` : ""}`);
       expect(sent.files).toBe(input.prompt.files);
       expect(sent.delivery).toBe(input.delivery);
+      if (!prime.mock.calls.length) {
+        const system = await f.request("s1", "build");
+        expect(system.join("\n")).toContain("PRIME INCLUDING MEMORY");
+        expect(prime).toHaveBeenCalledWith(f.ctx.location.directory, ["--full"]);
+      }
       const count = bd.mock.calls.length;
       const stored = storedUserMessage("presented", String(sent.text), { ocBeadsWorkflow: { version: 1, ...snapshot } });
       Object.assign(f.ctx.session, { context: async () => [stored] });
@@ -2109,7 +2271,7 @@ test("command names remain measurable without hiding missing or changed entries"
 test("diagnostic header metadata uses observed root and exact code-populated values", () => {
   const fixture = presentationFixture();
   const report = renderHealthReport(fixture, 2000);
-  expect(report).toStartWith("## Beads diagnostics — ✅ Healthy\n\nDATE: `1970-01-01T00:00:02.000Z`\n\nVERSION: @snarkipus/opencode-beads `2.2.1`\n\nPATH: `/fixture`\n\n**Plugin**");
+  expect(report).toStartWith("## Beads diagnostics — ✅ Healthy\n\nDATE: `1970-01-01T00:00:02.000Z`\n\nVERSION: @snarkipus/opencode-beads `2.2.1`\n\nPATH: `/fixture`\n\nRemote history not checked.\n\n**Plugin**");
   expect(report.match(/DATE:/g)).toHaveLength(1);
   expect(report.match(/VERSION:/g)).toHaveLength(1);
   expect(report.match(/PATH:/g)).toHaveLength(1);
@@ -2118,7 +2280,7 @@ test("diagnostic header metadata uses observed root and exact code-populated val
   expect(missingRoot).toContain("PATH: `not observed`");
   expect(missingRoot).toContain('"path":"/fixture/.beads"');
   expect(renderHealthReport({ ...fixture, guard: { ...fixture.guard, workspace: { path: "/different/.beads", repoRoot: "/observed/root/" } } }, 2000)).toContain("PATH: `/observed/root/`");
-  const mismatch = renderHealthReport({ ...fixture, hooks: fixture.hooks.map(hook => ({ ...hook, installed: false })) }, 2000);
+  const mismatch = renderHealthReport({ ...fixture, hooks: fixture.hooks.map(hook => ({ ...hook, shim: false, outdated: true })) }, 2000);
   expect(mismatch.indexOf("PATH:")).toBeLessThan(mismatch.indexOf("Git hooks need attention."));
 });
 

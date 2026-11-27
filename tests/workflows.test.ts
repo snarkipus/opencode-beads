@@ -448,13 +448,13 @@ describe("packaged native workflows", () => {
       if (c.name === "oc-beads:diagnostics") {
         const {metadata, ...native} = submitted;
         const snapshot = (metadata as {ocBeadsWorkflow: {instructions: string}}).ocBeadsWorkflow;
-        // Only the diagnostics preamble digest changes for the accepted report framing.
+        // Diagnostics uses the current command purpose and accepted preamble.
         // Exact full framing has dedicated coverage; generic workflow digests remain frozen.
         sent = {...native, text: `${snapshot.instructions.split("\n").slice(0, 2).join("\n")}\n\nUser request:\n${String(submitted.text).slice("/oc-beads:diagnostics\n".length)}`};
       }
       actual[c.name] = createHash("sha256").update(JSON.stringify({ description: c.description, sent })).digest("hex");
     }
-    expect(actual).toEqual({ ...baseline.commands, "oc-beads:diagnostics": "9c93d2da3350003af1d73668d898e615d87f76aeed9f04364b67a93df46b1d4a", "oc-beads:update": "b4f6a0e8b2729bab4361a6252a86217eac825b6c66f2db8d3dcc0f1803de7b25" });
+    expect(actual).toEqual({ ...baseline.commands, "oc-beads:diagnostics": "8f85945c394e5c7548195ac9eb5303dacbbadc3230091c81534f1e5d1e3c390c", "oc-beads:update": "b4f6a0e8b2729bab4361a6252a86217eac825b6c66f2db8d3dcc0f1803de7b25" });
   });
 
   test("forwards exact scope and partial-handoff authority cues without selecting or claiming work", async () => {
