@@ -440,6 +440,40 @@ function worstStatus(rows: Row[]): Row[1] {
 }
 
 /**
+ * Assess command registration and membership together so incomplete evidence cannot suggest an override remedy.
+ *
+ * @param commands - Captured registry evidence; membership completeness can differ from description completeness.
+ */
+function assessCommands(commands: DiagnosticsSnapshot["commands"]): { row: Row; action?: string } {
+  if (commands?.registration === "failed") return { row: ["Commands", 2, "registration failed"] };
+  if (commands?.lookup !== "available") return { row: ["Commands", null, "not observed"] };
+
+  const overrides = commands.mismatches?.length ?? 0;
+  // Fall back to overall truncation only when membership completeness was not observed.
+  if (commands.membershipTruncated || (commands.membershipTruncated !== false && commands.truncated)) {
+    return { row: ["Commands", null, `list incomplete${overrides ? ` · ${overrides} changed` : ""}`] };
+  }
+
+  const missing = commands.missing === false ? undefined : commands.missing?.length;
+  if (missing === undefined) return { row: ["Commands", null, "membership not observed"] };
+
+  const count = commands.expectedCount;
+  if (!missing && !overrides) {
+    const value = count === undefined ? "expected names present" : `${count}/${count} present`;
+    return { row: ["Commands", 0, value] };
+  }
+
+  const value = [
+    count === undefined ? (missing ? "" : "expected names present") : `${count - missing}/${count}`,
+    missing ? `${missing} missing` : "",
+    overrides ? `${overrides} changed` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return { row: ["Commands", 1, value], action: "Review command customization and rerun diagnostics." };
+}
+
+/**
  * Interpret captured evidence without I/O or Markdown; preserve the order of rows, findings, and actions.
  *
  * @param snapshot - Captured observations, including absent or partial evidence.
@@ -594,30 +628,9 @@ function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
     host === undefined ? null : hostSupported ? 0 : 2,
     host ? `OpenCode ${host}${hostSupported ? "" : " unsupported"}` : "not observed",
   ]);
-  if (commands?.registration === "failed") pluginRows.push(["Commands", 2, "registration failed"]);
-  else if (commands?.lookup !== "available") pluginRows.push(["Commands", null, "not observed"]);
-  else if (commands.membershipTruncated || (commands.membershipTruncated !== false && commands.truncated)) {
-    const changed = commands.mismatches?.length ?? 0;
-    pluginRows.push(["Commands", null, `list incomplete${changed ? ` · ${changed} changed` : ""}`]);
-  } else {
-    const missing = commands.missing === false ? undefined : commands.missing?.length;
-    const overrides = commands.mismatches?.length ?? 0;
-    if (missing === undefined) pluginRows.push(["Commands", null, "membership not observed"]);
-    else {
-      const count = commands.expectedCount;
-      const membership =
-        count === undefined ? (missing ? "" : "expected names present") : `${count - missing}/${count}`;
-      const value = [membership, missing ? `${missing} missing` : "", overrides ? `${overrides} changed` : ""]
-        .filter(Boolean)
-        .join(" · ");
-      pluginRows.push([
-        "Commands",
-        missing || overrides ? 1 : 0,
-        missing || overrides ? value : count === undefined ? membership : `${membership} present`,
-      ]);
-      if (missing || overrides) actions.push("Review command customization and rerun diagnostics.");
-    }
-  }
+  const commandAssessment = assessCommands(commands);
+  pluginRows.push(commandAssessment.row);
+  if (commandAssessment.action) actions.push(commandAssessment.action);
   const shared = local?.sharedSkill === "missing" ? "absent" : (local?.sharedSkill ?? "not observed");
   if (skill?.failure) pluginRows.push(["Skill", 2, "unavailable"]);
   else if (skill?.collision?.startsWith("skill-collision"))
