@@ -1,165 +1,18 @@
-import { open } from "node:fs/promises";
-import path from "node:path";
-import { countManagedBlocks } from "./instructions";
+import type {
+  BeadsHealthObservation,
+  HookObservation,
+  PluginHealthObservation,
+  SyncTargetObservation,
+} from "./diagnostics-collection";
 import { isSupportedOpenCodeVersion, SUPPORTED_OPENCODE_RANGE } from "./host-admission";
-import type { BeadsWorkspace, GuardResult, GuardRuntime } from "./guard";
-import { PrimeProcessError, PrimeTimeoutError } from "./prime";
 
-/** Scoped only to diagnostic subprocesses; ordinary Beads operations retain their environment. */
-export const DIAGNOSTIC_ENV = {
-  BD_DISABLE_METRICS: "1",
-  BD_DISABLE_EVENT_FLUSH: "1",
-  OTEL_SDK_DISABLED: "true",
-};
-
-/** Read native hook status without substituting a store-opening probe. */
-export async function collectHooks(directory: string, bd: GuardRuntime["bd"]): Promise<unknown> {
-  try {
-    const result: unknown = JSON.parse(await bd(directory, ["hooks", "list", "--json"]));
-    if (typeof result !== "object" || result === null || !Array.isArray(Reflect.get(result, "hooks")))
-      throw new Error("unsupported hooks response");
-    const hooks: unknown[] = Reflect.get(result, "hooks");
-    if (hooks.length > 32) throw new Error("unsupported hooks response");
-    const valid = hooks.every((hook) => {
-      if (typeof hook !== "object" || hook === null) return false;
-      const name = Reflect.get(hook, "Name");
-      const version = Reflect.get(hook, "Version");
-      return (
-        typeof name === "string" &&
-        name.length <= 128 &&
-        typeof version === "string" &&
-        version.length <= 128 &&
-        ["Installed", "IsShim", "Outdated"].every((key) => typeof Reflect.get(hook, key) === "boolean")
-      );
-    });
-    if (!valid) throw new Error("unsupported hooks response");
-    return hooks.map((hook) => ({
-      name: Reflect.get(hook as object, "Name"),
-      installed: Reflect.get(hook as object, "Installed"),
-      version: Reflect.get(hook as object, "Version"),
-      shim: Reflect.get(hook as object, "IsShim"),
-      outdated: Reflect.get(hook as object, "Outdated"),
-    }));
-  } catch {
-    return "failed: bd hooks list observation unavailable or unsupported";
-  }
-}
-
-type SyncTargetObservation =
-  | { state: "resolved"; name: "origin" }
-  | { state: "local-only" }
-  | { state: "unknown"; reason: string; listingSkipped?: true };
-
-/** Observe the native default target using only a strict-readonly listing and native context. */
-export async function collectSyncTarget(
-  directory: string,
-  workspace: BeadsWorkspace,
-  bd: GuardRuntime["bd"],
-): Promise<SyncTargetObservation> {
-  let skipReason: string | undefined;
-  // The supported CLI pins refuse strict readonly before opening a proxied store.
-  if (workspace.proxied || workspace.doltMode === "proxied-server") skipReason = "proxied-server mode is unsupported";
-  else if (!workspace.backend) skipReason = "native backend was not reported";
-  else if (workspace.backend !== "dolt") skipReason = "native backend is not Dolt";
-  else if (!workspace.doltMode) skipReason = "native Dolt mode was not reported";
-  else if (workspace.doltMode === "other") skipReason = "unrecognized native Dolt mode";
-  else if (workspace.doltMode === "embedded" && workspace.serverEndpoint)
-    skipReason = "embedded mode conflicts with server endpoint evidence";
-  if (skipReason) return { state: "unknown", reason: skipReason, listingSkipped: true };
-
-  try {
-    const remotes: unknown = JSON.parse(
-      await bd(directory, ["--readonly", "dolt", "remote", "list", "--json", "--sandbox"]),
-    );
-    if (
-      !Array.isArray(remotes) ||
-      !remotes.every(
-        (remote: unknown): remote is { name: string; status: "ok" } =>
-          typeof remote === "object" &&
-          remote !== null &&
-          "name" in remote &&
-          typeof remote.name === "string" &&
-          remote.name.length > 0 &&
-          "status" in remote &&
-          remote.status === "ok",
-      )
-    )
-      return { state: "unknown", reason: "native listing returned an unsupported response" };
-    if (remotes.some((remote) => remote.name === "origin")) return { state: "resolved", name: "origin" };
-    if (remotes.length === 0) {
-      return workspace.doltMode === "embedded"
-        ? { state: "local-only" }
-        : { state: "unknown", reason: "empty native listing in server mode" };
-    }
-    return { state: "unknown", reason: "native origin was not listed" };
-  } catch (error) {
-    // Native stdout and stderr may contain remote URLs or credentials.
-    let reason = "native listing failed";
-    if (error instanceof PrimeTimeoutError) reason = "native listing timed out";
-    else if (error instanceof PrimeProcessError) reason = `native listing exited with code ${error.exitCode}`;
-    else if (error instanceof SyntaxError) reason = "native listing returned an unsupported response";
-    return { state: "unknown", reason };
-  }
-}
-
-/** Read only a bounded portion and distinguish missing, unreadable and truncated observations. */
-async function boundedFile(file: string, limit: number): Promise<{ state: string; text?: string }> {
-  try {
-    const handle = await open(file, "r");
-    try {
-      const buffer = Buffer.alloc(limit + 1);
-      const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
-      return bytesRead > limit
-        ? { state: "truncated" }
-        : { state: "available", text: buffer.subarray(0, bytesRead).toString("utf8") };
-    } finally {
-      await handle.close();
-    }
-  } catch (error) {
-    return { state: (error as NodeJS.ErrnoException).code === "ENOENT" ? "missing" : "unreadable" };
-  }
-}
-
-/** Inspect bounded project guidance independently of the native CLI report. */
-export async function collectPluginHealth(directory: string, guard: GuardResult): Promise<object> {
-  const workspace = guard.kind === "ready" ? guard.workspace : undefined;
-  const root = workspace?.repoRoot ?? directory;
-  const [instructions, skill] = await Promise.all([
-    boundedFile(path.join(root, "AGENTS.md"), 65_536),
-    boundedFile(path.join(root, ".agents", "skills", "beads", "SKILL.md"), 1),
-  ]);
-  return {
-    scope: workspace?.repoRoot ? "context cwd_repo_root" : "confirmed session directory",
-    managedInstructions:
-      instructions.state === "available"
-        ? { state: "available", ...countManagedBlocks(instructions.text ?? "") }
-        : { state: instructions.state },
-    sharedSkill: skill.state === "truncated" || skill.state === "available" ? "readable" : skill.state,
-  };
-}
-
-/** Inspect the advisory witness under the native-resolved Beads directory. */
-export async function collectBeadsHealth(guard: GuardResult): Promise<object> {
-  const workspace = guard.kind === "ready" ? guard.workspace : undefined;
-  const witness = workspace
-    ? await boundedFile(path.join(workspace.path, ".local_version"), 256)
-    : { state: "unavailable", text: undefined };
-  const recorded = witness.text?.trim();
-  const supported = recorded && /^\d+\.\d+\.\d+$/.test(recorded);
-  let witnessObservation: object;
-  if (!recorded) witnessObservation = { state: witness.state === "available" ? "unsupported" : witness.state };
-  else if (!supported) witnessObservation = { state: "unsupported" };
-  else {
-    const running = guard.kind === "ready" ? guard.version : undefined;
-    const state = running ? (recorded === running ? "match" : "differ") : "running version unavailable";
-    witnessObservation = { state, recorded, running };
-  }
-  return {
-    witness: witnessObservation,
-    remote: workspace?.remote === undefined ? "not reported" : workspace.remote ? "configured" : "not configured",
-    limitations: "Witnesses do not establish schema, reconciliation, hook freshness or maintenance completion.",
-  };
-}
+export {
+  collectBeadsHealth,
+  collectHooks,
+  collectPluginHealth,
+  collectSyncTarget,
+  DIAGNOSTIC_ENV,
+} from "./diagnostics-collection";
 
 type FindingClass =
   | "incompatible"
@@ -182,9 +35,353 @@ type Finding = {
   action?: string;
 };
 
-/** Render a fixed observation deterministically; the host still relays it through a model. */
-export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt: number, details = false): string {
-  const time = new Date(capturedAt).toISOString();
+type Row = [check: string, status: 0 | 1 | 2 | null, value: string];
+
+function workspaceRow(kind: string | undefined): Row {
+  switch (kind) {
+    case "ready":
+      return ["Workspace", 0, "Located"];
+    case "probe-failed":
+      return ["Workspace", 2, "Probe failed"];
+    case "withheld":
+      return ["Workspace", 2, "Withheld"];
+    case "uninitialized":
+      return ["Workspace", 2, "Not initialized"];
+    default:
+      return ["Workspace", null, "not observed"];
+  }
+}
+
+/**
+ * Assess optional Git hooks without treating missing hooks alone as unhealthy.
+ *
+ * @param hooks - Native observations or an unavailable/withheld result.
+ * @param observedAt - Timestamp shared by the captured findings.
+ */
+function assessHooks(
+  hooks: unknown,
+  observedAt: string,
+): {
+  row: Row;
+  findings: Finding[];
+  action?: string;
+} {
+  const findings: Finding[] = [];
+  const hookAction =
+    "Review hook identity, local customization and the intended default, `--beads` or `--shared` layout before any refresh. `bd hooks install` writes hooks and may change core.hooksPath. Verify with `bd hooks list`.";
+  const add = (
+    id: string,
+    classification: FindingClass,
+    observation: string,
+    meaning: string,
+    action?: string,
+    scope = "confirmed session",
+  ) =>
+    findings.push({
+      id,
+      module: "beads",
+      class: classification,
+      producer: "bd hooks list",
+      scope,
+      observedAt,
+      observation,
+      meaning,
+      ...(action ? { action } : {}),
+    });
+
+  if (!Array.isArray(hooks)) {
+    if (typeof hooks === "string" && hooks.startsWith("withheld:")) {
+      add(
+        "hooks-unavailable",
+        "unknown",
+        hooks,
+        "Native hook collection was not attempted; hook status is unobserved.",
+        undefined,
+        "session location unconfirmed",
+      );
+      return { row: ["Git hooks", null, "Withheld"], findings };
+    }
+    add("hooks-unavailable", "failed", String(hooks), "Hook status is not established.");
+    const value = typeof hooks === "string" && hooks.startsWith("failed:") ? "observation failed" : "not observed";
+    return { row: ["Git hooks", null, value], findings };
+  }
+  if (!hooks.length) return { row: ["Git hooks", null, "no entries reported"], findings };
+
+  const missing: string[] = [];
+  const outdated: string[] = [];
+  const unidentified: string[] = [];
+  const shims: string[] = [];
+  for (const hook of hooks as HookObservation[]) {
+    // Outdated wins over shim; an unversioned shim is not itself unidentified.
+    if (!hook.installed) missing.push(hook.name);
+    else if (hook.outdated) outdated.push(hook.name);
+    else if (hook.shim) shims.push(hook.name);
+    else if (!hook.version) unidentified.push(hook.name);
+  }
+  if (missing.length)
+    add(
+      "hooks-missing",
+      "note",
+      `${missing.join(", ")}: missing/unreadable/unresolved`,
+      "The optional hook installation was not established by the native listing.",
+    );
+  if (outdated.length)
+    add(
+      "hooks-outdated",
+      "action-recommended",
+      `${outdated.join(", ")}: outdated`,
+      "Native status describes hook installation only.",
+      hookAction,
+    );
+  if (unidentified.length)
+    add(
+      "hooks-identity-unknown",
+      "review-needed",
+      `${unidentified.join(", ")}: installed without a reported version`,
+      "The native listing did not establish the installed hook's identity.",
+      hookAction,
+    );
+  if (shims.length)
+    add(
+      "hooks-shim",
+      "note",
+      `${shims.join(", ")}: installed shim`,
+      "A shim does not certify current wrapper policy; review native hook refresh guidance after upgrades.",
+    );
+
+  const installed = hooks.length - missing.length;
+  const shimCount = shims.length;
+  let shimLabel = "";
+  if (shimCount) {
+    shimLabel = shimCount === installed ? " (shims)" : ` (${shimCount} shim${shimCount > 1 ? "s" : ""})`;
+  }
+  const value = [
+    `${installed}/${hooks.length} installed${shimLabel}`,
+    missing.length ? `${missing.length} missing/unreadable/unresolved` : "",
+    outdated.length ? `${outdated.length} outdated` : "",
+    unidentified.length ? `${unidentified.length} unrecognized` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  if (outdated.length || unidentified.length) return { row: ["Git hooks", 1, value], findings, action: hookAction };
+  return { row: ["Git hooks", installed ? 0 : null, value], findings };
+}
+
+/**
+ * Report registered sync target and history status separately; registration does not establish reachability or freshness.
+ *
+ * @param target - Local native registration evidence, if available.
+ * @param locationWithheld - Whether an unconfirmed session location prevented collection.
+ * @param historyRequested - Whether the selector requested a comparison that this report cannot perform.
+ * @param observedAt - Timestamp shared by the captured findings.
+ */
+function assessRemote(
+  target: SyncTargetObservation | undefined,
+  locationWithheld: boolean,
+  historyRequested: boolean,
+  observedAt: string,
+): { rows: Row[]; findings: Finding[]; summary?: string } {
+  const localOnly = target?.state === "local-only";
+  const targetAssessed = target?.state === "resolved" || localOnly;
+  const missingTarget = locationWithheld ? "session location unconfirmed" : "native listing not performed";
+  let targetValue: string;
+  if (target?.state === "resolved") targetValue = `Resolved · ${target.name}`;
+  else if (localOnly) targetValue = "Local-only";
+  else targetValue = `Unknown · ${target?.state === "unknown" ? target.reason : missingTarget}`;
+
+  let targetProducer = "local diagnostic scope";
+  let targetMeaning =
+    "The target check observes native registration of origin. Reachability and synchronization remain unmeasured.";
+  if (target?.state === "unknown" && target.listingSkipped) {
+    targetProducer = "bd context --json";
+    targetMeaning =
+      "The strict-readonly remote listing was skipped because native context could not establish a supported direct Dolt workspace.";
+  } else {
+    if (target) targetProducer = "bd --readonly dolt remote list --json --sandbox and bd context --json";
+    if (localOnly)
+      targetMeaning =
+        "This embedded store has no registered native remotes. Native push may offer Git-origin adoption with consent.";
+  }
+
+  const historyValue = localOnly ? "Not applicable" : "Not checked";
+  const historyUnavailable = "No qualified Beads history probe is available";
+  let historyReason = "The invocation did not request a remote history comparison.";
+  if (localOnly) historyReason = "This embedded store has no registered native remotes.";
+  else if (historyRequested) historyReason = `${historyUnavailable}.`;
+
+  return {
+    rows: [
+      ["Sync target", targetAssessed ? 0 : null, targetValue],
+      [
+        "Remote history",
+        null,
+        historyRequested && !localOnly ? `${historyValue} · ${historyUnavailable}` : historyValue,
+      ],
+    ],
+    findings: [
+      {
+        id: "sync-target",
+        module: "beads",
+        class: targetAssessed ? "ok" : "unknown",
+        producer: targetProducer,
+        scope: "confirmed session",
+        observedAt,
+        observation: targetValue,
+        meaning: targetMeaning,
+      },
+      {
+        id: "remote-history",
+        module: "beads",
+        class: "not-checked",
+        producer: "diagnostics invocation",
+        scope: "confirmed session",
+        observedAt,
+        observation: historyValue,
+        meaning: `Comparison was not attempted. ${historyReason} Source-Git freshness was not checked.`,
+      },
+    ],
+    summary: localOnly ? undefined : "Remote history not checked.",
+  };
+}
+
+/**
+ * Assess cached context without confusing load readiness with CLI guard readiness.
+ *
+ * @param state - Cached load state, which may include a reason.
+ * @param cachedVersion - Version that produced the cached context, if known.
+ * @param guard - Current workspace and CLI observation, if available.
+ * @param observedAt - Timestamp for the version finding.
+ */
+function assessContext(
+  state: unknown,
+  cachedVersion: string | undefined,
+  guard: { kind?: string; version?: string } | undefined,
+  observedAt: string,
+): { row: Row; finding?: Finding; action?: string } {
+  const currentVersion = guard?.version;
+  const differs = !!cachedVersion && !!currentVersion && cachedVersion !== currentVersion;
+  let finding: Finding | undefined;
+  // Only the detailed finding requires a ready guard; the ready Context row can use any observed CLI version.
+  if (guard?.kind === "ready" && differs) {
+    finding = {
+      id: "context-version-differs",
+      module: "plugin",
+      class: "review-needed",
+      producer: "context cache",
+      scope: "confirmed session",
+      observedAt,
+      observation: `Context loaded with preceding CLI ${cachedVersion}; current observation ${currentVersion}`,
+      meaning: "These observations are not atomic; age alone does not prove staleness.",
+      action:
+        "Use the next session or configured idle refresh; normal full prime can access the store. Verify the observed context version in diagnostics afterward.",
+    };
+  }
+  const context = typeof state === "string" ? state : "";
+  switch (context) {
+    case "ready":
+      if (differs) {
+        return {
+          row: ["Context", 1, `Loaded under bd ${cachedVersion}`],
+          finding,
+          action: "Refresh context in the next session or configured idle refresh. Check: diagnostics Context row.",
+        };
+      }
+      return { row: ["Context", 0, "Loaded"], finding };
+    case "failed":
+      return { row: ["Context", 2, "Failed"], finding };
+    case "loading":
+      return { row: ["Context", null, "Loading"], finding };
+    case "empty":
+      return { row: ["Context", null, "Empty"], finding };
+  }
+  // Non-exact states carry a reason. Match failure before progress or absence.
+  if (context.startsWith("withheld")) return { row: ["Context", 2, "Withheld"], finding };
+  if (context.includes("lookup failed")) return { row: ["Context", 2, "Session lookup failed"], finding };
+  if (context.includes("progress")) return { row: ["Context", null, "Loading"], finding };
+  if (context.startsWith("unobserved:")) return { row: ["Context", null, "Not yet loaded"], finding };
+  return { row: ["Context", null, "not observed"], finding };
+}
+
+/**
+ * Compare recorded and running versions as advisory evidence, not as proof of schema or migration state.
+ *
+ * @param witness - Recorded-version observation; absence differs from an observed missing file.
+ * @param observedAt - Timestamp for the version finding.
+ */
+function assessWitness(
+  witness: BeadsHealthObservation["witness"] | undefined,
+  observedAt: string,
+): { row: Row; finding?: Finding } {
+  const check = "Recorded bd version";
+  if (!witness) return { row: [check, null, "not observed"] };
+
+  const describe = (
+    id: string,
+    classification: FindingClass,
+    observation: string,
+    meaning: string,
+    action?: string,
+  ): Finding => ({
+    id,
+    module: "beads",
+    class: classification,
+    producer: ".local_version",
+    scope: "confirmed session",
+    observedAt,
+    observation,
+    meaning,
+    ...(action ? { action } : {}),
+  });
+  switch (witness.state) {
+    case "differ":
+      return {
+        row: [check, 1, `${witness.recorded} ≠ CLI ${witness.running}`],
+        finding: describe(
+          "witness-differs",
+          "review-needed",
+          `Recorded ${witness.recorded} differs from running ${witness.running}`,
+          "This is not evidence of schema, reconciliation, hook freshness or maintenance completion.",
+          "Read-only review: consult https://github.com/gastownhall/beads/blob/7ef2fd05eb0cd3bdbde051f93cfc14ccf270cdde/docs/getting-started/upgrading.md and compare the recorded and running values again; no migration is inferred.",
+        ),
+      };
+    case "match":
+      return {
+        row: [check, 0, `${witness.recorded} = CLI`],
+        finding: describe(
+          "witness-matches",
+          "ok",
+          `Recorded ${witness.recorded} matches running ${witness.running}`,
+          "A match does not establish schema or maintenance completion.",
+        ),
+      };
+    default:
+      return {
+        row: [check, null, witness.state === "missing" ? "none" : (witness.state ?? "not observed")],
+        finding: describe(
+          "witness-unknown",
+          "unknown",
+          `Witness ${witness.state ?? "unknown"}`,
+          "This is not a new-store or maintenance diagnosis.",
+        ),
+      };
+  }
+}
+
+function worstStatus(rows: Row[]): Row[1] {
+  let worst: Row[1] = null;
+  for (const [, status] of rows) {
+    if (status !== null && (worst === null || status > worst)) worst = status;
+  }
+  return worst;
+}
+
+/**
+ * Interpret captured evidence without I/O or Markdown; preserve the order of rows, findings, and actions.
+ *
+ * @param snapshot - Captured observations, including absent or partial evidence.
+ * @param time - ISO timestamp shared by findings unless their evidence carries its own time.
+ */
+function interpretHealthReport(snapshot: Record<string, unknown>, time: string) {
   const findings: Finding[] = [];
   const add = (
     id: string,
@@ -208,7 +405,9 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
       meaning,
       ...(action ? { action } : {}),
     });
-  const guard = snapshot.guard as { kind?: string; installed?: string } | undefined;
+  const guard = snapshot.guard as
+    | { kind?: string; version?: string; installed?: string; workspace?: { repoRoot?: string } }
+    | undefined;
   if (guard?.kind === "unsupported")
     add(
       "cli-unsupported",
@@ -228,84 +427,9 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
       `Workspace observation: ${guard?.kind ?? "unknown"}`,
       "This does not establish store health.",
     );
-  const hooks = snapshot.hooks;
-  const missingHooks: string[] = [];
-  const outdatedHooks: string[] = [];
-  const unidentifiedHooks: string[] = [];
-  const shims: string[] = [];
-  const hookAction =
-    "Review hook identity, local customization and the intended default, `--beads` or `--shared` layout before any refresh. `bd hooks install` writes hooks and may change core.hooksPath. Verify with `bd hooks list`.";
-  if (Array.isArray(hooks)) {
-    for (const hook of hooks as Array<{
-      name: string;
-      installed: boolean;
-      version: string;
-      shim: boolean;
-      outdated: boolean;
-    }>) {
-      if (!hook.installed) missingHooks.push(hook.name);
-      else if (hook.outdated) outdatedHooks.push(hook.name);
-      else if (hook.shim) shims.push(hook.name);
-      else if (!hook.version) unidentifiedHooks.push(hook.name);
-    }
-    if (missingHooks.length)
-      add(
-        "hooks-missing",
-        "beads",
-        "note",
-        "bd hooks list",
-        `${missingHooks.join(", ")}: missing/unreadable/unresolved`,
-        "The optional hook installation was not established by the native listing.",
-      );
-    if (outdatedHooks.length)
-      add(
-        "hooks-outdated",
-        "beads",
-        "action-recommended",
-        "bd hooks list",
-        `${outdatedHooks.join(", ")}: outdated`,
-        "Native status describes hook installation only.",
-        hookAction,
-      );
-    if (unidentifiedHooks.length)
-      add(
-        "hooks-identity-unknown",
-        "beads",
-        "review-needed",
-        "bd hooks list",
-        `${unidentifiedHooks.join(", ")}: installed without a reported version`,
-        "The native listing did not establish the installed hook's identity.",
-        hookAction,
-      );
-    if (shims.length)
-      add(
-        "hooks-shim",
-        "beads",
-        "note",
-        "bd hooks list",
-        `${shims.join(", ")}: installed shim`,
-        "A shim does not certify current wrapper policy; review native hook refresh guidance after upgrades.",
-      );
-  } else if (typeof hooks === "string" && hooks.startsWith("withheld:")) {
-    add(
-      "hooks-unavailable",
-      "beads",
-      "unknown",
-      "bd hooks list",
-      hooks,
-      "Native hook collection was not attempted; hook status is unobserved.",
-      undefined,
-      "session location unconfirmed",
-    );
-  } else add("hooks-unavailable", "beads", "failed", "bd hooks list", String(hooks), "Hook status is not established.");
-  const local = snapshot.local as
-    | {
-        witness?: { state?: string; recorded?: string; running?: string };
-        managedInstructions?: { full?: number; state?: string };
-        sharedSkill?: string;
-        scope?: string;
-      }
-    | undefined;
+  const hooks = assessHooks(snapshot.hooks, time);
+  findings.push(...hooks.findings);
+  const local = snapshot.local as Partial<PluginHealthObservation & BeadsHealthObservation> | undefined;
   const fileScope = `root-file observation: ${local?.scope ?? "confirmed session directory"}`;
   if (local?.managedInstructions?.state === "unreadable" || local?.managedInstructions?.state === "truncated") {
     add(
@@ -342,16 +466,9 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
       fileScope,
     );
   }
-  if (local?.witness?.state === "differ")
-    add(
-      "witness-differs",
-      "beads",
-      "review-needed",
-      ".local_version",
-      `Recorded ${local.witness.recorded} differs from running ${local.witness.running}`,
-      "This is not evidence of schema, reconciliation, hook freshness or maintenance completion.",
-      "Read-only review: consult https://github.com/gastownhall/beads/blob/7ef2fd05eb0cd3bdbde051f93cfc14ccf270cdde/docs/getting-started/upgrading.md and compare the recorded and running values again; no migration is inferred.",
-    );
+  const witness = assessWitness(local?.witness, time);
+  // Preserve the captured report's evidence order: mismatch precedes duplicate guidance; other witness findings follow it.
+  if (witness.finding?.id === "witness-differs") findings.push(witness.finding);
   if ((local?.managedInstructions?.full ?? 0) > 1)
     add(
       "duplicate-full",
@@ -363,24 +480,7 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
       "Review local customization before removing redundant guidance, which edits instructions; verify the resulting project and request counts.",
       fileScope,
     );
-  if (local?.witness?.state === "match")
-    add(
-      "witness-matches",
-      "beads",
-      "ok",
-      ".local_version",
-      `Recorded ${local.witness.recorded} matches running ${local.witness.running}`,
-      "A match does not establish schema or maintenance completion.",
-    );
-  else if (local?.witness && local.witness.state !== "differ")
-    add(
-      "witness-unknown",
-      "beads",
-      "unknown",
-      ".local_version",
-      `Witness ${local.witness.state ?? "unknown"}`,
-      "This is not a new-store or maintenance diagnosis.",
-    );
+  if (witness.finding && witness.finding.id !== "witness-differs") findings.push(witness.finding);
   const request = snapshot.requestInstructions as { at?: number; full?: number; retained?: number } | undefined;
   if ((request?.full ?? 0) > 1)
     add(
@@ -394,7 +494,7 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
       "last observed request",
       typeof request?.at === "number" ? new Date(request.at).toISOString() : "unavailable",
     );
-  const skill = snapshot.skill as { effective?: string[]; collision?: string } | undefined;
+  const skill = snapshot.skill as { effective?: string[]; collision?: string; failure?: string } | undefined;
   if (Array.isArray(skill?.effective) && skill.effective.includes("beads"))
     add(
       "shared-skill-effective",
@@ -413,65 +513,21 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
       skill.collision,
       "Native customization precedence is preserved.",
     );
-  const target = snapshot.syncTarget as SyncTargetObservation | undefined;
-  const localOnly = target?.state === "local-only";
-  const targetAssessed = target?.state === "resolved" || localOnly;
-  const missingTarget = guard?.kind === "withheld" ? "session location unconfirmed" : "native listing not performed";
-  const targetValue =
-    target?.state === "resolved"
-      ? `Resolved · ${target.name}`
-      : localOnly
-        ? "Local-only"
-        : `Unknown · ${target?.state === "unknown" ? target.reason : missingTarget}`;
-  const listingSkipped = target?.state === "unknown" && target.listingSkipped;
-  const targetProducer = listingSkipped
-    ? "bd context --json"
-    : target
-      ? "bd --readonly dolt remote list --json --sandbox and bd context --json"
-      : "local diagnostic scope";
-  const targetMeaning = listingSkipped
-    ? "The strict-readonly remote listing was skipped because native context could not establish a supported direct Dolt workspace."
-    : localOnly
-      ? "This embedded store has no registered native remotes. Native push may offer Git-origin adoption with consent."
-      : "The target check observes native registration of origin. Reachability and synchronization remain unmeasured.";
-  add("sync-target", "beads", targetAssessed ? "ok" : "unknown", targetProducer, targetValue, targetMeaning);
-  const historyValue = localOnly ? "Not applicable" : "Not checked";
-  const historyUnavailable = "No qualified Beads history probe is available";
-  const historyRequested = snapshot.historyRequested === true;
-  const historyReason = localOnly
-    ? "This embedded store has no registered native remotes."
-    : historyRequested
-      ? `${historyUnavailable}.`
-      : "The invocation did not request a remote history comparison.";
-  add(
-    "remote-history",
-    "beads",
-    "not-checked",
-    "diagnostics invocation",
-    historyValue,
-    `Comparison was not attempted. ${historyReason} Source-Git freshness was not checked.`,
+  const remote = assessRemote(
+    snapshot.syncTarget as SyncTargetObservation | undefined,
+    guard?.kind === "withheld",
+    snapshot.historyRequested === true,
+    time,
   );
-  const context = snapshot.contextObservation as { version?: string; loadedAt?: number } | undefined;
-  const current = guard?.kind === "ready" ? (guard as { version?: string }).version : undefined;
-  if (context?.version && current && context.version !== current)
-    add(
-      "context-version-differs",
-      "plugin",
-      "review-needed",
-      "context cache",
-      `Context loaded with preceding CLI ${context.version}; current observation ${current}`,
-      "These observations are not atomic; age alone does not prove staleness.",
-      "Use the next session or configured idle refresh; normal full prime can access the store. Verify the observed context version in diagnostics afterward.",
-    );
-  type Row = [check: string, status: 0 | 1 | 2 | null, value: string];
+  findings.push(...remote.findings);
+  const contextObservation = snapshot.contextObservation as { version?: string } | undefined;
+  const context = assessContext(snapshot.context, contextObservation?.version, guard, time);
+  if (context.finding) findings.push(context.finding);
   const pluginRows: Row[] = [];
   const beadsRows: Row[] = [];
   const actions: string[] = [];
   const comments: string[] = [];
   const identity = snapshot.plugin as { name?: string; version?: string } | undefined;
-  const cli = snapshot.guard as
-    | { kind?: string; version?: string; installed?: string; workspace?: { path?: string; repoRoot?: string } }
-    | undefined;
   const commands = snapshot.commands as
     | {
         registration?: string;
@@ -481,14 +537,6 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
         expectedCount?: number;
         missing?: string[];
         mismatches?: unknown[];
-      }
-    | undefined;
-  const cached = snapshot.contextObservation as { version?: string } | undefined;
-  const guidance = snapshot.local as
-    | {
-        managedInstructions?: { state?: string; full?: number; minimal?: number; codex?: number };
-        sharedSkill?: string;
-        witness?: { state?: string; recorded?: string; running?: string };
       }
     | undefined;
   const host = typeof snapshot.host === "string" && snapshot.host !== "unknown" ? snapshot.host : undefined;
@@ -522,47 +570,26 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
       if (missing || overrides) actions.push("Review command customization and rerun diagnostics.");
     }
   }
-  const shared = guidance?.sharedSkill === "missing" ? "absent" : (guidance?.sharedSkill ?? "not observed");
-  if ((snapshot.skill as { failure?: string } | undefined)?.failure) pluginRows.push(["Skill", 2, "unavailable"]);
+  const shared = local?.sharedSkill === "missing" ? "absent" : (local?.sharedSkill ?? "not observed");
+  if (skill?.failure) pluginRows.push(["Skill", 2, "unavailable"]);
   else if (skill?.collision?.startsWith("skill-collision"))
     pluginRows.push(["Skill", 1, `oc-beads overridden · shared: ${shared}`]);
-  else if (Array.isArray(skill?.effective))
+  else if (Array.isArray(skill?.effective)) {
+    const active = skill.effective.includes("oc-beads");
     pluginRows.push([
       "Skill",
-      skill.effective.includes("oc-beads") ? (shared === "unreadable" ? null : 0) : 1,
-      `oc-beads ${skill.effective.includes("oc-beads") ? "active" : "absent"} · shared: ${shared}`,
+      active ? (shared === "unreadable" ? null : 0) : 1,
+      `oc-beads ${active ? "active" : "absent"} · shared: ${shared}`,
     ]);
-  else pluginRows.push(["Skill", null, `registry not observed · shared: ${shared}`]);
+  } else pluginRows.push(["Skill", null, `registry not observed · shared: ${shared}`]);
   const typed = typeof snapshot.typedRegistration === "string" ? snapshot.typedRegistration : "";
   if (typed.startsWith("registered")) pluginRows.push(["Typed tools", 0, "Registered"]);
   else if (typeof snapshot.typedContinuity === "string" && snapshot.typedContinuity.startsWith("enabled"))
     pluginRows.push(["Typed tools", 2, "Requested, not registered"]);
   else pluginRows.push(["Typed tools", null, typed.startsWith("disabled") ? "Not requested" : "not observed"]);
-  const contextState = typeof snapshot.context === "string" ? snapshot.context : "";
-  if (contextState === "ready") {
-    const differs = cached?.version && cli?.version && cached.version !== cli.version;
-    pluginRows.push(["Context", differs ? 1 : 0, differs ? `Loaded under bd ${cached.version}` : "Loaded"]);
-    if (differs)
-      actions.push("Refresh context in the next session or configured idle refresh. Check: diagnostics Context row.");
-  } else if (contextState === "failed" || contextState.startsWith("withheld") || contextState.includes("lookup failed"))
-    pluginRows.push([
-      "Context",
-      2,
-      contextState.startsWith("withheld") ? "Withheld" : contextState === "failed" ? "Failed" : "Session lookup failed",
-    ]);
-  else
-    pluginRows.push([
-      "Context",
-      null,
-      contextState.includes("progress") || contextState === "loading"
-        ? "Loading"
-        : contextState === "empty"
-          ? "Empty"
-          : contextState.startsWith("unobserved:")
-            ? "Not yet loaded"
-            : "not observed",
-    ]);
-  const root = guidance?.managedInstructions;
+  pluginRows.push(context.row);
+  if (context.action) actions.push(context.action);
+  const root = local?.managedInstructions;
   if (root?.state === "available") {
     const configured = (root.full ?? 0) + (root.minimal ?? 0) + (root.codex ?? 0) > 0;
     pluginRows.push([
@@ -585,117 +612,103 @@ export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt
       ? snapshot.persistence
       : undefined;
   if (gap) pluginRows.push(["Write outcomes", 1, gap.length > 180 ? `${gap.slice(0, 177)}...` : gap]);
-  if (cli?.kind === "ready") beadsRows.push(["bd CLI", cli.version ? 0 : null, cli.version ?? "not observed"]);
-  else if (cli?.kind === "unsupported" || cli?.kind === "unavailable") {
-    beadsRows.push(["bd CLI", 2, cli.installed ? `${cli.installed} (needs ≥1.3.1)` : "not found"]);
+  if (guard?.kind === "ready") beadsRows.push(["bd CLI", guard.version ? 0 : null, guard.version ?? "not observed"]);
+  else if (guard?.kind === "unsupported" || guard?.kind === "unavailable") {
+    beadsRows.push(["bd CLI", 2, guard.installed ? `${guard.installed} (needs ≥1.3.1)` : "not found"]);
     comments.push("bd CLI unavailable or below the supported minimum.");
     actions.push("Install or upgrade bd to ≥1.3.1, then start a new session. Check: `bd version`.");
   } else beadsRows.push(["bd CLI", null, "not observed"]);
-  const workspaceStatus =
-    cli?.kind === "ready" ? 0 : ["probe-failed", "withheld", "uninitialized"].includes(cli?.kind ?? "") ? 2 : null;
-  beadsRows.push([
-    "Workspace",
-    workspaceStatus,
-    cli?.kind === "ready"
-      ? "Located"
-      : cli?.kind === "probe-failed"
-        ? "Probe failed"
-        : cli?.kind === "withheld"
-          ? "Withheld"
-          : cli?.kind === "uninitialized"
-            ? "Not initialized"
-            : "not observed",
-  ]);
-  const witness = guidance?.witness;
-  beadsRows.push([
-    "Recorded bd version",
-    witness?.state === "match" ? 0 : witness?.state === "differ" ? 1 : null,
-    witness?.state === "differ"
-      ? `${witness.recorded} ≠ CLI ${witness.running}`
-      : witness?.state === "match"
-        ? `${witness.recorded} = CLI`
-        : witness?.state === "missing"
-          ? "none"
-          : (witness?.state ?? "not observed"),
-  ]);
-  if (Array.isArray(hooks) && hooks.length) {
-    const missing = missingHooks.length;
-    const installed = hooks.length - missing;
-    const outdated = outdatedHooks.length;
-    const unidentified = unidentifiedHooks.length;
-    const shimCount = shims.length;
-    const shimLabel = shimCount
-      ? shimCount === installed
-        ? " (shims)"
-        : ` (${shimCount} shim${shimCount > 1 ? "s" : ""})`
-      : "";
-    const value = [
-      `${installed}/${hooks.length} installed${shimLabel}`,
-      missing ? `${missing} missing/unreadable/unresolved` : "",
-      outdated ? `${outdated} outdated` : "",
-      unidentified ? `${unidentified} unrecognized` : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    const mismatch = outdated > 0 || unidentified > 0;
-    beadsRows.push(["Git hooks", mismatch ? 1 : installed ? 0 : null, value]);
-    if (mismatch) {
-      comments.push("Git hooks need attention.");
-      actions.push(hookAction);
-    }
-  } else
-    beadsRows.push([
-      "Git hooks",
-      null,
-      Array.isArray(hooks)
-        ? "no entries reported"
-        : typeof hooks === "string" && hooks.startsWith("withheld:")
-          ? "Withheld"
-          : typeof hooks === "string" && hooks.startsWith("failed:")
-            ? "observation failed"
-            : "not observed",
-    ]);
-  beadsRows.push(["Sync target", targetAssessed ? 0 : null, targetValue]);
-  beadsRows.push([
-    "Remote history",
-    null,
-    historyRequested && !localOnly ? `${historyValue} · ${historyUnavailable}` : historyValue,
-  ]);
-  const summary = [comments[0], localOnly ? undefined : "Remote history not checked."].filter(Boolean).join(" ");
-  const markers = ["✅", "⚠️", "❌"];
-  const labels = ["Healthy", "Mismatch", "Unhealthy"];
-  const rollup = (rows: Row[]) => {
-    const assessed = rows.filter(([, status]) => status !== null).map(([, status]) => status as number);
-    const worst = assessed.length ? Math.max(...assessed) : undefined;
-    return worst === undefined ? "— No checks assessed" : `${markers[worst]} ${labels[worst]}`;
+  beadsRows.push(workspaceRow(guard?.kind));
+  beadsRows.push(witness.row);
+  beadsRows.push(hooks.row);
+  if (hooks.action) {
+    comments.push("Git hooks need attention.");
+    actions.push(hooks.action);
+  }
+  beadsRows.push(...remote.rows);
+  const summary = [comments[0], remote.summary].filter(Boolean).join(" ");
+  return {
+    findings,
+    pluginRows,
+    beadsRows,
+    actions,
+    summary,
+    identity,
+    repoRoot: guard?.workspace?.repoRoot,
+    overallStatus: worstStatus([...pluginRows, ...beadsRows]),
+    pluginStatus: worstStatus(pluginRows),
+    beadsStatus: worstStatus(beadsRows),
   };
-  const cell = (value: string) => value.replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ");
-  const code = (value: string) => `\`${cell(value).replace(/`/g, "\\`")}\``;
-  const table = (rows: Row[]) =>
-    [
-      "| Check | Status | Value |",
-      "|---|---|---|",
-      ...rows.map(
-        ([check, status, value]) => `| ${check} | ${status === null ? "—" : markers[status]} | ${cell(value)} |`,
-      ),
-    ].join("\n");
+}
+
+const REPORT_STATUS = {
+  0: { marker: "✅", label: "Healthy" },
+  1: { marker: "⚠️", label: "Mismatch" },
+  2: { marker: "❌", label: "Unhealthy" },
+} as const;
+
+function formatHeadingStatus(status: Row[1]): string {
+  if (status === null) return "— No checks assessed";
+  const { marker, label } = REPORT_STATUS[status];
+  return `${marker} ${label}`;
+}
+
+function escapeTableCell(value: string): string {
+  return value.replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ");
+}
+
+function formatInlineCode(value: string): string {
+  const escaped = escapeTableCell(value).replace(/`/g, "\\`");
+  return `\`${escaped}\``;
+}
+
+function renderCheckTable(rows: Row[]): string {
+  const lines = ["| Check | Status | Value |", "|---|---|---|"];
+  for (const [check, status, value] of rows) {
+    const marker = status === null ? "—" : REPORT_STATUS[status].marker;
+    lines.push(`| ${check} | ${marker} | ${escapeTableCell(value)} |`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Render captured observations without collecting new evidence or guaranteeing verbatim model relay.
+ *
+ * @param snapshot - Captured observations that drive the report and are included in the details view.
+ * @param capturedAt - Capture time in milliseconds since the Unix epoch.
+ * @param details - Whether to include the underlying observations and findings.
+ */
+export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt: number, details = false): string {
+  const time = new Date(capturedAt).toISOString();
+  const {
+    findings,
+    pluginRows,
+    beadsRows,
+    actions,
+    summary,
+    identity,
+    repoRoot,
+    overallStatus,
+    pluginStatus,
+    beadsStatus,
+  } = interpretHealthReport(snapshot, time);
   const output = [
-    `## Beads diagnostics — ${rollup([...pluginRows, ...beadsRows])}`,
+    `## Beads diagnostics — ${formatHeadingStatus(overallStatus)}`,
     "",
-    `DATE: ${code(time)}`,
+    `DATE: ${formatInlineCode(time)}`,
     "",
-    `VERSION: ${cell(identity?.name ?? "plugin not observed")} ${code(identity?.version ?? "version not observed")}`,
+    `VERSION: ${escapeTableCell(identity?.name ?? "plugin not observed")} ${formatInlineCode(identity?.version ?? "version not observed")}`,
     "",
-    `PATH: ${code(cli?.workspace?.repoRoot ?? "not observed")}`,
+    `PATH: ${formatInlineCode(repoRoot ?? "not observed")}`,
     ...(summary ? ["", summary] : []),
     "",
-    `**Plugin** ${rollup(pluginRows)}`,
+    `**Plugin** ${formatHeadingStatus(pluginStatus)}`,
     "",
-    table(pluginRows),
+    renderCheckTable(pluginRows),
     "",
-    `**Beads** ${rollup(beadsRows)}`,
+    `**Beads** ${formatHeadingStatus(beadsStatus)}`,
     "",
-    table(beadsRows),
+    renderCheckTable(beadsRows),
     ...(actions.length ? ["", "**Actions**", "", ...actions.map((action) => `- ${action}`)] : []),
   ];
   if (details)
