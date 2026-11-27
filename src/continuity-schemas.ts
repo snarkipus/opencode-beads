@@ -108,14 +108,21 @@ export const inputs: Record<Operation, JS> = {
  * @param write - Whether an invocation actor is required in every result branch.
  */
 export function outputFor(operation: Operation, write: boolean): JS {
+  let target = token;
+  switch (operation) {
+    case "get":
+      target = strings;
+      break;
+    case "find":
+    case "create":
+    case "memories":
+      target = { type: "object", additionalProperties: true };
+      break;
+  }
+
   const base: Record<string, JS> = {
     operation: { const: operation },
-    target:
-      operation === "get"
-        ? strings
-        : operation === "find" || operation === "create" || operation === "memories"
-          ? { type: "object", additionalProperties: true }
-          : token,
+    target,
     ...(write ? { actor: text } : {}),
     detail: { type: "string" },
     reference: token,
@@ -198,16 +205,13 @@ export function outputFor(operation: Operation, write: boolean): JS {
         ],
       };
     case "remember": {
-      const data = {
-        data: { type: "object", additionalProperties: true } as JS,
-        commitIndeterminate: { type: "boolean" } as JS,
+      const data: Record<string, JS> = {
+        data: { type: "object", additionalProperties: true },
+        commitIndeterminate: { type: "boolean" },
       };
+      const required = ["reference", "data", "commitIndeterminate"];
       return {
-        anyOf: [
-          branch("acknowledged", data, ["reference", "data", "commitIndeterminate"]),
-          branch("landed-uncommitted", data, ["reference", "data", "commitIndeterminate"]),
-          uncertainty,
-        ],
+        anyOf: [branch("acknowledged", data, required), branch("landed-uncommitted", data, required), uncertainty],
       };
     }
     case "claim":
