@@ -986,6 +986,27 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
         if (external.length) await assertPermission("external_directory", external);
         await assertGuard();
         await assertPermission("shell", commands.map(shellResource));
+        /**
+         * Preserve the original failure unless a recall exit of 1 proves the requested key is missing.
+         *
+         * @param error - Original invocation or decoder error, used for the fallback diagnostic.
+         */
+        function commandFailure(error: unknown): ContinuityResult {
+          const failure: ContinuityResult = {
+            ...base,
+            status: failureStatus(operation, write, error, data.id),
+            detail: failureDetail(error),
+          };
+          if (operation !== "recall" || !(error instanceof PrimeProcessError) || error.exitCode !== 1) return failure;
+          try {
+            const missing = definition.normalize(data, error.stdout, actor);
+            if (missing.status !== "missing") return failure;
+            return { ...base, ...missing } as ContinuityResult;
+          } catch {
+            return failure;
+          }
+        }
+
         const issues: Record<string, Record<string, unknown>> = {};
         const failed: Array<{ id: string; detail: string }> = [];
         let result: ContinuityResult = { ...base, status: "failed", detail: "No CLI result" };
@@ -1006,19 +1027,7 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
             if (operation === "get") {
               failed.push({ id: String(item.id), detail: failureDetail(error) });
             } else {
-              result = {
-                ...base,
-                status: failureStatus(operation, write, error, data.id),
-                detail: failureDetail(error),
-              };
-            }
-            if (operation === "recall" && error instanceof PrimeProcessError && error.exitCode === 1) {
-              try {
-                const missing = definition.normalize(data, error.stdout, actor);
-                if (missing.status === "missing") result = { ...base, ...missing } as ContinuityResult;
-              } catch {
-                /* Keep original diagnostic; absence is not established. */
-              }
+              result = commandFailure(error);
             }
             if (signal.aborted) {
               // A started write may have landed even when cancellation prevents a normal return.
