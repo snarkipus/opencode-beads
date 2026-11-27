@@ -6,11 +6,13 @@ import { isAbsolute, parse, relative, sep } from "node:path";
 import { checkBeadsStore, createGuardRuntime } from "./guard";
 import { PrimeProcessError, runBd } from "./prime";
 
+/** Host location and session authority used to verify the invocation before spawning Beads. */
 export type ContinuityHost = Pick<Plugin.Context, "location"> & {
   permission: Pick<Plugin.Context["permission"], "assert">;
   session: Pick<Plugin.Context["session"], "get">;
 };
 
+/** Operation-specific result; an uncertain write may have landed and needs readback, not automatic retry. */
 export interface ContinuityResult {
   operation: Operation;
   target: string | string[] | Record<string, unknown>;
@@ -28,20 +30,29 @@ export interface ContinuityResult {
   direction?: "down" | "up";
   scope?: Record<string, unknown>;
   limit?: number;
+  /** Null means the reply could not establish completeness; false means results are known to be incomplete. */
   complete?: boolean | null;
   detail?: string;
   commitIndeterminate?: boolean;
 }
 
+/** Runner and path overrides for testing, plus optional result notification and lifecycle cancellation. */
 export interface ContinuityDependencies {
   /** Override the normal bounded runner in tests. */
   bd?: typeof runBd;
   realpath?: (path: string) => Promise<string>;
+  /** Receives an assembled result, including an uncertain write on abort; not proof of persistence. */
   acknowledged?: (sessionID: string, result: ContinuityResult) => void;
+  /** Additional cancellation source combined with the individual tool invocation's signal. */
   signal?: AbortSignal;
 }
 
-/** Audit attribution from host invocation identity; not authentication or an assignment handoff. */
+/**
+ * Derive stable audit attribution, not authentication or an assignment handoff.
+ *
+ * @param context - Session and agent of the actual invocation, not the session's default agent.
+ * @throws If either part of the invocation identity is unavailable or invalid.
+ */
 export function executorActor(context: { sessionID: string; agent: string }): string {
   if (
     [context.sessionID, context.agent].some(
@@ -60,6 +71,7 @@ export function executorActor(context: { sessionID: string; agent: string }): st
   return `opencode:${label}:${suffix}`;
 }
 
+/** Names exposed in the typed `beads` namespace, not necessarily native CLI subcommand names. */
 export type Operation =
   | "find"
   | "get"
@@ -130,7 +142,11 @@ const createSchema = obj(
 function record(value: unknown): value is Data {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-/** Validate the declared issue fields; preserve other CLI fields without inventing values. */
+/**
+ * Check the declared issue fields without stripping additional CLI data or inventing values.
+ *
+ * @param value - Untrusted issue row from the parsed CLI reply.
+ */
 function isIssue(value: unknown): value is Data & { id: string } {
   if (
     !record(value) ||
@@ -167,6 +183,13 @@ function isIssue(value: unknown): value is Data & { id: string } {
     return false;
   return true;
 }
+/**
+ * Check nonblank text without trimming it; identifier-like fields use the stricter token grammar.
+ *
+ * @param data - Input object containing the field.
+ * @param key - Field checked and named in the validation error.
+ * @param isToken - Whether the field must be safe as a token rather than free text.
+ */
 function stringField(data: Data, key: string, isToken = false): string {
   const value = data[key];
   if (
@@ -179,17 +202,32 @@ function stringField(data: Data, key: string, isToken = false): string {
     throw new Error(`Invalid ${key}`);
   return value;
 }
+/**
+ * Reject unknown keys, then shallow-copy the input with optional undefined values omitted to match JSON.
+ *
+ * @param data - Untrusted input object.
+ * @param allowed - Keys accepted by this operation or nested patch.
+ */
 function fields(data: unknown, allowed: readonly string[]): Data {
   if (!record(data)) throw new Error("Expected operation input");
   for (const key of Object.keys(data)) if (!allowed.includes(key)) throw new Error(`Unsupported input: ${key}`);
-  // Optional undefined values are omitted in JSON; keep target/content JSON-consistent too.
   return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
 }
-/** @param value - A required priority, or a supplied optional priority. */
+/**
+ * Require an integer priority from 0 through 4.
+ *
+ * @param value - Required create priority or the supplied optional update priority.
+ */
 function validatePriority(value: unknown): void {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 4)
     throw new Error("Invalid priority");
 }
+/**
+ * Validate an ordered list of 1–25 unique tokens without trimming or deduplicating it.
+ *
+ * @param data - Input object containing the list.
+ * @param key - List field checked and named in the validation error.
+ */
 function list(data: Data, key: string): string[] {
   const value = data[key];
   if (!Array.isArray(value) || !value.length || value.length > 25 || new Set(value).size !== value.length)
@@ -257,6 +295,13 @@ function validateCreate(data: Data): void {
   if (data.labels !== undefined) list(data, "labels");
 }
 
+/**
+ * Validate input before permission is requested; return the checked request for argv and reply matching.
+ *
+ * @param operation - Operation that determines allowed fields and validation order.
+ * @param input - Raw tool input, checked even when the host supplied an input schema.
+ * @throws On the first invalid field or unsupported combination, before invoking Beads.
+ */
 function validate(operation: Operation, input: unknown): Data {
   const allowed: Record<Operation, string[]> = {
     find: ["view", "parent", "assignee", "status", "labels", "text", "limit"],
@@ -289,6 +334,13 @@ function validate(operation: Operation, input: unknown): Data {
   return d;
 }
 
+/**
+ * Build direct CLI argument arrays before invocation-scoped flags are added. Get uses one command per ID;
+ * bounded find views request one extra row so the decoder can detect truncation.
+ *
+ * @param operation - Operation that selects the CLI command form.
+ * @param d - Input already checked by the operation validator.
+ */
 function argv(operation: Operation, d: Data): string[][] {
   const flags = (value: Data, mapping: Record<string, string>): string[] =>
     Object.entries(mapping).flatMap(([key, flag]) => (value[key] === undefined ? [] : [flag, String(value[key])]));
@@ -372,6 +424,13 @@ function argv(operation: Operation, d: Data): string[][] {
   }
 }
 
+/**
+ * Describe operation-specific results, including partial reads and uncertainty after a write.
+ * The schema describes the output; the decoder establishes whether a CLI reply supports that outcome.
+ *
+ * @param operation - Operation whose result branches are declared.
+ * @param write - Whether an invocation actor is required in every result branch.
+ */
 function outputFor(operation: Operation, write: boolean): JS {
   const base: Record<string, JS> = {
     operation: { const: operation },
@@ -743,18 +802,32 @@ const OPERATIONS: OperationDefinition[] = (Object.keys(inputs) as Operation[]).m
   };
 });
 
-/** Canonical shell resource only; execution always uses the separate argv array. */
+/**
+ * Quote the canonical shell permission resource without using it to execute the command.
+ *
+ * @param args - Exact CLI argv, including the invocation flags.
+ */
 function shellResource(args: readonly string[]): string {
   return ["bd", ...args]
     .map((arg) => (/^[a-zA-Z0-9_./:=-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", "'\\''")}'`))
     .join(" ");
 }
+/**
+ * Keep the CLI diagnostic streams available when an execution failed.
+ *
+ * @param error - Rejected invocation or decoder error.
+ */
 function failureDetail(error: unknown): string {
   if (error instanceof PrimeProcessError)
     return [error.message, error.stderr.trim(), error.stdout.trim()].filter(Boolean).join(": ");
   return error instanceof Error ? error.message : String(error);
 }
-/** Only the observed single-target JSON diagnostic establishes a non-claim. */
+/**
+ * Recognize only the observed single-target JSON conflict; other write failures remain uncertain.
+ *
+ * @param error - CLI failure that may carry the conflict diagnostic.
+ * @param id - Requested issue ID the diagnostic must match.
+ */
 function claimConflict(error: unknown, id: unknown): boolean {
   if (!(error instanceof PrimeProcessError) || error.exitCode !== 1 || error.stdout.trim()) return false;
   try {
@@ -776,14 +849,23 @@ function claimConflict(error: unknown, id: unknown): boolean {
   }
 }
 
+/**
+ * Test lexical containment, including equality; callers resolve aliases separately.
+ *
+ * @param root - Directory boundary.
+ * @param target - Candidate path checked against that boundary.
+ */
 function contains(root: string, target: string): boolean {
   const path = relative(root, target);
   return path === "" || (!isAbsolute(path) && path !== ".." && !path.startsWith(`..${sep}`));
 }
 
 /**
- * Fixed N1 definitions using the same runner in production and tests. Ordinary setup must not
- * register these before 1.1 qualification. Beads owns its normal routing and storage semantics.
+ * Build the permissioned `beads` tool definitions; the host owns registration.
+ * Beads remains responsible for routing and storage once a command is allowed to run.
+ *
+ * @param host - Host location, session lookup, and permission surface for the definitions.
+ * @param deps - Optional runner/path overrides, result observer, and lifecycle cancellation.
  */
 export function createContinuityTools(host: ContinuityHost, deps: ContinuityDependencies = {}): Info[] {
   const bd = deps.bd ?? runBd;
@@ -797,6 +879,13 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
       description: `Beads ${operation}: fixed permissioned operation. No new saved grant; ask may prompt again.`,
       input: definition.input,
       output: definition.output,
+      /**
+       * Check the request and authority before spawn, then classify only what the CLI reply establishes.
+       *
+       * @param input - Raw operation request.
+       * @param context - Actual invocation identity and cancellation signal.
+       * @throws For validation, permission, guard, or cancellation failures that prevent a normal result.
+       */
       async execute(input, context) {
         const data = validate(operation, input);
         const write = definition.write;
@@ -824,6 +913,12 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
           save: [],
         };
 
+        /**
+         * Wait for a per-invocation assertion without letting late approval resume aborted work.
+         *
+         * @param action - Host permission being asserted.
+         * @param resources - Exact directory or command resources, with no saved grant.
+         */
         async function assertPermission(action: string, resources: string[]): Promise<void> {
           signal.throwIfAborted();
           // The public API owns its prompt and exposes no cancellation endpoint. Stop this
@@ -840,6 +935,7 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
         }
 
         const directory = host.location.directory;
+        /** Re-read the session location before resolving its path; a moved session is not authorized here. */
         async function invocationDirectory(): Promise<string> {
           signal.throwIfAborted();
           const response = await host.session.get({ sessionID: context.sessionID });
@@ -848,6 +944,7 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
           return canonical(directory);
         }
 
+        /** Withhold execution unless the native CLI and workspace guard reports ready. */
         async function assertGuard(): Promise<void> {
           const guard = await checkBeadsStore(directory, runtime);
           if (guard.kind !== "ready") throw new Error(`Beads store held: ${guard.kind}`);
@@ -915,6 +1012,11 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
           result = Object.keys(issues).length
             ? { ...base, status: "acknowledged", issues, failed, complete: failed.length === 0 }
             : { ...base, status: "failed", detail: failed.map((f) => `${f.id}: ${f.detail}`).join("; ") };
+        /**
+         * Notify the observer without turning its failure into a different persistence outcome.
+         *
+         * @param value - Established result to annotate if the observer fails.
+         */
         function notify(value: ContinuityResult): void {
           try {
             deps.acknowledged?.(context.sessionID, value);
