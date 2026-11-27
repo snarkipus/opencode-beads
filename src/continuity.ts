@@ -3,6 +3,7 @@ import type { Info } from "@opencode/plugin/promise/tool";
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { isAbsolute, parse, relative, sep } from "node:path";
+import { inputs, outputFor, type JS } from "./continuity-schemas";
 import { checkBeadsStore, createGuardRuntime } from "./guard";
 import { PrimeProcessError, runBd } from "./prime";
 
@@ -85,59 +86,6 @@ export type Operation =
   | "create"
   | "remember";
 type Data = Record<string, unknown>;
-type JS = import("effect").JsonSchema.JsonSchema;
-const text: JS = { type: "string", minLength: 1, maxLength: 64_000 };
-const token: JS = { ...text, pattern: "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$" };
-const strings: JS = { type: "array", items: token, minItems: 1, maxItems: 25, uniqueItems: true };
-const status: JS = { enum: ["open", "in_progress", "blocked", "deferred"] };
-const priority: JS = { type: "integer", minimum: 0, maximum: 4 };
-const obj = (properties: Record<string, JS>, required = Object.keys(properties)): JS => ({
-  type: "object",
-  properties,
-  required,
-  additionalProperties: false,
-});
-const issue: JS = {
-  type: "object",
-  properties: {
-    id: token,
-    title: text,
-    status: { type: "string" },
-    priority,
-    issue_type: text,
-    assignee: { type: "string" },
-    created_by: { type: "string" },
-    owner: { type: "string" },
-    notes: { type: "string" },
-    acceptance_criteria: { type: "string" },
-    design: { type: "string" },
-    labels: { type: "array", items: { type: "string" } },
-  },
-  required: ["id"],
-  additionalProperties: true,
-};
-const summary: JS = obj(
-  { id: token, title: text, status: text, priority, type: text, assignee: { type: ["string", "null"] } },
-  ["id", "title", "status", "priority", "type"],
-);
-const complete: JS = { type: ["boolean", "null"] };
-const limit: JS = { type: "integer", minimum: 1, maximum: 50, default: 20 };
-const query = { parent: token, assignee: text, labels: strings, limit };
-const setSchema = obj({ status, priority, addLabels: strings, removeLabels: strings }, []);
-const createSchema = obj(
-  {
-    title: text,
-    type: { enum: ["bug", "feature", "task", "epic", "chore"] },
-    priority,
-    description: text,
-    acceptance: text,
-    design: text,
-    parent: token,
-    discoveredFrom: token,
-    labels: strings,
-  },
-  ["title", "type", "priority"],
-);
 
 function record(value: unknown): value is Data {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -424,129 +372,6 @@ function argv(operation: Operation, d: Data): string[][] {
   }
 }
 
-/**
- * Describe operation-specific results, including partial reads and uncertainty after a write.
- * The schema describes the output; the decoder establishes whether a CLI reply supports that outcome.
- *
- * @param operation - Operation whose result branches are declared.
- * @param write - Whether an invocation actor is required in every result branch.
- */
-function outputFor(operation: Operation, write: boolean): JS {
-  const base: Record<string, JS> = {
-    operation: { const: operation },
-    target:
-      operation === "get"
-        ? strings
-        : operation === "find" || operation === "create" || operation === "memories"
-          ? { type: "object", additionalProperties: true }
-          : token,
-    ...(write ? { actor: text } : {}),
-    detail: { type: "string" },
-    reference: token,
-  };
-  const requiredBase = ["operation", "target", ...(write ? ["actor"] : [])];
-  const branch = (value: string, extra: Record<string, JS> = {}, required: string[] = []): JS =>
-    obj({ ...base, status: { const: value }, ...extra }, [...requiredBase, "status", ...required]);
-  const readFailure = branch("failed", {}, ["detail"]);
-  const uncertainty = branch("uncertain", {}, ["detail"]);
-  switch (operation) {
-    case "find":
-      return {
-        anyOf: [
-          branch(
-            "acknowledged",
-            {
-              view: { enum: ["ready", "list", "search", "blocked"] },
-              records: { type: "array", items: summary },
-              scope: { type: "object", additionalProperties: true },
-              limit,
-              complete,
-            },
-            ["view", "records", "scope", "limit", "complete"],
-          ),
-          readFailure,
-        ],
-      };
-    case "get":
-      return {
-        anyOf: [
-          branch(
-            "acknowledged",
-            {
-              issues: { type: "object", additionalProperties: issue },
-              failed: { type: "array", items: obj({ id: token, detail: text }) },
-              complete: { type: "boolean" },
-            },
-            ["issues", "failed", "complete"],
-          ),
-          readFailure,
-        ],
-      };
-    case "edges":
-      return {
-        anyOf: [
-          branch(
-            "acknowledged",
-            {
-              records: {
-                type: "array",
-                items: {
-                  ...issue,
-                  required: ["id", "dependency_type"],
-                  properties: { dependency_type: text },
-                  additionalProperties: true,
-                },
-              },
-              direction: { enum: ["down", "up"] },
-              scope: { type: "object", additionalProperties: true },
-              complete,
-            },
-            ["records", "direction", "scope", "complete"],
-          ),
-          readFailure,
-        ],
-      };
-    case "memories":
-      return {
-        anyOf: [
-          branch("found", { memories: { type: "object", additionalProperties: { type: "string" } } }, ["memories"]),
-          readFailure,
-        ],
-      };
-    case "recall":
-      return {
-        anyOf: [
-          branch("found", { value: { type: "string" } }, ["reference", "value"]),
-          branch("missing", {}, ["reference"]),
-          readFailure,
-        ],
-      };
-    case "remember": {
-      const data = {
-        data: { type: "object", additionalProperties: true } as JS,
-        commitIndeterminate: { type: "boolean" } as JS,
-      };
-      return {
-        anyOf: [
-          branch("acknowledged", data, ["reference", "data", "commitIndeterminate"]),
-          branch("landed-uncommitted", data, ["reference", "data", "commitIndeterminate"]),
-          uncertainty,
-        ],
-      };
-    }
-    case "claim":
-      return {
-        anyOf: [
-          branch("acknowledged", { issue }, ["reference", "issue"]),
-          branch("not-claimed", {}, ["detail"]),
-          uncertainty,
-        ],
-      };
-    default:
-      return { anyOf: [branch("acknowledged", { issue }, ["reference", "issue"]), uncertainty] };
-  }
-}
-
 interface OperationDefinition {
   name: Operation;
   write: boolean;
@@ -746,50 +571,6 @@ function decodeIssueReply(
   }
   return { status: "acknowledged", reference: row.id, issue: row };
 }
-const inputs: Record<Operation, JS> = {
-  find: {
-    anyOf: [
-      obj({ view: { const: "ready" }, ...query }, ["view"]),
-      obj(
-        {
-          view: { const: "list" },
-          ...query,
-          status: { enum: ["open", "in_progress", "blocked", "deferred", "closed"] },
-        },
-        ["view"],
-      ),
-      obj(
-        {
-          view: { const: "search" },
-          assignee: text,
-          labels: strings,
-          status: { enum: ["open", "in_progress", "blocked", "deferred", "closed"] },
-          text,
-          limit,
-        },
-        ["view", "text"],
-      ),
-      obj({ view: { const: "blocked" }, parent: token, labels: strings, limit }, ["view"]),
-    ],
-  },
-  get: obj({ ids: strings }),
-  edges: obj(
-    {
-      id: token,
-      direction: { enum: ["down", "up"] },
-      types: { type: "array", items: token, minItems: 1, maxItems: 1 },
-    },
-    ["id", "direction"],
-  ),
-  memories: obj({ search: text }, []),
-  recall: obj({ key: token }),
-  claim: obj({ id: token }),
-  note: obj({ id: token, text }),
-  update: obj({ id: token, set: { ...setSchema, minProperties: 1 } }),
-  close: obj({ id: token, reason: text }),
-  create: createSchema,
-  remember: obj({ key: token, text }),
-};
 const OPERATIONS: OperationDefinition[] = (Object.keys(inputs) as Operation[]).map((name) => {
   const write = ["claim", "note", "update", "close", "create", "remember"].includes(name);
   return {
@@ -822,6 +603,7 @@ function failureDetail(error: unknown): string {
     return [error.message, error.stderr.trim(), error.stdout.trim()].filter(Boolean).join(": ");
   return error instanceof Error ? error.message : String(error);
 }
+
 /**
  * Recognize only the observed single-target JSON conflict; other write failures remain uncertain.
  *
@@ -847,6 +629,25 @@ function claimConflict(error: unknown, id: unknown): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * A failed write is uncertain unless Beads confirms that the requested claim did not land.
+ *
+ * @param operation - Requested operation; only a claim can report a claim conflict.
+ * @param write - Whether the operation can change durable state.
+ * @param error - Rejected invocation or decoder error.
+ * @param id - Requested issue ID, if any.
+ */
+function failureStatus(
+  operation: Operation,
+  write: boolean,
+  error: unknown,
+  id: unknown,
+): "failed" | "not-claimed" | "uncertain" {
+  if (!write) return "failed";
+  if (operation === "claim" && claimConflict(error, id)) return "not-claimed";
+  return "uncertain";
 }
 
 /**
@@ -966,6 +767,27 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
         if (external.length) await assertPermission("external_directory", external);
         await assertGuard();
         await assertPermission("shell", commands.map(shellResource));
+        /**
+         * Preserve the original failure unless a recall exit of 1 proves the requested key is missing.
+         *
+         * @param error - Original invocation or decoder error, used for the fallback diagnostic.
+         */
+        function commandFailure(error: unknown): ContinuityResult {
+          const failure: ContinuityResult = {
+            ...base,
+            status: failureStatus(operation, write, error, data.id),
+            detail: failureDetail(error),
+          };
+          if (operation !== "recall" || !(error instanceof PrimeProcessError) || error.exitCode !== 1) return failure;
+          try {
+            const missing = definition.normalize(data, error.stdout, actor);
+            if (missing.status !== "missing") return failure;
+            return { ...base, ...missing } as ContinuityResult;
+          } catch {
+            return failure;
+          }
+        }
+
         const issues: Record<string, Record<string, unknown>> = {};
         const failed: Array<{ id: string; detail: string }> = [];
         let result: ContinuityResult = { ...base, status: "failed", detail: "No CLI result" };
@@ -983,23 +805,10 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
             if (operation === "get") issues[String(item.id)] = normalized.issue!;
             else result = { ...base, ...normalized } as ContinuityResult;
           } catch (error) {
-            result = {
-              ...base,
-              status: write
-                ? claimConflict(error, data.id) && operation === "claim"
-                  ? "not-claimed"
-                  : "uncertain"
-                : "failed",
-              detail: failureDetail(error),
-            };
-            if (operation === "get") failed.push({ id: String(item.id), detail: result.detail! });
-            if (operation === "recall" && error instanceof PrimeProcessError && error.exitCode === 1) {
-              try {
-                const missing = definition.normalize(data, error.stdout, actor);
-                if (missing.status === "missing") result = { ...base, ...missing } as ContinuityResult;
-              } catch {
-                /* Keep original diagnostic; absence is not established. */
-              }
+            if (operation === "get") {
+              failed.push({ id: String(item.id), detail: failureDetail(error) });
+            } else {
+              result = commandFailure(error);
             }
             if (signal.aborted) {
               // A started write may have landed even when cancellation prevents a normal return.

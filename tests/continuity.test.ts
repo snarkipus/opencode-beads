@@ -341,6 +341,46 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
     await expect(f.execute("get", { ids: ["task-1", "task-2"] })).rejects.toThrow("location");
     expect(f.bd.mock.calls.filter(([, a]) => a[0] === "show")).toHaveLength(before + 1);
   });
+  test("batch get preserves its serialized result and exact show sequence", async () => {
+    const f = fixture();
+    const first = { ...row, id: "10", extra: { source: "cli" } };
+    const second = { ...row, id: "2", extra: ["raw"] };
+    f.bd.mockImplementation(async (_cwd, args) => {
+      if (args[0] === "version") return "1.3.1";
+      if (args[0] === "context") return '{"beads_dir":"/project/.beads"}';
+      if (args[1] === "missing") throw new PrimeProcessError(1, " not found ", "bd show", " diagnostic ");
+      if (args[1] === "invalid") return JSON.stringify([row]);
+      return JSON.stringify([args[1] === "10" ? first : second]);
+    });
+    const failed = [
+      { id: "missing", detail: "bd show exited with code 1: not found: diagnostic" },
+      { id: "invalid", detail: "Unsupported CLI acknowledgement; inspect current durable state before another write" },
+    ];
+    const partial = ["10", "missing", "2", "invalid"];
+    const allFailed = ["invalid", "missing"];
+    expect((await f.execute("get", { ids: partial })).content).toBe(
+      JSON.stringify({
+        operation: "get",
+        target: partial,
+        status: "acknowledged",
+        issues: { "2": second, "10": first },
+        failed,
+        complete: false,
+      }),
+    );
+    expect((await f.execute("get", { ids: allFailed })).content).toBe(
+      JSON.stringify({
+        operation: "get",
+        target: allFailed,
+        status: "failed",
+        detail: `invalid: ${failed[1]!.detail}; missing: ${failed[0]!.detail}`,
+      }),
+    );
+    await expect(f.execute("get", { ids: ["10", "10"] })).rejects.toThrow("Invalid ids");
+    expect(f.bd.mock.calls.filter(([, args]) => args[0] === "show").map(([, args]) => args)).toEqual(
+      [...partial, ...allFailed].map((id) => ["show", id, "--json", "--sandbox"]),
+    );
+  });
   test("find and edges distinguish bounded, unknown and failed data", async () => {
     const f = fixture();
     f.output(JSON.stringify([row]));
