@@ -1,11 +1,12 @@
 # Agent Guidelines
 
 ## Commands
-- **Typecheck**: `bun run typecheck`
+- **Code checks**: `bun run check` (lint, formatting, and TypeScript); use `bun run format` for mechanical formatting.
 - **Tests**: `bun test`
+- **Advisory diagnostics**: `bun run test:coverage` and `bun run health`; neither is a percentage or complexity gate.
 - **Package smoke test**: `bun run test:package`
 - **bd contract check** (needs `bd` on PATH): `bun run test:bd-contract`; install a pinned release with `./scripts/install-bd.sh <version> <dir>`
-- **Install deps**: `bun install`
+- **Install deps**: `bun install --frozen-lockfile`. When intentionally changing dependencies, use `bun install` and commit the resulting `bun.lock`.
 
 ## Where truth lives
 
@@ -17,33 +18,21 @@ Start with [`docs/README.md`](docs/README.md). It indexes current documents and 
 - **Design rationale** lives in `openspec/changes/archive/`. **Historical evidence** lives in `docs/reviews/`, dated qualification/evaluation/acceptance records in `docs/`, and `docs/history/`. It is frozen: never edit it to sound current, and add new evidence as a new record. **Live execution status** (claims, progress, acceptance, closure) lives in Beads; do not duplicate mutable status in specs or guides. Dated acceptance records remain evidence.
 - **Disagreements:** specs define intended behavior, not observed upstream facts or execution permission. Correct inaccurate explanatory prose within scope; never rewrite evidence or invent an API to match a spec. If code, SDK facts or test results conflict with the intended behavior, report the precise gap and stop the affected change for disposition. Do not silently change the accepted contract or infer dispatch, publication or activation authority from it.
 
-## Code Style
-- TypeScript strict mode with ESM modules
-- Use `import type` for type-only imports (verbatimModuleSyntax)
-- Node.js imports use `node:` prefix (e.g., `node:fs/promises`)
-- Handle undefined from indexed access (noUncheckedIndexedAccess enabled)
-- camelCase for functions/variables, PascalCase for types/interfaces
-- JSDoc comments for function documentation
-- Async/await for async operations
+## Code quality
 
-## Proportional engineering
+- Keep the ordinary path easy to read: prefer early returns, direct property access, and inferred local types. Use strict ESM TypeScript, type-only imports and `node:` built-ins. Avoid `any` and casts that hide an unverified contract. Let Prettier own punctuation and layout.
+- Validate unknown input once at the interface that owns it; pass a typed result inward. Trust supported schemas and constructors. Keep collection, interpretation and presentation distinct when mixing them obscures the main flow; for diagnostics, render interpreted findings rather than rediscovering evidence in string builders.
+- Keep simple code inline. Extract a nearby helper for real reuse, a complex boundary, or a concept whose name makes the caller clearer. Don't add wrappers to lower a metric or transplant OpenCode internals. Comment on non-obvious constraints, not on what the next line plainly does.
+- Before adding complexity for a speculative or vanishingly unlikely race or security edge case, explain the concrete failure mode, likelihood, and complexity cost to the user and get their buy-in. Do not silently expand scope for theoretical robustness.
+- Before staging substantial code changes, make a bounded simplification pass over the changed surface, review the diff, and rerun the relevant checks. Keep mechanical formatting separate from changes to behavior.
 
-- Before adding complexity for a speculative or vanishingly unlikely race or
-  security edge case, explain the concrete failure mode, likelihood, and
-  complexity cost to the user and get their buy-in. Do not silently expand scope
-  for theoretical robustness.
-- Validate external inputs at the boundary that owns them; trust values already
-  guaranteed by supported schemas or internal contracts. Preserve integration
-  responsibilities without duplicating upstream internals or speculative repairs.
-- Add helpers, wrappers or abstractions only for actual reuse, a genuinely complex
-  boundary, or a meaningful concept that improves readability. Do not extract
-  single-use helpers or introduce frameworks preemptively.
-- Test the actual changed implementation and dispatch path, not a duplicate of its
-  logic in the test. Prefer small realistic fixtures; mock external effects when
-  isolation is useful, without replacing the behavior being verified.
+## Tests
 
-Adapted selectively from [OpenCode's guidance](https://github.com/anomalyco/opencode/blob/84578e123ffd31e31a174457e7350961da4fabbc/AGENTS.md);
-its repository-specific tools, architecture and style rules do not apply here.
+- Decide which test owns each behavior. Test the actual implementation and dispatch path, not a duplicate of its logic. Start with small realistic fixtures and mock external effects, not the behavior being verified. Consolidate overlapping assertions only after identifying the distinct failures each test guards against.
+- Test permission and lifecycle behavior through the registered OpenCode surface. Keep focused native checks for integration assumptions the Bun suite cannot establish. Do not duplicate OpenCode's or Beads' own suites. Prefer deterministic time and explicit synchronization to real sleeps or longer timeouts.
+- Use coverage and complexity findings to guide inspection, not to maximize a score or hit a test-count target. For a refactor, preserve observable behavior and named regressions; do not preserve redundant tests solely to retain a count.
+
+Adapted from OpenCode v2.4.2 [AGENTS.md](https://github.com/anomalyco/opencode/blob/v2.4.2/AGENTS.md) and its [Bun unit-test guidance](https://github.com/anomalyco/opencode/blob/v2.4.2/.opencode/skills/unit-tests/SKILL.md). Use the supported public SDK; upstream monorepo, Effect, GUI, and release conventions are not requirements here.
 
 ## Project Structure
 - `src/plugin.ts` - OpenCode V2 plugin entry point (default export `{ id, setup }`)

@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode/plugin";
-import type { Info, ToolContext } from "@opencode/plugin/promise/tool";
+import type { Info } from "@opencode/plugin/promise/tool";
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { isAbsolute, parse, relative, sep } from "node:path";

@@ -27,11 +27,13 @@ function sha(value: unknown): string {
 }
 
 function sourcePath(value: unknown): string {
+  // oxlint-disable-next-line no-control-regex -- Paths must reject control characters.
+  const invalidPathCharacters = /[\x00-\x1f\\]/;
   if (
     typeof value !== "string" ||
     !value ||
     value.split("/").some((p) => !p || p === "." || p === "..") ||
-    /[\x00-\x1f\\]/.test(value)
+    invalidPathCharacters.test(value)
   ) {
     throw new Error("Missing or malformed source path");
   }

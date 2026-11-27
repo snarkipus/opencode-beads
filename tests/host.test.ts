@@ -154,6 +154,9 @@ function toolFixture(f: ReturnType<typeof fakeContext>) {
   return { tools, namespaces, after: (event: ToolAfterEvent) => after(event) };
 }
 
+// The 2.4 SDK requires codemode; the 2.3 SDK does not declare it.
+const nonCodeMode = { codemode: false };
+
 /** Cast only host-branded IDs at the fixture boundary. */
 function invocation(sessionID: string, agent: string, signal = new AbortController().signal): ToolContext {
   return {
@@ -493,7 +496,7 @@ describe("setupBeads", () => {
     await f.request("s1", "build");
     await t.after({
       ...invocation("s1", "build"),
-      ...{ codemode: false },
+      ...nonCodeMode,
       tool: "shell",
       input: {},
       status: "error",
@@ -1068,7 +1071,7 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     const context = invocation("parent", "build");
     const event: ToolAfterEvent = {
       tool: "subagent",
-      ...{ codemode: false },
+      ...nonCodeMode,
       sessionID: context.sessionID,
       agent: context.agent,
       messageID: context.messageID,
@@ -1555,7 +1558,7 @@ describe("owned workflow registration", () => {
 
   test("discards a late native snapshot after session generation changes", async () => {
     const f = fakeContext();
-    const c = commandFixture(f);
+    commandFixture(f);
     const messageID = "moving-workflow";
     const stored = storedUserMessage(messageID, "/oc-beads:show fixture-1", {
       ocBeadsWorkflow: { version: 1, instructions: "STALE SNAPSHOT" },
