@@ -337,6 +337,20 @@ describe("continuity adapter (plugin fixtures, not host qualification)", () => {
     f.output('{"schema_version":1}');
     expect((await f.execute("memories", { search: undefined })).output.target).toEqual({});
   });
+  test("find and edges reject invalid rows beyond the result cap", async () => {
+    const f = fixture();
+    const edge = { ...row, dependency_type: "blocks" };
+    f.output(JSON.stringify([row, { id: "task-2" }]));
+    expect((await f.execute("find", { view: "list", limit: 1 })).output).toMatchObject({
+      status: "failed",
+      detail: expect.stringContaining("Unsupported CLI acknowledgement"),
+    });
+    f.output(JSON.stringify([...Array.from({ length: 50 }, () => edge), { id: "task-2" }]));
+    expect((await f.execute("edges", { id: "task-1", direction: "down" })).output).toMatchObject({
+      status: "failed",
+      detail: expect.stringContaining("Unsupported CLI acknowledgement"),
+    });
+  });
   test("claim uses observed non-claim evidence; ambiguous claim/create keep target and actor without retry", async () => {
     const f = fixture();
     f.output(JSON.stringify([{ ...row, assignee: "another-worker", status: "in_progress" }]));

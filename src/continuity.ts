@@ -496,11 +496,90 @@ interface OperationDefinition {
   argv(data: Data): string[][];
   normalize(data: Data, stdout: string, actor: string): Partial<ContinuityResult>;
 }
+/** Reject an unsupported reply without implying that a write did not land. */
+function fail(): never {
+  throw new Error("Unsupported CLI acknowledgement; inspect current durable state before another write");
+}
+
+/**
+ * Validate the entire reply before returning capped records; search and blocked views cannot certify completeness.
+ *
+ * @param d - Validated find input carrying the requested view and limit.
+ * @param value - Parsed CLI reply, still untrusted.
+ * @throws If any row is unsupported, even beyond the returned limit.
+ */
+function decodeFind(d: Data, value: unknown): Partial<ContinuityResult> {
+  if (!Array.isArray(value)) return fail();
+  const cap = Number(d.limit ?? 20);
+  const records: Data[] = [];
+  for (const row of value) {
+    if (
+      !isIssue(row) ||
+      typeof row.title !== "string" ||
+      typeof row.status !== "string" ||
+      !Number.isInteger(row.priority) ||
+      typeof row.issue_type !== "string" ||
+      (row.assignee !== undefined && row.assignee !== null && typeof row.assignee !== "string")
+    )
+      return fail();
+    if (records.length < cap) {
+      records.push({
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        priority: row.priority,
+        type: row.issue_type,
+        ...(Object.hasOwn(row, "assignee") ? { assignee: row.assignee } : {}),
+      });
+    }
+  }
+  const view = String(d.view);
+  const complete = ["blocked", "search"].includes(view) ? null : true;
+  return {
+    status: "acknowledged",
+    view,
+    records,
+    scope: { ...d, limit: cap },
+    limit: cap,
+    complete: value.length > cap ? false : complete,
+  };
+}
+
+/**
+ * Validate every direct edge and retain the original fields; an untruncated list does not certify completeness.
+ *
+ * @param d - Validated edges input carrying the requested scope and direction.
+ * @param value - Parsed CLI reply, still untrusted.
+ * @throws If any row is unsupported, even beyond the returned limit.
+ */
+function decodeEdges(d: Data, value: unknown): Partial<ContinuityResult> {
+  if (!Array.isArray(value)) return fail();
+  for (const row of value) {
+    if (!isIssue(row) || typeof row.dependency_type !== "string") return fail();
+  }
+  const cap = 50;
+  return {
+    status: "acknowledged",
+    records: value.slice(0, cap),
+    direction: d.direction as "down" | "up",
+    scope: { id: d.id, direction: d.direction, ...(d.types ? { types: d.types } : {}) },
+    complete: value.length > cap ? false : null,
+  };
+}
+
+/**
+ * Parse the CLI reply once and check it against the operation's acknowledgement contract.
+ *
+ * @param operation - Operation whose reply contract applies.
+ * @param d - Validated request used to check the acknowledgement and report its scope.
+ * @param stdout - CLI reply as received, before JSON parsing.
+ * @param actor - Invocation actor used to check attribution in write acknowledgements.
+ * @throws The original JSON parse error for malformed JSON, or an unsupported acknowledgement error for a contract mismatch.
+ */
 function normalize(operation: Operation, d: Data, stdout: string, actor: string): Partial<ContinuityResult> {
   const value: unknown = JSON.parse(stdout);
-  const fail = () => {
-    throw new Error("Unsupported CLI acknowledgement; inspect current durable state before another write");
-  };
+  if (operation === "find") return decodeFind(d, value);
+  if (operation === "edges") return decodeEdges(d, value);
   if (operation === "memories" && record(value)) {
     const memories = { ...value };
     if (Object.hasOwn(memories, "schema_version") && memories.schema_version !== 1) return fail();
@@ -535,50 +614,6 @@ function normalize(operation: Operation, d: Data, stdout: string, actor: string)
       data: value,
       commitIndeterminate: value.commit_indeterminate === true,
     };
-  if (operation === "find" || operation === "edges") {
-    if (!Array.isArray(value)) return fail();
-    for (const row of value) {
-      if (
-        !isIssue(row) ||
-        (operation === "edges"
-          ? typeof row.dependency_type !== "string"
-          : typeof row.title !== "string" ||
-            typeof row.status !== "string" ||
-            !Number.isInteger(row.priority) ||
-            typeof row.issue_type !== "string" ||
-            (row.assignee !== undefined && row.assignee !== null && typeof row.assignee !== "string"))
-      )
-        return fail();
-    }
-    const cap = operation === "edges" ? 50 : Number(d.limit ?? 20);
-    return operation === "edges"
-      ? {
-          status: "acknowledged",
-          records: value.slice(0, cap),
-          direction: d.direction as "down" | "up",
-          scope: { id: d.id, direction: d.direction, ...(d.types ? { types: d.types } : {}) },
-          complete: value.length > cap ? false : null,
-        }
-      : {
-          status: "acknowledged",
-          view: String(d.view),
-          records: value.slice(0, cap).map((row) => ({
-            id: row.id,
-            title: row.title,
-            status: row.status,
-            priority: row.priority,
-            type: row.issue_type,
-            ...(Object.hasOwn(row, "assignee") ? { assignee: row.assignee } : {}),
-          })),
-          scope: { ...d, limit: cap },
-          limit: cap,
-          complete: ["blocked", "search"].includes(String(d.view))
-            ? value.length > cap
-              ? false
-              : null
-            : value.length <= cap,
-        };
-  }
   const row =
     operation === "create" && record(value)
       ? value
