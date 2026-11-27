@@ -3,7 +3,7 @@
 ## Commands
 - **Code checks**: `bun run check` (lint, formatting, and TypeScript); use `bun run format` for mechanical formatting.
 - **Tests**: `bun test`
-- **Advisory diagnostics**: `bun run test:coverage` and `bun run health`; neither is a percentage or complexity gate.
+- **Advisory diagnostics**: `bun run test:coverage` and `bun run health`; neither is a percentage or complexity gate. For planned cleanup, compare the pinned Fallow complexity scan on the exact baseline and candidate before sending the patch to Claude. Share the affected functions and any remaining or newly surfaced hotspots with the reviewer; use the findings to guide inspection, not to require a lower score.
 - **Package smoke test**: `bun run test:package`
 - **bd contract check** (needs `bd` on PATH): `bun run test:bd-contract`; install a pinned release with `./scripts/install-bd.sh <version> <dir>`
 - **Install deps**: `bun install --frozen-lockfile`. When intentionally changing dependencies, use `bun install` and commit the resulting `bun.lock`.
