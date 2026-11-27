@@ -822,6 +822,7 @@ function failureDetail(error: unknown): string {
     return [error.message, error.stderr.trim(), error.stdout.trim()].filter(Boolean).join(": ");
   return error instanceof Error ? error.message : String(error);
 }
+
 /**
  * Recognize only the observed single-target JSON conflict; other write failures remain uncertain.
  *
@@ -847,6 +848,25 @@ function claimConflict(error: unknown, id: unknown): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * A failed write is uncertain unless Beads confirms that the requested claim did not land.
+ *
+ * @param operation - Requested operation; only a claim can report a claim conflict.
+ * @param write - Whether the operation can change durable state.
+ * @param error - Rejected invocation or decoder error.
+ * @param id - Requested issue ID, if any.
+ */
+function failureStatus(
+  operation: Operation,
+  write: boolean,
+  error: unknown,
+  id: unknown,
+): "failed" | "not-claimed" | "uncertain" {
+  if (!write) return "failed";
+  if (operation === "claim" && claimConflict(error, id)) return "not-claimed";
+  return "uncertain";
 }
 
 /**
@@ -983,16 +1003,15 @@ export function createContinuityTools(host: ContinuityHost, deps: ContinuityDepe
             if (operation === "get") issues[String(item.id)] = normalized.issue!;
             else result = { ...base, ...normalized } as ContinuityResult;
           } catch (error) {
-            result = {
-              ...base,
-              status: write
-                ? claimConflict(error, data.id) && operation === "claim"
-                  ? "not-claimed"
-                  : "uncertain"
-                : "failed",
-              detail: failureDetail(error),
-            };
-            if (operation === "get") failed.push({ id: String(item.id), detail: result.detail! });
+            if (operation === "get") {
+              failed.push({ id: String(item.id), detail: failureDetail(error) });
+            } else {
+              result = {
+                ...base,
+                status: failureStatus(operation, write, error, data.id),
+                detail: failureDetail(error),
+              };
+            }
             if (operation === "recall" && error instanceof PrimeProcessError && error.exitCode === 1) {
               try {
                 const missing = definition.normalize(data, error.stdout, actor);
