@@ -1,9 +1,12 @@
+import type { ContextController } from "./context";
 import type {
   BeadsHealthObservation,
-  HookObservation,
   PluginHealthObservation,
   SyncTargetObservation,
+  collectHooks,
 } from "./diagnostics-collection";
+import type { BeadsWorkspace, GuardResult } from "./guard";
+import type { RequestCapabilities } from "./guidance";
 import { isSupportedOpenCodeVersion, SUPPORTED_OPENCODE_RANGE } from "./host-admission";
 
 export {
@@ -13,6 +16,62 @@ export {
   collectSyncTarget,
   DIAGNOSTIC_ENV,
 } from "./diagnostics-collection";
+
+// Workspace status and any available CLI version are assessed independently.
+type GuardObservation = {
+  kind: GuardResult["kind"] | "withheld";
+  version?: string;
+  installed?: string;
+  workspace?: BeadsWorkspace;
+  reason?: string;
+};
+
+type CommandObservation = {
+  name: string;
+  description?: string;
+};
+
+/** Captured host evidence. Missing fields, partial observations and producer sentinels are retained in details. */
+export interface DiagnosticsSnapshot {
+  plugin?: { name?: string; version?: string };
+  host?: string;
+  admission?: string;
+  liveQualification?: string;
+  commands?: {
+    registration?: "pending" | "registered" | "failed";
+    lookup?: "available" | "failed";
+    truncated?: boolean;
+    membershipTruncated?: boolean;
+    expectedCount?: number;
+    effective?: CommandObservation[] | "unknown: registry lookup failed";
+    mismatches?: Array<{ name: string; expectedDescription?: string; effectiveDescription?: string }>;
+    // An incomplete membership listing leaves the missing names unmeasured.
+    missing?: string[] | false;
+    ownership?: string;
+  };
+  skill?: {
+    failure?: string;
+    effective?: string[] | "unavailable" | "unavailable: registry lookup failed";
+    collision?: string;
+  };
+  typedContinuity?: string;
+  typedRegistration?: string;
+  requestCapability?:
+    | { agent: string; capabilities: Partial<RequestCapabilities> }
+    | "unknown: no actual request observation";
+  leafAvailability?: string;
+  local?: Partial<PluginHealthObservation & BeadsHealthObservation> | "withheld";
+  context?: string;
+  contextObservation?: ReturnType<ContextController["observationFor"]>;
+  requestInstructions?:
+    | { at?: number; full?: number; minimal?: number; codex?: number; replaced?: number; retained?: number }
+    | "unobserved";
+  guard?: GuardObservation;
+  hooks?: Awaited<ReturnType<typeof collectHooks>> | `withheld: ${string}` | `failed: ${string}`;
+  syncTarget?: SyncTargetObservation;
+  historyRequested?: boolean;
+  persistence?: string;
+}
 
 type FindingClass =
   | "incompatible"
@@ -37,7 +96,12 @@ type Finding = {
 
 type Row = [check: string, status: 0 | 1 | 2 | null, value: string];
 
-function workspaceRow(kind: string | undefined): Row {
+/**
+ * Render workspace location status for the report.
+ *
+ * @param kind - Captured guard outcome, if any.
+ */
+function workspaceRow(kind: GuardObservation["kind"] | undefined): Row {
   switch (kind) {
     case "ready":
       return ["Workspace", 0, "Located"];
@@ -59,7 +123,7 @@ function workspaceRow(kind: string | undefined): Row {
  * @param observedAt - Timestamp shared by the captured findings.
  */
 function assessHooks(
-  hooks: unknown,
+  hooks: DiagnosticsSnapshot["hooks"],
   observedAt: string,
 ): {
   row: Row;
@@ -89,8 +153,8 @@ function assessHooks(
       ...(action ? { action } : {}),
     });
 
-  if (!Array.isArray(hooks)) {
-    if (typeof hooks === "string" && hooks.startsWith("withheld:")) {
+  if (hooks === undefined || typeof hooks === "string") {
+    if (hooks?.startsWith("withheld:")) {
       add(
         "hooks-unavailable",
         "unknown",
@@ -102,7 +166,7 @@ function assessHooks(
       return { row: ["Git hooks", null, "Withheld"], findings };
     }
     add("hooks-unavailable", "failed", String(hooks), "Hook status is not established.");
-    const value = typeof hooks === "string" && hooks.startsWith("failed:") ? "observation failed" : "not observed";
+    const value = hooks?.startsWith("failed:") ? "observation failed" : "not observed";
     return { row: ["Git hooks", null, value], findings };
   }
   if (!hooks.length) return { row: ["Git hooks", null, "no entries reported"], findings };
@@ -111,7 +175,7 @@ function assessHooks(
   const outdated: string[] = [];
   const unidentified: string[] = [];
   const shims: string[] = [];
-  for (const hook of hooks as HookObservation[]) {
+  for (const hook of hooks) {
     // Outdated wins over shim; an unversioned shim is not itself unidentified.
     if (!hook.installed) missing.push(hook.name);
     else if (hook.outdated) outdated.push(hook.name);
@@ -253,9 +317,9 @@ function assessRemote(
  * @param observedAt - Timestamp for the version finding.
  */
 function assessContext(
-  state: unknown,
+  state: DiagnosticsSnapshot["context"],
   cachedVersion: string | undefined,
-  guard: { kind?: string; version?: string } | undefined,
+  guard: DiagnosticsSnapshot["guard"],
   observedAt: string,
 ): { row: Row; finding?: Finding; action?: string } {
   const currentVersion = guard?.version;
@@ -276,7 +340,7 @@ function assessContext(
         "Use the next session or configured idle refresh; normal full prime can access the store. Verify the observed context version in diagnostics afterward.",
     };
   }
-  const context = typeof state === "string" ? state : "";
+  const context = state ?? "";
   switch (context) {
     case "ready":
       if (differs) {
@@ -376,12 +440,100 @@ function worstStatus(rows: Row[]): Row[1] {
 }
 
 /**
+ * Assess command registration and membership together so incomplete evidence cannot suggest an override remedy.
+ *
+ * @param commands - Captured registry evidence; membership completeness can differ from description completeness.
+ */
+function assessCommands(commands: DiagnosticsSnapshot["commands"]): { row: Row; action?: string } {
+  if (commands?.registration === "failed") return { row: ["Commands", 2, "registration failed"] };
+  if (commands?.lookup !== "available") return { row: ["Commands", null, "not observed"] };
+
+  const overrides = commands.mismatches?.length ?? 0;
+  // Fall back to overall truncation only when membership completeness was not observed.
+  if (commands.membershipTruncated || (commands.membershipTruncated !== false && commands.truncated)) {
+    return { row: ["Commands", null, `list incomplete${overrides ? ` · ${overrides} changed` : ""}`] };
+  }
+
+  const missing = commands.missing === false ? undefined : commands.missing?.length;
+  if (missing === undefined) return { row: ["Commands", null, "membership not observed"] };
+
+  const count = commands.expectedCount;
+  if (!missing && !overrides) {
+    const value = count === undefined ? "expected names present" : `${count}/${count} present`;
+    return { row: ["Commands", 0, value] };
+  }
+
+  const value = [
+    count === undefined ? (missing ? "" : "expected names present") : `${count - missing}/${count}`,
+    missing ? `${missing} missing` : "",
+    overrides ? `${overrides} changed` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return { row: ["Commands", 1, value], action: "Review command customization and rerun diagnostics." };
+}
+
+/**
+ * Assess the skill registry without treating shared-file presence as evidence of registration or use.
+ *
+ * @param skill - Captured registry observation, which may contain partial evidence even on failure.
+ * @param sharedSkill - Independent observation of the shared skill file.
+ * @param observedAt - Timestamp for registry findings.
+ */
+function assessSkill(
+  skill: DiagnosticsSnapshot["skill"],
+  sharedSkill: string | undefined,
+  observedAt: string,
+): { row: Row; findings: Finding[] } {
+  const shared = sharedSkill === "missing" ? "absent" : (sharedSkill ?? "not observed");
+  const effective = Array.isArray(skill?.effective) ? skill.effective : undefined;
+  const collision = skill?.collision?.startsWith("skill-collision") ? skill.collision : undefined;
+  const findings: Finding[] = [];
+  if (effective?.includes("beads"))
+    findings.push({
+      id: "shared-skill-effective",
+      module: "plugin",
+      class: "note",
+      producer: "effective skill registry",
+      scope: "confirmed session",
+      observedAt,
+      observation: "A Beads skill is registered alongside oc-beads",
+      meaning: "Registration does not establish use or freshness.",
+    });
+  if (collision)
+    findings.push({
+      id: "skill-collision",
+      module: "plugin",
+      class: "review-needed",
+      producer: "skill rebuild",
+      scope: "confirmed session",
+      observedAt,
+      observation: collision,
+      meaning: "Native customization precedence is preserved.",
+    });
+
+  if (skill?.failure) return { row: ["Skill", 2, "unavailable"], findings };
+  if (collision) return { row: ["Skill", 1, `oc-beads overridden · shared: ${shared}`], findings };
+  if (!effective) return { row: ["Skill", null, `registry not observed · shared: ${shared}`], findings };
+
+  const active = effective.includes("oc-beads");
+  return {
+    row: [
+      "Skill",
+      active ? (shared === "unreadable" ? null : 0) : 1,
+      `oc-beads ${active ? "active" : "absent"} · shared: ${shared}`,
+    ],
+    findings,
+  };
+}
+
+/**
  * Interpret captured evidence without I/O or Markdown; preserve the order of rows, findings, and actions.
  *
  * @param snapshot - Captured observations, including absent or partial evidence.
  * @param time - ISO timestamp shared by findings unless their evidence carries its own time.
  */
-function interpretHealthReport(snapshot: Record<string, unknown>, time: string) {
+function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
   const findings: Finding[] = [];
   const add = (
     id: string,
@@ -405,9 +557,7 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
       meaning,
       ...(action ? { action } : {}),
     });
-  const guard = snapshot.guard as
-    | { kind?: string; version?: string; installed?: string; workspace?: { repoRoot?: string } }
-    | undefined;
+  const { guard, skill, plugin: identity, commands } = snapshot;
   if (guard?.kind === "unsupported")
     add(
       "cli-unsupported",
@@ -429,7 +579,7 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
     );
   const hooks = assessHooks(snapshot.hooks, time);
   findings.push(...hooks.findings);
-  const local = snapshot.local as Partial<PluginHealthObservation & BeadsHealthObservation> | undefined;
+  const local = snapshot.local === "withheld" ? undefined : snapshot.local;
   const fileScope = `root-file observation: ${local?.scope ?? "confirmed session directory"}`;
   if (local?.managedInstructions?.state === "unreadable" || local?.managedInstructions?.state === "truncated") {
     add(
@@ -481,7 +631,7 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
       fileScope,
     );
   if (witness.finding && witness.finding.id !== "witness-differs") findings.push(witness.finding);
-  const request = snapshot.requestInstructions as { at?: number; full?: number; retained?: number } | undefined;
+  const request = snapshot.requestInstructions === "unobserved" ? undefined : snapshot.requestInstructions;
   if ((request?.full ?? 0) > 1)
     add(
       "request-full-duplicates",
@@ -494,97 +644,35 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
       "last observed request",
       typeof request?.at === "number" ? new Date(request.at).toISOString() : "unavailable",
     );
-  const skill = snapshot.skill as { effective?: string[]; collision?: string; failure?: string } | undefined;
-  if (Array.isArray(skill?.effective) && skill.effective.includes("beads"))
-    add(
-      "shared-skill-effective",
-      "plugin",
-      "note",
-      "effective skill registry",
-      "A Beads skill is registered alongside oc-beads",
-      "Registration does not establish use or freshness.",
-    );
-  if (skill?.collision && skill.collision.startsWith("skill-collision"))
-    add(
-      "skill-collision",
-      "plugin",
-      "review-needed",
-      "skill rebuild",
-      skill.collision,
-      "Native customization precedence is preserved.",
-    );
+  const skillAssessment = assessSkill(skill, local?.sharedSkill, time);
+  findings.push(...skillAssessment.findings);
   const remote = assessRemote(
-    snapshot.syncTarget as SyncTargetObservation | undefined,
+    snapshot.syncTarget,
     guard?.kind === "withheld",
     snapshot.historyRequested === true,
     time,
   );
   findings.push(...remote.findings);
-  const contextObservation = snapshot.contextObservation as { version?: string } | undefined;
-  const context = assessContext(snapshot.context, contextObservation?.version, guard, time);
+  const context = assessContext(snapshot.context, snapshot.contextObservation?.version, guard, time);
   if (context.finding) findings.push(context.finding);
   const pluginRows: Row[] = [];
   const beadsRows: Row[] = [];
   const actions: string[] = [];
   const comments: string[] = [];
-  const identity = snapshot.plugin as { name?: string; version?: string } | undefined;
-  const commands = snapshot.commands as
-    | {
-        registration?: string;
-        lookup?: string;
-        truncated?: boolean;
-        membershipTruncated?: boolean;
-        expectedCount?: number;
-        missing?: string[];
-        mismatches?: unknown[];
-      }
-    | undefined;
-  const host = typeof snapshot.host === "string" && snapshot.host !== "unknown" ? snapshot.host : undefined;
+  const host = snapshot.host !== "unknown" ? snapshot.host : undefined;
   const hostSupported = host !== undefined && isSupportedOpenCodeVersion(host);
   pluginRows.push([
     "Host",
     host === undefined ? null : hostSupported ? 0 : 2,
     host ? `OpenCode ${host}${hostSupported ? "" : " unsupported"}` : "not observed",
   ]);
-  if (commands?.registration === "failed") pluginRows.push(["Commands", 2, "registration failed"]);
-  else if (commands?.lookup !== "available") pluginRows.push(["Commands", null, "not observed"]);
-  else if (commands.membershipTruncated || (commands.membershipTruncated !== false && commands.truncated)) {
-    const changed = commands.mismatches?.length ?? 0;
-    pluginRows.push(["Commands", null, `list incomplete${changed ? ` · ${changed} changed` : ""}`]);
-  } else {
-    const missing = commands.missing?.length;
-    const overrides = commands.mismatches?.length ?? 0;
-    if (missing === undefined) pluginRows.push(["Commands", null, "membership not observed"]);
-    else {
-      const count = commands.expectedCount;
-      const membership =
-        count === undefined ? (missing ? "" : "expected names present") : `${count - missing}/${count}`;
-      const value = [membership, missing ? `${missing} missing` : "", overrides ? `${overrides} changed` : ""]
-        .filter(Boolean)
-        .join(" · ");
-      pluginRows.push([
-        "Commands",
-        missing || overrides ? 1 : 0,
-        missing || overrides ? value : count === undefined ? membership : `${membership} present`,
-      ]);
-      if (missing || overrides) actions.push("Review command customization and rerun diagnostics.");
-    }
-  }
-  const shared = local?.sharedSkill === "missing" ? "absent" : (local?.sharedSkill ?? "not observed");
-  if (skill?.failure) pluginRows.push(["Skill", 2, "unavailable"]);
-  else if (skill?.collision?.startsWith("skill-collision"))
-    pluginRows.push(["Skill", 1, `oc-beads overridden · shared: ${shared}`]);
-  else if (Array.isArray(skill?.effective)) {
-    const active = skill.effective.includes("oc-beads");
-    pluginRows.push([
-      "Skill",
-      active ? (shared === "unreadable" ? null : 0) : 1,
-      `oc-beads ${active ? "active" : "absent"} · shared: ${shared}`,
-    ]);
-  } else pluginRows.push(["Skill", null, `registry not observed · shared: ${shared}`]);
-  const typed = typeof snapshot.typedRegistration === "string" ? snapshot.typedRegistration : "";
+  const commandAssessment = assessCommands(commands);
+  pluginRows.push(commandAssessment.row);
+  if (commandAssessment.action) actions.push(commandAssessment.action);
+  pluginRows.push(skillAssessment.row);
+  const typed = snapshot.typedRegistration ?? "";
   if (typed.startsWith("registered")) pluginRows.push(["Typed tools", 0, "Registered"]);
-  else if (typeof snapshot.typedContinuity === "string" && snapshot.typedContinuity.startsWith("enabled"))
+  else if (snapshot.typedContinuity?.startsWith("enabled"))
     pluginRows.push(["Typed tools", 2, "Requested, not registered"]);
   else pluginRows.push(["Typed tools", null, typed.startsWith("disabled") ? "Not requested" : "not observed"]);
   pluginRows.push(context.row);
@@ -607,10 +695,7 @@ function interpretHealthReport(snapshot: Record<string, unknown>, time: string) 
     actions.push(
       "Review duplicate full instruction blocks before editing local guidance. Check: root-file counts in diagnostics details.",
     );
-  const gap =
-    typeof snapshot.persistence === "string" && snapshot.persistence !== "uncertain: no final-write guarantee"
-      ? snapshot.persistence
-      : undefined;
+  const gap = snapshot.persistence !== "uncertain: no final-write guarantee" ? snapshot.persistence : undefined;
   if (gap) pluginRows.push(["Write outcomes", 1, gap.length > 180 ? `${gap.slice(0, 177)}...` : gap]);
   if (guard?.kind === "ready") beadsRows.push(["bd CLI", guard.version ? 0 : null, guard.version ?? "not observed"]);
   else if (guard?.kind === "unsupported" || guard?.kind === "unavailable") {
@@ -678,7 +763,7 @@ function renderCheckTable(rows: Row[]): string {
  * @param capturedAt - Capture time in milliseconds since the Unix epoch.
  * @param details - Whether to include the underlying observations and findings.
  */
-export function renderHealthReport(snapshot: Record<string, unknown>, capturedAt: number, details = false): string {
+export function renderHealthReport(snapshot: DiagnosticsSnapshot, capturedAt: number, details = false): string {
   const time = new Date(capturedAt).toISOString();
   const {
     findings,
