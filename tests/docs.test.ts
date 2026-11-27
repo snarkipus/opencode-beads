@@ -28,7 +28,11 @@ function anchorsOf(markdown: string): Set<string> {
   const anchors = new Set<string>();
   for (const [, heading] of markdown.matchAll(/^#{1,6}\s+(.+)$/gm)) {
     anchors.add(
-      (heading ?? "").trim().toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, "").replace(/\s/g, "-")
+      (heading ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+        .replace(/\s/g, "-"),
     );
   }
   for (const [, id] of markdown.matchAll(/\bid="([^"]+)"/g)) anchors.add(id ?? "");
@@ -47,7 +51,7 @@ describe("documentation contracts", () => {
     for (const document of [readme, userGuide]) {
       const documentedVersions = [
         ...document.matchAll(
-          new RegExp(`${packageManifest.name.replace("/", "\\/")}@(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)`, "g")
+          new RegExp(`${packageManifest.name.replace("/", "\\/")}@(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)`, "g"),
         ),
       ].map((match) => match[1]);
       expect(documentedVersions.length).toBeGreaterThan(0);
@@ -65,9 +69,13 @@ describe("documentation contracts", () => {
     expect(install).not.toContain("`/oc-beads:status` reports");
     expect(readme).toContain("29 `oc-beads:<stem>` workflows plus `oc-beads:diagnostics`");
     expect(userGuide).toContain("Beta.1 used `oc-beads:status`");
-    expect(userGuide).toContain("Starting with beta.2, the package-owned `oc-beads:status` is removed without an alias");
+    expect(userGuide).toContain(
+      "Starting with beta.2, the package-owned `oc-beads:status` is removed without an alias",
+    );
     for (const document of [readme, userGuide]) {
-      expect(document).not.toContain("The diagnostics rename is not included in published beta.1 or the current npm `next` artifact");
+      expect(document).not.toContain(
+        "The diagnostics rename is not included in published beta.1 or the current npm `next` artifact",
+      );
     }
   });
 
@@ -159,9 +167,7 @@ describe("documentation contracts", () => {
     expect(changelog).toContain("## [0.10.0]");
     expect(changelog).toContain("## [1.0.0]");
     expect(changelog).toContain("## [1.0.1]");
-    expect(changelog).toContain(
-      "[0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0"
-    );
+    expect(changelog).toContain("[0.8.0]: https://github.com/snarkipus/opencode-beads/releases/tag/v0.8.0");
   });
 
   test("documents canonical per-project initialization and current ownership boundaries", () => {
@@ -192,21 +198,17 @@ describe("documentation contracts", () => {
     }
     expect(artifactPolicy).toContain("not by `bd setup opencode`");
     expect(artifactPolicy).toContain(
-      "The canonical `.agents/skills/beads` is created by `bd init`'s automatic Codex project integration"
+      "The canonical `.agents/skills/beads` is created by `bd init`'s automatic Codex project integration",
     );
   });
 
   test("keeps changelog headings unique and current links pointing at this repository", () => {
-    const headings = changelog
-      .split("\n")
-      .filter((line) => /^## \[[^\]]+\]$/.test(line) && line !== "## [${version}]");
+    const headings = changelog.split("\n").filter((line) => /^## \[[^\]]+\]$/.test(line) && line !== "## [${version}]");
     expect(new Set(headings).size).toBe(headings.length);
     expect(changelog).toContain(
-      `[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v${packageManifest.version}...HEAD`
+      `[unreleased]: https://github.com/snarkipus/opencode-beads/compare/v${packageManifest.version}...HEAD`,
     );
-    expect(changelog).toContain(
-      "[${version}]: https://github.com/snarkipus/opencode-beads/releases/tag/v${version}"
-    );
+    expect(changelog).toContain("[${version}]: https://github.com/snarkipus/opencode-beads/releases/tag/v${version}");
   });
 
   test("resolves checked-in Markdown links and anchors", async () => {
@@ -226,7 +228,7 @@ describe("documentation contracts", () => {
         .map((match) => match[1])
         .filter(
           (target): target is string =>
-            target !== undefined && !target.includes("://") && !target.startsWith("mailto:")
+            target !== undefined && !target.includes("://") && !target.startsWith("mailto:"),
         );
       for (const target of links) {
         const [pathPart = "", fragment] = target.split("#", 2);
@@ -254,7 +256,7 @@ describe("documentation contracts", () => {
     expect(sdkContract).toContain("[2.2.6 qualification](opencode-22-qualification-5rj2.md)");
     expect(sdkContract).toContain("(history/opencode-sdk-contract-ledger.md)");
     expect(sdkContract).toContain(
-      "(../openspec/specs/workflow-access/spec.md#requirement-explicit-native-availability-and-fallback)"
+      "(../openspec/specs/workflow-access/spec.md#requirement-explicit-native-availability-and-fallback)",
     );
     for (const stale of ["release candidate", "unpublished", "not yet qualified", "remains withheld", "1.18."]) {
       expect(sdkContract).not.toContain(stale);
@@ -263,7 +265,7 @@ describe("documentation contracts", () => {
 
     expect(sdkHistory).toContain("**Historical record — not current guidance.**");
     expect(sdkHistory).toContain(
-      "https://github.com/snarkipus/opencode-beads/blob/a4936526103cfc9a0112110a70a518f01d16f2f4/docs/opencode-sdk-contract.md"
+      "https://github.com/snarkipus/opencode-beads/blob/a4936526103cfc9a0112110a70a518f01d16f2f4/docs/opencode-sdk-contract.md",
     );
     expect(sdkHistory).toContain("# OpenCode V2 Plugin Contract");
     expect(sdkHistory).toContain("Exact OpenCode 2.2.6 qualification is parent-accepted");
@@ -275,10 +277,16 @@ describe("documentation contracts", () => {
   });
 
   test("separates accepted base compatibility from the representative Terra qualification", () => {
-    expect(userGuide).toContain("| OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |");
-    expect(userGuide).toContain("| OpenCode (2.0.0) | `>=2.2.6 <2.3` | 2.2.6 (accepted native and genuine-model qualification) |");
+    expect(userGuide).toContain(
+      "| OpenCode (historical beta.5) | `>=2.1.1 <2.2` | 2.1.1 (bounded accepted evidence) |",
+    );
+    expect(userGuide).toContain(
+      "| OpenCode (2.0.0) | `>=2.2.6 <2.3` | 2.2.6 (accepted native and genuine-model qualification) |",
+    );
     expect(userGuide).toContain("| OpenCode (2.3.1) | `>=2.3.0 <2.4` |");
-    expect(userGuide).toContain(`| OpenCode (${packageManifest.version}) | \`>=2.3.0 <2.4\`, \`2.4.1\`, or \`2.4.2\` |`);
+    expect(userGuide).toContain(
+      `| OpenCode (${packageManifest.version}) | \`>=2.3.0 <2.4\`, \`2.4.1\`, or \`2.4.2\` |`,
+    );
     expect(userGuide).toContain("| OpenCode (2.1.0 released) | `>=2.2.6 <2.3` |");
     expect(userGuide).toContain("| OpenCode (2.2.0) | `>=2.3.0 <2.4` | Exact 2.3.0 bounded native qualification |");
     expect(userGuide).toContain("Deterministic/package regression checks; inherits 2.2.0 native baseline");
@@ -324,7 +332,13 @@ describe("documentation contracts", () => {
     for (const source of ["`startup`", "`resume`", "`clear`", "`compact`"]) {
       expect(parity).toContain(`\`SessionStart\` (${source})`);
     }
-    for (const row of ["Minimal `CLAUDE.md` pointer", "`--stealth`", "`--remove`", "`--check`", "Hook errors are visible"]) {
+    for (const row of [
+      "Minimal `CLAUDE.md` pointer",
+      "`--stealth`",
+      "`--remove`",
+      "`--check`",
+      "Hook errors are visible",
+    ]) {
       expect(parity).toContain(row);
     }
     for (const heading of ["## Beyond Claude Code", "## Deliberate divergences", "## Not exercised"]) {
@@ -355,9 +369,7 @@ describe("documentation contracts", () => {
     expect(userGuide).toContain("standalone guidance for authorized scope");
     expect(sdkContract).toContain('Bun.spawn(["bd", ...args]');
     expect(artifactPolicy).toContain("Claude Code plugin manifests both run full `bd prime`");
-    expect(artifactPolicy).toContain(
-      "`PreCompact` uses `--memories-only` only to check context availability"
-    );
+    expect(artifactPolicy).toContain("`PreCompact` uses `--memories-only` only to check context availability");
     expect(artifactPolicy).toContain("eligible primary agents and `beads-task-agent`");
   });
 
@@ -366,22 +378,21 @@ describe("documentation contracts", () => {
     expect(userGuide).toContain("The historical integration comparison remains Beads v1.3.1");
     expect(userGuide).toContain("c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c");
     expect(artifactPolicy).toContain("attributed MIT-licensed excerpts");
-    expect(await fs.readFile("assets/oc-beads/THIRD_PARTY_NOTICES.md", "utf8")).toContain("Copyright (c) 2025 Beads Contributors");
+    expect(await fs.readFile("assets/oc-beads/THIRD_PARTY_NOTICES.md", "utf8")).toContain(
+      "Copyright (c) 2025 Beads Contributors",
+    );
     expect(artifactPolicy).toContain("| `agents/task-agent.md` | Retired in 1.0.0 (`opencode-beads-w5y`) |");
     expect(artifactPolicy).toContain("### Rationale for retiring vendoring");
     expect(artifactPolicy).toContain("Codex ships skills and hooks but no agent.");
     expect(artifactPolicy).toContain("`v1.0.5` plugin manifest incorrectly referenced `./hooks/hooks.json`");
+    expect(artifactPolicy).toContain("`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`");
     expect(artifactPolicy).toContain(
-      "`v1.1.0` corrected the operational path to `./.codex-plugin/hooks/hooks.json`"
-    );
-    expect(artifactPolicy).toContain(
-      "Earlier baselines were Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`"
+      "Earlier baselines were Beads `v1.2.2`, commit `6c124203e771433a3550c348771a5b5e27fd3c21`",
     );
   });
 
   test("documents the withdrawn-guidance recovery boundary", () => {
-    const recoveryGuide =
-      "https://github.com/gastownhall/beads/blob/v1.2.2/docs/RECOVERY-1.2.1.md";
+    const recoveryGuide = "https://github.com/gastownhall/beads/blob/v1.2.2/docs/RECOVERY-1.2.1.md";
     for (const document of [userGuide, changelog, artifactPolicy]) {
       expect(document).toContain("did not bundle");
       expect(document).toContain("implement database migrations");
@@ -432,7 +443,6 @@ describe("documentation contracts", () => {
   });
 });
 
-
 test("diagnostics reference and static help remain discoverable without adding packed resources", async () => {
   const reference = await Bun.file("docs/diagnostics.md").text();
   const index = await Bun.file("docs/README.md").text();
@@ -440,15 +450,46 @@ test("diagnostics reference and static help remain discoverable without adding p
   expect(index).toContain("[Diagnostics reference](diagnostics.md)");
   expect(readme).toContain("docs/diagnostics.md");
   expect(userGuide).toContain("[diagnostics reference](diagnostics.md)");
-  for (const label of ["Host", "Commands", "Skill", "Typed tools", "Context", "AGENTS Configured", "Write outcomes", "bd CLI", "Workspace", "Recorded bd version", "Git hooks", "Sync target", "Remote history"]) {
+  for (const label of [
+    "Host",
+    "Commands",
+    "Skill",
+    "Typed tools",
+    "Context",
+    "AGENTS Configured",
+    "Write outcomes",
+    "bd CLI",
+    "Workspace",
+    "Recorded bd version",
+    "Git hooks",
+    "Sync target",
+    "Remote history",
+  ]) {
     expect(reference).toContain(`| ${label} |`);
     expect(DIAGNOSTICS_HELP).toContain(`| ${label} |`);
   }
-  for (const term of ["details remote", "--readonly dolt remote list --json --sandbox", "configured database", "sync remote", "Not applicable", "Not checked"]) {
+  for (const term of [
+    "details remote",
+    "--readonly dolt remote list --json --sandbox",
+    "configured database",
+    "sync remote",
+    "Not applicable",
+    "Not checked",
+  ]) {
     expect(reference).toContain(term);
     expect(DIAGNOSTICS_HELP).toContain(term);
   }
-  for (const term of ["512", "64 KiB", "256 bytes", "unrecognized", "shims", "last observed request", "ordinary prompt", "remain unmeasured"]) expect(reference).toContain(term);
+  for (const term of [
+    "512",
+    "64 KiB",
+    "256 bytes",
+    "unrecognized",
+    "shims",
+    "last observed request",
+    "ordinary prompt",
+    "remain unmeasured",
+  ])
+    expect(reference).toContain(term);
   expect(DIAGNOSTICS_HELP).toContain("https://github.com/snarkipus/opencode-beads/blob/main/docs/diagnostics.md");
   for (const term of ["DATE", "VERSION", "PATH", "cwd_repo_root"]) {
     expect(reference).toContain(term);

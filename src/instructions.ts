@@ -54,8 +54,16 @@ export function minimizeSystemParts(parts: Array<{ type: string; text?: string }
 /** Count only complete recognized managed blocks, independently of unmarked prose. */
 export function countManagedBlocks(text: string): { full: number; minimal: number; codex: number } {
   return {
-    full: [...text.matchAll(/<!-- BEGIN BEADS INTEGRATION\b[^>]*\bprofile:full\b[^>]*-->[\s\S]*?<!-- END BEADS INTEGRATION -->/g)].length,
-    minimal: [...text.matchAll(/<!-- BEGIN BEADS INTEGRATION\b[^>]*\bprofile:minimal\b[^>]*-->[\s\S]*?<!-- END BEADS INTEGRATION -->/g)].length,
+    full: [
+      ...text.matchAll(
+        /<!-- BEGIN BEADS INTEGRATION\b[^>]*\bprofile:full\b[^>]*-->[\s\S]*?<!-- END BEADS INTEGRATION -->/g,
+      ),
+    ].length,
+    minimal: [
+      ...text.matchAll(
+        /<!-- BEGIN BEADS INTEGRATION\b[^>]*\bprofile:minimal\b[^>]*-->[\s\S]*?<!-- END BEADS INTEGRATION -->/g,
+      ),
+    ].length,
     codex: [...text.matchAll(/<!-- BEGIN BEADS CODEX SETUP\b[^>]*-->[\s\S]*?<!-- END BEADS CODEX SETUP -->/g)].length,
   };
 }

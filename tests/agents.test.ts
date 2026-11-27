@@ -20,8 +20,8 @@ function wildcardMatch(text: string, pattern: string): boolean {
 /** OpenCode's rule evaluation: the last matching rule wins, and no match means `ask`. */
 function evaluate(action: string, resource: string, rules: readonly Rule[]): string {
   return (
-    rules.findLast((rule) => wildcardMatch(action, rule.action) && wildcardMatch(resource, rule.resource))
-      ?.effect ?? "ask"
+    rules.findLast((rule) => wildcardMatch(action, rule.action) && wildcardMatch(resource, rule.resource))?.effect ??
+    "ask"
   );
 }
 

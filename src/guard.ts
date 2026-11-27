@@ -29,7 +29,10 @@ export interface BeadsWorkspace {
 }
 
 /** Config-only context avoids `where`'s opportunistic embedded-store prefix lookup. */
-export async function probeBeadsWorkspace(directory: string, runtime: GuardRuntime): Promise<BeadsWorkspace | undefined> {
+export async function probeBeadsWorkspace(
+  directory: string,
+  runtime: GuardRuntime,
+): Promise<BeadsWorkspace | undefined> {
   let output: string;
   try {
     output = await runtime.bd(directory, ["context", "--json"]);
@@ -52,14 +55,19 @@ export async function probeBeadsWorkspace(directory: string, runtime: GuardRunti
   if (!data.beads_dir) return undefined;
   const workspace: BeadsWorkspace = { path: data.beads_dir };
   if (typeof data.cwd_repo_root === "string") workspace.repoRoot = data.cwd_repo_root;
-  if (typeof data.sync_remote === "string" || typeof data.sync_git_remote === "string") workspace.remote = Boolean(data.sync_remote || data.sync_git_remote);
+  if (typeof data.sync_remote === "string" || typeof data.sync_git_remote === "string")
+    workspace.remote = Boolean(data.sync_remote || data.sync_git_remote);
   // Diagnostic evidence only. Keep topology labels and presence without endpoint values.
   if (typeof data.backend === "string" && data.backend) workspace.backend = data.backend === "dolt" ? "dolt" : "other";
   if (typeof data.dolt_mode === "string" && data.dolt_mode) {
     const mode = data.dolt_mode;
     workspace.doltMode = mode === "embedded" || mode === "server" || mode === "proxied-server" ? mode : "other";
   }
-  if ((typeof data.server_host === "string" && data.server_host) || (typeof data.server_port === "number" && data.server_port > 0)) workspace.serverEndpoint = true;
+  if (
+    (typeof data.server_host === "string" && data.server_host) ||
+    (typeof data.server_port === "number" && data.server_port > 0)
+  )
+    workspace.serverEndpoint = true;
   if (typeof data.proxied_dir === "string" && data.proxied_dir) workspace.proxied = true;
   return workspace;
 }
@@ -85,10 +93,7 @@ function formatVersion(version: Version): string {
 }
 
 /** Check the CLI minimum and config-only workspace without opening the native store. */
-export async function checkBeadsStore(
-  directory: string,
-  runtime: GuardRuntime
-): Promise<GuardResult> {
+export async function checkBeadsStore(directory: string, runtime: GuardRuntime): Promise<GuardResult> {
   let installedOutput: string;
   try {
     installedOutput = await runtime.bd(directory, ["version"]);

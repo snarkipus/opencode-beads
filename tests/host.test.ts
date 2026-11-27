@@ -23,7 +23,13 @@ import * as diagnosticPresentation from "../src/diagnostics";
 import { DEFAULT_TASK_AGENT_STEPS, TASK_AGENT_PERMISSIONS } from "../src/agents";
 import { BEADS_COMPACTION_GUIDANCE, primeFailureNotice } from "../src/guidance";
 
-type ContextEvent = { messages?: SessionContext["messages"]; tools?: Record<string, unknown>; sessionID: string; agent: string; system: Array<{ type: "text"; text: string }> };
+type ContextEvent = {
+  messages?: SessionContext["messages"];
+  tools?: Record<string, unknown>;
+  sessionID: string;
+  agent: string;
+  system: Array<{ type: "text"; text: string }>;
+};
 type ToolAfterEvent = Extract<Parameters<Parameters<ToolDomain["hook"]>[1]>[0], { status: string }>;
 type StoredSessionMessage = Awaited<ReturnType<HostContext["session"]["context"]>>[number];
 type StoredUserMessage = Extract<StoredSessionMessage, { type: "user" }>;
@@ -65,11 +71,13 @@ async function settle(): Promise<void> {
   for (let index = 0; index < 5; index++) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function fakeContext(options: {
-  directory?: string;
-  pluginOptions?: Record<string, unknown>;
-  appVersion?: string;
-} = {}) {
+function fakeContext(
+  options: {
+    directory?: string;
+    pluginOptions?: Record<string, unknown>;
+    appVersion?: string;
+  } = {},
+) {
   const hooks = new Map<string, (event: ContextEvent) => Promise<void> | void>();
   const events = eventStream();
   const agentGet = mock(async ({ agentID }: { agentID: string }) => ({
@@ -97,14 +105,22 @@ function fakeContext(options: {
     session: {
       context: mock(async () => []),
       hook: mock(async (name: string, callback: (event: ContextEvent) => void) => {
-        hooks.set(name, (event) => { event.messages ??= []; return callback(event); });
+        hooks.set(name, (event) => {
+          event.messages ??= [];
+          return callback(event);
+        });
         return { dispose: async () => {} };
       }),
     },
   } as unknown as HostContext;
 
   async function request(sessionID: string, agent: string, tools?: Record<string, unknown>): Promise<string[]> {
-    const event: ContextEvent = { sessionID, agent, ...(tools ? { tools } : {}), system: [{ type: "text", text: "HOST" }] };
+    const event: ContextEvent = {
+      sessionID,
+      agent,
+      ...(tools ? { tools } : {}),
+      system: [{ type: "text", text: "HOST" }],
+    };
     const hook = hooks.get("context");
     if (!hook) throw new Error("context hook not registered");
     await hook(event);
@@ -124,7 +140,14 @@ function toolFixture(f: ReturnType<typeof fakeContext>) {
     return { dispose: async () => {} };
   };
   const transform: ToolDomain["transform"] = async (callback) => {
-    callback({ namespace: (value: unknown) => { namespaces.push(value); }, add: (tool: Info) => { tools.push(tool); } } as unknown as Parameters<typeof callback>[0]);
+    callback({
+      namespace: (value: unknown) => {
+        namespaces.push(value);
+      },
+      add: (tool: Info) => {
+        tools.push(tool);
+      },
+    } as unknown as Parameters<typeof callback>[0]);
     return { dispose: async () => {} };
   };
   Object.assign(f.ctx, { tool: { hook, transform } });
@@ -133,7 +156,12 @@ function toolFixture(f: ReturnType<typeof fakeContext>) {
 
 /** Cast only host-branded IDs at the fixture boundary. */
 function invocation(sessionID: string, agent: string, signal = new AbortController().signal): ToolContext {
-  return { sessionID, agent, messageID: `message-${sessionID}`, id: `call-${sessionID}`, signal,
+  return {
+    sessionID,
+    agent,
+    messageID: `message-${sessionID}`,
+    id: `call-${sessionID}`,
+    signal,
     progress: async () => {},
   } as unknown as ToolContext;
 }
@@ -169,8 +197,18 @@ describe("public beta entrypoint", () => {
       tool: {
         hook: async () => ({ dispose }),
         transform: async (callback: Parameters<ToolDomain["transform"]>[0]) => {
-          callback({ list: () => [], get: () => undefined, update: () => {}, remove: () => {},
-            namespace: (namespace) => { namespaces.push(namespace); }, add: (tool) => { tools.push(tool); } });
+          callback({
+            list: () => [],
+            get: () => undefined,
+            update: () => {},
+            remove: () => {},
+            namespace: (namespace) => {
+              namespaces.push(namespace);
+            },
+            add: (tool) => {
+              tools.push(tool);
+            },
+          });
           return { dispose };
         },
       },
@@ -178,8 +216,10 @@ describe("public beta entrypoint", () => {
     Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
     const cleanup = await pluginModule.default.setup(f.ctx as Parameters<typeof pluginModule.default.setup>[0]);
     expect(namespaces).toEqual([expect.objectContaining({ name: "beads" })]);
-    expect(tools.map(tool => tool.name).sort()).toEqual(["find", "get", "edges", "memories", "recall", "claim", "note", "update", "close", "create", "remember"].sort());
-    expect(tools.every(tool => tool.options?.codemode === true && tool.options.namespace === "beads")).toBeTrue();
+    expect(tools.map((tool) => tool.name).sort()).toEqual(
+      ["find", "get", "edges", "memories", "recall", "claim", "note", "update", "close", "create", "remember"].sort(),
+    );
+    expect(tools.every((tool) => tool.options?.codemode === true && tool.options.namespace === "beads")).toBeTrue();
     await cleanup!();
     expect(dispose).toHaveBeenCalledTimes(2);
   });
@@ -224,33 +264,60 @@ describe("setupBeads", () => {
     const tools: Info[] = [];
     let after: (event: any) => unknown = () => {};
     const disposed = mock(async () => {});
-    Object.assign(f.ctx, { tool: { hook: async (_name: string, callback: typeof after) => { after = callback; return { dispose: disposed }; } } });
+    Object.assign(f.ctx, {
+      tool: {
+        hook: async (_name: string, callback: typeof after) => {
+          after = callback;
+          return { dispose: disposed };
+        },
+      },
+    });
     const host = {
       location: { directory: "/project", project: { directory: "/project" } },
       permission: { assert: mock(async () => {}) },
       session: { get: async () => ({ location: { directory: "/project" } }) },
-      tool: { transform: async (callback: (editor: { namespace(input: unknown): void; add(tool: Info): void }) => void) => { callback({ namespace: () => {}, add: (tool) => tools.push(tool) }); return { dispose: disposed }; } },
+      tool: {
+        transform: async (callback: (editor: { namespace(input: unknown): void; add(tool: Info): void }) => void) => {
+          callback({ namespace: () => {}, add: (tool) => tools.push(tool) });
+          return { dispose: disposed };
+        },
+      },
     } as unknown as ContinuityHost & { tool: { transform: any } };
     let output = "BEFORE";
     const prime = mock(async () => output);
     const acknowledged = mock(() => {});
     const bd = mock(async (_cwd: string, args: readonly string[]) => {
       if (args[0] === "version") return "1.3.1";
-      if (args[0] === "context") return '{"beads_dir":"/project/.beads","backend":"dolt","dolt_mode":"embedded","database":"beads"}';
+      if (args[0] === "context")
+        return '{"beads_dir":"/project/.beads","backend":"dolt","dolt_mode":"embedded","database":"beads"}';
       return '{"key":"lesson","value":"validated finding","action":"remembered","committed":false,"commit_error":"not committed"}';
     });
-    Object.assign(f.ctx, { location: host.location, permission: host.permission, tool: { ...f.ctx.tool, ...host.tool } });
+    Object.assign(f.ctx, {
+      location: host.location,
+      permission: host.permission,
+      tool: { ...f.ctx.tool, ...host.tool },
+    });
     Object.assign(f.ctx.session, host.session);
     const cleanup = await setupBeads(f.ctx, {
       runtime: { guard: async () => ({ kind: "ready" }), prime },
-      continuityQualified: true, continuity: {
-        bd, acknowledged, realpath: async (path) => path,
+      continuityQualified: true,
+      continuity: {
+        bd,
+        acknowledged,
+        realpath: async (path) => path,
       },
     });
     await f.request("s1", "build");
     await f.request("s2", "build");
     const tool = tools.find((tool) => tool.name === "remember")!;
-    const context = { sessionID: "s1", agent: "worker", messageID: "m1", id: "c1", signal: new AbortController().signal, progress: async () => {} } as unknown as ToolContext;
+    const context = {
+      sessionID: "s1",
+      agent: "worker",
+      messageID: "m1",
+      id: "c1",
+      signal: new AbortController().signal,
+      progress: async () => {},
+    } as unknown as ToolContext;
     const result = await tool.execute({ key: "lesson", text: "validated finding" }, context);
     await after({ ...context, tool: "beads_remember", status: "completed", result });
     await after({ ...context, tool: "execute", status: "completed", result });
@@ -269,7 +336,8 @@ describe("setupBeads", () => {
   });
 
   test("retains unresolved write identities across partial reads, interruption and recovery", async () => {
-    const f = fakeContext(); const t = toolFixture(f);
+    const f = fakeContext();
+    const t = toolFixture(f);
     const stopped = new AbortController();
     const writer = invocation("s1", "build", stopped.signal);
     const otherWriter = invocation("s1", "worker");
@@ -281,25 +349,54 @@ describe("setupBeads", () => {
         throw stopped.signal.reason;
       }
       if (args[0] === "update") return JSON.stringify([{ id: args[1], notes: args[3] }]);
-      if (args[0] === "remember") return JSON.stringify({ key: "lesson-uncommitted", value: "finding", action: "remembered", committed: false, commit_error: "fixture commit failed" });
-      if (args[0] === "list") return JSON.stringify(["read-1", "read-2"].map(id => ({ id, title: id, status: "open", priority: 2, issue_type: "task" })));
+      if (args[0] === "remember")
+        return JSON.stringify({
+          key: "lesson-uncommitted",
+          value: "finding",
+          action: "remembered",
+          committed: false,
+          commit_error: "fixture commit failed",
+        });
+      if (args[0] === "list")
+        return JSON.stringify(
+          ["read-1", "read-2"].map((id) => ({ id, title: id, status: "open", priority: 2, issue_type: "task" })),
+        );
       throw new Error("fixture read failed");
     });
-    Object.assign(f.ctx, { location: { directory: "/project", project: { directory: "/project" } }, permission: { assert: async () => {} } });
+    Object.assign(f.ctx, {
+      location: { directory: "/project", project: { directory: "/project" } },
+      permission: { assert: async () => {} },
+    });
     Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
     const cleanup = await setupBeads(f.ctx, {
-      continuityQualified: true, runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" },
-      continuity: { bd, realpath: async p => p },
+      continuityQualified: true,
+      runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" },
+      continuity: { bd, realpath: async (p) => p },
     });
     try {
       await f.request("s1", "build");
-      await expect(t.tools.find(tool => tool.name === "note")!.execute({ id: "task-first", text: "started note" }, writer)).rejects.toThrow("fixture write interrupted");
-      expect((await t.tools.find(tool => tool.name === "remember")!.execute({ key: "lesson-uncommitted", text: "finding" }, otherWriter)).output.status).toBe("landed-uncommitted");
+      await expect(
+        t.tools.find((tool) => tool.name === "note")!.execute({ id: "task-first", text: "started note" }, writer),
+      ).rejects.toThrow("fixture write interrupted");
+      expect(
+        (
+          await t.tools
+            .find((tool) => tool.name === "remember")!
+            .execute({ key: "lesson-uncommitted", text: "finding" }, otherWriter)
+        ).output.status,
+      ).toBe("landed-uncommitted");
       const read = invocation("s1", "build");
-      expect((await t.tools.find(tool => tool.name === "find")!.execute({ view: "list", limit: 1 }, read)).output).toMatchObject({ status: "acknowledged", complete: false });
-      expect((await t.tools.find(tool => tool.name === "get")!.execute({ ids: ["unavailable-task"] }, read)).output.status).toBe("failed");
+      expect(
+        (await t.tools.find((tool) => tool.name === "find")!.execute({ view: "list", limit: 1 }, read)).output,
+      ).toMatchObject({ status: "acknowledged", complete: false });
+      expect(
+        (await t.tools.find((tool) => tool.name === "get")!.execute({ ids: ["unavailable-task"] }, read)).output.status,
+      ).toBe("failed");
       // Even a later acknowledged write to the same target does not resolve the earlier append.
-      expect((await t.tools.find(tool => tool.name === "note")!.execute({ id: "task-first", text: "later note" }, read)).output.status).toBe("acknowledged");
+      expect(
+        (await t.tools.find((tool) => tool.name === "note")!.execute({ id: "task-first", text: "later note" }, read))
+          .output.status,
+      ).toBe("acknowledged");
       f.events.push({ type: "session.execution.interrupted", data: { sessionID: "s1" } });
       await settle();
       const summary: ContextEvent = { sessionID: "s1", agent: "build", system: [] };
@@ -331,15 +428,21 @@ describe("setupBeads", () => {
   });
 
   test("renders actual filtered request capability and actor, preserving guard holds", async () => {
-    const f = fakeContext(); const t = toolFixture(f);
+    const f = fakeContext();
+    const t = toolFixture(f);
     let guard: any = { kind: "ready" };
     const prime = mock(async () => "FULL PRIME");
     Object.assign(f.ctx, { permission: { assert: async () => {} } });
-    Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" }, agent: "session-default" }) });
-    const cleanup = await setupBeads(f.ctx, { continuityQualified: true, runtime: { guard: async () => guard, prime } });
+    Object.assign(f.ctx.session, {
+      get: async () => ({ location: { directory: "/project" }, agent: "session-default" }),
+    });
+    const cleanup = await setupBeads(f.ctx, {
+      continuityQualified: true,
+      runtime: { guard: async () => guard, prime },
+    });
     expect(t.namespaces).toEqual([{ name: "beads", description: expect.any(String) }]);
     expect(t.tools).toHaveLength(11);
-    expect(t.tools.every(tool => tool.options?.namespace === "beads" && tool.options.codemode === true)).toBeTrue();
+    expect(t.tools.every((tool) => tool.options?.namespace === "beads" && tool.options.codemode === true)).toBeTrue();
     const typed = (await f.request("actual", "build", { execute: {}, shell: {} }))[0]!;
     expect(typed).toContain(executorActor({ sessionID: "actual", agent: "build" }));
     expect(typed).toContain("Beads namespace is registered and execute is visible");
@@ -353,26 +456,54 @@ describe("setupBeads", () => {
     expect(shell).toContain(executorActor({ sessionID: "actual", agent: "review" }));
     expect(shell).not.toContain(executorActor({ sessionID: "actual", agent: "build" }));
     expect(shell).toContain("direct shell tool");
-    expect((await f.request("actual", "review", {}))[0]).toContain("Neither native Beads leaves nor direct shell access");
+    expect((await f.request("actual", "review", {}))[0]).toContain(
+      "Neither native Beads leaves nor direct shell access",
+    );
     expect(prime).toHaveBeenCalledTimes(1);
     guard = { kind: "unsupported", installed: "1.3.0" };
-    f.events.push({ type: "session.compaction.ended", data: { sessionID: "actual" } }); await settle();
+    f.events.push({ type: "session.compaction.ended", data: { sessionID: "actual" } });
+    await settle();
     const held = (await f.request("actual", "build", { execute: {}, shell: {} }))[0]!;
     expect(held).not.toContain("Beads namespace is registered");
     expect(held).not.toContain("direct shell tool");
     await cleanup();
   });
   test("acknowledged task writes retain task references without a redundant cue; unrelated errors do not refresh prime", async () => {
-    const f = fakeContext(); const t = toolFixture(f);
+    const f = fakeContext();
+    const t = toolFixture(f);
     const prime = mock(async () => "PRIME");
-    Object.assign(f.ctx, { location: { directory: "/project", project: { directory: "/project" } }, permission: { assert: async () => {} } });
+    Object.assign(f.ctx, {
+      location: { directory: "/project", project: { directory: "/project" } },
+      permission: { assert: async () => {} },
+    });
     Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
-    const cleanup = await setupBeads(f.ctx, { continuityQualified: true, runtime: { guard: async () => ({ kind: "ready" }), prime }, continuity: { realpath: async p => p, bd: async (_cwd, args) => args[0] === "version" ? "1.3.1" : args[0] === "context" ? '{"beads_dir":"/project/.beads"}' : '[{"id":"task-1","notes":"evidence"}]' } });
+    const cleanup = await setupBeads(f.ctx, {
+      continuityQualified: true,
+      runtime: { guard: async () => ({ kind: "ready" }), prime },
+      continuity: {
+        realpath: async (p) => p,
+        bd: async (_cwd, args) =>
+          args[0] === "version"
+            ? "1.3.1"
+            : args[0] === "context"
+              ? '{"beads_dir":"/project/.beads"}'
+              : '[{"id":"task-1","notes":"evidence"}]',
+      },
+    });
     await f.request("s1", "build");
-    await t.after({ ...invocation("s1", "build"), ...{ codemode: false }, tool: "shell", input: {}, status: "error", error: new ToolError({ message: "test failed" }) });
+    await t.after({
+      ...invocation("s1", "build"),
+      ...{ codemode: false },
+      tool: "shell",
+      input: {},
+      status: "error",
+      error: new ToolError({ message: "test failed" }),
+    });
     expect(await f.request("s1", "build")).toHaveLength(1);
     expect(prime).toHaveBeenCalledTimes(1);
-    await t.tools.find(tool => tool.name === "note")!.execute({ id: "task-1", text: "evidence" }, invocation("s1", "build"));
+    await t.tools
+      .find((tool) => tool.name === "note")!
+      .execute({ id: "task-1", text: "evidence" }, invocation("s1", "build"));
     expect(await f.request("s1", "build")).toHaveLength(1);
     expect(prime).toHaveBeenCalledTimes(2);
     const event: ContextEvent = { sessionID: "s1", agent: "build", system: [] };
@@ -386,7 +517,9 @@ describe("setupBeads", () => {
     const f = fakeContext();
     const transform = mock(async () => ({ dispose: async () => {} }));
     Object.assign(f.ctx, { tool: { transform, hook: mock(async () => ({ dispose: async () => {} })) } });
-    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" } });
+    const cleanup = await setupBeads(f.ctx, {
+      runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" },
+    });
     expect(transform).not.toHaveBeenCalled();
     cleanup();
   });
@@ -400,11 +533,29 @@ describe("setupBeads", () => {
     // Representative public payloads, not a provider/history implementation or cross-product.
     const cases = [
       { model: { providerID: "provider-a", id: "model-a" } },
-      { model: { providerID: "provider-a", id: "model-a" }, result: { summary: "host summary", metadata: { keepID: "fork-remapped-id" } } },
-      { model: { providerID: "provider-b", id: "model-b" }, result: { summary: "host fallback", metadata: { recent: "legacy retained tail" }, native: { messages: [{ opaque: true }] } } },
+      {
+        model: { providerID: "provider-a", id: "model-a" },
+        result: { summary: "host summary", metadata: { keepID: "fork-remapped-id" } },
+      },
+      {
+        model: { providerID: "provider-b", id: "model-b" },
+        result: {
+          summary: "host fallback",
+          metadata: { recent: "legacy retained tail" },
+          native: { messages: [{ opaque: true }] },
+        },
+      },
     ];
     for (const fields of cases) {
-      const event = { sessionID: "s1", agent: "build", system: [], messages: [], options: {}, tools: {}, ...fields } as unknown as SessionCompaction;
+      const event = {
+        sessionID: "s1",
+        agent: "build",
+        system: [],
+        messages: [],
+        options: {},
+        tools: {},
+        ...fields,
+      } as unknown as SessionCompaction;
       const before = JSON.stringify(event);
       await hook(event);
       const { system, ...preserved } = event;
@@ -416,7 +567,20 @@ describe("setupBeads", () => {
     cleanup();
   });
   test("host admission and diagnostics agree on unsupported versions", async () => {
-    for (const appVersion of ["2.0.29", "2.1.1", "2.2.5", "2.2.6", "2.2.8", "2.4.0", "2.4.3", "3.0.0", "2.3.0-beta.1", "2.4.2-beta.1", "2.3", "unknown"]) {
+    for (const appVersion of [
+      "2.0.29",
+      "2.1.1",
+      "2.2.5",
+      "2.2.6",
+      "2.2.8",
+      "2.4.0",
+      "2.4.3",
+      "3.0.0",
+      "2.3.0-beta.1",
+      "2.4.2-beta.1",
+      "2.3",
+      "unknown",
+    ]) {
       const f = fakeContext({ appVersion });
       const warn = mock(() => {});
 
@@ -426,24 +590,29 @@ describe("setupBeads", () => {
       expect(warn).toHaveBeenCalledWith(expect.stringContaining(">=2.3.0 <2.4 || 2.4.1 || 2.4.2"));
       expect(f.agents.size).toBe(0);
       expect(f.hooks.size).toBe(0);
-      expect(renderHealthReport({ ...presentationFixture(), host: appVersion }, 2000))
-        .toContain(appVersion === "unknown" ? "| Host | — | not observed |" : `| Host | ❌ | OpenCode ${appVersion} unsupported |`);
+      expect(renderHealthReport({ ...presentationFixture(), host: appVersion }, 2000)).toContain(
+        appVersion === "unknown" ? "| Host | — | not observed |" : `| Host | ❌ | OpenCode ${appVersion} unsupported |`,
+      );
       cleanup();
     }
   });
 
-  test.each(["2.3.0", "2.3.8", "2.4.1", "2.4.2"])("host admission and diagnostics agree on supported version %s", async (appVersion) => {
-    const f = fakeContext({ appVersion });
-    const cleanup = await setupBeads(f.ctx, {
-      runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" },
-    });
+  test.each(["2.3.0", "2.3.8", "2.4.1", "2.4.2"])(
+    "host admission and diagnostics agree on supported version %s",
+    async (appVersion) => {
+      const f = fakeContext({ appVersion });
+      const cleanup = await setupBeads(f.ctx, {
+        runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" },
+      });
 
-    expect([...f.hooks.keys()]).toEqual(["context", "compaction"]);
-    expect([...f.agents.keys()]).toEqual(["beads-task-agent"]);
-    expect(renderHealthReport({ ...presentationFixture(), host: appVersion }, 2000))
-      .toContain(`| Host | ✅ | OpenCode ${appVersion} |`);
-    cleanup();
-  });
+      expect([...f.hooks.keys()]).toEqual(["context", "compaction"]);
+      expect([...f.agents.keys()]).toEqual(["beads-task-agent"]);
+      expect(renderHealthReport({ ...presentationFixture(), host: appVersion }, 2000)).toContain(
+        `| Host | ✅ | OpenCode ${appVersion} |`,
+      );
+      cleanup();
+    },
+  );
 
   test("registers the bounded task agent as a subagent and keeps Luna opt-in", async () => {
     const ready = { runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" } };
@@ -470,15 +639,16 @@ describe("setupBeads", () => {
     cleanupLuna();
   });
 
-
   test("registers Terra independently and with Luna, with shared policy and context", async () => {
     const ready = { runtime: { guard: async () => ({ kind: "ready" as const }), prime: async () => "PRIME" } };
     for (const luna of [false, true]) {
       const f = fakeContext({ pluginOptions: { terra: true, luna, taskAgentSteps: 12 } });
       const cleanup = await setupBeads(f.ctx, ready);
-      expect([...f.agents.keys()]).toEqual(luna
-        ? ["beads-task-agent", "beads-task-agent-luna", "beads-task-agent-terra"]
-        : ["beads-task-agent", "beads-task-agent-terra"]);
+      expect([...f.agents.keys()]).toEqual(
+        luna
+          ? ["beads-task-agent", "beads-task-agent-luna", "beads-task-agent-terra"]
+          : ["beads-task-agent", "beads-task-agent-terra"],
+      );
       const base = f.agents.get("beads-task-agent")!;
       const terra = f.agents.get("beads-task-agent-terra")!;
       expect(base.model).toBeUndefined();
@@ -488,7 +658,12 @@ describe("setupBeads", () => {
       expect(terra.mode).toBe(base.mode);
       expect(terra.permissions).toEqual(base.permissions);
       expect(terra.steps).toBe(base.steps);
-      if (luna) expect(f.agents.get("beads-task-agent-luna")?.model).toEqual({ providerID: "openai", id: "gpt-6-luna", variant: "max" });
+      if (luna)
+        expect(f.agents.get("beads-task-agent-luna")?.model).toEqual({
+          providerID: "openai",
+          id: "gpt-6-luna",
+          variant: "max",
+        });
       expect(await f.request("terra-child", "beads-task-agent-terra")).toEqual([
         renderBeadsContext("PRIME", "task-agent", { sessionID: "terra-child", agent: "beads-task-agent-terra" }),
       ]);
@@ -502,8 +677,12 @@ describe("setupBeads", () => {
     const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime } });
 
     expect([...f.hooks.keys()]).toEqual(["context", "compaction"]);
-    expect(await f.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" })]);
-    expect(await f.request("s1", "build")).toEqual([renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" })]);
+    expect(await f.request("s1", "build")).toEqual([
+      renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" }),
+    ]);
+    expect(await f.request("s1", "build")).toEqual([
+      renderBeadsContext("PRIME", "primary", { sessionID: "s1", agent: "build" }),
+    ]);
     expect(await f.request("s1", "explore")).toEqual([]);
     expect(prime).toHaveBeenCalledTimes(1);
     expect(prime).toHaveBeenCalledWith("/project", expect.any(AbortSignal));
@@ -512,8 +691,7 @@ describe("setupBeads", () => {
   });
 
   test("minimizes bd's full AGENTS.md block only when prime is attached", async () => {
-    const block =
-      "<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:1 -->\nPRIME\n<!-- END BEADS INTEGRATION -->";
+    const block = "<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:1 -->\nPRIME\n<!-- END BEADS INTEGRATION -->";
     let guard: { kind: "ready" } | { kind: "unsupported"; installed: string } = {
       kind: "ready",
     };
@@ -676,20 +854,26 @@ describe("setupBeads", () => {
         else await writeFile(markerPath, marker);
         for (const autoMigrate of [undefined, false, true]) {
           const bd = mock(async (_cwd: string, args: readonly string[]) =>
-            args[0] === "version" ? "bd version 1.3.4" : JSON.stringify({ beads_dir: directory })
+            args[0] === "version" ? "bd version 1.3.4" : JSON.stringify({ beads_dir: directory }),
           );
           const text = "WORKFLOW\n## Persistent Memories\nNative selected memory\nNative partial-availability notice";
           const runPrime = mock(async () => text);
           const f = fakeContext({ directory, pluginOptions: { autoMigrate } });
           const cleanup = await setupBeads(f.ctx, { bd, runPrime });
           try {
-            expect(await f.request("s1", "build")).toEqual([renderBeadsContext(text, "primary", { sessionID: "s1", agent: "build" })]);
+            expect(await f.request("s1", "build")).toEqual([
+              renderBeadsContext(text, "primary", { sessionID: "s1", agent: "build" }),
+            ]);
             expect(runPrime).toHaveBeenCalledWith(directory, ["--full"]);
-            expect(bd.mock.calls.map(call => call[1])).toEqual([["version"], ["context", "--json"]]);
-          } finally { cleanup(); }
+            expect(bd.mock.calls.map((call) => call[1])).toEqual([["version"], ["context", "--json"]]);
+          } finally {
+            cleanup();
+          }
         }
       }
-    } finally { await rm(directory, { recursive: true, force: true }); }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   test("rate-limits diagnostics and never lets them fail a request", async () => {
@@ -739,69 +923,136 @@ function commandFixture(f: ReturnType<typeof fakeContext>) {
   const transform = mock(async (callback: (editor: Editor) => void) => {
     callbacks.push(callback);
     commands();
-    return { dispose: async () => { callbacks.splice(callbacks.indexOf(callback), 1); } };
+    return {
+      dispose: async () => {
+        callbacks.splice(callbacks.indexOf(callback), 1);
+      },
+    };
   });
   const prompt = mock(async (_input: Record<string, unknown>) => ({}));
-  Object.assign(f.ctx, { command: {
-    transform,
-    list: async () => {
-      if (lookupFailed) throw new Error("lookup failed");
-      return { data: [...commands().values()].filter((entry) => entry.name !== omitted).map(({ name, description }) => ({ name, description })) };
+  Object.assign(f.ctx, {
+    command: {
+      transform,
+      list: async () => {
+        if (lookupFailed) throw new Error("lookup failed");
+        return {
+          data: [...commands().values()]
+            .filter((entry) => entry.name !== omitted)
+            .map(({ name, description }) => ({ name, description })),
+        };
+      },
     },
-  } });
+  });
   Object.assign(f.ctx.session, { prompt, get: async () => ({ agent: "build", location: { directory: "/project" } }) });
-  const invocation = { sessionID: "s1", delivery: "queue", prompt: {
-    text: "literal '$ARGUMENTS' $(touch nope) `text`", files: [{ uri: "file:///tmp/a%20b" }],
-    agents: [{ name: "build" }], skills: [{ id: "oc-beads" }],
-  } } as unknown as CommandInvocation;
-  return { callbacks, commands, transform, prompt, invocation, detailsInvocation: { ...invocation, prompt: { ...invocation.prompt, text: "details" } },
-    failLookup: (failed: boolean) => { lookupFailed = failed; },
-    omit: (name?: string) => { omitted = name; },
+  const invocation = {
+    sessionID: "s1",
+    delivery: "queue",
+    prompt: {
+      text: "literal '$ARGUMENTS' $(touch nope) `text`",
+      files: [{ uri: "file:///tmp/a%20b" }],
+      agents: [{ name: "build" }],
+      skills: [{ id: "oc-beads" }],
+    },
+  } as unknown as CommandInvocation;
+  return {
+    callbacks,
+    commands,
+    transform,
+    prompt,
+    invocation,
+    detailsInvocation: { ...invocation, prompt: { ...invocation.prompt, text: "details" } },
+    failLookup: (failed: boolean) => {
+      lookupFailed = failed;
+    },
+    omit: (name?: string) => {
+      omitted = name;
+    },
   };
 }
 
 describe("child handoff plugin boundary (not live host qualification)", () => {
-  test.each(["running", "failed", "cancelled", "NO_TEXT", "partial"] as const)("preserves %s child outcome and adds only a next-request recovery cue", async (outcome) => {
-    const f = fakeContext();
-    const t = toolFixture(f);
-    const prompt = mock(async () => ({}));
-    const synthetic = mock(async () => ({}));
-    Object.assign(f.ctx.session, { prompt, synthetic, get: async () => ({ agent: "human-default", location: { directory: "/project" } }) });
-    const prime = mock(async () => "CURRENT");
-    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime } });
-    await f.request("parent", "build");
-    await f.request("child", "beads-task-agent");
-    const parent = invocation("parent", "build");
-    const child = invocation("child", "beads-task-agent");
-    const handoff = `Task fixture-1 only; actor ${executorActor(child)}; session child; tried A; failed validation; because B; reference task:fixture-1; candidate fixture-rev; blocker acceptance; next authorized action C; partial.`;
-    const input = { agent: "beads-task-agent", description: "bounded fixture", prompt: handoff };
-    const base = { tool: "subagent", codemode: false, sessionID: parent.sessionID, agent: parent.agent, messageID: parent.messageID, id: parent.id, input };
-    // Exercise the 2.3 launch handle and error boundary alongside earlier result
-    // forms; execute.after has no status="cancelled".
-    const event: ToolAfterEvent = outcome === "failed" || outcome === "cancelled"
-      ? { ...base, status: "error", error: new ToolError({ message: outcome === "failed" ? "Subagent failed (sessionID: child): fixture failure" : "Subagent cancelled (sessionID: child)" }) }
-      : { ...base, status: "completed", result: {
-        output: { sessionID: "child", status: outcome === "running" ? "running" : "completed", output: outcome === "running" ? "The subagent is working in the background (sessionID: child). You will receive a <subagent> message when it goes idle, and again after each later round of work." : outcome === "NO_TEXT" ? "Subagent completed without a text response." : handoff },
-        content: outcome === "running" ? '<subagent sessionID="child" state="running">Launched</subagent>' : `<subagent sessionID="child" state="completed">\n${outcome === "NO_TEXT" ? "Subagent completed without a text response." : handoff}\n</subagent>`,
-        metadata: { sessionID: "child", status: outcome === "running" ? "running" : "completed" },
-      } };
-    const before = JSON.stringify(event);
-    await t.after(event);
-    expect(JSON.stringify(event)).toBe(before);
-    expect(event.input).toBe(input);
-    expect(prime).toHaveBeenCalledTimes(2);
-    expect(prompt).not.toHaveBeenCalled();
-    expect(synthetic).not.toHaveBeenCalled();
-    const recovered = await f.request("parent", "build");
-    expect(prime).toHaveBeenCalledTimes(3);
-    expect(recovered[1]).toContain("may only acknowledge launch or follow-up");
-    expect(recovered[1]).toContain("actual reports or results");
-    expect(recovered[1]).not.toContain("A child returned");
-    // Child context is isolated; a parent-side result does not change its actor/cache.
-    expect(await f.request("child", "beads-task-agent")).toHaveLength(1);
-    expect(prime).toHaveBeenCalledTimes(3);
-    await cleanup();
-  });
+  test.each(["running", "failed", "cancelled", "NO_TEXT", "partial"] as const)(
+    "preserves %s child outcome and adds only a next-request recovery cue",
+    async (outcome) => {
+      const f = fakeContext();
+      const t = toolFixture(f);
+      const prompt = mock(async () => ({}));
+      const synthetic = mock(async () => ({}));
+      Object.assign(f.ctx.session, {
+        prompt,
+        synthetic,
+        get: async () => ({ agent: "human-default", location: { directory: "/project" } }),
+      });
+      const prime = mock(async () => "CURRENT");
+      const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime } });
+      await f.request("parent", "build");
+      await f.request("child", "beads-task-agent");
+      const parent = invocation("parent", "build");
+      const child = invocation("child", "beads-task-agent");
+      const handoff = `Task fixture-1 only; actor ${executorActor(child)}; session child; tried A; failed validation; because B; reference task:fixture-1; candidate fixture-rev; blocker acceptance; next authorized action C; partial.`;
+      const input = { agent: "beads-task-agent", description: "bounded fixture", prompt: handoff };
+      const base = {
+        tool: "subagent",
+        codemode: false,
+        sessionID: parent.sessionID,
+        agent: parent.agent,
+        messageID: parent.messageID,
+        id: parent.id,
+        input,
+      };
+      // Exercise the 2.3 launch handle and error boundary alongside earlier result
+      // forms; execute.after has no status="cancelled".
+      const event: ToolAfterEvent =
+        outcome === "failed" || outcome === "cancelled"
+          ? {
+              ...base,
+              status: "error",
+              error: new ToolError({
+                message:
+                  outcome === "failed"
+                    ? "Subagent failed (sessionID: child): fixture failure"
+                    : "Subagent cancelled (sessionID: child)",
+              }),
+            }
+          : {
+              ...base,
+              status: "completed",
+              result: {
+                output: {
+                  sessionID: "child",
+                  status: outcome === "running" ? "running" : "completed",
+                  output:
+                    outcome === "running"
+                      ? "The subagent is working in the background (sessionID: child). You will receive a <subagent> message when it goes idle, and again after each later round of work."
+                      : outcome === "NO_TEXT"
+                        ? "Subagent completed without a text response."
+                        : handoff,
+                },
+                content:
+                  outcome === "running"
+                    ? '<subagent sessionID="child" state="running">Launched</subagent>'
+                    : `<subagent sessionID="child" state="completed">\n${outcome === "NO_TEXT" ? "Subagent completed without a text response." : handoff}\n</subagent>`,
+                metadata: { sessionID: "child", status: outcome === "running" ? "running" : "completed" },
+              },
+            };
+      const before = JSON.stringify(event);
+      await t.after(event);
+      expect(JSON.stringify(event)).toBe(before);
+      expect(event.input).toBe(input);
+      expect(prime).toHaveBeenCalledTimes(2);
+      expect(prompt).not.toHaveBeenCalled();
+      expect(synthetic).not.toHaveBeenCalled();
+      const recovered = await f.request("parent", "build");
+      expect(prime).toHaveBeenCalledTimes(3);
+      expect(recovered[1]).toContain("may only acknowledge launch or follow-up");
+      expect(recovered[1]).toContain("actual reports or results");
+      expect(recovered[1]).not.toContain("A child returned");
+      // Child context is isolated; a parent-side result does not change its actor/cache.
+      expect(await f.request("child", "beads-task-agent")).toHaveLength(1);
+      expect(prime).toHaveBeenCalledTimes(3);
+      await cleanup();
+    },
+  );
 
   test("a late child return and execution success after deliberate stop do not restart or imply a final checkpoint", async () => {
     const f = fakeContext();
@@ -815,9 +1066,19 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     f.events.push({ type: "session.execution.interrupted", data: { sessionID: "parent", reason: "user" } });
     await settle();
     const context = invocation("parent", "build");
-    const event: ToolAfterEvent = { tool: "subagent", ...{ codemode: false }, sessionID: context.sessionID, agent: context.agent, messageID: context.messageID, id: context.id,
-      input: { agent: "beads-task-agent", prompt: "exact fixture-1" }, status: "completed",
-      result: { output: { sessionID: "child", status: "completed", output: "late partial evidence" }, metadata: { sessionID: "child", status: "completed" } },
+    const event: ToolAfterEvent = {
+      tool: "subagent",
+      ...{ codemode: false },
+      sessionID: context.sessionID,
+      agent: context.agent,
+      messageID: context.messageID,
+      id: context.id,
+      input: { agent: "beads-task-agent", prompt: "exact fixture-1" },
+      status: "completed",
+      result: {
+        output: { sessionID: "child", status: "completed", output: "late partial evidence" },
+        metadata: { sessionID: "child", status: "completed" },
+      },
     };
     const before = JSON.stringify(event);
     await t.after(event);
@@ -844,8 +1105,13 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     const f = fakeContext();
     const t = toolFixture(f);
     const permission = mock(async (_input: unknown) => {});
-    Object.assign(f.ctx, { permission: { assert: permission }, location: { directory: "/project", project: { directory: "/project" } } });
-    Object.assign(f.ctx.session, { get: async () => ({ agent: "human-default", location: { directory: "/project" } }) });
+    Object.assign(f.ctx, {
+      permission: { assert: permission },
+      location: { directory: "/project", project: { directory: "/project" } },
+    });
+    Object.assign(f.ctx.session, {
+      get: async () => ({ agent: "human-default", location: { directory: "/project" } }),
+    });
     const child = invocation("child-full-session", "beads-task-agent");
     const parent = invocation("parent-full-session", "build");
     const notes = [`Earlier attempt failed; rationale retained.`];
@@ -854,28 +1120,54 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
       if (args[0] === "version") return "1.3.1";
       if (args[0] === "context") return '{"beads_dir":"/project/.beads"}';
       if (args[0] === "update") notes.push(String(args[args.indexOf("--append-notes") + 1]));
-      return JSON.stringify([{ id: "fixture-1", created_by: "unknown", owner: "account-owner", assignee: executorActor(child), notes: notes.join("\n") }]);
+      return JSON.stringify([
+        {
+          id: "fixture-1",
+          created_by: "unknown",
+          owner: "account-owner",
+          assignee: executorActor(child),
+          notes: notes.join("\n"),
+        },
+      ]);
     });
     const prime = mock(async () => "CURRENT");
-    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime }, continuityQualified: true,
+    const cleanup = await setupBeads(f.ctx, {
+      runtime: { guard: async () => ({ kind: "ready" }), prime },
+      continuityQualified: true,
       continuity: { bd, realpath: async (value) => value },
     });
     await f.request(String(child.sessionID), String(child.agent));
     await f.request(String(parent.sessionID), String(parent.agent));
     const checkpoint = t.tools.find((tool) => tool.name === "note")!;
     await checkpoint.execute({ id: "fixture-1", text: handoff }, child);
-    await checkpoint.execute({ id: "fixture-1", text: "Parent review only; no ownership transfer or closure." }, parent);
+    await checkpoint.execute(
+      { id: "fixture-1", text: "Parent review only; no ownership transfer or closure." },
+      parent,
+    );
     const writes = bd.mock.calls.filter(([, args]) => args[0] === "update");
-    expect(writes.map(([, args]) => args[args.indexOf("--actor") + 1])).toEqual([executorActor(child), executorActor(parent)]);
+    expect(writes.map(([, args]) => args[args.indexOf("--actor") + 1])).toEqual([
+      executorActor(child),
+      executorActor(parent),
+    ]);
     expect(writes[0]?.[1]).toContain(handoff);
-    expect(permission.mock.calls.map(([input]) => (input as { agent: string }).agent)).toEqual([child.agent, parent.agent]);
+    expect(permission.mock.calls.map(([input]) => (input as { agent: string }).agent)).toEqual([
+      child.agent,
+      parent.agent,
+    ]);
     const compact = async (sessionID: string, agent: string) => {
       const event: ContextEvent = { sessionID, agent, system: [] };
       await f.hooks.get("compaction")!(event);
       return event.system;
     };
     expect((await compact(String(parent.sessionID), String(parent.agent)))[1]?.text).toContain("task:fixture-1");
-    f.events.push({ type: "session.forked", data: { sessionID: "fork", parentID: parent.sessionID, boundary: { type: "through", messageID: parent.messageID } } });
+    f.events.push({
+      type: "session.forked",
+      data: {
+        sessionID: "fork",
+        parentID: parent.sessionID,
+        boundary: { type: "through", messageID: parent.messageID },
+      },
+    });
     await settle();
     await f.request("fork", "build");
     expect(await compact("fork", "build")).toHaveLength(1);
@@ -885,12 +1177,16 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     const recoveredTools = toolFixture(fresh);
     Object.assign(fresh.ctx, { location: f.ctx.location, permission: f.ctx.permission });
     Object.assign(fresh.ctx.session, { get: f.ctx.session.get });
-    const freshCleanup = await setupBeads(fresh.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime }, continuityQualified: true,
+    const freshCleanup = await setupBeads(fresh.ctx, {
+      runtime: { guard: async () => ({ kind: "ready" }), prime },
+      continuityQualified: true,
       continuity: { bd, realpath: async (value) => value },
     });
     const recovery = await fresh.request("fresh", "build");
     expect(recovery[0]).toContain("retrieve the assigned task and relevant reusable knowledge");
-    const result = await recoveredTools.tools.find((tool) => tool.name === "get")!.execute({ ids: ["fixture-1"] }, invocation("fresh", "build"));
+    const result = await recoveredTools.tools
+      .find((tool) => tool.name === "get")!
+      .execute({ ids: ["fixture-1"] }, invocation("fresh", "build"));
     expect(JSON.stringify(result.output)).toContain(handoff);
     expect(JSON.stringify(result.output)).toContain("Earlier attempt failed");
     expect(JSON.stringify(result.output)).toContain('"created_by":"unknown"');
@@ -904,22 +1200,50 @@ describe("child handoff plugin boundary (not live host qualification)", () => {
     const f = fakeContext();
     const t = toolFixture(f);
     let release: () => void = () => {};
-    const permission = mock(async (_input: unknown) => new Promise<void>((resolve) => { release = resolve; }));
+    const permission = mock(
+      async (_input: unknown) =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
     const prompt = mock(async () => ({}));
     const synthetic = mock(async () => ({}));
-    Object.assign(f.ctx, { permission: { assert: permission }, location: { directory: "/project", project: { directory: "/project" } } });
-    Object.assign(f.ctx.session, { prompt, synthetic, get: async () => ({ agent: "human-default", location: { directory: "/project" } }) });
-    const bd = mock(async (_cwd: string, args: readonly string[]) => args[0] === "version" ? "1.3.1" : '{"beads_dir":"/project/.beads"}');
-    const cleanup = await setupBeads(f.ctx, { runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "CURRENT" }, continuityQualified: true,
+    Object.assign(f.ctx, {
+      permission: { assert: permission },
+      location: { directory: "/project", project: { directory: "/project" } },
+    });
+    Object.assign(f.ctx.session, {
+      prompt,
+      synthetic,
+      get: async () => ({ agent: "human-default", location: { directory: "/project" } }),
+    });
+    const bd = mock(async (_cwd: string, args: readonly string[]) =>
+      args[0] === "version" ? "1.3.1" : '{"beads_dir":"/project/.beads"}',
+    );
+    const cleanup = await setupBeads(f.ctx, {
+      runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "CURRENT" },
+      continuityQualified: true,
       continuity: { bd, realpath: async (value) => value },
     });
     await f.request("child", "beads-task-agent");
     const abort = new AbortController();
     const context = invocation("child", "beads-task-agent", abort.signal);
-    const pending = t.tools.find((tool) => tool.name === "note")!.execute({ id: "fixture-1", text: "unsaved partial result" }, context);
-    const outcome = pending.then(() => undefined, (error: unknown) => error);
+    const pending = t.tools
+      .find((tool) => tool.name === "note")!
+      .execute({ id: "fixture-1", text: "unsaved partial result" }, context);
+    const outcome = pending.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
     await settle();
-    expect(permission).toHaveBeenCalledWith(expect.objectContaining({ agent: context.agent, sessionID: context.sessionID, save: [], source: { type: "tool", messageID: context.messageID, id: context.id } }));
+    expect(permission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agent: context.agent,
+        sessionID: context.sessionID,
+        save: [],
+        source: { type: "tool", messageID: context.messageID, id: context.id },
+      }),
+    );
     const count = bd.mock.calls.length;
     const summary: ContextEvent = { sessionID: "child", agent: "beads-task-agent", system: [] };
     await f.hooks.get("compaction")!(summary);
@@ -986,22 +1310,48 @@ describe("owned workflow registration", () => {
     const projected: SessionContext["messages"] = [];
     const context = mock(async () => stored);
     Object.assign(f.ctx.session, { context });
-    for (const [stem, text, delivery] of [["show", "fixture-1", "queue"], ["update", "append note", "steer"], ["compact", "explain --auto", "queue"], ["sync", "explain only", "steer"]] as const) {
-      await c.commands().get(`oc-beads:${stem}`)!.execute({ ...c.invocation, delivery, prompt: { ...c.invocation.prompt, text } });
+    for (const [stem, text, delivery] of [
+      ["show", "fixture-1", "queue"],
+      ["update", "append note", "steer"],
+      ["compact", "explain --auto", "queue"],
+      ["sync", "explain only", "steer"],
+    ] as const) {
+      await c
+        .commands()
+        .get(`oc-beads:${stem}`)!
+        .execute({ ...c.invocation, delivery, prompt: { ...c.invocation.prompt, text } });
       const sent = c.prompt.mock.calls.at(-1)![0];
       expect(sent.text).toBe(`/oc-beads:${stem} ${text}`);
       expect(sent.files).toBe(c.invocation.prompt.files);
       expect(sent.delivery).toBe(delivery);
-      const workflow = (sent.metadata as { ocBeadsWorkflow: { version: number; instructions: string } }).ocBeadsWorkflow;
+      const workflow = (sent.metadata as { ocBeadsWorkflow: { version: number; instructions: string } })
+        .ocBeadsWorkflow;
       const messageID = `workflow-${stem}`;
-      stored.push(storedUserMessage(messageID, String(sent.text), stem === "sync" ? { ocBeadsSync: workflow } : { ocBeadsWorkflow: workflow }));
-      projected.push(Message.make({ id: messageID, role: "user", content: [Message.text(String(sent.text)), Message.text("native prepared attachment/skill + hook edit")] }));
+      stored.push(
+        storedUserMessage(
+          messageID,
+          String(sent.text),
+          stem === "sync" ? { ocBeadsSync: workflow } : { ocBeadsWorkflow: workflow },
+        ),
+      );
+      projected.push(
+        Message.make({
+          id: messageID,
+          role: "user",
+          content: [Message.text(String(sent.text)), Message.text("native prepared attachment/skill + hook edit")],
+        }),
+      );
     }
     expect(c.prompt).toHaveBeenCalledTimes(4);
     const raw = JSON.stringify(projected);
     const storedRaw = JSON.stringify(stored);
     for (const kind of ["context", "compaction"]) {
-      const event = { sessionID: "s1", agent: "build", system: [], messages: projected.map((message) => Message.make(message)) } as ContextEvent;
+      const event = {
+        sessionID: "s1",
+        agent: "build",
+        system: [],
+        messages: projected.map((message) => Message.make(message)),
+      } as ContextEvent;
       await f.hooks.get(kind)!(event);
       const once = JSON.stringify(event.messages);
       expect(once).not.toContain("ocBeadsSync");
@@ -1015,7 +1365,12 @@ describe("owned workflow registration", () => {
     expect(context).toHaveBeenCalledTimes(4);
     // A moved session is withheld before native snapshot lookup.
     Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/elsewhere" } }) });
-    const moved = { sessionID: "s1", agent: "build", system: [], messages: projected.map((message) => Message.make(message)) } as ContextEvent;
+    const moved = {
+      sessionID: "s1",
+      agent: "build",
+      system: [],
+      messages: projected.map((message) => Message.make(message)),
+    } as ContextEvent;
     await f.hooks.get("context")!(moved);
     expect(JSON.stringify(moved.messages)).not.toContain("Requested outcome:");
     expect(JSON.stringify(moved.system)).toContain("Saved Beads workflow instructions or diagnostics are unavailable");
@@ -1023,12 +1378,22 @@ describe("owned workflow registration", () => {
     expect(JSON.stringify(stored)).toBe(storedRaw);
     expect([...f.hooks.keys()].sort()).toEqual(["compaction", "context"]);
     // Summary recent-context uses stored visible text; no promise of verbatim snapshot retention.
-    const recent = stored.filter((message) => message.type === "user").map((message) => message.text).join("\n");
+    const recent = stored
+      .filter((message) => message.type === "user")
+      .map((message) => message.text)
+      .join("\n");
     expect(recent).not.toContain("Requested outcome:");
-    expect(BEADS_COMPACTION_GUIDANCE).toContain("active /oc-beads workflow invocation's requested outcome, unresolved inputs or explicit modes, and applicable authority limits");
+    expect(BEADS_COMPACTION_GUIDANCE).toContain(
+      "active /oc-beads workflow invocation's requested outcome, unresolved inputs or explicit modes, and applicable authority limits",
+    );
     const calls = c.prompt.mock.calls.length;
     await cleanup();
-    const unloaded = { sessionID: "s1", agent: "build", system: [], messages: projected.map((message) => Message.make(message)) } as ContextEvent;
+    const unloaded = {
+      sessionID: "s1",
+      agent: "build",
+      system: [],
+      messages: projected.map((message) => Message.make(message)),
+    } as ContextEvent;
     await f.hooks.get("context")!(unloaded);
     expect(JSON.stringify(unloaded.messages)).toBe(raw);
     await expect(update.execute(c.invocation)).rejects.toThrow("unloaded");
@@ -1040,11 +1405,14 @@ describe("owned workflow registration", () => {
     const c = commandFixture(f);
     const order: string[] = [];
     const cleanup = await setupBeads(f.ctx, { warn: () => {} });
-    await c.commands().get("oc-beads:show")!.execute({
-      ...c.invocation,
-      delivery: "queue",
-      prompt: { ...c.invocation.prompt, text: "fixture-1 --json" },
-    });
+    await c
+      .commands()
+      .get("oc-beads:show")!
+      .execute({
+        ...c.invocation,
+        delivery: "queue",
+        prompt: { ...c.invocation.prompt, text: "fixture-1 --json" },
+      });
     const sent = c.prompt.mock.calls.at(-1)![0];
     const workflow = (sent.metadata as { ocBeadsWorkflow: { version: number; instructions: string } }).ocBeadsWorkflow;
     const messageID = "workflow-message-1";
@@ -1055,20 +1423,27 @@ describe("owned workflow registration", () => {
     const context = mock(async ({ sessionID }: { sessionID: string }) => {
       order.push("context");
       expect(sessionID).toBe(c.invocation.sessionID);
-      return [{
-        id: messageID,
-        type: "user" as const,
-        time: { created: 1 },
-        text: String(sent.text),
-        metadata: { ocBeadsWorkflow: workflow },
-      }];
+      return [
+        {
+          id: messageID,
+          type: "user" as const,
+          time: { created: 1 },
+          text: String(sent.text),
+          metadata: { ocBeadsWorkflow: workflow },
+        },
+      ];
     });
     Object.assign(f.ctx.session, { get, context });
 
     const projected = Message.make({ id: messageID, role: "user", content: String(sent.text) });
     expect(projected.role).toBe("user");
     expect(Object.hasOwn(projected, "metadata")).toBeFalse();
-    const event: ContextEvent = { sessionID: c.invocation.sessionID, agent: "build", system: [], messages: [projected] };
+    const event: ContextEvent = {
+      sessionID: c.invocation.sessionID,
+      agent: "build",
+      system: [],
+      messages: [projected],
+    };
     await f.hooks.get("context")!(event);
 
     expect(order).toEqual(["location", "context"]);
@@ -1096,7 +1471,9 @@ describe("owned workflow registration", () => {
       const promptCount = c.prompt.mock.calls.length;
       await f.hooks.get("context")!(event);
       expect(JSON.stringify(event.messages?.[0]?.content)).toBe(before);
-      expect(JSON.stringify(event.system)).toContain("Saved Beads workflow instructions or diagnostics are unavailable");
+      expect(JSON.stringify(event.system)).toContain(
+        "Saved Beads workflow instructions or diagnostics are unavailable",
+      );
       expect(context).toHaveBeenCalledTimes(1);
       expect(c.prompt).toHaveBeenCalledTimes(promptCount);
       await cleanup();
@@ -1104,33 +1481,76 @@ describe("owned workflow registration", () => {
   });
 
   test("overlapping snapshot reads share a lifecycle while actual invalidations reject late results", async () => {
-    for (const seam of ["get", "context"] as const) for (const action of ["context", "compaction", "session.moved", "session.deleted", "session.forked", "unload"] as const) {
-      const f = fakeContext(); commandFixture(f);
-      const stored = storedUserMessage("overlap", "/oc-beads:show fixture", { ocBeadsWorkflow: { version: 1, instructions: "SAVED OVERLAP" } });
-      Object.assign(f.ctx.session, { context: async () => [stored] });
-      const cleanup = await setupBeads(f.ctx, { warn: () => {}, runtime: { guard: async () => ({ kind: "ready", version: "1.3.4", workspace: { path: "/project/.beads" } }), prime: async () => "PRIME FIXTURE" } });
-      const event = (): ContextEvent => ({ sessionID: "s1", agent: "build", system: [], messages: [Message.make({ id: "overlap", role: "user", content: stored.text })] });
-      await f.hooks.get("context")!(event());
-      const original = f.ctx.session[seam]!;
-      let release: (value: never) => void = () => {};
-      let calls = 0;
-      Object.assign(f.ctx.session, { [seam]: async (input: never) => ++calls === 1 ? new Promise(resolve => { release = resolve; }) : original(input) });
-      const firstKind = action === "context" ? "compaction" : "context";
-      const first = event(); const pending = f.hooks.get(firstKind)!(first);
-      await settle();
-      if (action === "context" || action === "compaction") {
-        const second = event(); await f.hooks.get(action)!(second);
-        expect(JSON.stringify(second.messages)).toContain("SAVED OVERLAP");
-        expect(JSON.stringify(second.system)).toContain(action === "context" ? "<beads-context" : "<beads-compaction>");
-      } else if (action === "unload") await cleanup();
-      else { f.events.push({ type: action, data: { sessionID: "s1" } }); await settle(); }
-      release(await original({ sessionID: "s1" } as never) as never); await pending;
-      const valid = action === "context" || action === "compaction";
-      expect(JSON.stringify(first.messages).includes("SAVED OVERLAP")).toBe(valid);
-      if (valid) expect(JSON.stringify(first.system)).toContain(firstKind === "context" ? "<beads-context" : "<beads-compaction>");
-      else if (action !== "unload") expect(JSON.stringify(first.system)).toContain("Saved Beads workflow instructions or diagnostics are unavailable");
-      await cleanup();
-    }
+    for (const seam of ["get", "context"] as const)
+      for (const action of [
+        "context",
+        "compaction",
+        "session.moved",
+        "session.deleted",
+        "session.forked",
+        "unload",
+      ] as const) {
+        const f = fakeContext();
+        commandFixture(f);
+        const stored = storedUserMessage("overlap", "/oc-beads:show fixture", {
+          ocBeadsWorkflow: { version: 1, instructions: "SAVED OVERLAP" },
+        });
+        Object.assign(f.ctx.session, { context: async () => [stored] });
+        const cleanup = await setupBeads(f.ctx, {
+          warn: () => {},
+          runtime: {
+            guard: async () => ({ kind: "ready", version: "1.3.4", workspace: { path: "/project/.beads" } }),
+            prime: async () => "PRIME FIXTURE",
+          },
+        });
+        const event = (): ContextEvent => ({
+          sessionID: "s1",
+          agent: "build",
+          system: [],
+          messages: [Message.make({ id: "overlap", role: "user", content: stored.text })],
+        });
+        await f.hooks.get("context")!(event());
+        const original = f.ctx.session[seam]!;
+        let release: (value: never) => void = () => {};
+        let calls = 0;
+        Object.assign(f.ctx.session, {
+          [seam]: async (input: never) =>
+            ++calls === 1
+              ? new Promise((resolve) => {
+                  release = resolve;
+                })
+              : original(input),
+        });
+        const firstKind = action === "context" ? "compaction" : "context";
+        const first = event();
+        const pending = f.hooks.get(firstKind)!(first);
+        await settle();
+        if (action === "context" || action === "compaction") {
+          const second = event();
+          await f.hooks.get(action)!(second);
+          expect(JSON.stringify(second.messages)).toContain("SAVED OVERLAP");
+          expect(JSON.stringify(second.system)).toContain(
+            action === "context" ? "<beads-context" : "<beads-compaction>",
+          );
+        } else if (action === "unload") await cleanup();
+        else {
+          f.events.push({ type: action, data: { sessionID: "s1" } });
+          await settle();
+        }
+        release((await original({ sessionID: "s1" } as never)) as never);
+        await pending;
+        const valid = action === "context" || action === "compaction";
+        expect(JSON.stringify(first.messages).includes("SAVED OVERLAP")).toBe(valid);
+        if (valid)
+          expect(JSON.stringify(first.system)).toContain(
+            firstKind === "context" ? "<beads-context" : "<beads-compaction>",
+          );
+        else if (action !== "unload")
+          expect(JSON.stringify(first.system)).toContain(
+            "Saved Beads workflow instructions or diagnostics are unavailable",
+          );
+        await cleanup();
+      }
   });
 
   test("discards a late native snapshot after session generation changes", async () => {
@@ -1141,7 +1561,12 @@ describe("owned workflow registration", () => {
       ocBeadsWorkflow: { version: 1, instructions: "STALE SNAPSHOT" },
     });
     let release: (messages: StoredSessionMessage[]) => void = () => {};
-    const context = mock(async () => new Promise<StoredSessionMessage[]>((resolve) => { release = resolve; }));
+    const context = mock(
+      async () =>
+        new Promise<StoredSessionMessage[]>((resolve) => {
+          release = resolve;
+        }),
+    );
     Object.assign(f.ctx.session, { context });
     const cleanup = await setupBeads(f.ctx, { warn: () => {} });
     const message = Message.make({ id: messageID, role: "user", content: stored.text });
@@ -1164,14 +1589,32 @@ describe("owned workflow registration", () => {
     const f = fakeContext();
     const c = commandFixture(f);
     const { createBeadsCommands } = await import("../src/workflows");
-    const commands = createBeadsCommands({ prompt: c.prompt as unknown as Parameters<typeof createBeadsCommands>[0]["prompt"] }, async () => "DIAGNOSTICS", "/fixture/package/assets/oc-beads/SKILL.md");
+    const commands = createBeadsCommands(
+      { prompt: c.prompt as unknown as Parameters<typeof createBeadsCommands>[0]["prompt"] },
+      async () => "DIAGNOSTICS",
+      "/fixture/package/assets/oc-beads/SKILL.md",
+    );
     const cleanup = await setupBeads(f.ctx, { warn: () => {} });
     const captures: unknown[] = [];
-    const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
-      captures.push(await request.json());
-      const response = { id: "resp_fixture", object: "response", created_at: 0, model: "fixture", status: "completed", output: [], usage: { input_tokens: 1, output_tokens: 0, total_tokens: 1 } };
-      return new Response(`data: ${JSON.stringify({type: "response.completed", response})}\n\n`, { headers: { "content-type": "text/event-stream" } });
-    } });
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      async fetch(request) {
+        captures.push(await request.json());
+        const response = {
+          id: "resp_fixture",
+          object: "response",
+          created_at: 0,
+          model: "fixture",
+          status: "completed",
+          output: [],
+          usage: { input_tokens: 1, output_tokens: 0, total_tokens: 1 },
+        };
+        return new Response(`data: ${JSON.stringify({ type: "response.completed", response })}\n\n`, {
+          headers: { "content-type": "text/event-stream" },
+        });
+      },
+    });
     const client = make();
     const model = configure({ apiKey: "disposable-fixture", baseURL: `${server.url.origin}/v1` }).responses("fixture");
     const serialize = async (messages: SessionContext["messages"]) => {
@@ -1185,8 +1628,11 @@ describe("owned workflow registration", () => {
       Object.assign(f.ctx.session, { context: mock(async () => stored) });
       const stems = ["show", "update", "compact", "sync", "diagnostics"];
       for (const [index, stem] of stems.entries()) {
-        const details = index === stems.length - 1 ? "current turn exact details" : `fixture-1 ${stem} literal --apply --auto`;
-        await commands.find(c => c.name === `oc-beads:${stem}`)!.execute({ ...c.invocation, prompt: { ...c.invocation.prompt, text: details } });
+        const details =
+          index === stems.length - 1 ? "current turn exact details" : `fixture-1 ${stem} literal --apply --auto`;
+        await commands
+          .find((c) => c.name === `oc-beads:${stem}`)!
+          .execute({ ...c.invocation, prompt: { ...c.invocation.prompt, text: details } });
         const sent = c.prompt.mock.calls.at(-1)![0] as Record<string, unknown>;
         const snapshot = (sent.metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow;
         if (stem === "sync") {
@@ -1200,12 +1646,19 @@ describe("owned workflow registration", () => {
         const messageID = `response-workflow-${stem}`;
         const content = [String(sent.text), "native file/skill preparation + prompt hook edits"];
         // Legacy retained history uses its stored snapshot, never a current-definition lookup.
-        const metadata: StoredUserMessage["metadata"] = stem === "sync"
-          ? { ocBeadsSync: snapshot, foreign: true }
-          : { ocBeadsWorkflow: snapshot, foreign: true };
+        const metadata: StoredUserMessage["metadata"] =
+          stem === "sync" ? { ocBeadsSync: snapshot, foreign: true } : { ocBeadsWorkflow: snapshot, foreign: true };
         stored.push(storedUserMessage(messageID, String(sent.text), metadata));
-        projected.push(Message.make({ id: messageID, role: "user", content: content.map((text) => Message.text(text)) }));
-        expected.push(Message.make({ id: messageID, role: "user", content: [snapshot.instructions, ...content].map((text) => Message.text(text)) }));
+        projected.push(
+          Message.make({ id: messageID, role: "user", content: content.map((text) => Message.text(text)) }),
+        );
+        expected.push(
+          Message.make({
+            id: messageID,
+            role: "user",
+            content: [snapshot.instructions, ...content].map((text) => Message.text(text)),
+          }),
+        );
         if (index === 0) {
           const assistant = Message.make({ role: "assistant", content: Message.text("interleaved assistant") });
           projected.push(assistant);
@@ -1216,14 +1669,27 @@ describe("owned workflow registration", () => {
       const projectedStorage = JSON.stringify(projected);
       let candidate: string | undefined;
       for (const kind of ["context", "compaction"]) {
-        const event = { sessionID: "s1", agent: "build", system: [], messages: projected.map((message) => Message.make(message)) } as ContextEvent;
+        const event = {
+          sessionID: "s1",
+          agent: "build",
+          system: [],
+          messages: projected.map((message) => Message.make(message)),
+        } as ContextEvent;
         await f.hooks.get(kind)!(event);
         const serialized = await serialize(event.messages!);
         candidate ??= serialized;
         expect(serialized).toBe(candidate);
         expect(serialized).toBe(await serialize(expected));
         expect(serialized).not.toMatch(/ocBeadsWorkflow|ocBeadsSync/);
-        for (const stem of stems) expect(serialized.match(new RegExp(stem === "diagnostics" ? "Reproduce only the finished Markdown" : `Invoked command: /oc-beads:${stem}`, "g"))).toHaveLength(1);
+        for (const stem of stems)
+          expect(
+            serialized.match(
+              new RegExp(
+                stem === "diagnostics" ? "Reproduce only the finished Markdown" : `Invoked command: /oc-beads:${stem}`,
+                "g",
+              ),
+            ),
+          ).toHaveLength(1);
         expect(serialized).toContain("current turn exact details");
         const once = JSON.stringify(event.messages);
         await f.hooks.get(kind)!(event);
@@ -1241,7 +1707,21 @@ describe("owned workflow registration", () => {
       expect(auxiliary).not.toMatch(/ocBeadsWorkflow|ocBeadsSync/);
       expect([...f.hooks.keys()].sort()).toEqual(["compaction", "context"]);
       expect(c.prompt).toHaveBeenCalledTimes(stems.length);
-      if (process.env.OC_BEADS_WORKFLOW_EVIDENCE_DIR) await writeFile(path.join(process.env.OC_BEADS_WORKFLOW_EVIDENCE_DIR, "provider-fixture.json"), JSON.stringify({ kind: "local Responses serialization only; no inference", invocations: stems, candidate: JSON.parse(candidate!), auxiliary: JSON.parse(auxiliary), stablePrimaryCompactionReplay: true }, null, 2));
+      if (process.env.OC_BEADS_WORKFLOW_EVIDENCE_DIR)
+        await writeFile(
+          path.join(process.env.OC_BEADS_WORKFLOW_EVIDENCE_DIR, "provider-fixture.json"),
+          JSON.stringify(
+            {
+              kind: "local Responses serialization only; no inference",
+              invocations: stems,
+              candidate: JSON.parse(candidate!),
+              auxiliary: JSON.parse(auxiliary),
+              stablePrimaryCompactionReplay: true,
+            },
+            null,
+            2,
+          ),
+        );
     } finally {
       await client.dispose();
       server.stop(true);
@@ -1253,15 +1733,18 @@ describe("owned workflow registration", () => {
     const f = fakeContext();
     const c = commandFixture(f);
     const prime = mock(async () => "PRIME");
-    const cleanup = await setupBeads(f.ctx, { warn: () => {}, runtime: { guard: async () => ({kind: "ready"}), prime } });
+    const cleanup = await setupBeads(f.ctx, {
+      warn: () => {},
+      runtime: { guard: async () => ({ kind: "ready" }), prime },
+    });
     try {
       await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
       const sent = c.prompt.mock.calls.at(-1)![0];
-      const metadata = sent.metadata as {ocBeadsWorkflow: {version: number; instructions: string}};
+      const metadata = sent.metadata as { ocBeadsWorkflow: { version: number; instructions: string } };
       const snapshot = metadata.ocBeadsWorkflow;
       const report = JSON.parse(snapshot.instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
       const manifest = await Bun.file(new URL("../package.json", import.meta.url)).json();
-      expect(report.plugin).toEqual({name: manifest.name, version: manifest.version});
+      expect(report.plugin).toEqual({ name: manifest.name, version: manifest.version });
       expect(report.host).toBe("2.3.0");
       expect(snapshot.instructions).toContain(`DATE: \`${report.capturedAt}\``);
       expect(snapshot.instructions).toContain(`VERSION: ${manifest.name} \`${manifest.version}\``);
@@ -1273,20 +1756,24 @@ describe("owned workflow registration", () => {
       const context = mock(async () => [stored]);
       Object.assign(f.ctx.session, { context });
       for (const kind of ["context", "compaction"]) {
-        const event: ContextEvent = {sessionID:"s1", agent:"build", system:[], messages:[Message.make(request)]};
+        const event: ContextEvent = { sessionID: "s1", agent: "build", system: [], messages: [Message.make(request)] };
         await f.hooks.get(kind)!(event);
-        expect(event.messages![0]!.content[0]).toEqual({type:"text", text:snapshot.instructions});
+        expect(event.messages![0]!.content[0]).toEqual({ type: "text", text: snapshot.instructions });
         expect(JSON.stringify(event.messages)).not.toContain("ocBeadsWorkflow");
         expect(JSON.stringify(event.messages).split(snapshot.instructions.split("\n")[0]!)).toHaveLength(2);
       }
       for (const kind of ["title", "generate"]) {
-        const event: ContextEvent = {sessionID:"s1", agent:"build", system:[], messages:[Message.make(request)]};
+        const event: ContextEvent = { sessionID: "s1", agent: "build", system: [], messages: [Message.make(request)] };
         await f.hooks.get(kind)?.(event);
-        expect(JSON.stringify(event.messages!.map(message => message.content))).not.toContain('Reproduce only the finished Markdown');
+        expect(JSON.stringify(event.messages!.map((message) => message.content))).not.toContain(
+          "Reproduce only the finished Markdown",
+        );
       }
       expect(JSON.stringify(stored)).toBe(raw);
       expect(c.prompt).toHaveBeenCalledTimes(1);
-    } finally { await cleanup(); }
+    } finally {
+      await cleanup();
+    }
   });
 
   test("diagnostics overrides restore natively and user-owned old status survives package removal", async () => {
@@ -1314,7 +1801,9 @@ describe("owned workflow registration", () => {
     expect(oldStatus.execute).toHaveBeenCalledTimes(1);
     await c.commands().get("oc-beads:stats")!.execute(c.invocation);
     const statsMetadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
-    expect(statsMetadata.ocBeadsWorkflow.instructions).toContain("issue-database overview using bd status (alias bd stats)");
+    expect(statsMetadata.ocBeadsWorkflow.instructions).toContain(
+      "issue-database overview using bd status (alias bd stats)",
+    );
     expect(statsMetadata.ocBeadsWorkflow.instructions).toContain("Supporting guidance:");
     await cleanup();
     expect(c.commands().get(oldStatus.name)).toBe(oldStatus);
@@ -1332,7 +1821,7 @@ describe("owned workflow registration", () => {
     const diagnostics = c.commands().get("oc-beads:diagnostics")!;
     const report = async () => {
       await diagnostics.execute(c.detailsInvocation);
-      const metadata = c.prompt.mock.calls.at(-1)![0].metadata as {ocBeadsWorkflow: {instructions: string}};
+      const metadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
       return JSON.parse(metadata.ocBeadsWorkflow.instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
     };
     let observed = await report();
@@ -1343,7 +1832,11 @@ describe("owned workflow registration", () => {
     expect(observed.commands.ownership).toContain("do not prove ownership");
     c.callbacks.push((editor) => editor.add({ ...ready, description: "USER DESCRIPTION" }));
     observed = await report();
-    expect(observed.commands.mismatches).toContainEqual({ name: ready.name, expectedDescription: ready.description, effectiveDescription: "USER DESCRIPTION" });
+    expect(observed.commands.mismatches).toContainEqual({
+      name: ready.name,
+      expectedDescription: ready.description,
+      effectiveDescription: "USER DESCRIPTION",
+    });
     expect(observed.commands.effective).toContainEqual({ name: ready.name, description: "USER DESCRIPTION" });
     c.callbacks.push((editor) => editor.add({ ...ready, execute: async () => {} }));
     expect((await report()).commands.mismatches).toEqual([]);
@@ -1372,20 +1865,36 @@ describe("owned workflow registration", () => {
       for (const callback of callbacks) callback(editor);
       if (after) skills.set(after.id, after);
     };
-    const list = mock(async () => { throw new Error("setup must not gate on list"); });
-    Object.assign(f.ctx, { skill: { list, transform: async (callback: (editor: unknown) => void) => {
-      callbacks.push(callback); rebuild();
-      return { dispose: async () => { callbacks.splice(callbacks.indexOf(callback), 1); rebuild(); } };
-    } } });
+    const list = mock(async () => {
+      throw new Error("setup must not gate on list");
+    });
+    Object.assign(f.ctx, {
+      skill: {
+        list,
+        transform: async (callback: (editor: unknown) => void) => {
+          callbacks.push(callback);
+          rebuild();
+          return {
+            dispose: async () => {
+              callbacks.splice(callbacks.indexOf(callback), 1);
+              rebuild();
+            },
+          };
+        },
+      },
+    });
     const cleanup = await setupBeads(f.ctx, { warn: () => {} });
     expect(list).not.toHaveBeenCalled();
     expect(callbacks).toHaveLength(1);
     expect(skills.get("oc-beads")).toBe(custom);
-    before = undefined; rebuild();
+    before = undefined;
+    rebuild();
     expect(skills.get("oc-beads")?.content).toContain("Beads work in OpenCode");
-    after = custom; rebuild();
+    after = custom;
+    rebuild();
     expect(skills.get("oc-beads")).toBe(custom);
-    after = undefined; rebuild();
+    after = undefined;
+    rebuild();
     expect(skills.get("oc-beads")?.content).toContain("Beads work in OpenCode");
     const callback = callbacks[0]!;
     after = custom;
@@ -1402,29 +1911,51 @@ describe("owned lifecycle", () => {
     const f = fakeContext();
     const disposed: string[] = [];
     const completed: string[] = [];
-    const own = (name: string) => ({ dispose: async () => {
-      disposed.push(name);
-      await new Promise((resolve) => setTimeout(resolve, 1));
-      completed.push(name);
-    } });
+    const own = (name: string) => ({
+      dispose: async () => {
+        disposed.push(name);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        completed.push(name);
+      },
+    });
     const originalAgent = f.ctx.agent.transform;
-    const transform: HostContext["agent"]["transform"] = async (callback) => { await originalAgent(callback); return own("agent"); };
+    const transform: HostContext["agent"]["transform"] = async (callback) => {
+      await originalAgent(callback);
+      return own("agent");
+    };
     Object.assign(f.ctx.agent, { transform });
     const originalHook = f.ctx.session.hook;
-    const hook: HostContext["session"]["hook"] = async (name, callback) => { await originalHook(name, callback); return own(`hook:${name}`); };
+    const hook: HostContext["session"]["hook"] = async (name, callback) => {
+      await originalHook(name, callback);
+      return own(`hook:${name}`);
+    };
     Object.assign(f.ctx.session, { hook });
     Object.assign(f.ctx, {
-      skill: { list: async () => ({ data: [] }), transform: async (callback: (editor: unknown) => void) => { callback({ list: () => [], add: () => {} }); return own("skill"); } },
+      skill: {
+        list: async () => ({ data: [] }),
+        transform: async (callback: (editor: unknown) => void) => {
+          callback({ list: () => [], add: () => {} });
+          return own("skill");
+        },
+      },
       tool: { transform: async () => own("tool"), hook: async () => own("tool-hook") },
       permission: { assert: async () => {} },
     });
     Object.assign(f.ctx.session, { get: async () => ({ location: { directory: "/project" } }) });
     let signal: AbortSignal | undefined;
     let release: (value: string) => void = () => {};
-    const cleanup = await setupBeads(f.ctx, { continuityQualified: true, runtime: {
-      guard: async () => ({ kind: "ready" }),
-      prime: async (_cwd, abortSignal) => { signal = abortSignal; return new Promise<string>((resolve) => { release = resolve; }); },
-    } });
+    const cleanup = await setupBeads(f.ctx, {
+      continuityQualified: true,
+      runtime: {
+        guard: async () => ({ kind: "ready" }),
+        prime: async (_cwd, abortSignal) => {
+          signal = abortSignal;
+          return new Promise<string>((resolve) => {
+            release = resolve;
+          });
+        },
+      },
+    });
     const pending = f.request("s1", "build");
     await settle();
     await cleanup();
@@ -1441,9 +1972,16 @@ describe("owned lifecycle", () => {
     const f = fakeContext();
     const disposed = mock(async () => {});
     const originalAgent = f.ctx.agent.transform;
-    const transform: HostContext["agent"]["transform"] = async (callback) => { await originalAgent(callback); return { dispose: disposed }; };
+    const transform: HostContext["agent"]["transform"] = async (callback) => {
+      await originalAgent(callback);
+      return { dispose: disposed };
+    };
     Object.assign(f.ctx.agent, { transform });
-    Object.assign(f.ctx.session, { hook: async () => { throw new Error("host hook failed"); } });
+    Object.assign(f.ctx.session, {
+      hook: async () => {
+        throw new Error("host hook failed");
+      },
+    });
     await expect(setupBeads(f.ctx)).rejects.toThrow("host hook failed");
     expect(disposed).toHaveBeenCalledTimes(1);
   });
@@ -1456,7 +1994,11 @@ test("missing packaged guidance is withheld with honest diagnostics", async () =
   Object.assign(missing.ctx, { skill: { list: async () => ({ data: [] }), transform } });
   const missingCleanup = await setupBeads(missing.ctx, {
     warn: (message) => warnings.push(message),
-    workflowAssets: { readText: async () => { throw new Error("sensitive exception content"); } },
+    workflowAssets: {
+      readText: async () => {
+        throw new Error("sensitive exception content");
+      },
+    },
   });
   expect(transform).not.toHaveBeenCalled();
   expect(warnings.some((warning) => warning.includes("skill-unreachable SKILL.md"))).toBe(true);
@@ -1468,10 +2010,17 @@ test("cleanup attempts every owned disposer and reports a failed disposal", asyn
   const f = fakeContext();
   const warn = mock((_message: string) => {});
   const disposed = mock(async () => {});
-  const transform: HostContext["agent"]["transform"] = async () => ({ dispose: async () => { throw new Error("dispose failed"); } });
+  const transform: HostContext["agent"]["transform"] = async () => ({
+    dispose: async () => {
+      throw new Error("dispose failed");
+    },
+  });
   Object.assign(f.ctx.agent, { transform });
   const originalHook = f.ctx.session.hook;
-  const hook: HostContext["session"]["hook"] = async (name, callback) => { await originalHook(name, callback); return { dispose: disposed }; };
+  const hook: HostContext["session"]["hook"] = async (name, callback) => {
+    await originalHook(name, callback);
+    return { dispose: disposed };
+  };
   Object.assign(f.ctx.session, { hook });
   const cleanup = await setupBeads(f.ctx, { warn });
   await expect(cleanup()).rejects.toThrow("Beads cleanup failed");
@@ -1496,12 +2045,17 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
     throw new Error("unexpected command");
   });
   let release: (text: string) => void = () => {};
-  const prime = mock(async () => new Promise<string>((resolve) => { release = resolve; }));
+  const prime = mock(
+    async () =>
+      new Promise<string>((resolve) => {
+        release = resolve;
+      }),
+  );
   const cleanup = await setupBeads(f.ctx, { bd, runtime: { prime }, now: () => time, retryMs: 1, warn: () => {} });
   const diagnostics = c.commands().get("oc-beads:diagnostics")!;
   const report = async () => {
     await diagnostics.execute(c.detailsInvocation);
-    const metadata = c.prompt.mock.calls.at(-1)![0].metadata as {ocBeadsWorkflow: {instructions: string}};
+    const metadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
     return JSON.parse(metadata.ocBeadsWorkflow.instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
   };
   const initial = await report();
@@ -1510,16 +2064,20 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
   expect(initial.requestCapability).toBe("unknown: no actual request observation");
   await f.request("s1", "build");
   expect((await report()).context).toBe("missing");
-  version = "1.2.0"; time += 2;
+  version = "1.2.0";
+  time += 2;
   await f.request("s1", "build");
   expect((await report()).context).toBe("withheld");
-  version = "1.3.1"; probe = "failed"; time += 2;
+  version = "1.3.1";
+  probe = "failed";
+  time += 2;
   await f.request("s1", "build");
   const failed = await report();
   expect(failed.context).toBe("failed");
   expect(failed.guard.kind).toBe("probe-failed");
   expect(prime).not.toHaveBeenCalled();
-  probe = "ready"; time += 2;
+  probe = "ready";
+  time += 2;
   const pending = f.request("s1", "build");
   await settle();
   expect((await report()).context).toBe("uncertain: context refresh in progress");
@@ -1528,7 +2086,11 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
   const observed = await report();
   expect(observed.context).toBe("ready");
   expect(observed.guard).toEqual({ kind: "ready", version: "1.3.1", workspace: { path: "/unused-fixture/.beads" } });
-  expect(observed.syncTarget).toEqual({ state: "unknown", reason: "native backend was not reported", listingSkipped: true });
+  expect(observed.syncTarget).toEqual({
+    state: "unknown",
+    reason: "native backend was not reported",
+    listingSkipped: true,
+  });
   expect(JSON.stringify(observed)).not.toMatch(/migration-pending|migrate schema/);
   expect(observed.requestCapability.agent).toBe("build");
   expect(observed.requestCapability.capabilities.typed).toBe("unknown");
@@ -1537,14 +2099,20 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
   f.events.push({ type: "session.execution.interrupted", data: { sessionID: "s1" } });
   await settle();
   expect((await report()).persistence).toContain("no final checkpoint");
-  Object.assign(f.ctx.session, { get: async () => { throw new Error("unknown location"); } });
+  Object.assign(f.ctx.session, {
+    get: async () => {
+      throw new Error("unknown location");
+    },
+  });
   const count = bd.mock.calls.length;
   const unknown = await report();
   expect(unknown.context).toBe("uncertain: session lookup failed");
   expect(unknown.guard.kind).toBe("withheld");
   expect(unknown.persistence).toContain("uncertain: no final-write guarantee");
   expect(bd).toHaveBeenCalledTimes(count);
-  expect(new Set(bd.mock.calls.map(([, args]) => args.join(" ")))).toEqual(new Set(["version", "context --json", "hooks list --json"]));
+  expect(new Set(bd.mock.calls.map(([, args]) => args.join(" ")))).toEqual(
+    new Set(["version", "context --json", "hooks list --json"]),
+  );
   await cleanup();
 });
 
@@ -1553,13 +2121,18 @@ test("unload aborts an in-flight native diagnostics without submitting a late pr
   const c = commandFixture(f);
   let signal: AbortSignal | undefined;
   let release: () => void = () => {};
-  const cleanup = await setupBeads(f.ctx, { warn: () => {}, runtime: {
-    guard: async (_directory, abortSignal) => {
-      signal = abortSignal;
-      await new Promise<void>((resolve) => { release = resolve; });
-      return { kind: "ready" };
+  const cleanup = await setupBeads(f.ctx, {
+    warn: () => {},
+    runtime: {
+      guard: async (_directory, abortSignal) => {
+        signal = abortSignal;
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return { kind: "ready" };
+      },
     },
-  } });
+  });
   const pending = c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
   await settle();
   await cleanup();
@@ -1574,17 +2147,24 @@ test("unload prevents a pending native target listing from submitting a report",
   const c = commandFixture(f);
   const { promise: listingStarted, resolve: startListing } = Promise.withResolvers<void>();
   const { promise: listing, resolve: finishListing } = Promise.withResolvers<string>();
-  const cleanup = await setupBeads(f.ctx, { warn: () => {}, bd: async (_directory, args) => {
-    switch (args.join(" ")) {
-      case "version": return "bd version 1.3.4";
-      case "context --json": return '{"beads_dir":"/fixture/.beads","backend":"dolt","dolt_mode":"embedded"}';
-      case "hooks list --json": return '{"hooks":[]}';
-      case "--readonly dolt remote list --json --sandbox":
-        startListing();
-        return listing;
-      default: throw new Error("unexpected command");
-    }
-  } });
+  const cleanup = await setupBeads(f.ctx, {
+    warn: () => {},
+    bd: async (_directory, args) => {
+      switch (args.join(" ")) {
+        case "version":
+          return "bd version 1.3.4";
+        case "context --json":
+          return '{"beads_dir":"/fixture/.beads","backend":"dolt","dolt_mode":"embedded"}';
+        case "hooks list --json":
+          return '{"hooks":[]}';
+        case "--readonly dolt remote list --json --sandbox":
+          startListing();
+          return listing;
+        default:
+          throw new Error("unexpected command");
+      }
+    },
+  });
   const pending = c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
   try {
     await Promise.race([listingStarted, pending]);
@@ -1603,11 +2183,20 @@ test("a failed native command registration diagnoses failure and releases earlie
   commandFixture(f);
   const disposed = mock(async () => {});
   const original = f.ctx.agent.transform;
-  const transform: HostContext["agent"]["transform"] = async (callback) => { await original(callback); return { dispose: disposed }; };
+  const transform: HostContext["agent"]["transform"] = async (callback) => {
+    await original(callback);
+    return { dispose: disposed };
+  };
   Object.assign(f.ctx.agent, { transform });
-  Object.assign(f.ctx.command!, { transform: async () => { throw new Error("native registration failed"); } });
+  Object.assign(f.ctx.command!, {
+    transform: async () => {
+      throw new Error("native registration failed");
+    },
+  });
   const warnings: string[] = [];
-  await expect(setupBeads(f.ctx, { warn: (message) => warnings.push(message) })).rejects.toThrow("native registration failed");
+  await expect(setupBeads(f.ctx, { warn: (message) => warnings.push(message) })).rejects.toThrow(
+    "native registration failed",
+  );
   expect(warnings.join("\n")).toContain("command-registration-failed");
   expect(disposed).toHaveBeenCalledTimes(1);
 });
@@ -1617,14 +2206,21 @@ test("registered diagnostics reports an embedded store with no native remotes or
   const c = commandFixture(f);
   const bd = mock(async (_directory: string, args: readonly string[]) => {
     if (args.join(" ") === "version") return "bd version 1.3.4";
-    if (args.join(" ") === "context --json") return JSON.stringify({ beads_dir: "/unused/.beads", backend: "dolt", dolt_mode: "embedded" });
-    if (args.join(" ") === "hooks list --json") return JSON.stringify({ hooks: [{ Name: "pre-commit", Installed: false, Version: "", IsShim: false, Outdated: false }] });
+    if (args.join(" ") === "context --json")
+      return JSON.stringify({ beads_dir: "/unused/.beads", backend: "dolt", dolt_mode: "embedded" });
+    if (args.join(" ") === "hooks list --json")
+      return JSON.stringify({
+        hooks: [{ Name: "pre-commit", Installed: false, Version: "", IsShim: false, Outdated: false }],
+      });
     if (args.join(" ") === "--readonly dolt remote list --json --sandbox") return "[]";
     throw new Error("unexpected invocation");
   });
   const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
   try {
-    await c.commands().get("oc-beads:diagnostics")!.execute({ ...c.detailsInvocation, prompt: { ...c.detailsInvocation.prompt, text: "details remote" } });
+    await c
+      .commands()
+      .get("oc-beads:diagnostics")!
+      .execute({ ...c.detailsInvocation, prompt: { ...c.detailsInvocation.prompt, text: "details remote" } });
     const metadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
     const report = metadata.ocBeadsWorkflow.instructions;
     expect(report).toContain("| Git hooks | — | 0/1 installed · 1 missing/unreadable/unresolved |");
@@ -1642,7 +2238,9 @@ test("registered diagnostics reports an embedded store with no native remotes or
       [f.ctx.location.directory, ["hooks", "list", "--json"]],
       [f.ctx.location.directory, ["--readonly", "dolt", "remote", "list", "--json", "--sandbox"]],
     ]);
-  } finally { await cleanup(); }
+  } finally {
+    await cleanup();
+  }
 });
 
 test("registered diagnostics keeps incomplete or ambiguous native target evidence neutral", async () => {
@@ -1654,30 +2252,76 @@ test("registered diagnostics keeps incomplete or ambiguous native target evidenc
   let listing: string | Error;
   const bd = mock(async (_directory: string, args: readonly string[]) => {
     switch (args.join(" ")) {
-      case "version": return "bd version 1.3.4";
-      case "context --json": return JSON.stringify({ beads_dir: "/fixture/.beads", ...context });
-      case "hooks list --json": return '{"hooks":[]}';
+      case "version":
+        return "bd version 1.3.4";
+      case "context --json":
+        return JSON.stringify({ beads_dir: "/fixture/.beads", ...context });
+      case "hooks list --json":
+        return '{"hooks":[]}';
       case "--readonly dolt remote list --json --sandbox":
         if (listing instanceof Error) throw listing;
         return listing;
-      default: throw new Error("unexpected command");
+      default:
+        throw new Error("unexpected command");
     }
   });
   const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
   const embedded = { backend: "dolt", dolt_mode: "embedded" };
-  const server = { backend: "dolt", dolt_mode: "server", server_host: "server-secret.example.invalid", server_port: 3307 };
+  const server = {
+    backend: "dolt",
+    dolt_mode: "server",
+    server_host: "server-secret.example.invalid",
+    server_port: 3307,
+  };
   const cases = [
     { context: server, output: "[]", reason: "empty native listing in server mode" },
-    { context: embedded, output: JSON.stringify([{ ...origin, name: "alternate" }]), reason: "native origin was not listed" },
-    { context: { ...server, ...embedded }, output: JSON.stringify([origin]), reason: "embedded mode conflicts with server endpoint evidence", skipListing: true },
-    { context: { backend: "dolt" }, output: JSON.stringify([origin]), reason: "native Dolt mode was not reported", skipListing: true },
-    { context: { ...embedded, dolt_mode: "unknown-mode" }, output: "[]", reason: "unrecognized native Dolt mode", skipListing: true },
+    {
+      context: embedded,
+      output: JSON.stringify([{ ...origin, name: "alternate" }]),
+      reason: "native origin was not listed",
+    },
+    {
+      context: { ...server, ...embedded },
+      output: JSON.stringify([origin]),
+      reason: "embedded mode conflicts with server endpoint evidence",
+      skipListing: true,
+    },
+    {
+      context: { backend: "dolt" },
+      output: JSON.stringify([origin]),
+      reason: "native Dolt mode was not reported",
+      skipListing: true,
+    },
+    {
+      context: { ...embedded, dolt_mode: "unknown-mode" },
+      output: "[]",
+      reason: "unrecognized native Dolt mode",
+      skipListing: true,
+    },
     { context: { dolt_mode: "embedded" }, output: "[]", reason: "native backend was not reported", skipListing: true },
-    { context: { ...embedded, backend: "unknown-backend" }, output: "[]", reason: "native backend is not Dolt", skipListing: true },
-    { context: { backend: "dolt", dolt_mode: "proxied-server", proxied_dir: "/proxy-secret" }, output: "[]", reason: "proxied-server mode is unsupported", skipListing: true },
-    { context: embedded, output: JSON.stringify([origin, { name: "incomplete" }]), reason: "native listing returned an unsupported response" },
+    {
+      context: { ...embedded, backend: "unknown-backend" },
+      output: "[]",
+      reason: "native backend is not Dolt",
+      skipListing: true,
+    },
+    {
+      context: { backend: "dolt", dolt_mode: "proxied-server", proxied_dir: "/proxy-secret" },
+      output: "[]",
+      reason: "proxied-server mode is unsupported",
+      skipListing: true,
+    },
+    {
+      context: embedded,
+      output: JSON.stringify([origin, { name: "incomplete" }]),
+      reason: "native listing returned an unsupported response",
+    },
     { context: embedded, output: "invalid JSON", reason: "native listing returned an unsupported response" },
-    { context: embedded, output: new PrimeProcessError(1, origin.url, "bd dolt remote list", origin.url), reason: "native listing exited with code 1" },
+    {
+      context: embedded,
+      output: new PrimeProcessError(1, origin.url, "bd dolt remote list", origin.url),
+      reason: "native listing exited with code 1",
+    },
     { context: embedded, output: new PrimeTimeoutError(5, "bd dolt remote list"), reason: "native listing timed out" },
   ];
   try {
@@ -1685,26 +2329,38 @@ test("registered diagnostics keeps incomplete or ambiguous native target evidenc
       context = example.context;
       listing = example.output;
       const start = bd.mock.calls.length;
-      await c.commands().get("oc-beads:diagnostics")!.execute({ ...c.detailsInvocation, prompt: { ...c.detailsInvocation.prompt, text: "details remote" } });
-      const { ocBeadsWorkflow } = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
+      await c
+        .commands()
+        .get("oc-beads:diagnostics")!
+        .execute({ ...c.detailsInvocation, prompt: { ...c.detailsInvocation.prompt, text: "details remote" } });
+      const { ocBeadsWorkflow } = c.prompt.mock.calls.at(-1)![0].metadata as {
+        ocBeadsWorkflow: { instructions: string };
+      };
       const report = ocBeadsWorkflow.instructions;
       expect(report).toContain(`| Sync target | — | Unknown · ${example.reason} |`);
       expect(report).toContain("| Remote history | — | Not checked · No qualified Beads history probe is available |");
       expect(report).toContain("Comparison was not attempted");
       expect(report).not.toMatch(/secret|Check failed|Unresolved|❌ Unhealthy/);
       expect(bd.mock.calls.slice(start).map(([, args]) => args)).toEqual([
-        ["version"], ["context", "--json"], ["hooks", "list", "--json"], ...(example.skipListing ? [] : [remoteList]),
+        ["version"],
+        ["context", "--json"],
+        ["hooks", "list", "--json"],
+        ...(example.skipListing ? [] : [remoteList]),
       ]);
       const details = JSON.parse(report.split("\nDetails: ")[1]!.split("\n")[0]!) as {
         findings: Array<{ id: string; producer: string; meaning: string }>;
       };
       const target = details.findings.find(({ id }) => id === "sync-target");
-      expect(target?.producer).toBe(example.skipListing
-        ? "bd context --json"
-        : "bd --readonly dolt remote list --json --sandbox and bd context --json");
+      expect(target?.producer).toBe(
+        example.skipListing
+          ? "bd context --json"
+          : "bd --readonly dolt remote list --json --sandbox and bd context --json",
+      );
       if (example.skipListing) expect(target?.meaning).toContain("The strict-readonly remote listing was skipped");
     }
-  } finally { await cleanup(); }
+  } finally {
+    await cleanup();
+  }
 });
 
 test("diagnostics reports preceding context version and request instruction counts", async () => {
@@ -1726,21 +2382,30 @@ test("diagnostics reports preceding context version and request instruction coun
     expect(metadata.ocBeadsWorkflow.instructions).toContain("1.3.1");
     expect(metadata.ocBeadsWorkflow.instructions).toContain("1.3.4");
     expect(metadata.ocBeadsWorkflow.instructions).toContain("requestInstructions");
-  } finally { await cleanup(); }
+  } finally {
+    await cleanup();
+  }
 });
-
 
 test("diagnostics captures witness and scoped managed guidance without remote secrets", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "health-diag-"));
   const beads = path.join(root, ".beads");
   await mkdir(beads);
   await writeFile(path.join(beads, ".local_version"), "1.3.1\n");
-  await writeFile(path.join(root, "AGENTS.md"), "<!-- BEGIN BEADS INTEGRATION v:1 profile:full -->body<!-- END BEADS INTEGRATION -->");
+  await writeFile(
+    path.join(root, "AGENTS.md"),
+    "<!-- BEGIN BEADS INTEGRATION v:1 profile:full -->body<!-- END BEADS INTEGRATION -->",
+  );
   const f = fakeContext();
   Object.assign(f.ctx, { location: { directory: root } });
   const c = commandFixture(f);
   Object.assign(f.ctx.session, { get: async () => ({ agent: "build", location: { directory: root } }) });
-  const bd = async (_dir: string, args: readonly string[]) => args[0] === "version" ? "bd 1.3.4" : args[0] === "context" ? JSON.stringify({ beads_dir: beads, cwd_repo_root: root, sync_remote: "https://user:secret@example.invalid" }) : JSON.stringify({ hooks: [] });
+  const bd = async (_dir: string, args: readonly string[]) =>
+    args[0] === "version"
+      ? "bd 1.3.4"
+      : args[0] === "context"
+        ? JSON.stringify({ beads_dir: beads, cwd_repo_root: root, sync_remote: "https://user:secret@example.invalid" })
+        : JSON.stringify({ hooks: [] });
   const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
   try {
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
@@ -1752,24 +2417,41 @@ test("diagnostics captures witness and scoped managed guidance without remote se
     expect(text).not.toContain("secret");
     expect(text).toContain('"sharedSkill":"missing"');
     expect(text).toContain(`PATH: \`${root}\``);
-    expect(JSON.parse(text.split("\nDetails: ")[1]!.split("\n")[0]!).guard.workspace).toEqual({ path: beads, repoRoot: root, remote: true });
+    expect(JSON.parse(text.split("\nDetails: ")[1]!.split("\n")[0]!).guard.workspace).toEqual({
+      path: beads,
+      repoRoot: root,
+      remote: true,
+    });
     await mkdir(path.join(root, ".agents", "skills", "beads"), { recursive: true });
     await writeFile(path.join(root, ".agents", "skills", "beads", "SKILL.md"), "local skill");
     await writeFile(path.join(beads, ".local_version"), "1.3.4\n");
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
-    let latest = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    let latest = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } })
+      .ocBeadsWorkflow.instructions;
     expect(latest).toContain("Recorded 1.3.4 matches running 1.3.4");
     expect(latest).toContain('"sharedSkill":"readable"');
     await rm(path.join(beads, ".local_version"));
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
-    latest = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    latest = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow
+      .instructions;
     expect(latest).toContain("Witness missing");
-  } finally { await cleanup(); await rm(root, { recursive: true, force: true }); }
+  } finally {
+    await cleanup();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("captured diagnostics renders compact hook summary before explicit evidence", async () => {
-  const f = fakeContext(); const c = commandFixture(f);
-  const bd = async (_directory: string, args: readonly string[]) => args[0] === "version" ? "bd 1.3.4" : args[0] === "context" ? '{"beads_dir":"/none"}' : JSON.stringify({ hooks: [{ Name: "pre-commit", Installed: false, Version: "", IsShim: false, Outdated: false }] });
+  const f = fakeContext();
+  const c = commandFixture(f);
+  const bd = async (_directory: string, args: readonly string[]) =>
+    args[0] === "version"
+      ? "bd 1.3.4"
+      : args[0] === "context"
+        ? '{"beads_dir":"/none"}'
+        : JSON.stringify({
+            hooks: [{ Name: "pre-commit", Installed: false, Version: "", IsShim: false, Outdated: false }],
+          });
   const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
   try {
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
@@ -1780,26 +2462,35 @@ test("captured diagnostics renders compact hook summary before explicit evidence
     expect(text.indexOf("0/1 installed")).toBeLessThan(text.indexOf("**Evidence**"));
     expect(JSON.parse(text.split("\nDetails: ")[1]!.split("\n")[0]!).hooks[0].name).toBe("pre-commit");
     expect(text).toContain("bd hooks list");
-  } finally { await cleanup(); }
+  } finally {
+    await cleanup();
+  }
 });
 
 test("native hook failures and installation mismatches stay independent of the sync target", async () => {
-  const f = fakeContext(); const c = commandFixture(f);
+  const f = fakeContext();
+  const c = commandFixture(f);
   let hookOutput = "broken";
   let timedOut = false;
   const calls: string[] = [];
   const bd = async (_directory: string, args: readonly string[]) => {
-    const command = args.join(" "); calls.push(command);
+    const command = args.join(" ");
+    calls.push(command);
     if (command === "version") return "bd 1.3.4";
     if (command === "context --json") return '{"beads_dir":"/none","backend":"dolt","dolt_mode":"embedded"}';
-    if (command === "hooks list --json") { if (timedOut) throw new PrimeTimeoutError(5, "bd hooks list --json"); return hookOutput; }
-    if (command === "--readonly dolt remote list --json --sandbox") return '[{"name":"origin","url":"file:///fixture","status":"ok"}]';
+    if (command === "hooks list --json") {
+      if (timedOut) throw new PrimeTimeoutError(5, "bd hooks list --json");
+      return hookOutput;
+    }
+    if (command === "--readonly dolt remote list --json --sandbox")
+      return '[{"name":"origin","url":"file:///fixture","status":"ok"}]';
     throw new Error("unexpected command");
   };
   const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
   const capture = async () => {
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
-    return (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    return (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow
+      .instructions;
   };
   try {
     const failed = await capture();
@@ -1819,11 +2510,13 @@ test("native hook failures and installation mismatches stay independent of the s
     expect(outdatedShim).toContain("| Git hooks | ⚠️ | 1/1 installed · 1 outdated |");
     expect(outdatedShim).toContain("pre-push: outdated");
     expect(outdatedShim).toContain("Verify with `bd hooks list`.");
-    hookOutput = JSON.stringify({ hooks: [
-      { Name: "pre-commit", Installed: true, Version: "", IsShim: false, Outdated: false },
-      { Name: "post-merge", Installed: true, Version: "1.2.0", IsShim: false, Outdated: true },
-      { Name: "pre-push", Installed: true, Version: "1.3.4", IsShim: true, Outdated: false },
-    ] });
+    hookOutput = JSON.stringify({
+      hooks: [
+        { Name: "pre-commit", Installed: true, Version: "", IsShim: false, Outdated: false },
+        { Name: "post-merge", Installed: true, Version: "1.2.0", IsShim: false, Outdated: true },
+        { Name: "pre-push", Installed: true, Version: "1.3.4", IsShim: true, Outdated: false },
+      ],
+    });
     const report = await capture();
     expect(report).toContain("installed without a reported version");
     expect(report).toContain("outdated");
@@ -1833,8 +2526,12 @@ test("native hook failures and installation mismatches stay independent of the s
     expect(report).toContain("**Plugin** ✅ Healthy");
     expect(report).toContain("**Beads** ⚠️ Mismatch");
     expect(report).not.toMatch(/no.configured.remote|hook execution succeeded/);
-    expect(new Set(calls)).toEqual(new Set(["version", "context --json", "hooks list --json", "--readonly dolt remote list --json --sandbox"]));
-  } finally { await cleanup(); }
+    expect(new Set(calls)).toEqual(
+      new Set(["version", "context --json", "hooks list --json", "--readonly dolt remote list --json --sandbox"]),
+    );
+  } finally {
+    await cleanup();
+  }
 });
 
 test("diagnostics identifies incomplete root guidance and a missing shared skill", async () => {
@@ -1842,11 +2539,17 @@ test("diagnostics identifies incomplete root guidance and a missing shared skill
   const f = fakeContext({ directory: root });
   const c = commandFixture(f);
   Object.assign(f.ctx.session, { get: async () => ({ agent: "build", location: { directory: root } }) });
-  const bd = async (_directory: string, args: readonly string[]) => args[0] === "version" ? "bd 1.3.4" : args[0] === "context" ? JSON.stringify({ beads_dir: path.join(root, ".beads"), cwd_repo_root: root }) : '{"hooks":[]}';
+  const bd = async (_directory: string, args: readonly string[]) =>
+    args[0] === "version"
+      ? "bd 1.3.4"
+      : args[0] === "context"
+        ? JSON.stringify({ beads_dir: path.join(root, ".beads"), cwd_repo_root: root })
+        : '{"hooks":[]}';
   const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
   const capture = async () => {
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
-    return (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    return (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow
+      .instructions;
   };
   try {
     await mkdir(path.join(root, "AGENTS.md"));
@@ -1856,60 +2559,110 @@ test("diagnostics identifies incomplete root guidance and a missing shared skill
     expect(report.split("\nDetails: ")[0]).toContain("shared: absent");
     expect(report).toContain("not a plugin failure");
     let details = JSON.parse(report.split("\nDetails: ")[1]!.split("\n")[0]!);
-    expect(details.findings.find((finding: { id: string }) => finding.id === "shared-skill-missing").class).toBe("note");
+    expect(details.findings.find((finding: { id: string }) => finding.id === "shared-skill-missing").class).toBe(
+      "note",
+    );
     await mkdir(path.join(root, ".agents", "skills", "beads", "SKILL.md"), { recursive: true });
     report = await capture();
     expect(report.split("\nDetails: ")[0]).toContain("shared: unreadable");
     details = JSON.parse(report.split("\nDetails: ")[1]!.split("\n")[0]!);
-    expect(details.findings.find((finding: { id: string }) => finding.id === "shared-skill-unreadable").class).toBe("failed");
+    expect(details.findings.find((finding: { id: string }) => finding.id === "shared-skill-unreadable").class).toBe(
+      "failed",
+    );
     await rm(path.join(root, "AGENTS.md"), { recursive: true });
     await writeFile(path.join(root, "AGENTS.md"), "x".repeat(65_537));
     report = await capture();
     expect(report.split("\nDetails: ")[0]).toContain("truncated");
     expect(report).toContain("last-request");
-  } finally { await cleanup(); await rm(root, { recursive: true, force: true }); }
+  } finally {
+    await cleanup();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("diagnostics withholds hook observation when session location is unconfirmed", async () => {
-  const f = fakeContext(); const c = commandFixture(f);
-  Object.assign(f.ctx.session, { get: async () => { throw new Error("session lookup failed"); } });
-  const bd = mock(async (_directory: string, _args: readonly string[]) => { throw new Error("unexpected native collection"); });
+  const f = fakeContext();
+  const c = commandFixture(f);
+  Object.assign(f.ctx.session, {
+    get: async () => {
+      throw new Error("session lookup failed");
+    },
+  });
+  const bd = mock(async (_directory: string, _args: readonly string[]) => {
+    throw new Error("unexpected native collection");
+  });
   const cleanup = await setupBeads(f.ctx, { bd, warn: () => {} });
   try {
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
-    const instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    const instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } })
+      .ocBeadsWorkflow.instructions;
     const snapshot = JSON.parse(instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
     const hookFinding = snapshot.findings.find((finding: { id: string }) => finding.id === "hooks-unavailable");
     expect(hookFinding.class).toBe("unknown");
     expect(hookFinding.observation).toContain("withheld: session location unconfirmed");
     expect(instructions.split("\nDetails: ")[0]).not.toContain("[failed] beads / bd hooks list");
     expect(bd).not.toHaveBeenCalled();
-  } finally { await cleanup(); }
+  } finally {
+    await cleanup();
+  }
 });
-
 
 test("diagnostics groups repeated hooks while retaining other findings and exact native evidence", () => {
   const names = ["pre-commit", "post-merge", "pre-push", "post-checkout", "prepare-commit-msg"];
   const missing = names.map((name) => ({ name, installed: false, version: "", shim: false, outdated: false }));
   const shims = names.map((name) => ({ name, installed: true, version: "1.3.4", shim: true, outdated: false }));
-  const base = { plugin: { name: "fixture", version: "1" }, host: "2.3.0", context: "ready", guard: { kind: "ready", version: "1.3.4" } };
+  const base = {
+    plugin: { name: "fixture", version: "1" },
+    host: "2.3.0",
+    context: "ready",
+    guard: { kind: "ready", version: "1.3.4" },
+  };
   for (const hooks of [missing, shims]) {
-    const snapshot = { ...base, hooks, local: { witness: { state: "differ", recorded: "1.3.1", running: "1.3.4" }, managedInstructions: { state: "available", full: 0 }, sharedSkill: "readable" }, contextObservation: { version: "1.3.1", loadedAt: 1000 } };
+    const snapshot = {
+      ...base,
+      hooks,
+      local: {
+        witness: { state: "differ", recorded: "1.3.1", running: "1.3.4" },
+        managedInstructions: { state: "available", full: 0 },
+        sharedSkill: "readable",
+      },
+      contextObservation: { version: "1.3.1", loadedAt: 1000 },
+    };
     const report = renderHealthReport(snapshot, 2000, true);
     const [summary, details] = report.split("\nDetails: ");
     expect(summary).toContain("1.3.1 ≠ CLI 1.3.4");
     expect(summary).toContain("| Context | ⚠️ | Loaded under bd 1.3.1 |");
     const captured = JSON.parse(details!);
     expect(captured.hooks).toEqual(hooks);
-    expect(captured.findings.filter((finding: { producer: string }) => finding.producer === "bd hooks list")).toHaveLength(1);
-    expect(report).toContain("https://github.com/gastownhall/beads/blob/7ef2fd05eb0cd3bdbde051f93cfc14ccf270cdde/docs/getting-started/upgrading.md");
+    expect(
+      captured.findings.filter((finding: { producer: string }) => finding.producer === "bd hooks list"),
+    ).toHaveLength(1);
+    expect(report).toContain(
+      "https://github.com/gastownhall/beads/blob/7ef2fd05eb0cd3bdbde051f93cfc14ccf270cdde/docs/getting-started/upgrading.md",
+    );
   }
 });
 
 test("diagnostic duplicate findings preserve root and last-request provenance", () => {
   const requestAt = 1700000000000;
   const captureAt = 1700000060000;
-  const report = renderHealthReport({ plugin: {}, host: "2.3.0", context: "ready", guard: { kind: "ready" }, hooks: [], local: { scope: "context cwd_repo_root", managedInstructions: { state: "available", full: 2 }, sharedSkill: "readable" }, requestInstructions: { at: requestAt, full: 2, retained: 1 } }, captureAt, true);
+  const report = renderHealthReport(
+    {
+      plugin: {},
+      host: "2.3.0",
+      context: "ready",
+      guard: { kind: "ready" },
+      hooks: [],
+      local: {
+        scope: "context cwd_repo_root",
+        managedInstructions: { state: "available", full: 2 },
+        sharedSkill: "readable",
+      },
+      requestInstructions: { at: requestAt, full: 2, retained: 1 },
+    },
+    captureAt,
+    true,
+  );
   const captured = JSON.parse(report.split("\nDetails: ")[1]!);
   const root = captured.findings.find((f: { id: string }) => f.id === "duplicate-full");
   const request = captured.findings.find((f: { id: string }) => f.id === "request-full-duplicates");
@@ -1921,42 +2674,93 @@ test("diagnostic duplicate findings preserve root and last-request provenance", 
 });
 
 test("witness guidance links the pinned release guide", () => {
-  const report = renderHealthReport({ plugin: {}, host: "2.3.0", context: "ready", guard: { kind: "ready" }, hooks: [], local: { witness: { state: "differ", recorded: "1.3.1", running: "1.3.4" } } }, 0, true);
-  expect(report).toContain("https://github.com/gastownhall/beads/blob/7ef2fd05eb0cd3bdbde051f93cfc14ccf270cdde/docs/getting-started/upgrading.md");
+  const report = renderHealthReport(
+    {
+      plugin: {},
+      host: "2.3.0",
+      context: "ready",
+      guard: { kind: "ready" },
+      hooks: [],
+      local: { witness: { state: "differ", recorded: "1.3.1", running: "1.3.4" } },
+    },
+    0,
+    true,
+  );
+  expect(report).toContain(
+    "https://github.com/gastownhall/beads/blob/7ef2fd05eb0cd3bdbde051f93cfc14ccf270cdde/docs/getting-started/upgrading.md",
+  );
 });
 
 test("registered diagnostics uses the last request time for duplicate guidance", async () => {
-  const f = fakeContext(); const c = commandFixture(f);
+  const f = fakeContext();
+  const c = commandFixture(f);
   let now = 1_700_000_000_000;
-  const cleanup = await setupBeads(f.ctx, { now: () => now, warn: () => {}, runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "BODY" } });
+  const cleanup = await setupBeads(f.ctx, {
+    now: () => now,
+    warn: () => {},
+    runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "BODY" },
+  });
   try {
     const block = "<!-- BEGIN BEADS INTEGRATION v:1 profile:full -->BODY<!-- END BEADS INTEGRATION -->";
-    const event: ContextEvent = { sessionID: "s1", agent: "build", system: [{ type: "text", text: `${block}\n${block}` }] };
+    const event: ContextEvent = {
+      sessionID: "s1",
+      agent: "build",
+      system: [{ type: "text", text: `${block}\n${block}` }],
+    };
     await f.hooks.get("context")!(event);
     const observedAt = now;
     now += 60_000;
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
-    const instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    const instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } })
+      .ocBeadsWorkflow.instructions;
     const report = JSON.parse(instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
     const finding = report.findings.find((item: { id: string }) => item.id === "request-full-duplicates");
     expect(finding.scope).toBe("last observed request");
     expect(finding.observedAt).toBe(new Date(observedAt).toISOString());
     expect(report.requestInstructions.at).toBe(observedAt);
-  } finally { await cleanup(); }
+  } finally {
+    await cleanup();
+  }
 });
 
 /** Fixed observed fields shared by the representative compact-presentation cases. */
 function presentationFixture() {
   return {
-    plugin: { name: "@snarkipus/opencode-beads", version: "2.2.1" }, host: "2.3.0",
-    commands: { registration: "registered", lookup: "available", truncated: true, membershipTruncated: false, expectedCount: 30, effective: [], missing: [], mismatches: [] },
-    skill: { effective: ["oc-beads"], collision: "none detected" }, typedContinuity: "enabled: qualified beta registration", typedRegistration: "registered: beads namespace, code-mode-only",
-    requestCapability: { agent: "build", capabilities: { execute: true } }, context: "ready", contextObservation: { status: "ready", version: "1.3.4", loadedAt: 1000 },
+    plugin: { name: "@snarkipus/opencode-beads", version: "2.2.1" },
+    host: "2.3.0",
+    commands: {
+      registration: "registered",
+      lookup: "available",
+      truncated: true,
+      membershipTruncated: false,
+      expectedCount: 30,
+      effective: [],
+      missing: [],
+      mismatches: [],
+    },
+    skill: { effective: ["oc-beads"], collision: "none detected" },
+    typedContinuity: "enabled: qualified beta registration",
+    typedRegistration: "registered: beads namespace, code-mode-only",
+    requestCapability: { agent: "build", capabilities: { execute: true } },
+    context: "ready",
+    contextObservation: { status: "ready", version: "1.3.4", loadedAt: 1000 },
     guard: { kind: "ready", version: "1.3.4", workspace: { path: "/fixture/.beads", repoRoot: "/fixture" } },
-    local: { scope: "context cwd_repo_root", managedInstructions: { state: "available", full: 1, minimal: 0, codex: 1 }, sharedSkill: "missing", witness: { state: "match", recorded: "1.3.4", running: "1.3.4" } },
-    hooks: ["pre-commit", "post-merge", "pre-push", "post-checkout", "prepare-commit-msg"].map((name) => ({ name, installed: true, shim: true, outdated: false, version: "1.3.4" })),
+    local: {
+      scope: "context cwd_repo_root",
+      managedInstructions: { state: "available", full: 1, minimal: 0, codex: 1 },
+      sharedSkill: "missing",
+      witness: { state: "match", recorded: "1.3.4", running: "1.3.4" },
+    },
+    hooks: ["pre-commit", "post-merge", "pre-push", "post-checkout", "prepare-commit-msg"].map((name) => ({
+      name,
+      installed: true,
+      shim: true,
+      outdated: false,
+      version: "1.3.4",
+    })),
     syncTarget: { state: "resolved", name: "origin" },
-    requestInstructions: { at: 1000, full: 1, minimal: 0, codex: 1, replaced: 1, retained: 1 }, persistence: "uncertain: no final-write guarantee",
+    requestInstructions: { at: 1000, full: 1, minimal: 0, codex: 1, replaced: 1, retained: 1 },
+    persistence: "uncertain: no final-write guarantee",
   };
 }
 
@@ -1971,7 +2775,8 @@ test("command observations suggest reviewing customization only for complete mis
     { commands: { ...ready.commands, membershipTruncated: true, missing: ["oc-beads:show"] }, expected: false },
     { commands: { ...ready.commands, missing: undefined }, expected: false },
   ];
-  for (const c of cases) expect(renderHealthReport({ ...ready, commands: c.commands }, 2000).includes(hint)).toBe(c.expected);
+  for (const c of cases)
+    expect(renderHealthReport({ ...ready, commands: c.commands }, 2000).includes(hint)).toBe(c.expected);
 });
 
 test("normal diagnostics uses compact tables and assessed severity with literal coverage", () => {
@@ -2014,8 +2819,19 @@ Remote history not checked.
   expect(report).toContain("| Check | Status | Value |");
   expect(report).toContain("| Recorded bd version | ✅ | 1.3.4 = CLI |");
   expect(report).not.toMatch(/partial|Request instructions|Codex|descriptions/i);
-  expect(report).not.toMatch(/Details:|Limits:|does not establish|model-mediated|unique build|liveQualification|no final-write guarantee|remote freshness/i);
-  const first = renderHealthReport({ ...ready, context: "unobserved: no cached context", contextObservation: undefined, requestInstructions: "unobserved", requestCapability: undefined }, 2000);
+  expect(report).not.toMatch(
+    /Details:|Limits:|does not establish|model-mediated|unique build|liveQualification|no final-write guarantee|remote freshness/i,
+  );
+  const first = renderHealthReport(
+    {
+      ...ready,
+      context: "unobserved: no cached context",
+      contextObservation: undefined,
+      requestInstructions: "unobserved",
+      requestCapability: undefined,
+    },
+    2000,
+  );
   expect(first).toBe(`## Beads diagnostics — ✅ Healthy
 
 DATE: \`1970-01-01T00:00:02.000Z\`
@@ -2051,8 +2867,13 @@ Remote history not checked.
   expect(first).toContain("✅ Healthy");
   const unreadableSkill = renderHealthReport({ ...ready, local: { ...ready.local, sharedSkill: "unreadable" } }, 2000);
   expect(unreadableSkill).toContain("| Skill | — | oc-beads active · shared: unreadable |");
-  expect(renderHealthReport({ ...ready, local: { ...ready.local, scope: "confirmed session directory" } }, 2000)).toContain("| AGENTS Configured | ✅ | bd block |");
-  const vps = renderHealthReport({ ...ready, hooks: ready.hooks.map((h) => ({ ...h, installed: false, shim: false, version: "" })) }, 2000);
+  expect(
+    renderHealthReport({ ...ready, local: { ...ready.local, scope: "confirmed session directory" } }, 2000),
+  ).toContain("| AGENTS Configured | ✅ | bd block |");
+  const vps = renderHealthReport(
+    { ...ready, hooks: ready.hooks.map((h) => ({ ...h, installed: false, shim: false, version: "" })) },
+    2000,
+  );
   expect(vps).toBe(`## Beads diagnostics — ✅ Healthy
 
 DATE: \`1970-01-01T00:00:02.000Z\`
@@ -2084,7 +2905,16 @@ Remote history not checked.
 | Git hooks | — | 0/5 installed · 5 missing/unreadable/unresolved |
 | Sync target | ✅ | Resolved · origin |
 | Remote history | — | Not checked |`);
-  const incompatible = renderHealthReport({ ...ready, guard: { kind: "unsupported", installed: "1.3.0" }, context: "withheld", hooks: "failed: unsupported", syncTarget: undefined }, 2000);
+  const incompatible = renderHealthReport(
+    {
+      ...ready,
+      guard: { kind: "unsupported", installed: "1.3.0" },
+      context: "withheld",
+      hooks: "failed: unsupported",
+      syncTarget: undefined,
+    },
+    2000,
+  );
   expect(incompatible).toBe(`## Beads diagnostics — ❌ Unhealthy
 
 DATE: \`1970-01-01T00:00:02.000Z\`
@@ -2131,11 +2961,28 @@ bd CLI unavailable or below the supported minimum. Remote history not checked.
 
 test("normal command membership, witness and write uncertainty keep distinct severity", () => {
   const ready = presentationFixture();
-  const partial = renderHealthReport({ ...ready, commands: { ...ready.commands, membershipTruncated: true, missing: undefined } }, 2000);
+  const partial = renderHealthReport(
+    { ...ready, commands: { ...ready.commands, membershipTruncated: true, missing: undefined } },
+    2000,
+  );
   expect(partial).toContain("| Commands | — | list incomplete |");
-  const partialChanged = renderHealthReport({ ...ready, commands: { ...ready.commands, membershipTruncated: true, missing: undefined, mismatches: [{ name: "oc-beads:show" }] } }, 2000);
+  const partialChanged = renderHealthReport(
+    {
+      ...ready,
+      commands: {
+        ...ready.commands,
+        membershipTruncated: true,
+        missing: undefined,
+        mismatches: [{ name: "oc-beads:show" }],
+      },
+    },
+    2000,
+  );
   expect(partialChanged).toContain("| Commands | — | list incomplete · 1 changed |");
-  const differs = renderHealthReport({ ...ready, local: { ...ready.local, witness: { state: "differ", recorded: "1.3.1", running: "1.3.4" } } }, 2000);
+  const differs = renderHealthReport(
+    { ...ready, local: { ...ready.local, witness: { state: "differ", recorded: "1.3.1", running: "1.3.4" } } },
+    2000,
+  );
   expect(differs).toContain("| Recorded bd version | ⚠️ | 1.3.1 ≠ CLI 1.3.4 |");
   expect(differs).not.toContain("❌ Unhealthy");
   const gap = renderHealthReport({ ...ready, persistence: "update task-1: uncertain; readback required" }, 2000);
@@ -2144,21 +2991,37 @@ test("normal command membership, witness and write uncertainty keep distinct sev
 });
 
 test("registered diagnostics handles exact selectors locally and replays captured output once", async () => {
-  const f = fakeContext(); const c = commandFixture(f);
+  const f = fakeContext();
+  const c = commandFixture(f);
   const bd = mock(async (_directory: string, args: readonly string[]) => {
     switch (args.join(" ")) {
-      case "version": return "bd version 1.3.4";
-      case "context --json": return '{"beads_dir":"/fixture/.beads","backend":"dolt","dolt_mode":"server","server_port":3307}';
-      case "hooks list --json": return '{"hooks":[]}';
+      case "version":
+        return "bd version 1.3.4";
+      case "context --json":
+        return '{"beads_dir":"/fixture/.beads","backend":"dolt","dolt_mode":"server","server_port":3307}';
+      case "hooks list --json":
+        return '{"hooks":[]}';
       case "--readonly dolt remote list --json --sandbox":
         return '[{"name":"origin","url":"https://user:remote-secret@example.invalid","sql_url":"https://sql-secret.example.invalid","cli_url":"https://cli-secret.example.invalid","status":"ok"}]';
-      default: throw new Error("unexpected command");
+      default:
+        throw new Error("unexpected command");
     }
   });
   const prime = mock(async () => "PRIME INCLUDING MEMORY");
   const cleanup = await setupBeads(f.ctx, { bd, now: () => 2000, warn: () => {}, runPrime: prime });
   try {
-    for (const text of ["", " DeTaIlS ", " ReMoTe ", " DeTaIlS ReMoTe\n", "remote please", "remote details", "details  remote", " HeLp ", "help me", "help\n"]) {
+    for (const text of [
+      "",
+      " DeTaIlS ",
+      " ReMoTe ",
+      " DeTaIlS ReMoTe\n",
+      "remote please",
+      "remote details",
+      "details  remote",
+      " HeLp ",
+      "help me",
+      "help\n",
+    ]) {
       const input = { ...c.invocation, prompt: { ...c.invocation.prompt, text } };
       const beforeCalls = bd.mock.calls.length;
       await c.commands().get("oc-beads:diagnostics")!.execute(input);
@@ -2166,7 +3029,9 @@ test("registered diagnostics handles exact selectors locally and replays capture
       const snapshot = (sent.metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow;
       const selector = text.trim().toLowerCase();
       expect(snapshot.instructions.includes("Details: ")).toBe(selector === "details" || selector === "details remote");
-      const framedReport = snapshot.instructions.split("\nBEGIN_DIAGNOSTIC_REPORT\n")[1]?.split("\nEND_DIAGNOSTIC_REPORT\n")[0];
+      const framedReport = snapshot.instructions
+        .split("\nBEGIN_DIAGNOSTIC_REPORT\n")[1]
+        ?.split("\nEND_DIAGNOSTIC_REPORT\n")[0];
       expect(framedReport).toBeDefined();
       expect(snapshot.instructions).toEndWith("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n");
       if (selector === "help") {
@@ -2181,7 +3046,9 @@ test("registered diagnostics handles exact selectors locally and replays capture
         ]);
         expect(framedReport).toContain("| Sync target | ✅ | Resolved · origin |");
         expect(framedReport).toContain("| Remote history | — | Not checked");
-        expect(framedReport!.includes("No qualified Beads history probe is available")).toBe(selector === "remote" || selector === "details remote");
+        expect(framedReport!.includes("No qualified Beads history probe is available")).toBe(
+          selector === "remote" || selector === "details remote",
+        );
         expect(snapshot.instructions).not.toMatch(/secret|Check failed|cannot resolve|no.configured.remote/);
       }
       expect(sent.text).toBe(`/oc-beads:diagnostics${text ? `${/[\r\n]/.test(text) ? "\n" : " "}${text}` : ""}`);
@@ -2193,10 +3060,17 @@ test("registered diagnostics handles exact selectors locally and replays capture
         expect(prime).toHaveBeenCalledWith(f.ctx.location.directory, ["--full"]);
       }
       const count = bd.mock.calls.length;
-      const stored = storedUserMessage("presented", String(sent.text), { ocBeadsWorkflow: { version: 1, ...snapshot } });
+      const stored = storedUserMessage("presented", String(sent.text), {
+        ocBeadsWorkflow: { version: 1, ...snapshot },
+      });
       Object.assign(f.ctx.session, { context: async () => [stored] });
       for (const kind of ["context", "compaction"]) {
-        const event: ContextEvent = { sessionID: "s1", agent: "build", system: [], messages: [Message.make({ id: stored.id, role: "user", content: String(sent.text) })] };
+        const event: ContextEvent = {
+          sessionID: "s1",
+          agent: "build",
+          system: [],
+          messages: [Message.make({ id: stored.id, role: "user", content: String(sent.text) })],
+        };
         await f.hooks.get(kind)!(event);
         expect(event.messages![0]!.content[0]).toEqual(Message.text(snapshot.instructions));
         expect(event.messages![0]!.content[1]).toEqual(Message.text(String(sent.text)));
@@ -2206,17 +3080,25 @@ test("registered diagnostics handles exact selectors locally and replays capture
       }
       expect(bd.mock.calls.length).toBe(count);
     }
-  } finally { await cleanup(); }
+  } finally {
+    await cleanup();
+  }
 });
 
 test("registered command completeness separates membership truncation from description clipping", async () => {
-  const f = fakeContext(); const c = commandFixture(f);
-  const cleanup = await setupBeads(f.ctx, { bd: async () => '{"hooks":[]}', warn: () => {}, runtime: { guard: async () => ({ kind: "ready" }) } });
+  const f = fakeContext();
+  const c = commandFixture(f);
+  const cleanup = await setupBeads(f.ctx, {
+    bd: async () => '{"hooks":[]}',
+    warn: () => {},
+    runtime: { guard: async () => ({ kind: "ready" }) },
+  });
   try {
     const owned = c.commands().get("oc-beads:ready")!;
     c.callbacks.push((editor) => editor.add({ ...owned, description: "x".repeat(600) }));
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
-    let instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    let instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } })
+      .ocBeadsWorkflow.instructions;
     let report = JSON.parse(instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
     expect(report.commands.truncated).toBe(true);
     expect(report.commands.membershipTruncated).toBe(false);
@@ -2224,84 +3106,165 @@ test("registered command completeness separates membership truncation from descr
     expect(instructions).toContain("| Commands | ✅ | 30/30 present |");
     c.callbacks.push((editor) => editor.add({ ...owned, description: "custom changed" }));
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
-    instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } })
+      .ocBeadsWorkflow.instructions;
     expect(instructions).toContain("| Commands | ⚠️ | 30/30 · 1 changed |");
-    c.callbacks.push((editor) => { for (let i = 0; i < 130; i++) editor.add({ name: `custom-${i}`, description: "custom", execute: async () => {} }); });
+    c.callbacks.push((editor) => {
+      for (let i = 0; i < 130; i++) editor.add({ name: `custom-${i}`, description: "custom", execute: async () => {} });
+    });
     await c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
-    instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow.instructions;
+    instructions = (c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } })
+      .ocBeadsWorkflow.instructions;
     report = JSON.parse(instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
     expect(report.commands.membershipTruncated).toBe(true);
     expect(instructions).toContain("| Commands | — | list incomplete · 1 changed |");
-  } finally { await cleanup(); }
+  } finally {
+    await cleanup();
+  }
 });
-
 
 test("AGENTS Configured recognizes markers while unknown guidance stays neutral", () => {
   const ready = presentationFixture();
   for (const managedInstructions of [
     { state: "available", full: 0, minimal: 0, codex: 0 },
-    { state: "missing" }, { state: "unreadable" }, { state: "truncated" },
+    { state: "missing" },
+    { state: "unreadable" },
+    { state: "truncated" },
   ]) {
     const report = renderHealthReport({ ...ready, local: { ...ready.local, managedInstructions } }, 2000);
     expect(report).toContain("| AGENTS Configured | — |");
     expect(report).not.toMatch(/partial|Request instructions|full ·|Codex/);
   }
-  for (const counts of [{ full: 0, minimal: 1, codex: 0 }, { full: 0, minimal: 0, codex: 1 }]) {
-    expect(renderHealthReport({ ...ready, local: { ...ready.local, managedInstructions: { state: "available", ...counts } } }, 2000)).toContain("| AGENTS Configured | ✅ | bd block |");
+  for (const counts of [
+    { full: 0, minimal: 1, codex: 0 },
+    { full: 0, minimal: 0, codex: 1 },
+  ]) {
+    expect(
+      renderHealthReport(
+        { ...ready, local: { ...ready.local, managedInstructions: { state: "available", ...counts } } },
+        2000,
+      ),
+    ).toContain("| AGENTS Configured | ✅ | bd block |");
   }
-  expect(renderHealthReport({ ...ready, local: { ...ready.local, managedInstructions: { state: "available", full: 2 } } }, 2000)).toContain("| AGENTS Configured | ⚠️ | duplicate bd blocks |");
-  const unrecognized = renderHealthReport({ ...ready, hooks: [{ name: "pre-commit", installed: true, version: "", shim: false, outdated: false }] }, 2000);
+  expect(
+    renderHealthReport(
+      { ...ready, local: { ...ready.local, managedInstructions: { state: "available", full: 2 } } },
+      2000,
+    ),
+  ).toContain("| AGENTS Configured | ⚠️ | duplicate bd blocks |");
+  const unrecognized = renderHealthReport(
+    { ...ready, hooks: [{ name: "pre-commit", installed: true, version: "", shim: false, outdated: false }] },
+    2000,
+  );
   expect(unrecognized).toContain("1 unrecognized");
   expect(unrecognized).not.toContain("not bd");
 });
 
 test("command names remain measurable without hiding missing or changed entries", () => {
   const ready = presentationFixture();
-  expect(renderHealthReport({ ...ready, commands: { ...ready.commands, missing: ["oc-beads:ready"], mismatches: [{ name: "oc-beads:show" }] } }, 2000)).toContain("| Commands | ⚠️ | 29/30 · 1 missing · 1 changed |");
-  expect(renderHealthReport({ ...ready, commands: { ...ready.commands, lookup: "failed" } }, 2000)).toContain("| Commands | — | not observed |");
+  expect(
+    renderHealthReport(
+      {
+        ...ready,
+        commands: { ...ready.commands, missing: ["oc-beads:ready"], mismatches: [{ name: "oc-beads:show" }] },
+      },
+      2000,
+    ),
+  ).toContain("| Commands | ⚠️ | 29/30 · 1 missing · 1 changed |");
+  expect(renderHealthReport({ ...ready, commands: { ...ready.commands, lookup: "failed" } }, 2000)).toContain(
+    "| Commands | — | not observed |",
+  );
   const details = renderHealthReport(ready, 2000, true);
   expect(details).toContain('"requestInstructions":{"at":1000');
   expect(details).toContain('"truncated":true');
-  for (const row of renderHealthReport({ ...ready, persistence: "update unresolved" }, 2000).split("\n").filter(line => line.startsWith("| ") && !line.startsWith("| Check"))) {
+  for (const row of renderHealthReport({ ...ready, persistence: "update unresolved" }, 2000)
+    .split("\n")
+    .filter((line) => line.startsWith("| ") && !line.startsWith("| Check"))) {
     expect(diagnosticPresentation.DIAGNOSTICS_HELP).toContain(row.split(" | ")[0]!.slice(2));
   }
 });
 
-
 test("diagnostic header metadata uses observed root and exact code-populated values", () => {
   const fixture = presentationFixture();
   const report = renderHealthReport(fixture, 2000);
-  expect(report).toStartWith("## Beads diagnostics — ✅ Healthy\n\nDATE: `1970-01-01T00:00:02.000Z`\n\nVERSION: @snarkipus/opencode-beads `2.2.1`\n\nPATH: `/fixture`\n\nRemote history not checked.\n\n**Plugin**");
+  expect(report).toStartWith(
+    "## Beads diagnostics — ✅ Healthy\n\nDATE: `1970-01-01T00:00:02.000Z`\n\nVERSION: @snarkipus/opencode-beads `2.2.1`\n\nPATH: `/fixture`\n\nRemote history not checked.\n\n**Plugin**",
+  );
   expect(report.match(/DATE:/g)).toHaveLength(1);
   expect(report.match(/VERSION:/g)).toHaveLength(1);
   expect(report.match(/PATH:/g)).toHaveLength(1);
   expect(report).not.toContain("/fixture/.beads");
-  const missingRoot = renderHealthReport({ ...fixture, guard: { ...fixture.guard, workspace: { path: "/fixture/.beads" } } }, 2000, true);
+  const missingRoot = renderHealthReport(
+    { ...fixture, guard: { ...fixture.guard, workspace: { path: "/fixture/.beads" } } },
+    2000,
+    true,
+  );
   expect(missingRoot).toContain("PATH: `not observed`");
   expect(missingRoot).toContain('"path":"/fixture/.beads"');
-  expect(renderHealthReport({ ...fixture, guard: { ...fixture.guard, workspace: { path: "/different/.beads", repoRoot: "/observed/root/" } } }, 2000)).toContain("PATH: `/observed/root/`");
-  const mismatch = renderHealthReport({ ...fixture, hooks: fixture.hooks.map(hook => ({ ...hook, shim: false, outdated: true })) }, 2000);
+  expect(
+    renderHealthReport(
+      {
+        ...fixture,
+        guard: { ...fixture.guard, workspace: { path: "/different/.beads", repoRoot: "/observed/root/" } },
+      },
+      2000,
+    ),
+  ).toContain("PATH: `/observed/root/`");
+  const mismatch = renderHealthReport(
+    { ...fixture, hooks: fixture.hooks.map((hook) => ({ ...hook, shim: false, outdated: true })) },
+    2000,
+  );
   expect(mismatch.indexOf("PATH:")).toBeLessThan(mismatch.indexOf("Git hooks need attention."));
 });
 
 test("actual Chat serializer keeps a registered diagnostic report separated from its invocation", async () => {
-  const f = fakeContext(); const c = commandFixture(f);
-  const cleanup = await setupBeads(f.ctx, { bd: async () => '{"hooks":[]}', now: () => 2000, warn: () => {}, runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" } });
+  const f = fakeContext();
+  const c = commandFixture(f);
+  const cleanup = await setupBeads(f.ctx, {
+    bd: async () => '{"hooks":[]}',
+    now: () => 2000,
+    warn: () => {},
+    runtime: { guard: async () => ({ kind: "ready" }), prime: async () => "PRIME" },
+  });
   try {
-    await c.commands().get("oc-beads:diagnostics")!.execute({ ...c.invocation, prompt: { ...c.invocation.prompt, text: "" } });
+    await c
+      .commands()
+      .get("oc-beads:diagnostics")!
+      .execute({ ...c.invocation, prompt: { ...c.invocation.prompt, text: "" } });
     const sent = c.prompt.mock.calls.at(-1)![0];
     const snapshot = (sent.metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow;
-    const stored = storedUserMessage("serialized-diagnostic", String(sent.text), sent.metadata as StoredUserMessage["metadata"]);
+    const stored = storedUserMessage(
+      "serialized-diagnostic",
+      String(sent.text),
+      sent.metadata as StoredUserMessage["metadata"],
+    );
     Object.assign(f.ctx.session, { context: async () => [stored] });
-    const event: ContextEvent = { sessionID: "s1", agent: "build", system: [], messages: [Message.make({ id: stored.id, role: "user", content: String(sent.text) })] };
+    const event: ContextEvent = {
+      sessionID: "s1",
+      agent: "build",
+      system: [],
+      messages: [Message.make({ id: stored.id, role: "user", content: String(sent.text) })],
+    };
     await f.hooks.get("context")!(event);
-    const body = await Effect.runPromise(serializeChatRequest({
-      model: { id: "fixture-no-network", provider: "openai", route: { endpoint: { baseURL: "https://fixture.invalid/v1" } }, capabilities: {}, compatibility: {} },
-      system: [], messages: event.messages, tools: [],
-    } as unknown as Parameters<typeof serializeChatRequest>[0]));
-    const content = body.messages.find(message => message.role === "user")?.content;
+    const body = await Effect.runPromise(
+      serializeChatRequest({
+        model: {
+          id: "fixture-no-network",
+          provider: "openai",
+          route: { endpoint: { baseURL: "https://fixture.invalid/v1" } },
+          capabilities: {},
+          compatibility: {},
+        },
+        system: [],
+        messages: event.messages,
+        tools: [],
+      } as unknown as Parameters<typeof serializeChatRequest>[0]),
+    );
+    const content = body.messages.find((message) => message.role === "user")?.content;
     expect(content).toContain("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n/oc-beads:diagnostics");
     expect(content).toBe(`${snapshot.instructions}${String(sent.text)}`);
     expect(content).not.toContain("`/oc-beads:diagnostics");
-  } finally { await cleanup(); }
+  } finally {
+    await cleanup();
+  }
 });

@@ -84,8 +84,15 @@ with tempfile.TemporaryDirectory(prefix="ci-notify-test-") as directory:
         assert len(calls) == 1
 print("NOTIFIER_OFFLINE_PASS")
 `;
-  const child = Bun.spawn([process.platform === "win32" ? "python" : "python3", "-c", program], { stdout: "pipe", stderr: "pipe" });
-  const [code, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+  const child = Bun.spawn([process.platform === "win32" ? "python" : "python3", "-c", program], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [code, stdout, stderr] = await Promise.all([
+    child.exited,
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+  ]);
   expect(code, stderr).toBe(0);
   expect(stdout).toContain("NOTIFIER_OFFLINE_PASS");
   expect(stdout + stderr).not.toContain("fixture-not-real");

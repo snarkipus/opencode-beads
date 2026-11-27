@@ -1,10 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import {
-  checkBeadsStore,
-  guardNotice,
-  parseVersion,
-  type GuardRuntime,
-} from "../src/guard";
+import { checkBeadsStore, guardNotice, parseVersion, type GuardRuntime } from "../src/guard";
 import { PrimeProcessError } from "../src/prime";
 
 const CONTEXT = JSON.stringify({ beads_dir: "/project/.beads" });
@@ -48,7 +43,11 @@ describe("checkBeadsStore", () => {
 
   test("is ready when CLI and workspace checks succeed", async () => {
     const fake = runtime({ version: "bd version 1.3.1 (abc)", context: CONTEXT, marker: "1.3.1\n" });
-    expect(await checkBeadsStore("/project", fake)).toEqual({ kind: "ready", version: "1.3.1", workspace: { path: "/project/.beads" } });
+    expect(await checkBeadsStore("/project", fake)).toEqual({
+      kind: "ready",
+      version: "1.3.1",
+      workspace: { path: "/project/.beads" },
+    });
     expect(fake.bd).toHaveBeenCalledWith("/project", ["version"]);
     expect(fake.bd).toHaveBeenCalledWith("/project", ["context", "--json"]);
     expect(fake.readText).not.toHaveBeenCalled();
@@ -67,29 +66,35 @@ describe("checkBeadsStore", () => {
       kind: "unsupported",
       installed: "1.3.0",
     });
-    expect(fake.bd.mock.calls.map(call => call[1])).toEqual([["version"]]);
+    expect(fake.bd.mock.calls.map((call) => call[1])).toEqual([["version"]]);
     expect(fake.readText).not.toHaveBeenCalled();
   });
 
   test("treats a missing workspace as uninitialized", async () => {
     const noWorkspace = JSON.stringify({ beads_dir: "" });
-    expect(
-      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: noWorkspace }))
-    ).toEqual({ kind: "uninitialized" });
-    expect(
-      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: new Error("exit 1") }))
-    ).toEqual({ kind: "probe-failed" });
-    expect(
-      await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: "not json" }))
-    ).toEqual({ kind: "probe-failed" });
+    expect(await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: noWorkspace }))).toEqual({
+      kind: "uninitialized",
+    });
+    expect(await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: new Error("exit 1") }))).toEqual(
+      { kind: "probe-failed" },
+    );
+    expect(await checkBeadsStore("/p", runtime({ version: "bd version 1.3.1", context: "not json" }))).toEqual({
+      kind: "probe-failed",
+    });
   });
 
   test("recognizes the supported exit-1 no-workspace context response without reading a store", async () => {
     const fake = runtime({
       version: "bd version 1.3.1",
-      context: new PrimeProcessError(1, "", "bd context --json", JSON.stringify({
-        error: "cannot resolve repo context: no .beads directory found", schema_version: 1,
-      })),
+      context: new PrimeProcessError(
+        1,
+        "",
+        "bd context --json",
+        JSON.stringify({
+          error: "cannot resolve repo context: no .beads directory found",
+          schema_version: 1,
+        }),
+      ),
     });
     expect(await checkBeadsStore("/project", fake)).toEqual({ kind: "uninitialized" });
     expect(fake.bd.mock.calls.map((call) => call[1])).toEqual([["version"], ["context", "--json"]]);

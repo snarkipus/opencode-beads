@@ -76,10 +76,7 @@ type AgentEditor = Parameters<Parameters<Plugin.Context["agent"]["transform"]>[0
  * Register task agents. `update` creates unknown agents from OpenCode defaults (including the
  * default permission ruleset); user `agents` config entries still override these fields one by one.
  */
-export function applyBeadsAgents(
-  editor: AgentEditor,
-  agents: Record<string, BeadsAgentDefinition>
-): void {
+export function applyBeadsAgents(editor: AgentEditor, agents: Record<string, BeadsAgentDefinition>): void {
   for (const [id, definition] of Object.entries(agents)) {
     editor.update(id, (agent) => {
       // DeepMutable widens branded string IDs into object types; the runtime values are strings.

@@ -9,18 +9,28 @@ const [major, minor, patch] = reviewedVersion.split(".");
 const nextVersion = `${major}.${minor}.${Number(patch) + 1}`;
 const directories: string[] = [];
 afterEach(async () => {
-  await Promise.all(directories.splice(0).map(dir => fs.rm(dir, { recursive: true, force: true })));
+  await Promise.all(directories.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
 /** Exercise the actual workflow shell, mocking only GitHub retrieval and SDK commands. */
-async function monitor(version: string, options: { sdkFailure?: boolean; unavailable?: boolean; prerelease?: boolean; noMatch?: boolean; crlf?: boolean } = {}) {
+async function monitor(
+  version: string,
+  options: {
+    sdkFailure?: boolean;
+    unavailable?: boolean;
+    prerelease?: boolean;
+    noMatch?: boolean;
+    crlf?: boolean;
+  } = {},
+) {
   let workflow = await fs.readFile(join(root, ".github/workflows/beads-contract.yml"), "utf8");
   if (options.crlf) workflow = workflow.replace(/\r?\n/g, "\r\n");
   workflow = workflow.replace(/\r\n/g, "\n");
   const job = workflow.split("  opencode-release:\n")[1]?.split("\n  source-comparison:\n")[0];
   expect(job, "the existing daily workflow must include an independent OpenCode release job").toBeDefined();
-  const blocks = [...job!.matchAll(/        run: \|\n((?:          .*\n|\n)+)/g)]
-    .map(match => match[1]!.replace(/^          /gm, ""));
+  const blocks = [...job!.matchAll(/        run: \|\n((?:          .*\n|\n)+)/g)].map((match) =>
+    match[1]!.replace(/^          /gm, ""),
+  );
   expect(blocks).toHaveLength(3);
   expect(job).toContain("always() && steps.opencode-release.outcome == 'success'");
   expect(job).not.toContain("needs:");
@@ -41,11 +51,29 @@ async function monitor(version: string, options: { sdkFailure?: boolean; unavail
   };
   await git("init", "--quiet");
   await git("add", ".");
-  await git("-c", "user.name=Monitor fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "--no-verify", "-m", "Fixture baseline");
-  await fs.writeFile(join(bin, "gh"), '#!/usr/bin/env bash\nif [[ "$GH_FAILURE" == 1 ]]; then exit 22; fi\nif [[ "$1" == api ]]; then printf "%s\\n" "$RELEASE_PAGES"; elif [[ "$3" == "$EXPECTED_TAG" ]]; then printf "%s\\n" "$RELEASE_JSON"; else printf "%s\\n" "$LEGACY_RELEASE_JSON"; fi\n', { mode: 0o755 });
-  await fs.writeFile(join(bin, "bun"), '#!/usr/bin/env bash\nexec "$BUN_EXECUTABLE" "$SDK_STUB" "$@"\n', { mode: 0o755 });
+  await git(
+    "-c",
+    "user.name=Monitor fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "--quiet",
+    "--no-verify",
+    "-m",
+    "Fixture baseline",
+  );
+  await fs.writeFile(
+    join(bin, "gh"),
+    '#!/usr/bin/env bash\nif [[ "$GH_FAILURE" == 1 ]]; then exit 22; fi\nif [[ "$1" == api ]]; then printf "%s\\n" "$RELEASE_PAGES"; elif [[ "$3" == "$EXPECTED_TAG" ]]; then printf "%s\\n" "$RELEASE_JSON"; else printf "%s\\n" "$LEGACY_RELEASE_JSON"; fi\n',
+    { mode: 0o755 },
+  );
+  await fs.writeFile(join(bin, "bun"), '#!/usr/bin/env bash\nexec "$BUN_EXECUTABLE" "$SDK_STUB" "$@"\n', {
+    mode: 0o755,
+  });
   const stub = join(directory, "sdk-stub.ts");
-  await fs.writeFile(stub, `
+  await fs.writeFile(
+    stub,
+    `
 import * as fs from "node:fs/promises";
 import { relative } from "node:path";
 const args = process.argv.slice(2);
@@ -60,32 +88,77 @@ if (args[0] === "install") {
 const installed = JSON.parse(await fs.readFile("node_modules/@opencode/plugin/package.json", "utf8")).version;
 await fs.appendFile(process.env.CALL_LOG!, JSON.stringify({ args, installed, declared: manifest.devDependencies["@opencode/plugin"], lock: await fs.readFile("bun.lock", "utf8") }) + "\\n");
 if (process.env.SDK_FAILURE === "1" && args[0] === "test") process.exit(33);
-`);
+`,
+  );
   const output = join(directory, "output");
   const summary = join(directory, "summary.md");
   const callLog = join(directory, "calls.jsonl");
   await fs.writeFile(output, "");
-  const env = { ...process.env, PATH: `${bin}${process.platform === "win32" ? ";" : ":"}${process.env.PATH}`,
-    GITHUB_WORKSPACE: repo, RUNNER_TEMP: scratch, GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: summary,
-    BUN_EXECUTABLE: process.execPath, SDK_STUB: stub, CALL_LOG: callLog,
-    GH_FAILURE: options.unavailable ? "1" : "0", SDK_FAILURE: options.sdkFailure ? "1" : "0",
-    REQUESTED: options.prerelease ? `v${version}` : "", EXPECTED_TAG: `v${version}`,
-    LEGACY_RELEASE_JSON: JSON.stringify({ tagName: "v1.19.5", isDraft: false, isPrerelease: false, url: "https://github.com/anomalyco/opencode/releases/tag/v1.19.5" }),
+  const env = {
+    ...process.env,
+    PATH: `${bin}${process.platform === "win32" ? ";" : ":"}${process.env.PATH}`,
+    GITHUB_WORKSPACE: repo,
+    RUNNER_TEMP: scratch,
+    GITHUB_OUTPUT: output,
+    GITHUB_STEP_SUMMARY: summary,
+    BUN_EXECUTABLE: process.execPath,
+    SDK_STUB: stub,
+    CALL_LOG: callLog,
+    GH_FAILURE: options.unavailable ? "1" : "0",
+    SDK_FAILURE: options.sdkFailure ? "1" : "0",
+    REQUESTED: options.prerelease ? `v${version}` : "",
+    EXPECTED_TAG: `v${version}`,
+    LEGACY_RELEASE_JSON: JSON.stringify({
+      tagName: "v1.19.5",
+      isDraft: false,
+      isPrerelease: false,
+      url: "https://github.com/anomalyco/opencode/releases/tag/v1.19.5",
+    }),
     RELEASE_PAGES: JSON.stringify([
-      { data: { repository: { releases: { nodes: [
-        { tagName: "process-daemon-v0.5.2", isDraft: false, isPrerelease: false },
-        { tagName: "v1.19.5", isDraft: false, isPrerelease: false },
-        { tagName: "v9.0.0", isDraft: false, isPrerelease: true },
-        { tagName: "v8.0.0", isDraft: true, isPrerelease: false },
-        ...(options.noMatch ? [] : [{ tagName: `v${reviewedVersion}`, isDraft: false, isPrerelease: false }]),
-      ] } } } },
-      { data: { repository: { releases: { nodes: options.noMatch ? [] : [{ tagName: `v${version}`, isDraft: false, isPrerelease: false }] } } } },
+      {
+        data: {
+          repository: {
+            releases: {
+              nodes: [
+                { tagName: "process-daemon-v0.5.2", isDraft: false, isPrerelease: false },
+                { tagName: "v1.19.5", isDraft: false, isPrerelease: false },
+                { tagName: "v9.0.0", isDraft: false, isPrerelease: true },
+                { tagName: "v8.0.0", isDraft: true, isPrerelease: false },
+                ...(options.noMatch ? [] : [{ tagName: `v${reviewedVersion}`, isDraft: false, isPrerelease: false }]),
+              ],
+            },
+          },
+        },
+      },
+      {
+        data: {
+          repository: {
+            releases: {
+              nodes: options.noMatch ? [] : [{ tagName: `v${version}`, isDraft: false, isPrerelease: false }],
+            },
+          },
+        },
+      },
     ]),
-    RELEASE_JSON: JSON.stringify({ tagName: `v${version}`, isDraft: false, isPrerelease: options.prerelease ?? false,
-      url: `https://github.com/anomalyco/opencode/releases/tag/v${version}` }) };
+    RELEASE_JSON: JSON.stringify({
+      tagName: `v${version}`,
+      isDraft: false,
+      isPrerelease: options.prerelease ?? false,
+      url: `https://github.com/anomalyco/opencode/releases/tag/v${version}`,
+    }),
+  };
   async function shell(block: string, extra: Record<string, string> = {}) {
-    const p = Bun.spawn(["bash", "-e", "-o", "pipefail", "-c", block], { cwd: repo, env: { ...env, ...extra }, stdout: "pipe", stderr: "pipe" });
-    const [exitCode, stdout, stderr] = await Promise.all([p.exited, new Response(p.stdout).text(), new Response(p.stderr).text()]);
+    const p = Bun.spawn(["bash", "-e", "-o", "pipefail", "-c", block], {
+      cwd: repo,
+      env: { ...env, ...extra },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [exitCode, stdout, stderr] = await Promise.all([
+      p.exited,
+      new Response(p.stdout).text(),
+      new Response(p.stderr).text(),
+    ]);
     return { exitCode, stdout, stderr };
   }
   const release = await shell(blocks[0]!);
@@ -93,13 +166,25 @@ if (process.env.SDK_FAILURE === "1" && args[0] === "test") process.exit(33);
     expect(await fs.readFile(output, "utf8")).toBe("");
     return { release, sdk: undefined, review: undefined, calls: [], summary: "" };
   }
-  const outputs = Object.fromEntries((await fs.readFile(output, "utf8")).trim().split("\n").map(line => line.split("=")));
+  const outputs = Object.fromEntries(
+    (await fs.readFile(output, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => line.split("=")),
+  );
   expect(outputs.version).toBe(version);
   expect(outputs.reviewed).toBe(reviewedVersion);
   const sdk = await shell(blocks[1]!, { VERSION: outputs.version! });
   // Actions runs this always-step even if the SDK step failed.
-  const review = await shell(blocks[2]!, { VERSION: outputs.version!, REVIEWED: outputs.reviewed!, SDK_OUTCOME: sdk.exitCode === 0 ? "success" : "failure" });
-  const calls = (await fs.readFile(callLog, "utf8")).trim().split("\n").map(line => JSON.parse(line));
+  const review = await shell(blocks[2]!, {
+    VERSION: outputs.version!,
+    REVIEWED: outputs.reviewed!,
+    SDK_OUTCOME: sdk.exitCode === 0 ? "success" : "failure",
+  });
+  const calls = (await fs.readFile(callLog, "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
   expect(await fs.readFile(join(repo, "package.json"), "utf8")).toBe(manifest);
   expect(await fs.readFile(join(repo, "bun.lock"), "utf8")).toBe("original-lock\n");
   expect((await fs.readFile(join(repo, ".github/opencode-reviewed-version"), "utf8")).trim()).toBe(reviewedVersion);
@@ -115,11 +200,20 @@ describe.skipIf(process.platform === "win32")("OpenCode stable-release monitorin
     expect(result.release.exitCode).toBe(0);
     expect(result.sdk?.exitCode).toBe(0);
     expect(result.review?.exitCode).toBe(0);
-    expect(result.calls.map(call => call.args)).toEqual([["install", "--ignore-scripts"], ["test"], ["run", "typecheck"], ["run", "test:package"]]);
-    expect(result.calls.every(call => call.installed === reviewedVersion)).toBeTrue();
-    expect(result.calls.slice(1).every(call => call.declared === "2.2.6" && call.lock === "original-lock\n")).toBeTrue();
+    expect(result.calls.map((call) => call.args)).toEqual([
+      ["install", "--ignore-scripts"],
+      ["test"],
+      ["run", "typecheck"],
+      ["run", "test:package"],
+    ]);
+    expect(result.calls.every((call) => call.installed === reviewedVersion)).toBeTrue();
+    expect(
+      result.calls.slice(1).every((call) => call.declared === "2.2.6" && call.lock === "original-lock\n"),
+    ).toBeTrue();
     expect(result.summary).toContain("SDK checks: success");
-    expect(result.summary).toContain(`Release: [v${reviewedVersion}](https://github.com/anomalyco/opencode/releases/tag/v${reviewedVersion})`);
+    expect(result.summary).toContain(
+      `Release: [v${reviewedVersion}](https://github.com/anomalyco/opencode/releases/tag/v${reviewedVersion})`,
+    );
     expect(result.summary).toContain("not live-host/model qualification");
     expect(result.review?.stdout).not.toContain("::error::");
   });
@@ -129,7 +223,7 @@ describe.skipIf(process.platform === "win32")("OpenCode stable-release monitorin
     expect(result.sdk?.exitCode).toBe(0);
     expect(result.review?.exitCode).toBe(1);
     expect(result.review?.stdout).toContain(`::error::OpenCode ${nextVersion}`);
-    expect(result.calls.every(call => call.installed === nextVersion)).toBeTrue();
+    expect(result.calls.every((call) => call.installed === nextVersion)).toBeTrue();
     expect(result.summary).toContain("requires human review");
   });
 
@@ -137,7 +231,7 @@ describe.skipIf(process.platform === "win32")("OpenCode stable-release monitorin
     const result = await monitor(reviewedVersion, { sdkFailure: true });
     expect(result.sdk?.exitCode).toBe(33);
     expect(result.review?.exitCode).toBe(0);
-    expect(result.calls.map(call => call.args)).toEqual([["install", "--ignore-scripts"], ["test"]]);
+    expect(result.calls.map((call) => call.args)).toEqual([["install", "--ignore-scripts"], ["test"]]);
     expect(result.summary).toContain("SDK checks: failure");
   });
 

@@ -43,18 +43,35 @@ export interface ContextController {
   forget(sessionID: string): void;
   /** Context state is distinct from an absent text part (including intentional empty prime). */
   statusFor(sessionID: string, audience: ContextAudience): ContextStatus | undefined;
-  observationFor(sessionID: string, audience: ContextAudience): { status?: ContextStatus; loadedAt?: number; version?: string } | undefined;
+  observationFor(
+    sessionID: string,
+    audience: ContextAudience,
+  ): { status?: ContextStatus; loadedAt?: number; version?: string } | undefined;
   /** A write can affect every cached session in this location. */
   invalidateAll(): void;
   /** Abort owned loads and prevent late context injection after unload. */
   dispose(): void;
 }
 
-type CacheEntry = { value: Promise<string | undefined>; expiresAt?: number; lastUsed: number; abort: AbortController; status?: ContextStatus; loadedAt?: number; version?: string };
+type CacheEntry = {
+  value: Promise<string | undefined>;
+  expiresAt?: number;
+  lastUsed: number;
+  abort: AbortController;
+  status?: ContextStatus;
+  loadedAt?: number;
+  version?: string;
+};
 
 /** Wrap prime output in the envelope and shared guidance for one audience. */
-export function renderBeadsContext(prime: string, audience: ContextAudience, request?: { sessionID: string; agent: string; capabilities?: RequestCapabilities }): string {
-  const identity = request ? `\nYour Beads executor actor: ${executorActor(request)}. Use this exact actor for every direct shell write, claim and heartbeat (command-scoped --actor or BEADS_ACTOR); children use their own actual request actor. Attribution grants no permission.\n` : "";
+export function renderBeadsContext(
+  prime: string,
+  audience: ContextAudience,
+  request?: { sessionID: string; agent: string; capabilities?: RequestCapabilities },
+): string {
+  const identity = request
+    ? `\nYour Beads executor actor: ${executorActor(request)}. Use this exact actor for every direct shell write, claim and heartbeat (command-scoped --actor or BEADS_ACTOR); children use their own actual request actor. Attribution grants no permission.\n`
+    : "";
   return `<beads-context audience="${audience}">\n${prime}\n</beads-context>\n${identity}\n${beadsGuidance(audience, request?.capabilities)}`;
 }
 
@@ -68,7 +85,7 @@ export function renderBeadsContext(prime: string, audience: ContextAudience, req
 export function createContextController(
   runtime: ContextRuntime,
   directory: string,
-  options: ContextControllerOptions = {}
+  options: ContextControllerOptions = {},
 ): ContextController {
   const retryMs = options.retryMs ?? DEFAULT_CONTEXT_RETRY_MS;
   const idleRefreshMs = options.idleRefreshMs ?? DEFAULT_IDLE_REFRESH_MS;
@@ -77,10 +94,7 @@ export function createContextController(
   const modes = new Map<string, Promise<AgentMode | undefined>>();
   let disposed = false;
 
-  async function audienceFor(
-    sessionID: string,
-    agentID: string
-  ): Promise<ContextAudience | undefined> {
+  async function audienceFor(sessionID: string, agentID: string): Promise<ContextAudience | undefined> {
     if (BEADS_TASK_AGENTS.has(agentID)) return "task-agent";
 
     let pending = modes.get(agentID);
@@ -96,11 +110,7 @@ export function createContextController(
     return (await pending) === "subagent" ? undefined : "primary";
   }
 
-  async function load(
-    sessionID: string,
-    audience: ContextAudience,
-    entry: CacheEntry
-  ): Promise<string | undefined> {
+  async function load(sessionID: string, audience: ContextAudience, entry: CacheEntry): Promise<string | undefined> {
     const retryLater = (value: string | undefined) => {
       entry.expiresAt = now() + retryMs;
       return value;
@@ -113,7 +123,9 @@ export function createContextController(
       if (entry.abort.signal.aborted) return undefined;
       entry.status = "failed";
       runtime.diagnose?.("guard_failed", sessionID);
-      return retryLater("<beads-notice>Beads workflow context failed during the CLI/workspace check. Workspace discovery is unconfirmed; do not bypass this failure with manual prime.</beads-notice>");
+      return retryLater(
+        "<beads-notice>Beads workflow context failed during the CLI/workspace check. Workspace discovery is unconfirmed; do not bypass this failure with manual prime.</beads-notice>",
+      );
     }
     if (entry.abort.signal.aborted) return undefined;
     if (guard.kind !== "ready") {
@@ -167,16 +179,25 @@ export function createContextController(
         cached.lastUsed = current;
         const output = await cached.value;
         if (disposed || cached.abort.signal.aborted) return undefined;
-        return cached.status === "ready" ? renderBeadsContext(output!, audience, { sessionID, agent: agentID, capabilities }) : output;
+        return cached.status === "ready"
+          ? renderBeadsContext(output!, audience, { sessionID, agent: agentID, capabilities })
+          : output;
       }
 
       cached?.abort.abort();
-      const entry: CacheEntry = { value: Promise.resolve(undefined), lastUsed: current, abort: new AbortController(), status: "loading" };
+      const entry: CacheEntry = {
+        value: Promise.resolve(undefined),
+        lastUsed: current,
+        abort: new AbortController(),
+        status: "loading",
+      };
       entry.value = load(sessionID, audience, entry);
       cache.set(key, entry);
       const output = await entry.value;
       if (disposed || entry.abort.signal.aborted) return undefined;
-      return entry.status === "ready" ? renderBeadsContext(output!, audience, { sessionID, agent: agentID, capabilities }) : output;
+      return entry.status === "ready"
+        ? renderBeadsContext(output!, audience, { sessionID, agent: agentID, capabilities })
+        : output;
     },
 
     invalidate: dropSession,

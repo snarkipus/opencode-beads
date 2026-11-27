@@ -2,26 +2,35 @@ import type { Plugin } from "@opencode/plugin";
 import { isSupportedOpenCodeVersion, SUPPORTED_OPENCODE_RANGE } from "./host-admission";
 import type { SessionContext } from "@opencode/plugin/promise/session";
 import packageManifest from "../package.json";
-import { applyBeadsSkill, createBeadsCommands, expandBeadsWorkflowContext, loadBeadsSkill, type SkillLoadDependencies } from "./workflows";
+import {
+  applyBeadsSkill,
+  createBeadsCommands,
+  expandBeadsWorkflowContext,
+  loadBeadsSkill,
+  type SkillLoadDependencies,
+} from "./workflows";
 import { applyBeadsAgents, beadsAgents, BEADS_TASK_AGENTS } from "./agents";
 import { BEADS_COMPACTION_GUIDANCE, UNKNOWN_CAPABILITIES, type RequestCapabilities } from "./guidance";
-import {
-  createContextController,
-  type AgentMode,
-  type ContextDiagnostic,
-  type ContextRuntime,
-} from "./context";
+import { createContextController, type AgentMode, type ContextDiagnostic, type ContextRuntime } from "./context";
 import { checkBeadsStore, createGuardRuntime } from "./guard";
 import type { GuardResult } from "./guard";
 import { countManagedBlocks, minimizeSystemParts } from "./instructions";
 import { runBd, runBdPrime } from "./prime";
-import { collectBeadsHealth, collectHooks, collectPluginHealth, collectSyncTarget, DIAGNOSTIC_ENV, renderHealthReport } from "./diagnostics";
+import {
+  collectBeadsHealth,
+  collectHooks,
+  collectPluginHealth,
+  collectSyncTarget,
+  DIAGNOSTIC_ENV,
+  renderHealthReport,
+} from "./diagnostics";
 import { createContinuityTools, type ContinuityDependencies, type ContinuityResult } from "./continuity";
 
 /** The slice of the OpenCode V2 plugin context this adapter uses. */
 export type HostContext = Pick<Plugin.Context, "app" | "location" | "options" | "event"> & {
   agent: Pick<Plugin.Context["agent"], "get" | "transform">;
-  session: Pick<Plugin.Context["session"], "hook" | "context"> & Partial<Pick<Plugin.Context["session"], "get" | "prompt">>;
+  session: Pick<Plugin.Context["session"], "hook" | "context"> &
+    Partial<Pick<Plugin.Context["session"], "get" | "prompt">>;
   tool?: Pick<Plugin.Context["tool"], "hook" | "transform">;
   permission?: Pick<Plugin.Context["permission"], "assert">;
   command?: Pick<Plugin.Context["command"], "list" | "transform">;
@@ -49,8 +58,17 @@ export interface HostDependencies {
 
 const DEFAULT_DIAGNOSTIC_INTERVAL_MS = 60_000;
 const DIRECT_BEADS_TOOLS = new Set([
-  "beads_find", "beads_get", "beads_edges", "beads_memories", "beads_recall", "beads_claim",
-  "beads_note", "beads_update", "beads_close", "beads_create", "beads_remember",
+  "beads_find",
+  "beads_get",
+  "beads_edges",
+  "beads_memories",
+  "beads_recall",
+  "beads_claim",
+  "beads_note",
+  "beads_update",
+  "beads_close",
+  "beads_create",
+  "beads_remember",
 ]);
 
 function eventSessionID(event: unknown): string | undefined {
@@ -62,10 +80,7 @@ function eventSessionID(event: unknown): string | undefined {
 }
 
 /** Wire Beads context into an OpenCode V2 plugin context; returns the plugin cleanup. */
-export async function setupBeads(
-  ctx: HostContext,
-  deps: HostDependencies = {}
-): Promise<() => Promise<void>> {
+export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}): Promise<() => Promise<void>> {
   const directory = ctx.location.directory;
   // Legacy autoMigrate values are ignored: native Beads owns store opening and migrations.
   // `--full` defeats bd's MCP detection, which reads Claude Code's settings and would otherwise
@@ -83,7 +98,7 @@ export async function setupBeads(
   if (!isSupportedOpenCodeVersion(hostVersion)) {
     try {
       warn(
-        `[opencode-beads] unsupported-host OpenCode ${hostVersion}; supported range is ${SUPPORTED_OPENCODE_RANGE}. No Beads agents or hooks were registered.`
+        `[opencode-beads] unsupported-host OpenCode ${hostVersion}; supported range is ${SUPPORTED_OPENCODE_RANGE}. No Beads agents or hooks were registered.`,
       );
     } catch {
       // Host-version diagnostics never affect plugin loading.
@@ -92,11 +107,13 @@ export async function setupBeads(
   }
 
   const runtime: ContextRuntime = {
-    guard: deps.runtime?.guard ?? ((cwd, signal) => checkBeadsStore(cwd,
-      createGuardRuntime(deps.bd ?? ((dir, args) => runBd(dir, args, { signal }))))),
+    guard:
+      deps.runtime?.guard ??
+      ((cwd, signal) =>
+        checkBeadsStore(cwd, createGuardRuntime(deps.bd ?? ((dir, args) => runBd(dir, args, { signal }))))),
     prime:
       deps.runtime?.prime ??
-      ((cwd, signal) => deps.runPrime ? deps.runPrime(cwd, primeFlags) : runBdPrime(cwd, { signal }, primeFlags)),
+      ((cwd, signal) => (deps.runPrime ? deps.runPrime(cwd, primeFlags) : runBdPrime(cwd, { signal }, primeFlags))),
     async agentMode(agentID): Promise<AgentMode | undefined> {
       const response = await ctx.agent.get({ agentID });
       return response.data.mode;
@@ -119,7 +136,8 @@ export async function setupBeads(
   const agents = beadsAgents({
     luna: ctx.options?.luna === true,
     terra: ctx.options?.terra === true,
-    steps: typeof stepsOption === "number" && Number.isInteger(stepsOption) && stepsOption >= 0 ? stepsOption : undefined,
+    steps:
+      typeof stepsOption === "number" && Number.isInteger(stepsOption) && stepsOption >= 0 ? stepsOption : undefined,
   });
 
   const idleMinutes = ctx.options?.refreshAfterIdleMinutes;
@@ -139,14 +157,23 @@ export async function setupBeads(
   const gaps = new Map<string, Set<string>>();
   const workflowSnapshotReads = new Map<string, symbol>();
   const requestCapabilities = new Map<string, { agent: string; capabilities: RequestCapabilities }>();
-  const requestInstructions = new Map<string, { at: number; full: number; minimal: number; codex: number; replaced: number; retained: number }>();
-  let typedRegistration = deps.continuityQualified === true ? "unavailable: host tool/permission/session interface missing" : "disabled: registration not requested";
+  const requestInstructions = new Map<
+    string,
+    { at: number; full: number; minimal: number; codex: number; replaced: number; retained: number }
+  >();
+  let typedRegistration =
+    deps.continuityQualified === true
+      ? "unavailable: host tool/permission/session interface missing"
+      : "disabled: registration not requested";
 
   /** Retain distinct unresolved outcomes without a read, success or lifecycle cue erasing them. */
   function recordGap(sessionID: string, detail: string): void {
     const known = gaps.get(sessionID) ?? new Set<string>();
     if (known.size < 32) known.add(detail);
-    else if (!known.has(detail)) known.add("Additional persistence gaps exceed the retained detail limit; earlier unresolved details remain. Inspect tool outcomes before further writes.");
+    else if (!known.has(detail))
+      known.add(
+        "Additional persistence gaps exceed the retained detail limit; earlier unresolved details remain. Inspect tool outcomes before further writes.",
+      );
     gaps.set(sessionID, known);
   }
 
@@ -185,33 +212,61 @@ export async function setupBeads(
     requestCapabilities.clear();
     requestInstructions.clear();
     diagnosticTimes.clear();
-    const pending = registrations.splice(0).reverse().map((registration) => {
-      try { return registration.dispose(); } catch (error) { return Promise.reject(error); }
-    });
+    const pending = registrations
+      .splice(0)
+      .reverse()
+      .map((registration) => {
+        try {
+          return registration.dispose();
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      });
     cleanupPromise = Promise.allSettled([...pending, ...(observation ? [observation] : [])]).then((results) => {
       const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
       if (failures.length) {
-        try { warn("[opencode-beads] cleanup-failed: owned registration disposal failed"); } catch { /* Preserve the actual failure. */ }
-        throw new AggregateError(failures.map((result) => result.reason), "Beads cleanup failed");
+        try {
+          warn("[opencode-beads] cleanup-failed: owned registration disposal failed");
+        } catch {
+          /* Preserve the actual failure. */
+        }
+        throw new AggregateError(
+          failures.map((result) => result.reason),
+          "Beads cleanup failed",
+        );
       }
     });
     return cleanupPromise;
   }
 
   try {
-    registrations.push(await ctx.agent.transform((editor) => {
-      if (!abort.signal.aborted) applyBeadsAgents(editor, agents);
-    }));
+    registrations.push(
+      await ctx.agent.transform((editor) => {
+        if (!abort.signal.aborted) applyBeadsAgents(editor, agents);
+      }),
+    );
 
     // Diagnostics share the host's bounded reporting state; no status service or store reads.
     function workflowDiagnostic(message: string): void {
       if (abort.signal.aborted || diagnosticTimes.has(message)) return;
       diagnosticTimes.set(message, now());
-      try { warn(`[opencode-beads] ${message}`); } catch { /* Diagnostics never break loading. */ }
+      try {
+        warn(`[opencode-beads] ${message}`);
+      } catch {
+        /* Diagnostics never break loading. */
+      }
     }
 
-    const workflowUnavailableNotice = "<beads-notice>Saved Beads workflow instructions or diagnostics are unavailable for a compact command. Continue only from visible user input and supplied context; do not invent missing guidance or replay an operation.</beads-notice>";
-    function reportUnavailableWorkflow(event: { sessionID: string; messages: NonNullable<SessionContext["messages"]>; system: Array<{ type: "text"; text: string }> }, unavailable: boolean): void {
+    const workflowUnavailableNotice =
+      "<beads-notice>Saved Beads workflow instructions or diagnostics are unavailable for a compact command. Continue only from visible user input and supplied context; do not invent missing guidance or replay an operation.</beads-notice>";
+    function reportUnavailableWorkflow(
+      event: {
+        sessionID: string;
+        messages: NonNullable<SessionContext["messages"]>;
+        system: Array<{ type: "text"; text: string }>;
+      },
+      unavailable: boolean,
+    ): void {
       if (!unavailable) return;
       workflowDiagnostic(`workflow-snapshot-unavailable session=${event.sessionID}`);
       if (!event.system.some((part) => part.text === workflowUnavailableNotice)) {
@@ -253,19 +308,25 @@ export async function setupBeads(
     let skillCollision = "not observed";
     if (ctx.skill) {
       let skill;
-      try { skill = await loadBeadsSkill(deps.workflowAssets); }
-      catch (error) {
+      try {
+        skill = await loadBeadsSkill(deps.workflowAssets);
+      } catch (error) {
         skillFailure = error instanceof Error ? error.message : "skill-unreachable";
         workflowDiagnostic(skillFailure);
       }
       if (skill) {
         const packagedSkill = skill;
-        registrations.push(await ctx.skill.transform((editor) => {
-          if (!abort.signal.aborted) {
-            skillCollision = "none detected";
-            applyBeadsSkill(editor, packagedSkill, (message) => { skillCollision = message; workflowDiagnostic(message); });
-          }
-        }));
+        registrations.push(
+          await ctx.skill.transform((editor) => {
+            if (!abort.signal.aborted) {
+              skillCollision = "none detected";
+              applyBeadsSkill(editor, packagedSkill, (message) => {
+                skillCollision = message;
+                workflowDiagnostic(message);
+              });
+            }
+          }),
+        );
       }
     }
 
@@ -273,96 +334,178 @@ export async function setupBeads(
     // plugins use the same ordinary ordering; initial lookup is diagnostic only.
     if (ctx.command && ctx.session.prompt) {
       let commandRegistration = "pending";
-      const diagnosticBd = deps.bd ?? ((dir: string, args: readonly string[]) => runBd(dir, args, { signal: abort.signal, env: DIAGNOSTIC_ENV }));
-      const definitions = createBeadsCommands({ prompt: ctx.session.prompt }, async (sessionID, text) => {
-        const selector = text?.trim().toLowerCase();
-        let context: string = "uncertain";
-        let locationKnown = false;
-        let contextObservation: ReturnType<typeof controller.observationFor>;
-        if (ctx.session.get) {
-          try {
-            const info = await ctx.session.get({ sessionID: sessionID as Parameters<NonNullable<typeof ctx.session.get>>[0]["sessionID"] });
-            if (info.location.directory !== directory) {
+      const diagnosticBd =
+        deps.bd ??
+        ((dir: string, args: readonly string[]) => runBd(dir, args, { signal: abort.signal, env: DIAGNOSTIC_ENV }));
+      const definitions = createBeadsCommands(
+        { prompt: ctx.session.prompt },
+        async (sessionID, text) => {
+          const selector = text?.trim().toLowerCase();
+          let context: string = "uncertain";
+          let locationKnown = false;
+          let contextObservation: ReturnType<typeof controller.observationFor>;
+          if (ctx.session.get) {
+            try {
+              const info = await ctx.session.get({
+                sessionID: sessionID as Parameters<NonNullable<typeof ctx.session.get>>[0]["sessionID"],
+              });
+              if (info.location.directory !== directory) {
+                forgetSession(sessionID);
+                context = "withheld: session location changed";
+              } else {
+                locationKnown = true;
+                const observedAgent = requestCapabilities.get(sessionID)?.agent;
+                const audience = observedAgent && BEADS_TASK_AGENTS.has(observedAgent) ? "task-agent" : "primary";
+                const cached = controller.statusFor(sessionID, audience);
+                contextObservation = controller.observationFor(sessionID, audience);
+                context =
+                  cached === "loading"
+                    ? "uncertain: context refresh in progress"
+                    : (cached ?? "unobserved: no cached context");
+              }
+            } catch {
               forgetSession(sessionID);
-              context = "withheld: session location changed";
-            } else {
-              locationKnown = true;
-              const observedAgent = requestCapabilities.get(sessionID)?.agent;
-              const audience = observedAgent && BEADS_TASK_AGENTS.has(observedAgent) ? "task-agent" : "primary";
-              const cached = controller.statusFor(sessionID, audience);
-              contextObservation = controller.observationFor(sessionID, audience);
-              context = cached === "loading" ? "uncertain: context refresh in progress" : cached ?? "unobserved: no cached context";
+              context = "uncertain: session lookup failed";
             }
-          } catch { forgetSession(sessionID); context = "uncertain: session lookup failed"; }
-        }
-        let guard: GuardResult | { kind: "withheld"; reason: string } = { kind: "withheld", reason: "session location unconfirmed" };
-        if (locationKnown && !abort.signal.aborted) {
-          try { guard = deps.runtime?.guard ? await runtime.guard(directory, abort.signal) : await checkBeadsStore(directory, createGuardRuntime(diagnosticBd)); }
-          catch { guard = { kind: "probe-failed" }; }
-        }
-        const local = guard.kind !== "withheld" && !abort.signal.aborted ? { ...await collectPluginHealth(directory, guard), ...await collectBeadsHealth(guard) } : "withheld";
-        const hooks = locationKnown && !abort.signal.aborted ? await collectHooks(directory, diagnosticBd) : "withheld: session location unconfirmed";
-        const syncTarget = guard.kind === "ready" && guard.workspace && !abort.signal.aborted
-          ? await collectSyncTarget(directory, guard.workspace, diagnosticBd)
-          : undefined;
-        let effectiveCommands: Array<{ name: string; description?: string }> | undefined;
-        let registryTruncated = false;
-        let registryMembershipTruncated = false;
-        let effectiveSkills: string[] | string;
-        try {
-          const entries = (await ctx.command!.list()).data;
-          registryMembershipTruncated = entries.length > 128 || entries.some(({ name }) => name.length > 128);
-          registryTruncated = registryMembershipTruncated || entries.some(({ name, description }) => name.length > 128 || (description?.length ?? 0) > 512);
-          effectiveCommands = entries.slice(0, 128).map(({ name, description }) => ({ name: name.slice(0, 128), description: description?.slice(0, 512) }));
-        }
-        catch { /* Absence of lookup evidence is unknown, not an empty registry. */ }
-        try { effectiveSkills = ctx.skill ? (await ctx.skill.list()).data.slice(0, 128).map((entry) => String(entry.id).slice(0, 128)) : "unavailable"; }
-        catch { effectiveSkills = "unavailable: registry lookup failed"; }
-        const observedRequest = requestCapabilities.get(sessionID);
-        return renderHealthReport({
-          plugin: { name: packageManifest.name, version: packageManifest.version },
-          host: hostVersion, admission: SUPPORTED_OPENCODE_RANGE, liveQualification: "not measured by diagnostics; see release acceptance evidence",
-          commands: {
-            registration: commandRegistration,
-            lookup: effectiveCommands ? "available" : "failed",
-            truncated: registryTruncated,
-            membershipTruncated: registryMembershipTruncated,
-            expectedCount: definitions.length,
-            effective: effectiveCommands ?? "unknown: registry lookup failed",
-            mismatches: effectiveCommands && definitions.flatMap((expected) => {
-              const effective = effectiveCommands.find((entry) => entry.name === expected.name);
-              return effective && (effective.description?.length ?? 0) < 512 && (expected.description?.length ?? 0) < 512 && effective.description !== expected.description
-                ? [{ name: expected.name, expectedDescription: expected.description, effectiveDescription: effective.description }]
-                : [];
-            }),
-            missing: effectiveCommands && !registryMembershipTruncated && definitions.filter((expected) => !effectiveCommands.some((entry) => entry.name === expected.name)).map((entry) => entry.name),
-            ownership: "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
-          },
-          skill: { failure: skillFailure, effective: effectiveSkills, collision: skillCollision },
-          typedContinuity: deps.continuityQualified === true ? "enabled: qualified registration" : "disabled: registration not requested",
-          typedRegistration,
-          requestCapability: observedRequest ?? "unknown: no actual request observation",
-          leafAvailability: observedRequest?.capabilities.direct === true
-            ? "some native direct Beads leaves are visible; each still checks its operation-specific permission"
-            : observedRequest?.capabilities.typed === "registered-execute-visible"
-              ? "execute is visible; the native catalog and each operation-specific permission determine leaf availability"
-              : "unknown until native catalog discovery and per-operation permission checks",
-          local, context, contextObservation, requestInstructions: requestInstructions.get(sessionID) ?? "unobserved", guard, hooks, syncTarget,
-          historyRequested: selector === "remote" || selector === "details remote",
-          persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
-        }, now(), selector === "details" || selector === "details remote");
-      }, deps.workflowAssets?.skillPath, abort.signal);
+          }
+          let guard: GuardResult | { kind: "withheld"; reason: string } = {
+            kind: "withheld",
+            reason: "session location unconfirmed",
+          };
+          if (locationKnown && !abort.signal.aborted) {
+            try {
+              guard = deps.runtime?.guard
+                ? await runtime.guard(directory, abort.signal)
+                : await checkBeadsStore(directory, createGuardRuntime(diagnosticBd));
+            } catch {
+              guard = { kind: "probe-failed" };
+            }
+          }
+          const local =
+            guard.kind !== "withheld" && !abort.signal.aborted
+              ? { ...(await collectPluginHealth(directory, guard)), ...(await collectBeadsHealth(guard)) }
+              : "withheld";
+          const hooks =
+            locationKnown && !abort.signal.aborted
+              ? await collectHooks(directory, diagnosticBd)
+              : "withheld: session location unconfirmed";
+          const syncTarget =
+            guard.kind === "ready" && guard.workspace && !abort.signal.aborted
+              ? await collectSyncTarget(directory, guard.workspace, diagnosticBd)
+              : undefined;
+          let effectiveCommands: Array<{ name: string; description?: string }> | undefined;
+          let registryTruncated = false;
+          let registryMembershipTruncated = false;
+          let effectiveSkills: string[] | string;
+          try {
+            const entries = (await ctx.command!.list()).data;
+            registryMembershipTruncated = entries.length > 128 || entries.some(({ name }) => name.length > 128);
+            registryTruncated =
+              registryMembershipTruncated ||
+              entries.some(({ name, description }) => name.length > 128 || (description?.length ?? 0) > 512);
+            effectiveCommands = entries
+              .slice(0, 128)
+              .map(({ name, description }) => ({ name: name.slice(0, 128), description: description?.slice(0, 512) }));
+          } catch {
+            /* Absence of lookup evidence is unknown, not an empty registry. */
+          }
+          try {
+            effectiveSkills = ctx.skill
+              ? (await ctx.skill.list()).data.slice(0, 128).map((entry) => String(entry.id).slice(0, 128))
+              : "unavailable";
+          } catch {
+            effectiveSkills = "unavailable: registry lookup failed";
+          }
+          const observedRequest = requestCapabilities.get(sessionID);
+          return renderHealthReport(
+            {
+              plugin: { name: packageManifest.name, version: packageManifest.version },
+              host: hostVersion,
+              admission: SUPPORTED_OPENCODE_RANGE,
+              liveQualification: "not measured by diagnostics; see release acceptance evidence",
+              commands: {
+                registration: commandRegistration,
+                lookup: effectiveCommands ? "available" : "failed",
+                truncated: registryTruncated,
+                membershipTruncated: registryMembershipTruncated,
+                expectedCount: definitions.length,
+                effective: effectiveCommands ?? "unknown: registry lookup failed",
+                mismatches:
+                  effectiveCommands &&
+                  definitions.flatMap((expected) => {
+                    const effective = effectiveCommands.find((entry) => entry.name === expected.name);
+                    return effective &&
+                      (effective.description?.length ?? 0) < 512 &&
+                      (expected.description?.length ?? 0) < 512 &&
+                      effective.description !== expected.description
+                      ? [
+                          {
+                            name: expected.name,
+                            expectedDescription: expected.description,
+                            effectiveDescription: effective.description,
+                          },
+                        ]
+                      : [];
+                  }),
+                missing:
+                  effectiveCommands &&
+                  !registryMembershipTruncated &&
+                  definitions
+                    .filter((expected) => !effectiveCommands.some((entry) => entry.name === expected.name))
+                    .map((entry) => entry.name),
+                ownership:
+                  "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
+              },
+              skill: { failure: skillFailure, effective: effectiveSkills, collision: skillCollision },
+              typedContinuity:
+                deps.continuityQualified === true
+                  ? "enabled: qualified registration"
+                  : "disabled: registration not requested",
+              typedRegistration,
+              requestCapability: observedRequest ?? "unknown: no actual request observation",
+              leafAvailability:
+                observedRequest?.capabilities.direct === true
+                  ? "some native direct Beads leaves are visible; each still checks its operation-specific permission"
+                  : observedRequest?.capabilities.typed === "registered-execute-visible"
+                    ? "execute is visible; the native catalog and each operation-specific permission determine leaf availability"
+                    : "unknown until native catalog discovery and per-operation permission checks",
+              local,
+              context,
+              contextObservation,
+              requestInstructions: requestInstructions.get(sessionID) ?? "unobserved",
+              guard,
+              hooks,
+              syncTarget,
+              historyRequested: selector === "remote" || selector === "details remote",
+              persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
+            },
+            now(),
+            selector === "details" || selector === "details remote",
+          );
+        },
+        deps.workflowAssets?.skillPath,
+        abort.signal,
+      );
       let existing: string[];
-      try { existing = (await ctx.command.list()).data.map((entry) => entry.name); }
-      catch { existing = []; workflowDiagnostic("command-registry-unavailable: effective ownership unknown"); }
+      try {
+        existing = (await ctx.command.list()).data.map((entry) => entry.name);
+      } catch {
+        existing = [];
+        workflowDiagnostic("command-registry-unavailable: effective ownership unknown");
+      }
       const names = definitions.map((entry) => entry.name);
       const collisions = existing.filter((name) => names.includes(name));
-      if (collisions.length) workflowDiagnostic(`command-collision: ${collisions.join(", ")}; earlier entries follow native precedence and may be replaced by this package`);
+      if (collisions.length)
+        workflowDiagnostic(
+          `command-collision: ${collisions.join(", ")}; earlier entries follow native precedence and may be replaced by this package`,
+        );
       try {
-        registrations.push(await ctx.command.transform((editor) => {
-          if (abort.signal.aborted) return;
-          for (const definition of definitions) editor.add(definition);
-        }));
+        registrations.push(
+          await ctx.command.transform((editor) => {
+            if (abort.signal.aborted) return;
+            for (const definition of definitions) editor.add(definition);
+          }),
+        );
         commandRegistration = "registered";
       } catch (error) {
         commandRegistration = "failed";
@@ -388,131 +531,198 @@ export async function setupBeads(
       if (["uncertain", "failed", "landed-uncommitted"].includes(result.status) || result.complete === false) {
         const detail = `${result.operation} ${JSON.stringify(result.target)}${result.actor ? ` actor=${result.actor}` : ""}: ${result.status}; ${result.detail ?? (result.complete === false ? "partial result; inspect failed IDs/completeness" : "commit not confirmed")}`;
         if (write) recordGap(sessionID, detail);
-        else recoveryCues.set(sessionID, `Inspect current ${memory ? "memory" : "task"} state before relying on this outcome: ${detail}. Do not retry an uncertain write blindly.`);
+        else
+          recoveryCues.set(
+            sessionID,
+            `Inspect current ${memory ? "memory" : "task"} state before relying on this outcome: ${detail}. Do not retry an uncertain write blindly.`,
+          );
       }
     }
 
     // The public entrypoint enables this path; registration still requires native interfaces.
     if (deps.continuityQualified === true && ctx.tool && ctx.permission && ctx.session.get) {
-      registrations.push(await ctx.tool.transform((editor) => {
-        if (abort.signal.aborted) return;
-        editor.namespace({ name: "beads", description: "Permissioned Beads daily-loop reads and writes. Search this namespace for current signatures; inspect outcome and completeness before dependent work." });
-        for (const tool of createContinuityTools({ location: ctx.location, permission: ctx.permission!, session: { get: ctx.session.get! } }, {
-          ...deps.continuity, signal: abort.signal,
-          acknowledged(sessionID, result) {
-            rememberResult(sessionID, result);
-            deps.continuity?.acknowledged?.(sessionID, result);
-          },
-        })) editor.add(tool);
-        typedRegistration = "registered: beads namespace, code-mode-only";
-      }));
+      registrations.push(
+        await ctx.tool.transform((editor) => {
+          if (abort.signal.aborted) return;
+          editor.namespace({
+            name: "beads",
+            description:
+              "Permissioned Beads daily-loop reads and writes. Search this namespace for current signatures; inspect outcome and completeness before dependent work.",
+          });
+          for (const tool of createContinuityTools(
+            { location: ctx.location, permission: ctx.permission!, session: { get: ctx.session.get! } },
+            {
+              ...deps.continuity,
+              signal: abort.signal,
+              acknowledged(sessionID, result) {
+                rememberResult(sessionID, result);
+                deps.continuity?.acknowledged?.(sessionID, result);
+              },
+            },
+          ))
+            editor.add(tool);
+          typedRegistration = "registered: beads namespace, code-mode-only";
+        }),
+      );
     }
 
-    registrations.push(await ctx.session.hook("context", async (event) => {
-      if (abort.signal.aborted) return;
-      const snapshotGeneration = beginWorkflowSnapshotRead(event.sessionID);
-      if (ctx.session.get) {
-        try {
-          const info = await ctx.session.get({ sessionID: event.sessionID });
-          if (abort.signal.aborted) return;
-          if (workflowSnapshotReads.get(event.sessionID) !== snapshotGeneration) {
-            reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-            return;
-          }
-          if (info.location.directory !== directory) {
+    registrations.push(
+      await ctx.session.hook("context", async (event) => {
+        if (abort.signal.aborted) return;
+        const snapshotGeneration = beginWorkflowSnapshotRead(event.sessionID);
+        if (ctx.session.get) {
+          try {
+            const info = await ctx.session.get({ sessionID: event.sessionID });
+            if (abort.signal.aborted) return;
+            if (workflowSnapshotReads.get(event.sessionID) !== snapshotGeneration) {
+              reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
+              return;
+            }
+            if (info.location.directory !== directory) {
+              forgetSession(event.sessionID);
+              reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
+              return;
+            }
+          } catch {
+            if (abort.signal.aborted) return;
             forgetSession(event.sessionID);
             reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
+            if (!abort.signal.aborted)
+              event.system.push({
+                type: "text",
+                text: "<beads-notice>Beads context withheld: current session location could not be established. Do not bypass this hold with manual store access.</beads-notice>",
+              });
             return;
           }
-        } catch {
-          if (abort.signal.aborted) return;
-          forgetSession(event.sessionID);
+        } else {
           reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-          if (!abort.signal.aborted) event.system.push({ type: "text", text: "<beads-notice>Beads context withheld: current session location could not be established. Do not bypass this hold with manual store access.</beads-notice>" });
+        }
+        if (ctx.session.get && !(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
+        if (abort.signal.aborted) return;
+        const knownTools = event.tools && typeof event.tools === "object";
+        const capabilities: RequestCapabilities = knownTools
+          ? {
+              execute: Object.hasOwn(event.tools, "execute"),
+              shell: Object.hasOwn(event.tools, "shell"),
+              direct: Object.keys(event.tools).some((name) => DIRECT_BEADS_TOOLS.has(name)),
+              typed:
+                typedRegistration.startsWith("registered") && Object.hasOwn(event.tools, "execute")
+                  ? "registered-execute-visible"
+                  : typedRegistration.startsWith("registered") &&
+                      Object.keys(event.tools).some((name) => DIRECT_BEADS_TOOLS.has(name))
+                    ? "registered-direct-visible"
+                    : "unavailable",
+            }
+          : { ...UNKNOWN_CAPABILITIES };
+        requestCapabilities.set(event.sessionID, { agent: event.agent, capabilities });
+        const counts = countManagedBlocks(
+          event.system
+            .filter((part) => part.type === "text")
+            .map((part) => part.text ?? "")
+            .join("\n"),
+        );
+        const text = await controller.systemFor(event.sessionID, event.agent, capabilities);
+        let replaced = 0;
+        if (abort.signal.aborted) return;
+        if (!text) {
+          requestInstructions.set(event.sessionID, {
+            at: now(),
+            ...counts,
+            replaced: 0,
+            retained: counts.full + counts.minimal + counts.codex,
+          });
           return;
         }
-      } else {
-        reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-      }
-      if (ctx.session.get && !(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
-      if (abort.signal.aborted) return;
-      const knownTools = event.tools && typeof event.tools === "object";
-      const capabilities: RequestCapabilities = knownTools ? {
-        execute: Object.hasOwn(event.tools, "execute"), shell: Object.hasOwn(event.tools, "shell"),
-        direct: Object.keys(event.tools).some((name) => DIRECT_BEADS_TOOLS.has(name)),
-        typed: typedRegistration.startsWith("registered") && Object.hasOwn(event.tools, "execute")
-          ? "registered-execute-visible"
-          : typedRegistration.startsWith("registered") && Object.keys(event.tools).some((name) => DIRECT_BEADS_TOOLS.has(name))
-            ? "registered-direct-visible"
-            : "unavailable",
-      } : { ...UNKNOWN_CAPABILITIES };
-      requestCapabilities.set(event.sessionID, { agent: event.agent, capabilities });
-      const counts = countManagedBlocks(event.system.filter((part) => part.type === "text").map((part) => part.text ?? "").join("\n"));
-      const text = await controller.systemFor(event.sessionID, event.agent, capabilities);
-      let replaced = 0;
-      if (abort.signal.aborted) return;
-      if (!text) { requestInstructions.set(event.sessionID, { at: now(), ...counts, replaced: 0, retained: counts.full + counts.minimal + counts.codex }); return; }
-      if (text.startsWith("<beads-context")) {
-        const eligible = beadsSessions.get(event.sessionID) ?? new Set<string>();
-        eligible.add(event.agent);
-        beadsSessions.set(event.sessionID, eligible);
-        // Reduce only complete bodies already supplied here; marker ownership alone is insufficient.
-        replaced = minimizeSystemParts(event.system, text);
-      }
-      requestInstructions.set(event.sessionID, { at: now(), ...counts, replaced, retained: counts.full + counts.minimal + counts.codex - replaced });
-      event.system.push({ type: "text", text });
-      const cue = recoveryCues.get(event.sessionID);
-      const gap = gapFor(event.sessionID);
-      if (cue || gap) {
-        const recovery = [cue, gap && `Known persistence gaps: inspect durable state before another write; do not blindly retry.\n${gap}`].filter(Boolean).join("\n");
-        event.system.push({ type: "text", text: `<beads-recovery>${recovery}</beads-recovery>` });
-        recoveryCues.delete(event.sessionID);
-      }
-    }));
-
-    registrations.push(await ctx.session.hook("compaction", async (event) => {
-      if (abort.signal.aborted) return;
-      const snapshotGeneration = beginWorkflowSnapshotRead(event.sessionID);
-      if (ctx.session.get) {
-        try {
-          const info = await ctx.session.get({ sessionID: event.sessionID });
-          if (abort.signal.aborted) return;
-          if (workflowSnapshotReads.get(event.sessionID) !== snapshotGeneration) {
-            reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-            return;
-          }
-          if (info.location.directory !== directory) {
-            forgetSession(event.sessionID);
-            reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-            return;
-          }
-        } catch {
-          if (abort.signal.aborted) return;
-          forgetSession(event.sessionID);
-          reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-          return;
+        if (text.startsWith("<beads-context")) {
+          const eligible = beadsSessions.get(event.sessionID) ?? new Set<string>();
+          eligible.add(event.agent);
+          beadsSessions.set(event.sessionID, eligible);
+          // Reduce only complete bodies already supplied here; marker ownership alone is insufficient.
+          replaced = minimizeSystemParts(event.system, text);
         }
-        if (!(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
-      } else {
-        reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-      }
-      if (abort.signal.aborted) return;
-      if (beadsSessions.get(event.sessionID)?.has(event.agent)) {
-        event.system.push({ type: "text", text: BEADS_COMPACTION_GUIDANCE });
-        const known = references.get(event.sessionID);
+        requestInstructions.set(event.sessionID, {
+          at: now(),
+          ...counts,
+          replaced,
+          retained: counts.full + counts.minimal + counts.codex - replaced,
+        });
+        event.system.push({ type: "text", text });
+        const cue = recoveryCues.get(event.sessionID);
         const gap = gapFor(event.sessionID);
-        if (known?.size || gap) event.system.push({ type: "text", text: `<beads-references>${JSON.stringify({ references: [...(known ?? [])], gap: gap ?? "No final-write guarantee; only earlier acknowledgements are known." })}</beads-references>` });
-      }
-    }));
+        if (cue || gap) {
+          const recovery = [
+            cue,
+            gap && `Known persistence gaps: inspect durable state before another write; do not blindly retry.\n${gap}`,
+          ]
+            .filter(Boolean)
+            .join("\n");
+          event.system.push({ type: "text", text: `<beads-recovery>${recovery}</beads-recovery>` });
+          recoveryCues.delete(event.sessionID);
+        }
+      }),
+    );
 
-    if (ctx.tool) registrations.push(await ctx.tool.hook("execute.after", (event) => {
-      // Typed inner calls acknowledge in their executor. The outer code-mode result adds nothing.
-      if (abort.signal.aborted || event.tool === "execute" || event.tool.startsWith("beads_") || !beadsSessions.has(event.sessionID)) return;
-      if (event.tool === "subagent") {
-        controller.invalidate(event.sessionID);
-        recoveryCues.set(event.sessionID, "A subagent call finished; it may only acknowledge launch or follow-up. Reconcile actual reports or results, scope, attempts, validation, durable references and incomplete work before relying on completion or proceeding within the existing authorization.");
-      }
-    }));
+    registrations.push(
+      await ctx.session.hook("compaction", async (event) => {
+        if (abort.signal.aborted) return;
+        const snapshotGeneration = beginWorkflowSnapshotRead(event.sessionID);
+        if (ctx.session.get) {
+          try {
+            const info = await ctx.session.get({ sessionID: event.sessionID });
+            if (abort.signal.aborted) return;
+            if (workflowSnapshotReads.get(event.sessionID) !== snapshotGeneration) {
+              reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
+              return;
+            }
+            if (info.location.directory !== directory) {
+              forgetSession(event.sessionID);
+              reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
+              return;
+            }
+          } catch {
+            if (abort.signal.aborted) return;
+            forgetSession(event.sessionID);
+            reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
+            return;
+          }
+          if (!(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
+        } else {
+          reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
+        }
+        if (abort.signal.aborted) return;
+        if (beadsSessions.get(event.sessionID)?.has(event.agent)) {
+          event.system.push({ type: "text", text: BEADS_COMPACTION_GUIDANCE });
+          const known = references.get(event.sessionID);
+          const gap = gapFor(event.sessionID);
+          if (known?.size || gap)
+            event.system.push({
+              type: "text",
+              text: `<beads-references>${JSON.stringify({ references: [...(known ?? [])], gap: gap ?? "No final-write guarantee; only earlier acknowledgements are known." })}</beads-references>`,
+            });
+        }
+      }),
+    );
+
+    if (ctx.tool)
+      registrations.push(
+        await ctx.tool.hook("execute.after", (event) => {
+          // Typed inner calls acknowledge in their executor. The outer code-mode result adds nothing.
+          if (
+            abort.signal.aborted ||
+            event.tool === "execute" ||
+            event.tool.startsWith("beads_") ||
+            !beadsSessions.has(event.sessionID)
+          )
+            return;
+          if (event.tool === "subagent") {
+            controller.invalidate(event.sessionID);
+            recoveryCues.set(
+              event.sessionID,
+              "A subagent call finished; it may only acknowledge launch or follow-up. Reconcile actual reports or results, scope, attempts, validation, durable references and incomplete work before relying on completion or proceeding within the existing authorization.",
+            );
+          }
+        }),
+      );
 
     observation = (async () => {
       try {
@@ -523,12 +733,33 @@ export async function setupBeads(
           if (!sessionID) continue;
           if (type === "session.deleted" || type === "session.moved" || type === "session.forked") {
             forgetSession(sessionID);
-          } else if (beadsSessions.has(sessionID) && ["session.compaction.started", "session.compaction.ended", "session.compaction.failed",
-            "session.execution.started", "session.execution.interrupted", "session.execution.failed", "session.model.selected", "session.agent.selected"].includes(String(type))) {
+          } else if (
+            beadsSessions.has(sessionID) &&
+            [
+              "session.compaction.started",
+              "session.compaction.ended",
+              "session.compaction.failed",
+              "session.execution.started",
+              "session.execution.interrupted",
+              "session.execution.failed",
+              "session.model.selected",
+              "session.agent.selected",
+            ].includes(String(type))
+          ) {
             controller.invalidate(sessionID);
-            recoveryCues.set(sessionID, "Recovery requires current task state and relevant memory: re-read attempts, decisions, blockers and the next authorized action. Cached absence is not proof of absence; preserve any guard hold.");
-            if (type === "session.execution.interrupted" || type === "session.execution.failed" || type === "session.compaction.failed") {
-              recordGap(sessionID, "Execution or compaction stopped; no final checkpoint is guaranteed. Recover from earlier acknowledged records.");
+            recoveryCues.set(
+              sessionID,
+              "Recovery requires current task state and relevant memory: re-read attempts, decisions, blockers and the next authorized action. Cached absence is not proof of absence; preserve any guard hold.",
+            );
+            if (
+              type === "session.execution.interrupted" ||
+              type === "session.execution.failed" ||
+              type === "session.compaction.failed"
+            ) {
+              recordGap(
+                sessionID,
+                "Execution or compaction stopped; no final checkpoint is guaranteed. Recover from earlier acknowledged records.",
+              );
             }
           }
         }
