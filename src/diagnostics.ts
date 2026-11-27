@@ -474,6 +474,60 @@ function assessCommands(commands: DiagnosticsSnapshot["commands"]): { row: Row; 
 }
 
 /**
+ * Assess the skill registry without treating shared-file presence as evidence of registration or use.
+ *
+ * @param skill - Captured registry observation, which may contain partial evidence even on failure.
+ * @param sharedSkill - Independent observation of the shared skill file.
+ * @param observedAt - Timestamp for registry findings.
+ */
+function assessSkill(
+  skill: DiagnosticsSnapshot["skill"],
+  sharedSkill: string | undefined,
+  observedAt: string,
+): { row: Row; findings: Finding[] } {
+  const shared = sharedSkill === "missing" ? "absent" : (sharedSkill ?? "not observed");
+  const effective = Array.isArray(skill?.effective) ? skill.effective : undefined;
+  const collision = skill?.collision?.startsWith("skill-collision") ? skill.collision : undefined;
+  const findings: Finding[] = [];
+  if (effective?.includes("beads"))
+    findings.push({
+      id: "shared-skill-effective",
+      module: "plugin",
+      class: "note",
+      producer: "effective skill registry",
+      scope: "confirmed session",
+      observedAt,
+      observation: "A Beads skill is registered alongside oc-beads",
+      meaning: "Registration does not establish use or freshness.",
+    });
+  if (collision)
+    findings.push({
+      id: "skill-collision",
+      module: "plugin",
+      class: "review-needed",
+      producer: "skill rebuild",
+      scope: "confirmed session",
+      observedAt,
+      observation: collision,
+      meaning: "Native customization precedence is preserved.",
+    });
+
+  if (skill?.failure) return { row: ["Skill", 2, "unavailable"], findings };
+  if (collision) return { row: ["Skill", 1, `oc-beads overridden · shared: ${shared}`], findings };
+  if (!effective) return { row: ["Skill", null, `registry not observed · shared: ${shared}`], findings };
+
+  const active = effective.includes("oc-beads");
+  return {
+    row: [
+      "Skill",
+      active ? (shared === "unreadable" ? null : 0) : 1,
+      `oc-beads ${active ? "active" : "absent"} · shared: ${shared}`,
+    ],
+    findings,
+  };
+}
+
+/**
  * Interpret captured evidence without I/O or Markdown; preserve the order of rows, findings, and actions.
  *
  * @param snapshot - Captured observations, including absent or partial evidence.
@@ -590,24 +644,8 @@ function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
       "last observed request",
       typeof request?.at === "number" ? new Date(request.at).toISOString() : "unavailable",
     );
-  if (Array.isArray(skill?.effective) && skill.effective.includes("beads"))
-    add(
-      "shared-skill-effective",
-      "plugin",
-      "note",
-      "effective skill registry",
-      "A Beads skill is registered alongside oc-beads",
-      "Registration does not establish use or freshness.",
-    );
-  if (skill?.collision && skill.collision.startsWith("skill-collision"))
-    add(
-      "skill-collision",
-      "plugin",
-      "review-needed",
-      "skill rebuild",
-      skill.collision,
-      "Native customization precedence is preserved.",
-    );
+  const skillAssessment = assessSkill(skill, local?.sharedSkill, time);
+  findings.push(...skillAssessment.findings);
   const remote = assessRemote(
     snapshot.syncTarget,
     guard?.kind === "withheld",
@@ -631,18 +669,7 @@ function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
   const commandAssessment = assessCommands(commands);
   pluginRows.push(commandAssessment.row);
   if (commandAssessment.action) actions.push(commandAssessment.action);
-  const shared = local?.sharedSkill === "missing" ? "absent" : (local?.sharedSkill ?? "not observed");
-  if (skill?.failure) pluginRows.push(["Skill", 2, "unavailable"]);
-  else if (skill?.collision?.startsWith("skill-collision"))
-    pluginRows.push(["Skill", 1, `oc-beads overridden · shared: ${shared}`]);
-  else if (Array.isArray(skill?.effective)) {
-    const active = skill.effective.includes("oc-beads");
-    pluginRows.push([
-      "Skill",
-      active ? (shared === "unreadable" ? null : 0) : 1,
-      `oc-beads ${active ? "active" : "absent"} · shared: ${shared}`,
-    ]);
-  } else pluginRows.push(["Skill", null, `registry not observed · shared: ${shared}`]);
+  pluginRows.push(skillAssessment.row);
   const typed = snapshot.typedRegistration ?? "";
   if (typed.startsWith("registered")) pluginRows.push(["Typed tools", 0, "Registered"]);
   else if (snapshot.typedContinuity?.startsWith("enabled"))
