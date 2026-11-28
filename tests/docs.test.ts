@@ -6,6 +6,7 @@ import { MINIMUM_BD_VERSION } from "../src/guard";
 const readme = await fs.readFile("README.md", "utf8");
 const userGuide = await fs.readFile("docs/user-guide.md", "utf8");
 const docsIndex = await fs.readFile("docs/README.md", "utf8");
+const compatibilityEvidence = await fs.readFile("docs/compatibility-evidence.md", "utf8");
 const agentGuide = await fs.readFile("AGENTS.md", "utf8");
 const changelog = await fs.readFile("CHANGELOG.md", "utf8");
 const sdkContract = await fs.readFile("docs/opencode-sdk-contract.md", "utf8");
@@ -293,11 +294,21 @@ describe("documentation contracts", () => {
     expect(userGuide).toContain("| OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |");
     expect(userGuide).toContain("| `bd` CLI | 1.3.1 through 1.x | 1.3.4 |");
     expect(readme).toContain("| OpenCode | `>=2.3.0 <2.4`, `2.4.1`, or `2.4.2` |");
-    expect(readme).toContain("bounded native qualification");
-    for (const document of [readme, userGuide, sdkContract]) {
-      expect(document).toContain("opencode-23-qualification-xwq.md");
+    for (const document of [readme, userGuide, sdkContract, docsIndex]) {
+      expect(document).toContain("compatibility-evidence.md");
       expect(document).not.toContain("native qualification is pending");
     }
+    const pinnedReports = Array.from(
+      compatibilityEvidence.matchAll(
+        /https:\/\/github\.com\/snarkipus\/opencode-beads\/blob\/[a-f0-9]{40}\/docs\/([\w-]+\.md)\)/g,
+      ),
+      (match) => match[1],
+    );
+    expect(pinnedReports).toEqual([
+      "opencode-23-qualification-xwq.md",
+      "opencode-241-qualification.md",
+      "opencode-242-qualification.md",
+    ]);
     expect(userGuide).toContain("repeated idle reports with outstanding work");
     expect(userGuide).toContain("cancellation during real bd execution");
     expect(readme).toContain("### Upgrading to 2.2.0");

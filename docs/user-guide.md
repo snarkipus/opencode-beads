@@ -168,8 +168,8 @@ Remove the `plugins` entry to unload the plugin. Cleanup aborts owned context/pr
 | OpenCode (2.2.1) | `>=2.3.0 <2.4` | Deterministic/package regression checks; inherits 2.2.0 native baseline |
 | OpenCode (2.3.0) | `>=2.3.0 <2.4` | Inherited native baseline plus integrated diagnostics checks and owner normal-output canaries on exact 2.3.0 |
 | OpenCode (2.3.1) | `>=2.3.0 <2.4` | Inherits the 2.3.0 baseline; focused lifecycle/acknowledgement regressions and package checks |
-| OpenCode (2.4.0) | `>=2.3.0 <2.4` or `2.4.1` | [Exact 2.4.1 bounded native qualification](opencode-241-qualification.md); retains the 2.3.0 baseline |
-| OpenCode (2.4.1) | `>=2.3.0 <2.4`, `2.4.1`, or `2.4.2` | [Exact 2.4.2 bounded native qualification](opencode-242-qualification.md); retains prior evidence |
+| OpenCode (2.4.0) | `>=2.3.0 <2.4` or `2.4.1` | [Compatibility evidence](compatibility-evidence.md): exact 2.4.1; retains the 2.3.0 baseline |
+| OpenCode (2.4.1) | `>=2.3.0 <2.4`, `2.4.1`, or `2.4.2` | [Compatibility evidence](compatibility-evidence.md): exact 2.4.2; retains prior evidence |
 | OpenCode (stable 1.0.2 historical) | 2.0.26 | 2.0.26 |
 | `bd` CLI | 1.3.1 through 1.x | 1.3.4 |
 | Bun (OpenCode host runtime) | >=1.3.14 | 1.4.2 |

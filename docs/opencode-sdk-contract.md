@@ -15,9 +15,10 @@ to live at this path is preserved as
   `2.3.0` for development typing only. The only import is
   `import type { Plugin } from "@opencode/plugin"`, so the package installs
   nothing from OpenCode and runs on the host's runtime.
-- Pinned host source for 2.3.0: `anomalyco/opencode` [`a6b15d33daf6ab7d35569f6d711fdb630b9f04e7`](https://github.com/anomalyco/opencode/tree/a6b15d33daf6ab7d35569f6d711fdb630b9f04e7). The [bounded native qualification](opencode-23-qualification-xwq.md) covers exact 2.3.0; repeated idle reports with outstanding work and cancellation during real `bd` execution remain deferred and unexecuted. SDK and fixture checks alone do not establish native behavior.
-- Pinned host source for 2.4.1: `anomalyco/opencode` [`6f0514052a3c859894ad01bb14cc14dda1e44b96`](https://github.com/anomalyco/opencode/tree/6f0514052a3c859894ad01bb14cc14dda1e44b96). The [bounded native qualification](opencode-241-qualification.md) covers exact 2.4.1 only.
-- Pinned host source for 2.4.2: `anomalyco/opencode` [`fc31a485317970bcf6be7b431a9830aaef875731`](https://github.com/anomalyco/opencode/tree/fc31a485317970bcf6be7b431a9830aaef875731). See the [2.4.2 release review and native qualification](opencode-242-qualification.md).
+- Pinned host source for 2.3.0: `anomalyco/opencode` [`a6b15d33daf6ab7d35569f6d711fdb630b9f04e7`](https://github.com/anomalyco/opencode/tree/a6b15d33daf6ab7d35569f6d711fdb630b9f04e7).
+- Pinned host source for 2.4.1: `anomalyco/opencode` [`6f0514052a3c859894ad01bb14cc14dda1e44b96`](https://github.com/anomalyco/opencode/tree/6f0514052a3c859894ad01bb14cc14dda1e44b96).
+- Pinned host source for 2.4.2: `anomalyco/opencode` [`fc31a485317970bcf6be7b431a9830aaef875731`](https://github.com/anomalyco/opencode/tree/fc31a485317970bcf6be7b431a9830aaef875731).
+- See [compatibility evidence](compatibility-evidence.md) for exact native runs and their limits. SDK and fixture checks alone do not establish native behavior.
 - Earlier host source for 2.2.6: `anomalyco/opencode`
   [`dc2ffcf8bf26f9e669b6aa22b95f50e12be15e06`](https://github.com/anomalyco/opencode/tree/dc2ffcf8bf26f9e669b6aa22b95f50e12be15e06).
   The 2.1→2.2 adaptation rationale is in the archived

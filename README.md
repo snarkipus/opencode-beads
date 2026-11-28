@@ -22,10 +22,10 @@ Version **2.4.1** admits stable OpenCode 2.3.x and exact OpenCode 2.4.1 and 2.4.
 
 | Component | Supported | Evidence |
 | --- | --- | --- |
-| OpenCode | `>=2.3.0 <2.4`, `2.4.1`, or `2.4.2` | Bounded native qualification on exact [2.3.0](docs/opencode-23-qualification-xwq.md), [2.4.1](docs/opencode-241-qualification.md), and [2.4.2](docs/opencode-242-qualification.md) |
+| OpenCode | `>=2.3.0 <2.4`, `2.4.1`, or `2.4.2` | [Bounded native qualification](docs/compatibility-evidence.md) on exact 2.3.0, 2.4.1, and 2.4.2 |
 | `bd` CLI | 1.3.1 through 1.x | 1.3.4 contract baseline |
 
-The [bounded native qualification](docs/opencode-23-qualification-xwq.md) includes real delegation, report freshness and Code Mode reads. Repeated idle reports with outstanding work and cancellation during real `bd` execution were deferred and remain unexecuted. A compatible range is admission, not proof that every future patch was tested. The plugin refuses to register on hosts outside the range. Older hosts: see [Compatibility](docs/user-guide.md#compatibility).
+A compatible range is admission, not proof that every patch was tested. The plugin refuses to register on hosts outside the range. Older hosts: see [Compatibility](docs/user-guide.md#compatibility).
 
 ## Installation
 
