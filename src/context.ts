@@ -175,24 +175,22 @@ export function createContextController(
       const cached = cache.get(key);
       const fresh = cached && (cached.expiresAt === undefined || cached.expiresAt > current);
       const resumed = cached && idleRefreshMs > 0 && current - cached.lastUsed > idleRefreshMs;
+      let entry: CacheEntry;
       if (cached && fresh && !resumed) {
         cached.lastUsed = current;
-        const output = await cached.value;
-        if (disposed || cached.abort.signal.aborted) return undefined;
-        return cached.status === "ready"
-          ? renderBeadsContext(output!, audience, { sessionID, agent: agentID, capabilities })
-          : output;
+        entry = cached;
+      } else {
+        cached?.abort.abort();
+        entry = {
+          value: Promise.resolve(undefined),
+          lastUsed: current,
+          abort: new AbortController(),
+          status: "loading",
+        };
+        entry.value = load(sessionID, audience, entry);
+        cache.set(key, entry);
       }
 
-      cached?.abort.abort();
-      const entry: CacheEntry = {
-        value: Promise.resolve(undefined),
-        lastUsed: current,
-        abort: new AbortController(),
-        status: "loading",
-      };
-      entry.value = load(sessionID, audience, entry);
-      cache.set(key, entry);
       const output = await entry.value;
       if (disposed || entry.abort.signal.aborted) return undefined;
       return entry.status === "ready"
