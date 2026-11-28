@@ -65,6 +65,9 @@ export interface HostDependencies {
   workflowAssets?: SkillLoadDependencies;
 }
 
+const WORKFLOW_UNAVAILABLE_NOTICE =
+  "<beads-notice>Saved Beads workflow instructions or diagnostics are unavailable for a compact command. Continue only from visible user input and supplied context; do not invent missing guidance or replay an operation.</beads-notice>";
+
 const DEFAULT_DIAGNOSTIC_INTERVAL_MS = 60_000;
 const COMMAND_REGISTRY_LIMIT = 128;
 const COMMAND_NAME_LIMIT = 128;
@@ -219,7 +222,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
   });
 
   // Sessions that have received Beads context; their compaction summaries should keep Beads state.
-  const beadsSessions = new Map<string, Set<string>>();
+  const contextRecipients = new Map<string, Set<string>>();
   const recoveryCues = new Map<string, string>();
   const references = new Map<string, Set<string>>();
   const gaps = new Map<string, Set<string>>();
@@ -234,95 +237,8 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
       ? "unavailable: host tool/permission/session interface missing"
       : "disabled: registration not requested";
 
-  /**
-   * Retain distinct persistence gaps for the session lifecycle, with an overflow
-   * marker once the detail budget is exhausted.
-   * @param sessionID Session that observed the unresolved outcome.
-   * @param detail Operation outcome or lifecycle uncertainty to carry forward.
-   */
-  function recordGap(sessionID: string, detail: string): void {
-    const known = gaps.get(sessionID) ?? new Set<string>();
-    if (known.size < 32) known.add(detail);
-    else if (!known.has(detail))
-      known.add(
-        "Additional persistence gaps exceed the retained detail limit; earlier unresolved details remain. Inspect tool outcomes before further writes.",
-      );
-    gaps.set(sessionID, known);
-  }
-
-  /**
-   * Read retained gaps without consuming them.
-   * @param sessionID Session whose persistence state is being reported.
-   * @returns Joined details, or undefined when no gap is recorded.
-   */
-  function gapFor(sessionID: string): string | undefined {
-    return [...(gaps.get(sessionID) ?? [])].join("\n") || undefined;
-  }
-
-  /**
-   * Discard location-bound session state and invalidate pending snapshot reads.
-   * @param sessionID Session whose cached state and observations are no longer reusable.
-   */
-  function forgetSession(sessionID: string): void {
-    controller.forget(sessionID);
-    beadsSessions.delete(sessionID);
-    references.delete(sessionID);
-    recoveryCues.delete(sessionID);
-    gaps.delete(sessionID);
-    workflowSnapshotReads.delete(sessionID);
-    requestCapabilities.delete(sessionID);
-    requestInstructions.delete(sessionID);
-    for (const key of diagnosticTimes.keys()) {
-      if (key.endsWith(`:${sessionID}`)) diagnosticTimes.delete(key);
-    }
-  }
-
   let observation: Promise<void> | undefined;
   let cleanupPromise: Promise<void> | undefined;
-  /**
-   * Abort scoped work and clear session state before invoking owned disposers in
-   * reverse registration order. Repeated calls share the same completion promise.
-   * @returns A promise that waits for all disposers and the event observer, and
-   * rejects with an AggregateError if any fail.
-   */
-  function cleanup(): Promise<void> {
-    if (cleanupPromise) return cleanupPromise;
-    abort.abort();
-    controller.dispose();
-    beadsSessions.clear();
-    recoveryCues.clear();
-    references.clear();
-    gaps.clear();
-    workflowSnapshotReads.clear();
-    requestCapabilities.clear();
-    requestInstructions.clear();
-    diagnosticTimes.clear();
-    const pending = registrations
-      .splice(0)
-      .reverse()
-      .map((registration) => {
-        try {
-          return registration.dispose();
-        } catch (error) {
-          return Promise.reject(error);
-        }
-      });
-    cleanupPromise = Promise.allSettled([...pending, ...(observation ? [observation] : [])]).then((results) => {
-      const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
-      if (failures.length) {
-        try {
-          warn("[opencode-beads] cleanup-failed: owned registration disposal failed");
-        } catch {
-          /* Preserve the actual failure. */
-        }
-        throw new AggregateError(
-          failures.map((result) => result.reason),
-          "Beads cleanup failed",
-        );
-      }
-    });
-    return cleanupPromise;
-  }
 
   try {
     registrations.push(
@@ -330,85 +246,6 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
         if (!abort.signal.aborted) applyBeadsAgents(editor, agents);
       }),
     );
-
-    /**
-     * Warn once per distinct workflow diagnostic for the retained host state.
-     * @param message Diagnostic text, including the session suffix when applicable.
-     */
-    function workflowDiagnostic(message: string): void {
-      if (abort.signal.aborted || diagnosticTimes.has(message)) return;
-      diagnosticTimes.set(message, now());
-      try {
-        warn(`[opencode-beads] ${message}`);
-      } catch {
-        /* Diagnostics never break loading. */
-      }
-    }
-
-    const workflowUnavailableNotice =
-      "<beads-notice>Saved Beads workflow instructions or diagnostics are unavailable for a compact command. Continue only from visible user input and supplied context; do not invent missing guidance or replay an operation.</beads-notice>";
-    /**
-     * Surface missing workflow instructions or reports once in the current hook input.
-     * @param event Hook payload that owns the transient system notice.
-     * @param unavailable Whether a visible invocation lacks a recoverable snapshot.
-     */
-    function reportUnavailableWorkflow(
-      event: {
-        sessionID: string;
-        messages: NonNullable<SessionContext["messages"]>;
-        system: Array<{ type: "text"; text: string }>;
-      },
-      unavailable: boolean,
-    ): void {
-      if (!unavailable) return;
-      workflowDiagnostic(`workflow-snapshot-unavailable session=${event.sessionID}`);
-      if (!event.system.some((part) => part.text === workflowUnavailableNotice)) {
-        event.system.push({ type: "text", text: workflowUnavailableNotice });
-      }
-    }
-
-    /**
-     * Share one generation across overlapping reads in the same session lifecycle.
-     * Forgetting the session retires the token, so a later read gets a fresh one.
-     * @param sessionID Session whose location and stored context will be read.
-     */
-    function beginWorkflowSnapshotRead(sessionID: string): symbol {
-      const generation = workflowSnapshotReads.get(sessionID) ?? Symbol(sessionID);
-      workflowSnapshotReads.set(sessionID, generation);
-      return generation;
-    }
-
-    /**
-     * Expand retained native snapshots into matching transient messages by ID.
-     * A failed history read falls back to detecting visible invocations with missing guidance.
-     * @param event Hook payload receiving expanded messages and any unavailable notice.
-     * @param generation Session token captured before checking location.
-     * @returns Whether the hook may proceed, including after a history lookup failure.
-     * Cancellation or an outdated generation stops further processing.
-     */
-    async function restoreWorkflowSnapshots(
-      event: { sessionID: string; messages: SessionContext["messages"]; system: Array<{ type: "text"; text: string }> },
-      generation: symbol,
-    ): Promise<boolean> {
-      try {
-        const storedMessages = await ctx.session.context({ sessionID: event.sessionID });
-        if (abort.signal.aborted) return false;
-        if (workflowSnapshotReads.get(event.sessionID) !== generation) {
-          reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-          return false;
-        }
-        reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, storedMessages));
-        return true;
-      } catch {
-        if (abort.signal.aborted) return false;
-        if (workflowSnapshotReads.get(event.sessionID) !== generation) {
-          reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-          return false;
-        }
-        reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-        return true;
-      }
-    }
 
     let skillFailure: string | undefined;
     let skillCollision = "not observed";
@@ -445,148 +282,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
         ((dir: string, args: readonly string[]) => runBd(dir, args, { signal: abort.signal, env: DIAGNOSTIC_ENV }));
       const definitions = createBeadsCommands(
         { prompt: ctx.session.prompt },
-        async (sessionID, text) => {
-          // Commands capture this report at invocation time. Hook replay uses the saved report.
-          const selector = text?.trim().toLowerCase();
-          let context = "uncertain";
-          let locationKnown = false;
-          let contextObservation: ReturnType<typeof controller.observationFor>;
-          if (ctx.session.get) {
-            try {
-              const session = await ctx.session.get({
-                sessionID: sessionID as Parameters<NonNullable<typeof ctx.session.get>>[0]["sessionID"],
-              });
-              if (session.location.directory !== directory) {
-                forgetSession(sessionID);
-                context = "withheld: session location changed";
-              } else {
-                // Record the confirmed location before reading cached context.
-                locationKnown = true;
-                const lastRequestAgent = requestCapabilities.get(sessionID)?.agent;
-                const audience = lastRequestAgent && BEADS_TASK_AGENTS.has(lastRequestAgent) ? "task-agent" : "primary";
-                const cachedStatus = controller.statusFor(sessionID, audience);
-                contextObservation = controller.observationFor(sessionID, audience);
-                context =
-                  cachedStatus === "loading"
-                    ? "uncertain: context refresh in progress"
-                    : (cachedStatus ?? "unobserved: no cached context");
-              }
-            } catch {
-              forgetSession(sessionID);
-              context = "uncertain: session lookup failed";
-            }
-          }
-          let guard: GuardResult | { kind: "withheld"; reason: string } = {
-            kind: "withheld",
-            reason: "session location unconfirmed",
-          };
-          if (locationKnown && !abort.signal.aborted) {
-            try {
-              guard = deps.runtime?.guard
-                ? await runtime.guard(directory, abort.signal)
-                : await checkBeadsStore(directory, createGuardRuntime(diagnosticBd));
-            } catch {
-              guard = { kind: "probe-failed" };
-            }
-          }
-          let local: NonNullable<DiagnosticsSnapshot["local"]> = "withheld";
-          if (guard.kind !== "withheld" && !abort.signal.aborted) {
-            // Both file observations share one abort check and run in order.
-            local = {
-              ...(await collectPluginHealth(directory, guard)),
-              ...(await collectBeadsHealth(guard)),
-            };
-          }
-
-          // Hook listing depends on the confirmed location, not on a successful store probe.
-          const hooks =
-            locationKnown && !abort.signal.aborted
-              ? await collectHooks(directory, diagnosticBd)
-              : "withheld: session location unconfirmed";
-          const syncTarget =
-            guard.kind === "ready" && guard.workspace && !abort.signal.aborted
-              ? await collectSyncTarget(directory, guard.workspace, diagnosticBd)
-              : undefined;
-          let effectiveCommands: ObservedCommand[] | undefined;
-          let registryTruncated = false;
-          let registryMembershipTruncated = false;
-          let effectiveSkills: NonNullable<DiagnosticsSnapshot["skill"]>["effective"];
-          try {
-            const entries = (await ctx.command!.list()).data;
-            // Record limits against the source rows before taking the bounded sample.
-            registryMembershipTruncated =
-              entries.length > COMMAND_REGISTRY_LIMIT || entries.some(({ name }) => name.length > COMMAND_NAME_LIMIT);
-            registryTruncated =
-              registryMembershipTruncated ||
-              entries.some(
-                ({ name, description }) =>
-                  name.length > COMMAND_NAME_LIMIT || (description?.length ?? 0) > COMMAND_DESCRIPTION_LIMIT,
-              );
-            effectiveCommands = entries.slice(0, COMMAND_REGISTRY_LIMIT).map(({ name, description }) => ({
-              name: name.slice(0, COMMAND_NAME_LIMIT),
-              description: description?.slice(0, COMMAND_DESCRIPTION_LIMIT),
-            }));
-          } catch {
-            /* Absence of lookup evidence is unknown, not an empty registry. */
-          }
-          try {
-            effectiveSkills = ctx.skill
-              ? (await ctx.skill.list()).data.slice(0, 128).map((entry) => String(entry.id).slice(0, 128))
-              : "unavailable";
-          } catch {
-            effectiveSkills = "unavailable: registry lookup failed";
-          }
-          /**
-           * Prefer observed direct leaves over the indirect execute surface.
-           * @param request The last observed request for this session, if any.
-           */
-          function describeLeafAvailability(request: typeof observedRequest): string {
-            if (request?.capabilities.direct === true) {
-              return "some native direct Beads leaves are visible; each still checks its operation-specific permission";
-            }
-            if (request?.capabilities.typed === "registered-execute-visible") {
-              return "execute is visible; the native catalog and each operation-specific permission determine leaf availability";
-            }
-            return "unknown until native catalog discovery and per-operation permission checks";
-          }
-
-          const observedRequest = requestCapabilities.get(sessionID);
-          const snapshot = {
-            plugin: { name: packageManifest.name, version: packageManifest.version },
-            host: hostVersion,
-            admission: SUPPORTED_OPENCODE_RANGE,
-            liveQualification: "not measured by diagnostics; see release acceptance evidence",
-            commands: {
-              registration: commandRegistration,
-              lookup: effectiveCommands ? "available" : "failed",
-              truncated: registryTruncated,
-              membershipTruncated: registryMembershipTruncated,
-              expectedCount: definitions.length,
-              effective: effectiveCommands ?? "unknown: registry lookup failed",
-              ...compareCommandRegistry(definitions, effectiveCommands, registryMembershipTruncated),
-              ownership:
-                "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
-            },
-            skill: { failure: skillFailure, effective: effectiveSkills, collision: skillCollision },
-            typedContinuity:
-              deps.continuityQualified === true
-                ? "enabled: qualified registration"
-                : "disabled: registration not requested",
-            typedRegistration,
-            requestCapability: observedRequest ?? "unknown: no actual request observation",
-            leafAvailability: describeLeafAvailability(observedRequest),
-            local,
-            context,
-            contextObservation,
-            requestInstructions: requestInstructions.get(sessionID) ?? "unobserved",
-            guard,
-            hooks,
-            syncTarget,
-            historyRequested: selector === "remote" || selector === "details remote",
-            persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
-          } satisfies DiagnosticsSnapshot;
-          return renderHealthReport(snapshot, now(), selector === "details" || selector === "details remote");
-        },
+        captureDiagnostics,
         deps.workflowAssets?.skillPath,
         abort.signal,
       );
@@ -616,37 +312,152 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
         workflowDiagnostic("command-registration-failed: native transform failed");
         throw error;
       }
-    }
 
-    /**
-     * Fold typed executor outcomes into context freshness and session recovery state.
-     * Retain bounded task or memory references for compaction, including references
-     * from landed but uncommitted writes. Write gaps persist beyond the next request.
-     * @param sessionID Session that invoked the typed operation.
-     * @param result Observed executor outcome, including incomplete or uncertain results.
-     */
-    function rememberResult(sessionID: string, result: ContinuityResult): void {
-      if (abort.signal.aborted) return;
-      const write = ["claim", "note", "update", "close", "create", "remember"].includes(result.operation);
-      // Full prime can depend on issue state. 7.1 does not establish safe narrowing.
-      if (write && result.status !== "not-claimed") controller.invalidateAll();
-      const values = references.get(sessionID) ?? new Set<string>();
-      const memory = ["remember", "recall", "memories"].includes(result.operation);
-      if (["acknowledged", "found", "landed-uncommitted"].includes(result.status)) {
-        if (result.reference) values.add(`${memory ? "memory" : "task"}:${result.reference}`);
-        if (result.operation === "get") for (const id of Object.keys(result.issues ?? {})) values.add(`task:${id}`);
-        if (result.operation === "find") for (const row of result.records ?? []) values.add(`task:${row.id}`);
-      }
-      while (values.size > 32) values.delete(values.values().next().value!);
-      if (values.size) references.set(sessionID, values);
-      if (["uncertain", "failed", "landed-uncommitted"].includes(result.status) || result.complete === false) {
-        const detail = `${result.operation} ${JSON.stringify(result.target)}${result.actor ? ` actor=${result.actor}` : ""}: ${result.status}; ${result.detail ?? (result.complete === false ? "partial result; inspect failed IDs/completeness" : "commit not confirmed")}`;
-        if (write) recordGap(sessionID, detail);
-        else
-          recoveryCues.set(
-            sessionID,
-            `Inspect current ${memory ? "memory" : "task"} state before relying on this outcome: ${detail}. Do not retry an uncertain write blindly.`,
-          );
+      /**
+       * Read current registration and request evidence into a report the workflow saves for hook replay.
+       * @param sessionID Session whose location and request evidence the report describes.
+       * @param text Optional diagnostics selector supplied with the invocation.
+       */
+      async function captureDiagnostics(sessionID: string, text?: string): Promise<string> {
+        const selector = text?.trim().toLowerCase();
+        let context = "uncertain";
+        let locationKnown = false;
+        let contextObservation: ReturnType<typeof controller.observationFor>;
+        if (ctx.session.get) {
+          try {
+            const session = await ctx.session.get({
+              sessionID: sessionID as Parameters<NonNullable<typeof ctx.session.get>>[0]["sessionID"],
+            });
+            if (session.location.directory !== directory) {
+              forgetSession(sessionID);
+              context = "withheld: session location changed";
+            } else {
+              // Record the confirmed location before reading cached context.
+              locationKnown = true;
+              const lastRequestAgent = requestCapabilities.get(sessionID)?.agent;
+              const audience = lastRequestAgent && BEADS_TASK_AGENTS.has(lastRequestAgent) ? "task-agent" : "primary";
+              const cachedStatus = controller.statusFor(sessionID, audience);
+              contextObservation = controller.observationFor(sessionID, audience);
+              context =
+                cachedStatus === "loading"
+                  ? "uncertain: context refresh in progress"
+                  : (cachedStatus ?? "unobserved: no cached context");
+            }
+          } catch {
+            forgetSession(sessionID);
+            context = "uncertain: session lookup failed";
+          }
+        }
+        let guard: GuardResult | { kind: "withheld"; reason: string } = {
+          kind: "withheld",
+          reason: "session location unconfirmed",
+        };
+        if (locationKnown && !abort.signal.aborted) {
+          try {
+            guard = deps.runtime?.guard
+              ? await runtime.guard(directory, abort.signal)
+              : await checkBeadsStore(directory, createGuardRuntime(diagnosticBd));
+          } catch {
+            guard = { kind: "probe-failed" };
+          }
+        }
+        let local: NonNullable<DiagnosticsSnapshot["local"]> = "withheld";
+        if (guard.kind !== "withheld" && !abort.signal.aborted) {
+          // Both file observations share one abort check and run in order.
+          local = {
+            ...(await collectPluginHealth(directory, guard)),
+            ...(await collectBeadsHealth(guard)),
+          };
+        }
+
+        // Hook listing depends on the confirmed location, not on a successful store probe.
+        const hooks =
+          locationKnown && !abort.signal.aborted
+            ? await collectHooks(directory, diagnosticBd)
+            : "withheld: session location unconfirmed";
+        const syncTarget =
+          guard.kind === "ready" && guard.workspace && !abort.signal.aborted
+            ? await collectSyncTarget(directory, guard.workspace, diagnosticBd)
+            : undefined;
+        let effectiveCommands: ObservedCommand[] | undefined;
+        let registryTruncated = false;
+        let registryMembershipTruncated = false;
+        let effectiveSkills: NonNullable<DiagnosticsSnapshot["skill"]>["effective"];
+        try {
+          const entries = (await ctx.command!.list()).data;
+          // Record limits against the source rows before taking the bounded sample.
+          registryMembershipTruncated =
+            entries.length > COMMAND_REGISTRY_LIMIT || entries.some(({ name }) => name.length > COMMAND_NAME_LIMIT);
+          registryTruncated =
+            registryMembershipTruncated ||
+            entries.some(
+              ({ name, description }) =>
+                name.length > COMMAND_NAME_LIMIT || (description?.length ?? 0) > COMMAND_DESCRIPTION_LIMIT,
+            );
+          effectiveCommands = entries.slice(0, COMMAND_REGISTRY_LIMIT).map(({ name, description }) => ({
+            name: name.slice(0, COMMAND_NAME_LIMIT),
+            description: description?.slice(0, COMMAND_DESCRIPTION_LIMIT),
+          }));
+        } catch {
+          /* Absence of lookup evidence is unknown, not an empty registry. */
+        }
+        try {
+          effectiveSkills = ctx.skill
+            ? (await ctx.skill.list()).data.slice(0, 128).map((entry) => String(entry.id).slice(0, 128))
+            : "unavailable";
+        } catch {
+          effectiveSkills = "unavailable: registry lookup failed";
+        }
+        /**
+         * Prefer observed direct leaves over the indirect execute surface.
+         * @param request The last observed request for this session, if any.
+         */
+        function describeLeafAvailability(request: typeof observedRequest): string {
+          if (request?.capabilities.direct === true) {
+            return "some native direct Beads leaves are visible; each still checks its operation-specific permission";
+          }
+          if (request?.capabilities.typed === "registered-execute-visible") {
+            return "execute is visible; the native catalog and each operation-specific permission determine leaf availability";
+          }
+          return "unknown until native catalog discovery and per-operation permission checks";
+        }
+
+        const observedRequest = requestCapabilities.get(sessionID);
+        const snapshot = {
+          plugin: { name: packageManifest.name, version: packageManifest.version },
+          host: hostVersion,
+          admission: SUPPORTED_OPENCODE_RANGE,
+          liveQualification: "not measured by diagnostics; see release acceptance evidence",
+          commands: {
+            registration: commandRegistration,
+            lookup: effectiveCommands ? "available" : "failed",
+            truncated: registryTruncated,
+            membershipTruncated: registryMembershipTruncated,
+            expectedCount: definitions.length,
+            effective: effectiveCommands ?? "unknown: registry lookup failed",
+            ...compareCommandRegistry(definitions, effectiveCommands, registryMembershipTruncated),
+            ownership:
+              "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
+          },
+          skill: { failure: skillFailure, effective: effectiveSkills, collision: skillCollision },
+          typedContinuity:
+            deps.continuityQualified === true
+              ? "enabled: qualified registration"
+              : "disabled: registration not requested",
+          typedRegistration,
+          requestCapability: observedRequest ?? "unknown: no actual request observation",
+          leafAvailability: describeLeafAvailability(observedRequest),
+          local,
+          context,
+          contextObservation,
+          requestInstructions: requestInstructions.get(sessionID) ?? "unobserved",
+          guard,
+          hooks,
+          syncTarget,
+          historyRequested: selector === "remote" || selector === "details remote",
+          persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
+        } satisfies DiagnosticsSnapshot;
+        return renderHealthReport(snapshot, now(), selector === "details" || selector === "details remote");
       }
     }
 
@@ -671,7 +482,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
                * @param result Outcome as classified by the typed executor.
                */
               acknowledged(sessionID, result) {
-                rememberResult(sessionID, result);
+                recordContinuityOutcome(sessionID, result);
                 deps.continuity?.acknowledged?.(sessionID, result);
               },
             },
@@ -682,145 +493,9 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
       );
     }
 
-    registrations.push(
-      await ctx.session.hook("context", async (event) => {
-        if (abort.signal.aborted) return;
-        const snapshotGeneration = beginWorkflowSnapshotRead(event.sessionID);
-        if (ctx.session.get) {
-          try {
-            const info = await ctx.session.get({ sessionID: event.sessionID });
-            if (abort.signal.aborted) return;
-            if (workflowSnapshotReads.get(event.sessionID) !== snapshotGeneration) {
-              reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-              return;
-            }
-            if (info.location.directory !== directory) {
-              forgetSession(event.sessionID);
-              reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-              return;
-            }
-          } catch {
-            if (abort.signal.aborted) return;
-            forgetSession(event.sessionID);
-            reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-            if (!abort.signal.aborted)
-              event.system.push({
-                type: "text",
-                text: "<beads-notice>Beads context withheld: current session location could not be established. Do not bypass this hold with manual store access.</beads-notice>",
-              });
-            return;
-          }
-        } else {
-          reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-        }
-        if (ctx.session.get && !(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
-        if (abort.signal.aborted) return;
-        // The actual request supplies visibility evidence. Registration alone grants no permission.
-        const knownTools = event.tools && typeof event.tools === "object";
-        const capabilities: RequestCapabilities = knownTools
-          ? {
-              execute: Object.hasOwn(event.tools, "execute"),
-              shell: Object.hasOwn(event.tools, "shell"),
-              direct: Object.keys(event.tools).some((name) => DIRECT_BEADS_TOOLS.has(name)),
-              typed:
-                typedRegistration.startsWith("registered") && Object.hasOwn(event.tools, "execute")
-                  ? "registered-execute-visible"
-                  : typedRegistration.startsWith("registered") &&
-                      Object.keys(event.tools).some((name) => DIRECT_BEADS_TOOLS.has(name))
-                    ? "registered-direct-visible"
-                    : "unavailable",
-            }
-          : { ...UNKNOWN_CAPABILITIES };
-        requestCapabilities.set(event.sessionID, { agent: event.agent, capabilities });
-        const counts = countManagedBlocks(
-          event.system
-            .filter((part) => part.type === "text")
-            .map((part) => part.text ?? "")
-            .join("\n"),
-        );
-        const text = await controller.systemFor(event.sessionID, event.agent, capabilities);
-        let replaced = 0;
-        if (abort.signal.aborted) return;
-        if (!text) {
-          requestInstructions.set(event.sessionID, {
-            at: now(),
-            ...counts,
-            replaced: 0,
-            retained: counts.full + counts.minimal + counts.codex,
-          });
-          return;
-        }
-        if (text.startsWith("<beads-context")) {
-          const eligible = beadsSessions.get(event.sessionID) ?? new Set<string>();
-          eligible.add(event.agent);
-          beadsSessions.set(event.sessionID, eligible);
-          // Reduce only complete bodies already supplied here; marker ownership alone is insufficient.
-          replaced = minimizeSystemParts(event.system, text);
-        }
-        requestInstructions.set(event.sessionID, {
-          at: now(),
-          ...counts,
-          replaced,
-          retained: counts.full + counts.minimal + counts.codex - replaced,
-        });
-        event.system.push({ type: "text", text });
-        const cue = recoveryCues.get(event.sessionID);
-        const gap = gapFor(event.sessionID);
-        if (cue || gap) {
-          const recovery = [
-            cue,
-            gap && `Known persistence gaps: inspect durable state before another write; do not blindly retry.\n${gap}`,
-          ]
-            .filter(Boolean)
-            .join("\n");
-          event.system.push({ type: "text", text: `<beads-recovery>${recovery}</beads-recovery>` });
-          // Consume the delivered cue. Persistence gaps remain available for later requests.
-          recoveryCues.delete(event.sessionID);
-        }
-      }),
-    );
+    registrations.push(await ctx.session.hook("context", provideRequestContext));
 
-    registrations.push(
-      await ctx.session.hook("compaction", async (event) => {
-        if (abort.signal.aborted) return;
-        const snapshotGeneration = beginWorkflowSnapshotRead(event.sessionID);
-        if (ctx.session.get) {
-          try {
-            const info = await ctx.session.get({ sessionID: event.sessionID });
-            if (abort.signal.aborted) return;
-            if (workflowSnapshotReads.get(event.sessionID) !== snapshotGeneration) {
-              reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-              return;
-            }
-            if (info.location.directory !== directory) {
-              forgetSession(event.sessionID);
-              reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-              return;
-            }
-          } catch {
-            if (abort.signal.aborted) return;
-            forgetSession(event.sessionID);
-            reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-            return;
-          }
-          if (!(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
-        } else {
-          reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
-        }
-        if (abort.signal.aborted) return;
-        // Carry prior evidence into the summary request only for agents that received Beads context.
-        if (beadsSessions.get(event.sessionID)?.has(event.agent)) {
-          event.system.push({ type: "text", text: BEADS_COMPACTION_GUIDANCE });
-          const known = references.get(event.sessionID);
-          const gap = gapFor(event.sessionID);
-          if (known?.size || gap)
-            event.system.push({
-              type: "text",
-              text: `<beads-references>${JSON.stringify({ references: [...(known ?? [])], gap: gap ?? "No final-write guarantee; only earlier acknowledgements are known." })}</beads-references>`,
-            });
-        }
-      }),
-    );
+    registrations.push(await ctx.session.hook("compaction", provideCompactionContext));
 
     if (ctx.tool)
       registrations.push(
@@ -830,7 +505,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
             abort.signal.aborted ||
             event.tool === "execute" ||
             event.tool.startsWith("beads_") ||
-            !beadsSessions.has(event.sessionID)
+            !contextRecipients.has(event.sessionID)
           )
             return;
           // A subagent return can acknowledge a launch before any child report exists.
@@ -844,50 +519,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
         }),
       );
 
-    // Lifecycle events inform later requests. The awaited hooks own request and summary publication.
-    observation = (async () => {
-      try {
-        for await (const event of ctx.event.subscribe({ signal: abort.signal })) {
-          if (abort.signal.aborted) break;
-          const type = (event as { type?: unknown }).type;
-          const sessionID = eventSessionID(event);
-          if (!sessionID) continue;
-          if (type === "session.deleted" || type === "session.moved" || type === "session.forked") {
-            forgetSession(sessionID);
-          } else if (
-            beadsSessions.has(sessionID) &&
-            [
-              "session.compaction.started",
-              "session.compaction.ended",
-              "session.compaction.failed",
-              "session.execution.started",
-              "session.execution.interrupted",
-              "session.execution.failed",
-              "session.model.selected",
-              "session.agent.selected",
-            ].includes(String(type))
-          ) {
-            controller.invalidate(sessionID);
-            recoveryCues.set(
-              sessionID,
-              "Recovery requires current task state and relevant memory: re-read attempts, decisions, blockers and the next authorized action. Cached absence is not proof of absence; preserve any guard hold.",
-            );
-            if (
-              type === "session.execution.interrupted" ||
-              type === "session.execution.failed" ||
-              type === "session.compaction.failed"
-            ) {
-              recordGap(
-                sessionID,
-                "Execution or compaction stopped; no final checkpoint is guaranteed. Recover from earlier acknowledged records.",
-              );
-            }
-          }
-        }
-      } catch {
-        // The stream ends on cleanup; lost events only delay a cache refresh.
-      }
-    })();
+    observation = observeLifecycle();
 
     return cleanup;
   } catch (error) {
@@ -895,5 +527,385 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
     // as the primary failure; cleanup reports its own failure independently.
     await cleanup().catch(() => {});
     throw error;
+  }
+
+  /**
+   * Warn once per distinct workflow diagnostic for the retained host state.
+   * @param message Diagnostic text, including the session suffix when applicable.
+   */
+  function workflowDiagnostic(message: string): void {
+    if (abort.signal.aborted || diagnosticTimes.has(message)) return;
+    diagnosticTimes.set(message, now());
+    try {
+      warn(`[opencode-beads] ${message}`);
+    } catch {
+      /* Diagnostics never break loading. */
+    }
+  }
+
+  /**
+   * Expand snapshots in the transient messages and surface missing instructions or reports once.
+   * @param event Native hook payload receiving the expansion and any system notice.
+   * @param storedMessages Snapshots available from native history. An empty list checks visible invocations only.
+   */
+  function expandWorkflowSnapshots(
+    event: SessionContext,
+    storedMessages: Awaited<ReturnType<HostContext["session"]["context"]>>,
+  ): void {
+    if (!expandBeadsWorkflowContext(event.messages, storedMessages)) return;
+    workflowDiagnostic(`workflow-snapshot-unavailable session=${event.sessionID}`);
+    if (!event.system.some((part) => part.text === WORKFLOW_UNAVAILABLE_NOTICE)) {
+      event.system.push({ type: "text", text: WORKFLOW_UNAVAILABLE_NOTICE });
+    }
+  }
+
+  /**
+   * Share one generation across overlapping reads in the same session lifecycle.
+   * Forgetting the session retires the token, so a later read gets a fresh one.
+   * @param sessionID Session whose location and stored context will be read.
+   */
+  function beginWorkflowSnapshotRead(sessionID: string): symbol {
+    const generation = workflowSnapshotReads.get(sessionID) ?? Symbol(sessionID);
+    workflowSnapshotReads.set(sessionID, generation);
+    return generation;
+  }
+
+  /**
+   * Reject stale reads after native location lookup and forget sessions that moved.
+   * @param event Native hook payload receiving missing-workflow disclosure if needed.
+   * @param generation Session token captured before the lookup.
+   * @param info Native session record returned by the lookup.
+   */
+  function canRestoreWorkflowSnapshots(
+    event: SessionContext,
+    generation: symbol,
+    info: Awaited<ReturnType<NonNullable<HostContext["session"]["get"]>>>,
+  ): boolean {
+    if (abort.signal.aborted) return false;
+    if (workflowSnapshotReads.get(event.sessionID) !== generation) {
+      expandWorkflowSnapshots(event, []);
+      return false;
+    }
+    if (info.location.directory === directory) return true;
+    forgetSession(event.sessionID);
+    expandWorkflowSnapshots(event, []);
+    return false;
+  }
+
+  /**
+   * Expand retained native snapshots into matching transient messages by ID.
+   * A failed history read falls back to detecting visible invocations with missing guidance.
+   * @param event Hook payload receiving expanded messages and any unavailable notice.
+   * @param generation Session token captured before checking location.
+   * @returns Whether the hook may proceed, including after a history lookup failure.
+   * Cancellation or an outdated generation stops further processing.
+   */
+  async function restoreWorkflowSnapshots(event: SessionContext, generation: symbol): Promise<boolean> {
+    try {
+      const storedMessages = await ctx.session.context({ sessionID: event.sessionID });
+      if (abort.signal.aborted) return false;
+      if (workflowSnapshotReads.get(event.sessionID) !== generation) {
+        expandWorkflowSnapshots(event, []);
+        return false;
+      }
+      expandWorkflowSnapshots(event, storedMessages);
+      return true;
+    } catch {
+      if (abort.signal.aborted) return false;
+      const current = workflowSnapshotReads.get(event.sessionID) === generation;
+      expandWorkflowSnapshots(event, []);
+      return current;
+    }
+  }
+
+  /**
+   * Restore workflow instructions and publish Beads context for this request.
+   * @param event Native hook payload receiving transient context.
+   */
+  async function provideRequestContext(event: SessionContext): Promise<void> {
+    if (abort.signal.aborted) return;
+    const snapshotGeneration = beginWorkflowSnapshotRead(event.sessionID);
+    if (ctx.session.get) {
+      try {
+        const info = await ctx.session.get({ sessionID: event.sessionID });
+        if (!canRestoreWorkflowSnapshots(event, snapshotGeneration, info)) return;
+      } catch {
+        if (abort.signal.aborted) return;
+        forgetSession(event.sessionID);
+        expandWorkflowSnapshots(event, []);
+        if (!abort.signal.aborted)
+          event.system.push({
+            type: "text",
+            text: "<beads-notice>Beads context withheld: current session location could not be established. Do not bypass this hold with manual store access.</beads-notice>",
+          });
+        return;
+      }
+    } else {
+      expandWorkflowSnapshots(event, []);
+    }
+    if (ctx.session.get && !(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
+    if (abort.signal.aborted) return;
+    // The actual request supplies visibility evidence. Registration alone grants no permission.
+    const knownTools = event.tools && typeof event.tools === "object";
+    const capabilities: RequestCapabilities = knownTools
+      ? {
+          execute: Object.hasOwn(event.tools, "execute"),
+          shell: Object.hasOwn(event.tools, "shell"),
+          direct: Object.keys(event.tools).some((name) => DIRECT_BEADS_TOOLS.has(name)),
+          typed:
+            typedRegistration.startsWith("registered") && Object.hasOwn(event.tools, "execute")
+              ? "registered-execute-visible"
+              : typedRegistration.startsWith("registered") &&
+                  Object.keys(event.tools).some((name) => DIRECT_BEADS_TOOLS.has(name))
+                ? "registered-direct-visible"
+                : "unavailable",
+        }
+      : { ...UNKNOWN_CAPABILITIES };
+    requestCapabilities.set(event.sessionID, { agent: event.agent, capabilities });
+    const counts = countManagedBlocks(
+      event.system
+        .filter((part) => part.type === "text")
+        .map((part) => part.text ?? "")
+        .join("\n"),
+    );
+    const text = await controller.systemFor(event.sessionID, event.agent, capabilities);
+    let replaced = 0;
+    if (abort.signal.aborted) return;
+    if (!text) {
+      requestInstructions.set(event.sessionID, {
+        at: now(),
+        ...counts,
+        replaced: 0,
+        retained: counts.full + counts.minimal + counts.codex,
+      });
+      return;
+    }
+    if (text.startsWith("<beads-context")) {
+      const eligible = contextRecipients.get(event.sessionID) ?? new Set<string>();
+      eligible.add(event.agent);
+      contextRecipients.set(event.sessionID, eligible);
+      // Reduce only complete bodies already supplied here; marker ownership alone is insufficient.
+      replaced = minimizeSystemParts(event.system, text);
+    }
+    requestInstructions.set(event.sessionID, {
+      at: now(),
+      ...counts,
+      replaced,
+      retained: counts.full + counts.minimal + counts.codex - replaced,
+    });
+    event.system.push({ type: "text", text });
+    const cue = recoveryCues.get(event.sessionID);
+    const gap = gapFor(event.sessionID);
+    if (cue || gap) {
+      const recovery = [
+        cue,
+        gap && `Known persistence gaps: inspect durable state before another write; do not blindly retry.\n${gap}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      event.system.push({ type: "text", text: `<beads-recovery>${recovery}</beads-recovery>` });
+      // Consume the delivered cue. Persistence gaps remain available for later requests.
+      recoveryCues.delete(event.sessionID);
+    }
+  }
+
+  /**
+   * Restore workflow instructions and carry known Beads state into compaction.
+   * @param event Native hook payload receiving transient context.
+   */
+  async function provideCompactionContext(event: SessionContext): Promise<void> {
+    if (abort.signal.aborted) return;
+    const snapshotGeneration = beginWorkflowSnapshotRead(event.sessionID);
+    if (ctx.session.get) {
+      try {
+        const info = await ctx.session.get({ sessionID: event.sessionID });
+        if (!canRestoreWorkflowSnapshots(event, snapshotGeneration, info)) return;
+      } catch {
+        if (abort.signal.aborted) return;
+        forgetSession(event.sessionID);
+        expandWorkflowSnapshots(event, []);
+        return;
+      }
+      if (!(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
+    } else {
+      expandWorkflowSnapshots(event, []);
+    }
+    if (abort.signal.aborted) return;
+    // Carry prior evidence into the summary request only for agents that received Beads context.
+    if (contextRecipients.get(event.sessionID)?.has(event.agent)) {
+      event.system.push({ type: "text", text: BEADS_COMPACTION_GUIDANCE });
+      const known = references.get(event.sessionID);
+      const gap = gapFor(event.sessionID);
+      if (known?.size || gap)
+        event.system.push({
+          type: "text",
+          text: `<beads-references>${JSON.stringify({ references: [...(known ?? [])], gap: gap ?? "No final-write guarantee; only earlier acknowledgements are known." })}</beads-references>`,
+        });
+    }
+  }
+
+  /**
+   * Fold typed executor outcomes into context freshness and session recovery state.
+   * Retain bounded task or memory references for compaction, including references
+   * from landed but uncommitted writes. Write gaps persist beyond the next request.
+   * @param sessionID Session that invoked the typed operation.
+   * @param result Observed executor outcome, including incomplete or uncertain results.
+   */
+  function recordContinuityOutcome(sessionID: string, result: ContinuityResult): void {
+    if (abort.signal.aborted) return;
+    const write = ["claim", "note", "update", "close", "create", "remember"].includes(result.operation);
+    // Full prime can depend on issue state. 7.1 does not establish safe narrowing.
+    if (write && result.status !== "not-claimed") controller.invalidateAll();
+    const values = references.get(sessionID) ?? new Set<string>();
+    const recordKind = ["remember", "recall", "memories"].includes(result.operation) ? "memory" : "task";
+    if (["acknowledged", "found", "landed-uncommitted"].includes(result.status)) {
+      if (result.reference) values.add(`${recordKind}:${result.reference}`);
+      if (result.operation === "get") for (const id of Object.keys(result.issues ?? {})) values.add(`task:${id}`);
+      if (result.operation === "find") for (const row of result.records ?? []) values.add(`task:${row.id}`);
+    }
+    while (values.size > 32) values.delete(values.values().next().value!);
+    if (values.size) references.set(sessionID, values);
+    if (["uncertain", "failed", "landed-uncommitted"].includes(result.status) || result.complete === false) {
+      const detail = `${result.operation} ${JSON.stringify(result.target)}${result.actor ? ` actor=${result.actor}` : ""}: ${result.status}; ${result.detail ?? (result.complete === false ? "partial result; inspect failed IDs/completeness" : "commit not confirmed")}`;
+      if (write) recordGap(sessionID, detail);
+      else
+        recoveryCues.set(
+          sessionID,
+          `Inspect current ${recordKind} state before relying on this outcome: ${detail}. Do not retry an uncertain write blindly.`,
+        );
+    }
+  }
+
+  /** Invalidate caches and retain recovery evidence. The awaited hooks own request and summary publication. */
+  async function observeLifecycle(): Promise<void> {
+    try {
+      for await (const event of ctx.event.subscribe({ signal: abort.signal })) {
+        if (abort.signal.aborted) break;
+        const type = (event as { type?: unknown }).type;
+        const sessionID = eventSessionID(event);
+        if (!sessionID) continue;
+        if (type === "session.deleted" || type === "session.moved" || type === "session.forked") {
+          forgetSession(sessionID);
+        } else if (
+          contextRecipients.has(sessionID) &&
+          [
+            "session.compaction.started",
+            "session.compaction.ended",
+            "session.compaction.failed",
+            "session.execution.started",
+            "session.execution.interrupted",
+            "session.execution.failed",
+            "session.model.selected",
+            "session.agent.selected",
+          ].includes(String(type))
+        ) {
+          controller.invalidate(sessionID);
+          recoveryCues.set(
+            sessionID,
+            "Recovery requires current task state and relevant memory: re-read attempts, decisions, blockers and the next authorized action. Cached absence is not proof of absence; preserve any guard hold.",
+          );
+          if (
+            type === "session.execution.interrupted" ||
+            type === "session.execution.failed" ||
+            type === "session.compaction.failed"
+          ) {
+            recordGap(
+              sessionID,
+              "Execution or compaction stopped; no final checkpoint is guaranteed. Recover from earlier acknowledged records.",
+            );
+          }
+        }
+      }
+    } catch {
+      // The stream ends on cleanup; lost events only delay a cache refresh.
+    }
+  }
+
+  /**
+   * Retain distinct persistence gaps for the session lifecycle, with an overflow
+   * marker once the detail budget is exhausted.
+   * @param sessionID Session that observed the unresolved outcome.
+   * @param detail Operation outcome or lifecycle uncertainty to carry forward.
+   */
+  function recordGap(sessionID: string, detail: string): void {
+    const known = gaps.get(sessionID) ?? new Set<string>();
+    if (known.size < 32) known.add(detail);
+    else if (!known.has(detail))
+      known.add(
+        "Additional persistence gaps exceed the retained detail limit; earlier unresolved details remain. Inspect tool outcomes before further writes.",
+      );
+    gaps.set(sessionID, known);
+  }
+
+  /**
+   * Read retained gaps without consuming them.
+   * @param sessionID Session whose persistence state is being reported.
+   * @returns Joined details, or undefined when no gap is recorded.
+   */
+  function gapFor(sessionID: string): string | undefined {
+    return [...(gaps.get(sessionID) ?? [])].join("\n") || undefined;
+  }
+
+  /**
+   * Discard location-bound session state and invalidate pending snapshot reads.
+   * @param sessionID Session whose cached state and observations are no longer reusable.
+   */
+  function forgetSession(sessionID: string): void {
+    controller.forget(sessionID);
+    contextRecipients.delete(sessionID);
+    references.delete(sessionID);
+    recoveryCues.delete(sessionID);
+    gaps.delete(sessionID);
+    workflowSnapshotReads.delete(sessionID);
+    requestCapabilities.delete(sessionID);
+    requestInstructions.delete(sessionID);
+    for (const key of diagnosticTimes.keys()) {
+      if (key.endsWith(`:${sessionID}`)) diagnosticTimes.delete(key);
+    }
+  }
+
+  /**
+   * Abort scoped work and clear session state before invoking owned disposers in
+   * reverse registration order. Repeated calls share the same completion promise.
+   * @returns A promise that waits for all disposers and the event observer, and
+   * rejects with an AggregateError if any fail.
+   */
+  function cleanup(): Promise<void> {
+    if (cleanupPromise) return cleanupPromise;
+    abort.abort();
+    controller.dispose();
+    contextRecipients.clear();
+    recoveryCues.clear();
+    references.clear();
+    gaps.clear();
+    workflowSnapshotReads.clear();
+    requestCapabilities.clear();
+    requestInstructions.clear();
+    diagnosticTimes.clear();
+    const pending = registrations
+      .splice(0)
+      .reverse()
+      .map((registration) => {
+        try {
+          return registration.dispose();
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      });
+    cleanupPromise = Promise.allSettled([...pending, ...(observation ? [observation] : [])]).then((results) => {
+      const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+      if (failures.length) {
+        try {
+          warn("[opencode-beads] cleanup-failed: owned registration disposal failed");
+        } catch {
+          /* Preserve the actual failure. */
+        }
+        throw new AggregateError(
+          failures.map((result) => result.reason),
+          "Beads cleanup failed",
+        );
+      }
+    });
+    return cleanupPromise;
   }
 }
