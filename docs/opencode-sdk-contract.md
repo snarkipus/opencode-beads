@@ -124,6 +124,20 @@ Typed write actors are derived from the invocation as
 `src/continuity.ts`); permission checks use the actual `context.agent`, and
 attribution grants no permission.
 
+## Typed read example and verification
+
+For example, `tools.beads.get({ ids: ["project-42", "project-57"] })` invokes
+`bd show project-42 --json` and `bd show project-57 --json` individually in the
+project directory, each with `--sandbox`. The adapter validates each response as
+a single issue row matching the requested ID. When both validate, the
+acknowledged response contains an `issues` map keyed by those IDs and
+`complete: true`. The normative requirements are in
+[Typed daily-loop composition](../openspec/specs/work-continuity/spec.md#requirement-typed-daily-loop-composition).
+
+- The native CLI contract exercises flags, output shapes and exit codes in disposable Beads workspaces. [CLI contract runner](../scripts/bd-contract.ts)
+- Adapter fixtures exercise argv, permission assertions, response validation and partial results through the registered tool surface. [Continuity tests](../tests/continuity.test.ts)
+- The real OpenCode canary exercises host discovery and, when a model is available, typed calls and permission behavior. [Native qualification runner](../scripts/native-qualification.py), [compatibility evidence](compatibility-evidence.md)
+
 ## Known host-dependent limitations
 
 These are stated normatively in the specs and summarized for users in the

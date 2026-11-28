@@ -23,14 +23,15 @@ alongside the plugin.
 ## Beads compatibility and source review
 
 - [`bd-contract.ts`](bd-contract.ts) runs via `bun run test:bd-contract` with
-  an installed `bd` on PATH. It exercises native CLI reads and writes in
+  an installed `bd` on PATH. It exercises selected native CLI reads and writes in
   disposable repositories with an isolated home and an explicit test actor.
 - [`install-bd.sh`](install-bd.sh) downloads and checksum-verifies a pinned
-  Linux amd64 or arm64 Beads release, writes `bd` into the supplied directory,
-  and runs its version command. CI uses a disposable destination.
+  Linux amd64 or arm64 Beads release and runs the staged binary to verify the
+  exact requested version before writing `bd` into the supplied directory.
+  CI uses a disposable destination.
 - [`check-beads-integration.ts`](check-beads-integration.ts) compares the
   reviewed source inventory with current upstream source over the GitHub API.
-  It emits advisory JSON and can use `GH_TOKEN` or `GITHUB_TOKEN`. [Beads artifact policy](../docs/beads-artifact-policy.md)
+  It emits advisory JSON and can use `GH_TOKEN` or `GITHUB_TOKEN`. [Current collector maintenance](../docs/beads-artifact-policy.md#current-collector-maintenance)
 
 ## Native qualification and lint
 

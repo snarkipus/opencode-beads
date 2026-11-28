@@ -32,7 +32,17 @@ if [[ -z "$EXPECTED" ]]; then
 fi
 echo "$EXPECTED  $WORK/$ASSET" | sha256sum -c --quiet -
 
-mkdir -p "$WORK/extract" "$DEST"
+mkdir -p "$WORK/extract"
 tar -xzf "$WORK/$ASSET" -C "$WORK/extract" bd
-install -m 0755 "$WORK/extract/bd" "$DEST/bd"
-"$DEST/bd" version
+STAGED="$WORK/extract/bd"
+chmod 0755 "$STAGED"
+REPORTED="$("$STAGED" version)"
+VERSION_LINE='^bd version ([0-9]+\.[0-9]+\.[0-9]+)( \([^()]+\))?$'
+if [[ ! "$REPORTED" =~ $VERSION_LINE || "${BASH_REMATCH[1]}" != "$VERSION" ]]; then
+  echo "Expected bd version $VERSION, got: $REPORTED" >&2
+  exit 1
+fi
+
+mkdir -p "$DEST"
+install -m 0755 "$STAGED" "$DEST/bd"
+printf '%s\n' "$REPORTED"
