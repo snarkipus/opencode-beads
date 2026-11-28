@@ -4,7 +4,7 @@ import { guardNotice, type GuardResult } from "./guard";
 import { PrimeTimeoutError } from "./prime";
 import { beadsGuidance, primeFailureNotice, type RequestCapabilities } from "./guidance";
 
-/** Retry window for withheld or failed context, so model steps do not respawn `bd` each time. */
+/** Retry window for unsuccessful loads, including missing context or empty prime output. */
 export const DEFAULT_CONTEXT_RETRY_MS = 30_000;
 
 /**
@@ -44,9 +44,9 @@ export interface ContextController {
    * @returns Context or a notice, or `undefined` when nothing should be added.
    */
   systemFor(sessionID: string, agentID: string, capabilities?: RequestCapabilities): Promise<string | undefined>;
-  /** Refresh prime on the next request, e.g. after compaction changed the session. */
+  /** Abort and drop this session's context entries and clear the shared agent-mode cache. */
   invalidate(sessionID: string): void;
-  /** Drop all state for a deleted session. */
+  /** Same cache cleanup as {@link invalidate}, used when a session is deleted. */
   forget(sessionID: string): void;
   /** Context state is distinct from an absent text part (including intentional empty prime). */
   statusFor(sessionID: string, audience: ContextAudience): ContextStatus | undefined;
@@ -54,7 +54,7 @@ export interface ContextController {
     sessionID: string,
     audience: ContextAudience,
   ): { status?: ContextStatus; loadedAt?: number; version?: string } | undefined;
-  /** A write can affect every cached session in this location. */
+  /** Abort and drop all context entries, e.g. after a write, without clearing agent-mode lookups. */
   invalidateAll(): void;
   /** Abort owned loads and prevent late context injection after unload. */
   dispose(): void;
@@ -117,6 +117,8 @@ export function createContextController(
     return (await pending) === "subagent" ? undefined : "primary";
   }
 
+  // Cache notices and missing or empty results until the retry deadline.
+  // Cancellation also returns no text, but without setting that deadline.
   async function load(sessionID: string, audience: ContextAudience, entry: CacheEntry): Promise<string | undefined> {
     const retryLater = (value: string | undefined) => {
       entry.expiresAt = now() + retryMs;
