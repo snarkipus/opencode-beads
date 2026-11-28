@@ -49,27 +49,30 @@ async function runSmoke(args: string[], env = process.env) {
   return { stdout, stderr, code };
 }
 
-test("rejects malformed smoke options before allocating scratch", async () => {
-  const root = await fs.mkdtemp(join(tmpdir(), "opencode-beads-smoke-options-"));
-  temporaryDirectories.push(root);
-  const env = { ...process.env, TMPDIR: join(root, "missing") };
+describe("rejects malformed smoke options before allocating scratch", () => {
   const digest = "a".repeat(64);
-  for (const [args, error] of [
-    [["--archive", "package.tgz"], /provided together/],
-    [["--sha256", digest], /provided together/],
-    [["--archive"], /argument missing/i],
-    [["--archive", "", "--sha256", digest], /file path/],
-    [["--archive", "package.tgz", "--sha256", ""], /64 hexadecimal digits/],
-    [["--archive", "package.tgz", "--sha256", "z".repeat(64)], /64 hexadecimal digits/],
-    [["--archive", "package.tgz", "--sha256", "a".repeat(63)], /64 hexadecimal digits/],
-    [["--archive", "package.tgz", "--archive", "other.tgz", "--sha256", digest], /at most once/],
-    [["--archve", "package.tgz"], /unknown option/i],
-    [["package.tgz"], /unexpected|positional/i],
+  for (const [name, args, error] of [
+    ["archive without digest", ["--archive", "package.tgz"], /provided together/],
+    ["digest without archive", ["--sha256", digest], /provided together/],
+    ["missing archive value", ["--archive"], /argument missing/i],
+    ["empty archive value", ["--archive=", "--sha256", digest], /file path/],
+    ["empty digest", ["--archive", "package.tgz", "--sha256="], /64 hexadecimal digits/],
+    ["non-hex digest", ["--archive", "package.tgz", "--sha256", "z".repeat(64)], /64 hexadecimal digits/],
+    ["short digest", ["--archive", "package.tgz", "--sha256", "a".repeat(63)], /64 hexadecimal digits/],
+    ["duplicate archive", ["--archive", "package.tgz", "--archive", "other.tgz", "--sha256", digest], /at most once/],
+    ["unknown option", ["--archve", "package.tgz"], /unknown option/i],
+    ["positional argument", ["package.tgz"], /unexpected|positional/i],
   ] as const) {
-    const result = await runSmoke([...args], env);
-    expect(result.code).toBe(1);
-    expect(result.stderr).toMatch(error);
-    expect(await fs.readdir(root)).toEqual([]);
+    test(name, async () => {
+      const root = await fs.mkdtemp(join(tmpdir(), "opencode-beads-smoke-options-"));
+      temporaryDirectories.push(root);
+      const missing = join(root, "missing");
+      const env = { ...process.env, TMPDIR: missing, TEMP: missing, TMP: missing };
+      const result = await runSmoke([...args], env);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toMatch(error);
+      expect(await fs.readdir(root)).toEqual([]);
+    });
   }
 });
 
@@ -267,7 +270,10 @@ describe("release artifact identity", () => {
   });
 
   test("routes every release consumer through the prepared archive output", async () => {
-    const workflow = await fs.readFile(join(projectDirectory, ".github/workflows/release.yml"), "utf8");
+    const workflow = (await fs.readFile(join(projectDirectory, ".github/workflows/release.yml"), "utf8")).replaceAll(
+      "\r\n",
+      "\n",
+    );
     expect(workflow.match(/steps\.package\.outputs\.archive/g)).toHaveLength(4);
     const steps = workflow.split(/^      - name: /m);
     const prepare = steps.findIndex((step) => step.startsWith("Validate and build release archive\n"));
