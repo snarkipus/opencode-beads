@@ -1,3 +1,8 @@
+/**
+ * Smoke-test the tarball a consumer installs, either packed here or supplied with
+ * its release digest. Exercise the installed V2 entry point with a local host
+ * fixture for registration, command delivery, request replay and disposal.
+ */
 import type { SessionContext } from "@opencode/plugin/promise/session";
 import type { Info } from "@opencode/plugin/promise/tool";
 import { Message } from "@opencode/ai/effect";
@@ -14,15 +19,8 @@ import { parseArgs } from "node:util";
 type StoredSessionMessage = Awaited<ReturnType<Plugin.Context["session"]["context"]>>[number];
 type StoredUserMessage = Extract<StoredSessionMessage, { type: "user" }>;
 
-function storedUserMessage(id: string, text: string, metadata: StoredUserMessage["metadata"]): StoredUserMessage {
-  return { id, type: "user", time: { created: 1 }, text, ...(metadata === undefined ? {} : { metadata }) };
-}
-
-function projectedUserMessage(id: string, text: string) {
-  return Message.make({ id, role: "user", content: text });
-}
-
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+// Reject malformed CLI input before allocating scratch or reading the manifest.
 const { values, tokens } = parseArgs({
   options: { archive: { type: "string" }, sha256: { type: "string" } },
   tokens: true,
@@ -62,6 +60,11 @@ const sourceManifest = JSON.parse(await fs.readFile(path.join(projectDir, "packa
   bugs: { url: string };
 };
 
+/**
+ * Run a package-manager step with errors visible and stop at the first failed command.
+ * @param command Executable and arguments, passed without shell interpretation.
+ * @param cwd Checkout for packing or disposable consumer for installation.
+ */
 async function run(command: string[], cwd = projectDir): Promise<void> {
   const process = Bun.spawn(command, { cwd, stdout: "ignore", stderr: "inherit" });
   const exitCode = await process.exited;
@@ -70,6 +73,11 @@ async function run(command: string[], cwd = projectDir): Promise<void> {
   }
 }
 
+/**
+ * List a package tree in sorted, slash-separated archive paths on every platform.
+ * @param root Tree being inventoried.
+ * @param directory Relative path used during traversal.
+ */
 async function filesBelow(root: string, directory = ""): Promise<string[]> {
   const files: string[] = [];
   for (const entry of await fs.readdir(path.join(root, directory), { withFileTypes: true })) {
@@ -83,41 +91,21 @@ async function filesBelow(root: string, directory = ""): Promise<string[]> {
   return files.sort();
 }
 
-const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-beads-package-"));
-try {
-  let archive: string;
-  let archiveName: string;
-  if (providedArchive) {
-    archive = providedArchive;
-    archiveName = path.basename(providedArchive);
-    if (!(await fs.stat(archive)).isFile()) throw new Error("Provided package archive is not a file");
-  } else {
-    await run(["bun", "pm", "pack", "--destination", tempDir, "--quiet"]);
-    const archives = (await fs.readdir(tempDir)).filter((file) => file.endsWith(".tgz"));
-    if (archives.length !== 1) throw new Error("Expected exactly one package archive");
-    archiveName = archives[0] ?? "";
-    if (!archiveName) throw new Error("Package archive is missing");
-    archive = path.join(tempDir, archiveName);
-  }
-  const archiveChecksum = createHash("sha256")
+/**
+ * Hash the archive bytes before and after consumer validation.
+ * @param archive Local path to the actual tarball used as the install dependency.
+ */
+async function hashArchive(archive: string): Promise<string> {
+  return createHash("sha256")
     .update(await fs.readFile(archive))
     .digest("hex");
-  if (expectedArchiveChecksum && archiveChecksum !== expectedArchiveChecksum) {
-    throw new Error(`Provided archive checksum differs: expected ${expectedArchiveChecksum}, got ${archiveChecksum}`);
-  }
+}
 
-  const consumerDir = path.join(tempDir, "consumer");
-  await fs.mkdir(consumerDir);
-  await fs.writeFile(
-    path.join(consumerDir, "package.json"),
-    JSON.stringify({ private: true, dependencies: { [sourceManifest.name]: archive } }),
-  );
-  await run(["bun", "install", "--ignore-scripts"], consumerDir);
-
-  const packageDir = path.join(consumerDir, "node_modules", ...sourceManifest.name.split("/"));
-  const manifest = JSON.parse(
-    await fs.readFile(path.join(packageDir, "package.json"), "utf-8"),
-  ) as typeof sourceManifest;
+/**
+ * Check the published package metadata against the expected consumer-facing contract.
+ * @param manifest Manifest read from the installed tarball.
+ */
+function checkInstalledManifest(manifest: typeof sourceManifest): void {
   if (
     manifest.name !== "@snarkipus/opencode-beads" ||
     manifest.version !== sourceManifest.version ||
@@ -156,7 +144,13 @@ try {
   ) {
     throw new Error("Packed package has unexpected fork ownership metadata");
   }
+}
 
+/**
+ * Compare the installed payload to the checkout trees named by the package contract.
+ * @param packageDir Root of the installed package in the disposable consumer.
+ */
+async function checkInstalledInventory(packageDir: string): Promise<void> {
   const expectedPackedFiles = ["LICENSE", "README.md", "package.json"];
   for (const directory of ["src", "assets/oc-beads"]) {
     expectedPackedFiles.push(
@@ -174,6 +168,45 @@ try {
       throw new Error(`Packed package unexpectedly includes ${excluded}`);
     }
   }
+}
+
+// This scope owns the consumer and any archive it packs. A supplied archive stays outside cleanup.
+const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-beads-package-"));
+try {
+  let archive: string;
+  let archiveName: string;
+  if (providedArchive) {
+    archive = providedArchive;
+    archiveName = path.basename(providedArchive);
+    if (!(await fs.stat(archive)).isFile()) throw new Error("Provided package archive is not a file");
+  } else {
+    await run(["bun", "pm", "pack", "--destination", tempDir, "--quiet"]);
+    const archives = (await fs.readdir(tempDir)).filter((file) => file.endsWith(".tgz"));
+    if (archives.length !== 1) throw new Error("Expected exactly one package archive");
+    archiveName = archives[0] ?? "";
+    if (!archiveName) throw new Error("Package archive is missing");
+    archive = path.join(tempDir, archiveName);
+  }
+  const archiveChecksum = await hashArchive(archive);
+  if (expectedArchiveChecksum && archiveChecksum !== expectedArchiveChecksum) {
+    throw new Error(`Provided archive checksum differs: expected ${expectedArchiveChecksum}, got ${archiveChecksum}`);
+  }
+
+  // Resolve through the consumer install so checkout resolution cannot satisfy the export checks.
+  const consumerDir = path.join(tempDir, "consumer");
+  await fs.mkdir(consumerDir);
+  await fs.writeFile(
+    path.join(consumerDir, "package.json"),
+    JSON.stringify({ private: true, dependencies: { [sourceManifest.name]: archive } }),
+  );
+  await run(["bun", "install", "--ignore-scripts"], consumerDir);
+
+  const packageDir = path.join(consumerDir, "node_modules", ...sourceManifest.name.split("/"));
+  const manifest = JSON.parse(
+    await fs.readFile(path.join(packageDir, "package.json"), "utf-8"),
+  ) as typeof sourceManifest;
+  checkInstalledManifest(manifest);
+  await checkInstalledInventory(packageDir);
 
   const entry = Bun.resolveSync(sourceManifest.name, consumerDir);
   if (entry !== path.join(packageDir, manifest.main)) {
@@ -189,8 +222,8 @@ try {
     throw new Error("Packed package does not default-export the OpenCode V2 plugin definition");
   }
 
-  // Inspect the unpacked installed base, not the repository's assets. node_modules is
-  // ignored by host discovery, so this also exercises explicit package registration.
+  // Host discovery skips node_modules. Resolve guidance from the installed package
+  // and use the loaded asset below to verify explicit skill registration.
   const workflows = await import(pathToFileURL(path.join(packageDir, "src/workflows.ts")).href);
   const installedSkill = await workflows.loadBeadsSkill();
   const installedSkillPath = path.join(packageDir, "assets/oc-beads/SKILL.md");
@@ -206,7 +239,8 @@ try {
     const source = await fs.readFile(path.join(projectDir, relative));
     if (!installed.equals(source)) throw new Error(`Packed resource differs: ${relative}`);
   }
-  // Missing/unreachable guidance is a diagnostic, not silently advertised capability.
+  // Remove one installed resource to exercise its diagnostic. Restore it before setup
+  // so every configuration uses the complete package.
   const fixtureResource = "resources/WORKTREES.md";
   if (!links.includes(fixtureResource)) throw new Error(`Packed skill must link ${fixtureResource}`);
   const missingResource = path.join(path.dirname(installedSkillPath), fixtureResource);
@@ -236,7 +270,6 @@ try {
     throw new Error("Packed package unexpectedly contains the companion CLI source");
   }
 
-  // Exercise the ordinary public default setup with native interfaces and no dependency injection.
   type PackedAgent = {
     name?: string;
     mode?: string;
@@ -245,13 +278,19 @@ try {
     steps?: number;
     permissions?: Array<{ action: string; resource: string; effect: string }>;
   };
-  async function setupPacked(options: Record<string, unknown>) {
+  /**
+   * Exercise the installed public setup without dependency injection, using fresh local
+   * registries. Dispose the captured registrations before returning the observations.
+   * @param options Configuration passed through the public setup context.
+   */
+  async function exercisePackedSetup(options: Record<string, unknown>) {
     const registeredHooks: string[] = [];
     const requestHooks = new Map<string, (event: SessionContext) => Promise<void> | void>();
     const tools: Info[] = [];
     const namespaces: Array<{ name: string }> = [];
     const agents = new Map<string, PackedAgent>();
     const skills = new Map<string, { id: string; name: string; content: string; path: string }>();
+    // Seed external entries before transforms to exercise the shared skill and command collision.
     const userSkill = { id: "beads", name: "beads", content: "USER SHARED SKILL", path: "/user/SKILL.md" };
     skills.set("beads", userSkill);
     const commands = new Map<string, CommandDefinition>([
@@ -264,6 +303,7 @@ try {
         },
       ],
     ]);
+    // Track handles returned by fixture transforms and hooks separately from registry contents.
     const owned = new Set<string>();
     const disposed = new Set<string>();
     const own = (name: string) => {
@@ -406,11 +446,211 @@ try {
         skills: [{ id: "oc-beads" }],
       },
     } as unknown as CommandInvocation;
+    /**
+     * Replace session history with one stored user message and return a fresh request
+     * that projects it without metadata.
+     * @param id Shared message identity used by the hook to find the stored snapshot.
+     * @param text Compact history text retained in both representations.
+     * @param metadata Routing data available through session history.
+     */
+    function stageReplay(id: string, text: string, metadata: StoredUserMessage["metadata"]): SessionContext {
+      const stored: StoredUserMessage = {
+        id,
+        type: "user",
+        time: { created: 1 },
+        text,
+        ...(metadata === undefined ? {} : { metadata }),
+      };
+      storedMessages.splice(0, storedMessages.length, stored);
+      return {
+        sessionID: invocation.sessionID,
+        agent: "build",
+        system: [],
+        messages: [Message.make({ id, role: "user", content: text })],
+        tools: {},
+        options: {},
+      } as unknown as SessionContext;
+    }
+
+    /**
+     * Check all three diagnostics views. Details and help each submit an extra prompt;
+     * both are replayed, and help must not collect diagnostics evidence.
+     * @param definition Registered diagnostics command invoked for details and help.
+     * @param normalSubmission Prompt captured from the standard invocation.
+     */
+    async function checkDiagnostics(
+      definition: CommandDefinition,
+      normalSubmission: Record<string, unknown>,
+    ): Promise<void> {
+      const reportFooter = "\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n";
+      if (normalSubmission.text !== `/${definition.name} ${invocation.prompt.text}`)
+        throw new Error("Packed diagnostics history is not compact");
+      const normal = (normalSubmission.metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow
+        .instructions;
+      if (!normal.includes("**Plugin**") || normal.includes("Details: ") || normal.includes("Limits:"))
+        throw new Error("Packed diagnostics normal presentation differs");
+      const normalReport = normal.split("\nBEGIN_DIAGNOSTIC_REPORT\n")[1]?.split("\nEND_DIAGNOSTIC_REPORT\n")[0];
+      if (
+        !normalReport?.startsWith("## Beads diagnostics — ") ||
+        !normalReport.includes(`\n\nVERSION: ${manifest.name} \`${manifest.version}\``) ||
+        !/\n\nDATE: `[^`]+`\n\nVERSION:/.test(normalReport) ||
+        !normalReport.includes("\n\nPATH: ") ||
+        normalReport.includes(invocation.prompt.text) ||
+        !normal.endsWith(reportFooter)
+      )
+        throw new Error("Packed diagnostic header/framing differs");
+      await definition.execute({ ...invocation, prompt: { ...invocation.prompt, text: "details" } });
+      const submitted = prompts.at(-1)!;
+      if (
+        submitted.text !== "/oc-beads:diagnostics details" ||
+        submitted.files !== invocation.prompt.files ||
+        submitted.delivery !== invocation.delivery
+      )
+        throw new Error("Packed diagnostics details input differs");
+      const metadata = submitted.metadata as { ocBeadsWorkflow: { version: number; instructions: string } };
+      const snapshot = metadata?.ocBeadsWorkflow;
+      if (!snapshot || snapshot.version !== 1) throw new Error("Packed diagnostics lost its snapshot");
+      const status = JSON.parse(snapshot.instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
+      if (status.plugin?.name !== manifest.name || status.plugin?.version !== manifest.version)
+        throw new Error("Packed diagnostics did not identify the loaded package");
+      if (
+        !snapshot.instructions.includes(`PATH: \`${status.guard?.workspace?.repoRoot ?? "not observed"}\``) ||
+        !snapshot.instructions.endsWith(reportFooter)
+      )
+        throw new Error("Packed diagnostics did not preserve native root and framing");
+      const stored = JSON.stringify(submitted);
+      for (const kind of ["context", "compaction"]) {
+        const id = `packed-diagnostics-${kind}`;
+        const event = stageReplay(id, submitted.text, metadata as StoredUserMessage["metadata"]);
+        if (Object.hasOwn(event.messages[0]!, "metadata"))
+          throw new Error("SDK projection unexpectedly retained request metadata");
+        await requestHooks.get(kind)!(event);
+        if (
+          event.messages[0]?.content[0]?.type !== "text" ||
+          event.messages[0].content[0].text !== snapshot.instructions ||
+          /ocBeadsWorkflow/.test(JSON.stringify(event.messages))
+        )
+          throw new Error(`Packed diagnostics expansion differs: ${kind}`);
+        const once = JSON.stringify(event.messages);
+        await requestHooks.get(kind)!(event);
+        if (JSON.stringify(event.messages) !== once) throw new Error("Packed diagnostics expansion duplicates");
+      }
+      if (JSON.stringify(submitted) !== stored) throw new Error("Packed diagnostics mutated persisted input");
+      if (
+        status.commands.registration !== "registered" ||
+        status.commands.lookup !== "available" ||
+        !status.commands.ownership.includes("identical-description") ||
+        status.liveQualification !== "not measured by diagnostics; see release acceptance evidence" ||
+        status.typedContinuity !== "enabled: qualified registration" ||
+        status.typedRegistration !== "registered: beads namespace, code-mode-only"
+      ) {
+        throw new Error("Packed diagnostics did not report observed registration and qualification limits");
+      }
+      const beforeHelp = diagnosticReads;
+      await definition.execute({ ...invocation, prompt: { ...invocation.prompt, text: " HeLp " } });
+      const helpSubmission = prompts.at(-1)!;
+      const helpSnapshot = (helpSubmission.metadata as { ocBeadsWorkflow: { version: number; instructions: string } })
+        .ocBeadsWorkflow;
+      if (
+        diagnosticReads !== beforeHelp ||
+        helpSubmission.text !== "/oc-beads:diagnostics  HeLp " ||
+        helpSubmission.files !== invocation.prompt.files ||
+        helpSubmission.delivery !== invocation.delivery ||
+        helpSnapshot.version !== 1 ||
+        !helpSnapshot.instructions.includes("Beads diagnostics help") ||
+        !helpSnapshot.instructions.includes(
+          "https://github.com/snarkipus/opencode-beads/blob/main/docs/diagnostics.md",
+        ) ||
+        helpSnapshot.instructions.includes("Details: ") ||
+        !helpSnapshot.instructions.includes("\nBEGIN_DIAGNOSTIC_REPORT\n## Beads diagnostics help") ||
+        !helpSnapshot.instructions.endsWith(reportFooter)
+      )
+        throw new Error("Packed static help collected or changed input/snapshot");
+      const persistedHelp = JSON.stringify(helpSubmission);
+      for (const kind of ["context", "compaction"]) {
+        const id = `packed-help-${kind}`;
+        const event = stageReplay(
+          id,
+          String(helpSubmission.text),
+          helpSubmission.metadata as StoredUserMessage["metadata"],
+        );
+        await requestHooks.get(kind)!(event);
+        if (
+          event.messages[0]?.content[0]?.type !== "text" ||
+          event.messages[0].content[0].text !== helpSnapshot.instructions
+        )
+          throw new Error(`Packed help replay changed: ${kind}`);
+        const once = JSON.stringify(event.messages);
+        await requestHooks.get(kind)!(event);
+        if (JSON.stringify(event.messages) !== once) throw new Error("Packed help replay duplicates");
+      }
+      if (JSON.stringify(helpSubmission) !== persistedHelp) throw new Error("Packed help mutated persisted input");
+    }
+
+    /**
+     * Verify installed guidance and replay through current and legacy snapshot routing.
+     * @param definition Registered command whose description and resource must survive installation.
+     * @param submitted Captured prompt supplying compact history text and the replay snapshot, checked for mutation after replay.
+     */
+    async function checkWorkflow(definition: CommandDefinition, submitted: Record<string, unknown>): Promise<void> {
+      const { text } = submitted;
+      if (text !== `/${definition.name} ${invocation.prompt.text}`)
+        throw new Error(`Packed workflow history is not compact: ${definition.name}`);
+      const metadata = submitted.metadata as { ocBeadsWorkflow?: { version: number; instructions: string } };
+      const snapshot = metadata?.ocBeadsWorkflow;
+      if (
+        !snapshot ||
+        snapshot.version !== 1 ||
+        Object.keys(metadata).join() !== "ocBeadsWorkflow" ||
+        !snapshot.instructions.startsWith(
+          `Invoked command: /${definition.name}\nRequested outcome: ${definition.description}\n`,
+        ) ||
+        !snapshot.instructions.includes(JSON.stringify(installedSkillPath))
+      )
+        throw new Error(`Packed workflow lost static installed instructions: ${definition.name}`);
+      const stem = definition.name.slice("oc-beads:".length) as keyof typeof workflows.WORKFLOWS;
+      const supporting = path.resolve(
+        path.dirname(installedSkillPath),
+        "resources",
+        `${workflows.WORKFLOWS[stem][1]}.md`,
+      );
+      if (
+        !snapshot.instructions.endsWith(`Supporting guidance: ${JSON.stringify(supporting)}`) ||
+        !(await fs.readFile(supporting, "utf8")).trim()
+      )
+        throw new Error(`Packed workflow resource differs: ${definition.name}`);
+      const stored = JSON.stringify(submitted);
+      for (const kind of ["context", "compaction"]) {
+        for (const [routingIndex, routing] of [metadata, { ocBeadsSync: snapshot }].entries()) {
+          const id = `packed-workflow-${kind}-${routingIndex}`;
+          const event = stageReplay(id, text, routing as StoredUserMessage["metadata"]);
+          if (Object.hasOwn(event.messages[0]!, "metadata"))
+            throw new Error("SDK projection unexpectedly retained request metadata");
+          await requestHooks.get(kind)!(event);
+          const expanded = JSON.stringify(event.messages);
+          if (
+            /ocBeadsWorkflow|ocBeadsSync/.test(expanded) ||
+            expanded.split("Invoked command:").length !== 2 ||
+            event.messages[0]?.content[0]?.type !== "text" ||
+            event.messages[0].content[0].text !== snapshot.instructions ||
+            !expanded.includes("With sufficient inputs, perform the requested operation")
+          )
+            throw new Error(`Packed workflow effective context lost installed instructions: ${definition.name}`);
+          await requestHooks.get(kind)!(event);
+          if (JSON.stringify(event.messages) !== expanded || JSON.stringify(submitted) !== stored)
+            throw new Error("Packed workflow expansion mutated storage or duplicated instructions");
+        }
+      }
+      if (requestHooks.has("title") || requestHooks.has("generate"))
+        throw new Error("Packed workflow expanded auxiliary context");
+    }
+
+    // Invoke in registry order and check each captured prompt before the next command runs.
     for (const definition of commands.values()) {
       if (typeof definition.execute !== "function" || !definition.description)
         throw new Error(`Missing native body: ${definition.name}`);
       await definition.execute(invocation);
-      let submitted = prompts.at(-1);
+      const submitted = prompts.at(-1);
       if (
         !submitted ||
         typeof submitted.text !== "string" ||
@@ -424,194 +664,9 @@ try {
         throw new Error(`Packed command did not preserve native invocation: ${definition.name}`);
       }
       if (definition.name === "oc-beads:diagnostics") {
-        if (submitted.text !== `/${definition.name} ${invocation.prompt.text}`)
-          throw new Error("Packed diagnostics history is not compact");
-        const normal = (submitted.metadata as { ocBeadsWorkflow: { instructions: string } }).ocBeadsWorkflow
-          .instructions;
-        if (!normal.includes("**Plugin**") || normal.includes("Details: ") || normal.includes("Limits:"))
-          throw new Error("Packed diagnostics normal presentation differs");
-        const normalReport = normal.split("\nBEGIN_DIAGNOSTIC_REPORT\n")[1]?.split("\nEND_DIAGNOSTIC_REPORT\n")[0];
-        if (
-          !normalReport?.startsWith("## Beads diagnostics — ") ||
-          !normalReport.includes(`\n\nVERSION: ${manifest.name} \`${manifest.version}\``) ||
-          !/\n\nDATE: `[^`]+`\n\nVERSION:/.test(normalReport) ||
-          !normalReport.includes("\n\nPATH: ") ||
-          normalReport.includes(invocation.prompt.text) ||
-          !normal.endsWith("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n")
-        )
-          throw new Error("Packed diagnostic header/framing differs");
-        await definition.execute({ ...invocation, prompt: { ...invocation.prompt, text: "details" } });
-        submitted = prompts.at(-1)!;
-        if (
-          submitted.text !== "/oc-beads:diagnostics details" ||
-          submitted.files !== invocation.prompt.files ||
-          submitted.delivery !== invocation.delivery
-        )
-          throw new Error("Packed diagnostics details input differs");
-        const metadata = submitted.metadata as { ocBeadsWorkflow: { version: number; instructions: string } };
-        const snapshot = metadata?.ocBeadsWorkflow;
-        if (!snapshot || snapshot.version !== 1) throw new Error("Packed diagnostics lost its snapshot");
-        const status = JSON.parse(snapshot.instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
-        if (status.plugin?.name !== manifest.name || status.plugin?.version !== manifest.version)
-          throw new Error("Packed diagnostics did not identify the loaded package");
-        if (
-          !snapshot.instructions.includes(`PATH: \`${status.guard?.workspace?.repoRoot ?? "not observed"}\``) ||
-          !snapshot.instructions.endsWith("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n")
-        )
-          throw new Error("Packed diagnostics did not preserve native root and framing");
-        const stored = JSON.stringify(submitted);
-        for (const kind of ["context", "compaction"]) {
-          const id = `packed-diagnostics-${kind}`;
-          storedMessages.splice(
-            0,
-            storedMessages.length,
-            storedUserMessage(id, submitted.text, metadata as StoredUserMessage["metadata"]),
-          );
-          const event = {
-            sessionID: invocation.sessionID,
-            agent: "build",
-            system: [],
-            messages: [projectedUserMessage(id, submitted.text)],
-            tools: {},
-            options: {},
-          } as unknown as SessionContext;
-          if (Object.hasOwn(event.messages[0]!, "metadata"))
-            throw new Error("SDK projection unexpectedly retained request metadata");
-          await requestHooks.get(kind)!(event);
-          if (
-            event.messages[0]?.content[0]?.type !== "text" ||
-            event.messages[0].content[0].text !== snapshot.instructions ||
-            /ocBeadsWorkflow/.test(JSON.stringify(event.messages))
-          )
-            throw new Error(`Packed diagnostics expansion differs: ${kind}`);
-          const once = JSON.stringify(event.messages);
-          await requestHooks.get(kind)!(event);
-          if (JSON.stringify(event.messages) !== once) throw new Error("Packed diagnostics expansion duplicates");
-        }
-        if (JSON.stringify(submitted) !== stored) throw new Error("Packed diagnostics mutated persisted input");
-        if (
-          status.commands.registration !== "registered" ||
-          status.commands.lookup !== "available" ||
-          !status.commands.ownership.includes("identical-description") ||
-          status.liveQualification !== "not measured by diagnostics; see release acceptance evidence" ||
-          status.typedContinuity !== "enabled: qualified registration" ||
-          status.typedRegistration !== "registered: beads namespace, code-mode-only"
-        ) {
-          throw new Error("Packed diagnostics did not report observed registration and qualification limits");
-        }
-        const beforeHelp = diagnosticReads;
-        await definition.execute({ ...invocation, prompt: { ...invocation.prompt, text: " HeLp " } });
-        const helpSubmission = prompts.at(-1)!;
-        const helpSnapshot = (helpSubmission.metadata as { ocBeadsWorkflow: { version: number; instructions: string } })
-          .ocBeadsWorkflow;
-        if (
-          diagnosticReads !== beforeHelp ||
-          helpSubmission.text !== "/oc-beads:diagnostics  HeLp " ||
-          helpSubmission.files !== invocation.prompt.files ||
-          helpSubmission.delivery !== invocation.delivery ||
-          helpSnapshot.version !== 1 ||
-          !helpSnapshot.instructions.includes("Beads diagnostics help") ||
-          !helpSnapshot.instructions.includes(
-            "https://github.com/snarkipus/opencode-beads/blob/main/docs/diagnostics.md",
-          ) ||
-          helpSnapshot.instructions.includes("Details: ") ||
-          !helpSnapshot.instructions.includes("\nBEGIN_DIAGNOSTIC_REPORT\n## Beads diagnostics help") ||
-          !helpSnapshot.instructions.endsWith("\nEND_DIAGNOSTIC_REPORT\n\nOriginal invocation:\n")
-        )
-          throw new Error("Packed static help collected or changed input/snapshot");
-        const persistedHelp = JSON.stringify(helpSubmission);
-        for (const kind of ["context", "compaction"]) {
-          const id = `packed-help-${kind}`;
-          storedMessages.splice(
-            0,
-            storedMessages.length,
-            storedUserMessage(
-              id,
-              String(helpSubmission.text),
-              helpSubmission.metadata as StoredUserMessage["metadata"],
-            ),
-          );
-          const event = {
-            sessionID: invocation.sessionID,
-            agent: "build",
-            system: [],
-            messages: [projectedUserMessage(id, String(helpSubmission.text))],
-            tools: {},
-            options: {},
-          } as unknown as SessionContext;
-          await requestHooks.get(kind)!(event);
-          if (
-            event.messages[0]?.content[0]?.type !== "text" ||
-            event.messages[0].content[0].text !== helpSnapshot.instructions
-          )
-            throw new Error(`Packed help replay changed: ${kind}`);
-          const once = JSON.stringify(event.messages);
-          await requestHooks.get(kind)!(event);
-          if (JSON.stringify(event.messages) !== once) throw new Error("Packed help replay duplicates");
-        }
-        if (JSON.stringify(helpSubmission) !== persistedHelp) throw new Error("Packed help mutated persisted input");
+        await checkDiagnostics(definition, submitted);
       } else {
-        if (submitted.text !== `/${definition.name} ${invocation.prompt.text}`)
-          throw new Error(`Packed workflow history is not compact: ${definition.name}`);
-        const metadata = submitted.metadata as { ocBeadsWorkflow?: { version: number; instructions: string } };
-        const snapshot = metadata?.ocBeadsWorkflow;
-        if (
-          !snapshot ||
-          snapshot.version !== 1 ||
-          Object.keys(metadata).join() !== "ocBeadsWorkflow" ||
-          !snapshot.instructions.startsWith(
-            `Invoked command: /${definition.name}\nRequested outcome: ${definition.description}\n`,
-          ) ||
-          !snapshot.instructions.includes(JSON.stringify(installedSkillPath))
-        )
-          throw new Error(`Packed workflow lost static installed instructions: ${definition.name}`);
-        const stem = definition.name.slice("oc-beads:".length) as keyof typeof workflows.WORKFLOWS;
-        const supporting = path.resolve(
-          path.dirname(installedSkillPath),
-          "resources",
-          `${workflows.WORKFLOWS[stem][1]}.md`,
-        );
-        if (
-          !snapshot.instructions.endsWith(`Supporting guidance: ${JSON.stringify(supporting)}`) ||
-          !(await fs.readFile(supporting, "utf8")).trim()
-        )
-          throw new Error(`Packed workflow resource differs: ${definition.name}`);
-        const stored = JSON.stringify(submitted);
-        for (const kind of ["context", "compaction"]) {
-          for (const [routingIndex, routing] of [metadata, { ocBeadsSync: snapshot }].entries()) {
-            const id = `packed-workflow-${kind}-${routingIndex}`;
-            storedMessages.splice(
-              0,
-              storedMessages.length,
-              storedUserMessage(id, submitted.text, routing as StoredUserMessage["metadata"]),
-            );
-            const event = {
-              sessionID: invocation.sessionID,
-              agent: "build",
-              system: [],
-              messages: [projectedUserMessage(id, submitted.text)],
-              tools: {},
-              options: {},
-            } as unknown as SessionContext;
-            if (Object.hasOwn(event.messages[0]!, "metadata"))
-              throw new Error("SDK projection unexpectedly retained request metadata");
-            await requestHooks.get(kind)!(event);
-            const expanded = JSON.stringify(event.messages);
-            if (
-              /ocBeadsWorkflow|ocBeadsSync/.test(expanded) ||
-              expanded.split("Invoked command:").length !== 2 ||
-              event.messages[0]?.content[0]?.type !== "text" ||
-              event.messages[0].content[0].text !== snapshot.instructions ||
-              !expanded.includes("With sufficient inputs, perform the requested operation")
-            )
-              throw new Error(`Packed workflow effective context lost installed instructions: ${definition.name}`);
-            await requestHooks.get(kind)!(event);
-            if (JSON.stringify(event.messages) !== expanded || JSON.stringify(submitted) !== stored)
-              throw new Error("Packed workflow expansion mutated storage or duplicated instructions");
-          }
-        }
-        if (requestHooks.has("title") || requestHooks.has("generate"))
-          throw new Error("Packed workflow expanded auxiliary context");
+        await checkWorkflow(definition, submitted);
       }
     }
     if (prompts.length !== commands.size + 2)
@@ -627,6 +682,7 @@ try {
           throw new Error("Installed workflow callback lost bare action or literal details");
       }
     }
+    // Dispose this setup before inspecting the handles or starting the next configuration.
     await cleanup();
     const expectedOwned = [
       "agent",
@@ -645,7 +701,8 @@ try {
     return { registeredHooks, agents };
   }
 
-  const vanilla = await setupPacked({});
+  // Replay the full setup, invocation and disposal sequence for each option set.
+  const vanilla = await exercisePackedSetup({});
   if (vanilla.registeredHooks.join(",") !== "context,compaction") {
     throw new Error(`Packed plugin registered unexpected session hooks: ${vanilla.registeredHooks.join(",")}`);
   }
@@ -676,7 +733,7 @@ try {
   if (vanilla.agents.has("beads-task-agent-luna")) {
     throw new Error("Packed plugin enabled Luna without an opt-in");
   }
-  const luna = (await setupPacked({ luna: true })).agents.get("beads-task-agent-luna");
+  const luna = (await exercisePackedSetup({ luna: true })).agents.get("beads-task-agent-luna");
   const lunaModel = luna?.model as { providerID?: string; id?: string; variant?: string } | undefined;
   if (
     lunaModel?.providerID !== "openai" ||
@@ -687,7 +744,7 @@ try {
   ) {
     throw new Error("Packed plugin did not register the shared Luna Max profile");
   }
-  const both = await setupPacked({ luna: true, terra: true });
+  const both = await exercisePackedSetup({ luna: true, terra: true });
   const terra = both.agents.get("beads-task-agent-terra");
   const terraModel = terra?.model as { providerID?: string; id?: string; variant?: string } | undefined;
   if (
@@ -705,9 +762,8 @@ try {
   const cli = path.join(consumerDir, "node_modules", ".bin", "opencode-beads");
   if (await fs.exists(cli)) throw new Error("Packed package unexpectedly installed a companion CLI");
 
-  const finalArchiveChecksum = createHash("sha256")
-    .update(await fs.readFile(archive))
-    .digest("hex");
+  // Recheck the same tarball after the consumer and all setup scenarios have finished.
+  const finalArchiveChecksum = await hashArchive(archive);
   if (finalArchiveChecksum !== archiveChecksum) {
     throw new Error("Package archive changed during consumer validation");
   }

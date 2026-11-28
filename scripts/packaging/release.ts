@@ -18,12 +18,17 @@ interface PackageManifest {
   publishConfig?: unknown;
 }
 
+/** Absolute archive path and lowercase hexadecimal SHA-256 of its bytes. */
 export interface ReleaseArchive {
   path: string;
   sha256: string;
 }
 
-/** Format a workflow output as an explicit local path rather than an npm Git shorthand. */
+/**
+ * Format a workflow output as an explicit local path for npm, using forward slashes.
+ * @param projectDirectory Base directory for the relative output.
+ * @param archivePath Path to the archive.
+ */
 export function releaseOutputPath(projectDirectory: string, archivePath: string): string {
   const relative = path.relative(projectDirectory, archivePath).split(path.sep).join("/");
   return relative.startsWith(".") ? relative : `./${relative}`;
@@ -33,6 +38,11 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * List non-directory entries as sorted, slash-separated paths relative to the root.
+ * @param root Inventory base directory.
+ * @param directory Subdirectory relative to the root for this recursion step.
+ */
 async function filesBelow(root: string, directory = ""): Promise<string[]> {
   const files: string[] = [];
   for (const entry of await fs.readdir(path.join(root, directory), { withFileTypes: true })) {
@@ -43,6 +53,11 @@ async function filesBelow(root: string, directory = ""): Promise<string[]> {
   return files.sort();
 }
 
+/**
+ * Return stdout on success or throw with stderr (or the exit code) on command failure.
+ * @param command Executable and arguments passed directly to Bun.spawn.
+ * @param cwd Working directory for the command.
+ */
 async function capture(command: string[], cwd: string): Promise<string> {
   const child = Bun.spawn(command, { cwd, stdout: "pipe", stderr: "pipe" });
   const [stdout, stderr, exitCode] = await Promise.all([
@@ -56,6 +71,10 @@ async function capture(command: string[], cwd: string): Promise<string> {
   return stdout;
 }
 
+/**
+ * Parse package.json and report both read and parse failures as an invalid manifest.
+ * @param projectDirectory Directory containing package.json.
+ */
 async function readManifest(projectDirectory: string): Promise<PackageManifest> {
   try {
     return JSON.parse(await fs.readFile(path.join(projectDirectory, "package.json"), "utf8")) as PackageManifest;
@@ -64,6 +83,10 @@ async function readManifest(projectDirectory: string): Promise<PackageManifest> 
   }
 }
 
+/**
+ * Read the name and supported release version, reporting name errors first.
+ * @param manifest Parsed package manifest.
+ */
 function requireIdentity(manifest: PackageManifest): { name: string; version: string } {
   if (typeof manifest.name !== "string" || !manifest.name) {
     throw new Error("package.json name must be a non-empty string");
@@ -75,12 +98,16 @@ function requireIdentity(manifest: PackageManifest): { name: string; version: st
   return { name: manifest.name, version: manifest.version };
 }
 
+/** npm distribution tag and GitHub prerelease flag for the same release. */
 export interface ReleaseChannel {
   distTag: string;
   prerelease: boolean;
 }
 
-/** Support stable/latest and the explicitly opted-in beta/next channel only. */
+/**
+ * Map stable versions to latest and beta versions to next. Throw for unsupported versions.
+ * @param version Package version in stable or beta.N form, with N a positive integer.
+ */
 export function releaseChannel(version: string): ReleaseChannel {
   const numeric = "(?:0|[1-9]\\d*)";
   if (new RegExp(`^${numeric}\\.${numeric}\\.${numeric}$`).test(version)) {
@@ -92,7 +119,11 @@ export function releaseChannel(version: string): ReleaseChannel {
   throw new Error(`Unsupported release channel/version: ${version}`);
 }
 
-/** Refuse contradictory npm and GitHub channel metadata before building or publishing. */
+/**
+ * Refuse contradictory npm and GitHub channel metadata before building or publishing.
+ * @param version Package version that determines the expected channel.
+ * @param metadata Channel values to check.
+ */
 function validateChannel(version: string, metadata: ReleaseChannel): void {
   const expected = releaseChannel(version);
   if (metadata.distTag !== expected.distTag || metadata.prerelease !== expected.prerelease) {
@@ -102,7 +133,12 @@ function validateChannel(version: string, metadata: ReleaseChannel): void {
   }
 }
 
-/** Validate release identity across the Git tag and checked-in user-facing metadata. */
+/**
+ * Return the package identity after checking the optional channel, Git tag, changelog and README in that order.
+ * @param projectDirectory Directory containing package.json, CHANGELOG.md and README.md.
+ * @param releaseTag Git tag in v<version> form.
+ * @param channel npm and GitHub metadata to check when supplied.
+ */
 export async function validateReleaseMetadata(
   projectDirectory: string,
   releaseTag: string,
@@ -137,6 +173,10 @@ export async function validateReleaseMetadata(
   return identity;
 }
 
+/**
+ * Build the sorted list of archive entries from the fixed root files and packaged trees.
+ * @param projectDirectory Project tree to inventory.
+ */
 async function expectedArchiveInventory(projectDirectory: string): Promise<string[]> {
   const expected = ["LICENSE", "README.md", "package.json"];
   for (const directory of ["src", "assets/oc-beads"]) {
@@ -145,7 +185,21 @@ async function expectedArchiveInventory(projectDirectory: string): Promise<strin
   return expected.sort();
 }
 
-/** Inspect one packed archive and return the digest used by all later release steps. */
+/**
+ * Read the archive bytes at the point of the check and return a lowercase hexadecimal SHA-256.
+ * @param archivePath Resolved path to the archive on disk.
+ */
+async function archiveSha256(archivePath: string): Promise<string> {
+  return createHash("sha256")
+    .update(await fs.readFile(archivePath))
+    .digest("hex");
+}
+
+/**
+ * Check the packed inventory and manifest against the project, then return the archive path and digest.
+ * @param projectDirectory Project tree used for the comparison.
+ * @param archivePath Absolute path or path relative to the project directory.
+ */
 export async function inspectReleaseArchive(projectDirectory: string, archivePath: string): Promise<ReleaseArchive> {
   const archive = path.resolve(projectDirectory, archivePath);
   const listed = await capture(["tar", "-tzf", archive], projectDirectory);
@@ -172,13 +226,18 @@ export async function inspectReleaseArchive(projectDirectory: string, archivePat
 
   return {
     path: archive,
-    sha256: createHash("sha256")
-      .update(await fs.readFile(archive))
-      .digest("hex"),
+    sha256: await archiveSha256(archive),
   };
 }
 
-/** Build and inspect exactly one release archive after metadata validation. */
+/**
+ * Validate metadata, pack into an empty output directory and return the inspected archive.
+ * The caller owns the output directory and any files left there after a failure.
+ * @param projectDirectory Project to validate and pack.
+ * @param releaseTag Git tag in v<version> form.
+ * @param outputDirectory Absolute or project-relative directory. It is created if missing and must be empty before packing.
+ * @param channel npm and GitHub metadata to check when supplied.
+ */
 export async function prepareReleaseArchive(
   projectDirectory: string,
   releaseTag: string,
@@ -199,22 +258,30 @@ export async function prepareReleaseArchive(
   return inspectReleaseArchive(projectDirectory, path.join(output, archives[0]));
 }
 
-/** Recheck the immutable publication input immediately before npm receives it. */
+/**
+ * Check the supplied digest first, then inspect the inventory and manifest and compute the returned digest.
+ * @param projectDirectory Project tree used for the comparison.
+ * @param archivePath Absolute path or path relative to the project directory.
+ * @param expectedSha256 Expected lowercase hexadecimal digest, compared verbatim.
+ */
 export async function verifyReleaseArchive(
   projectDirectory: string,
   archivePath: string,
   expectedSha256: string,
 ): Promise<ReleaseArchive> {
   const resolvedArchive = path.resolve(projectDirectory, archivePath);
-  const actualSha256 = createHash("sha256")
-    .update(await fs.readFile(resolvedArchive))
-    .digest("hex");
+  const actualSha256 = await archiveSha256(resolvedArchive);
   if (actualSha256 !== expectedSha256) {
     throw new Error(`Release archive digest changed: expected ${expectedSha256}, got ${actualSha256}`);
   }
   return inspectReleaseArchive(projectDirectory, resolvedArchive);
 }
 
+/**
+ * Read the token after the first occurrence of a flag, or throw if its value is missing.
+ * @param args CLI tokens.
+ * @param name Exact flag spelling.
+ */
 function argument(args: string[], name: string): string {
   const index = args.indexOf(name);
   const value = index < 0 ? undefined : args[index + 1];
@@ -222,7 +289,10 @@ function argument(args: string[], name: string): string {
   return value;
 }
 
-/** Require an explicit GitHub prerelease boolean instead of treating missing values as false. */
+/**
+ * Require an explicit GitHub prerelease boolean.
+ * @param args CLI tokens containing --prerelease true or --prerelease false.
+ */
 function prereleaseArgument(args: string[]): boolean {
   const value = argument(args, "--prerelease");
   if (value !== "true" && value !== "false") throw new Error("--prerelease must be true or false");
@@ -232,15 +302,13 @@ function prereleaseArgument(args: string[]): boolean {
 async function main(args: string[]): Promise<void> {
   const command = args[0];
   if (command === "prepare") {
-    const identity = requireIdentity(await readManifest(process.cwd()));
+    const projectDirectory = process.cwd();
+    const identity = requireIdentity(await readManifest(projectDirectory));
     const channel = { ...releaseChannel(identity.version), prerelease: prereleaseArgument(args) };
-    const result = await prepareReleaseArchive(
-      process.cwd(),
-      argument(args, "--tag"),
-      argument(args, "--output"),
-      channel,
-    );
-    const archiveOutput = releaseOutputPath(process.cwd(), result.path);
+    const releaseTag = argument(args, "--tag");
+    const outputDirectory = argument(args, "--output");
+    const result = await prepareReleaseArchive(projectDirectory, releaseTag, outputDirectory, channel);
+    const archiveOutput = releaseOutputPath(projectDirectory, result.path);
     console.log(`Validated release archive ${archiveOutput} (${result.sha256})`);
     if (process.env.GITHUB_OUTPUT) {
       await fs.appendFile(
@@ -251,12 +319,15 @@ async function main(args: string[]): Promise<void> {
     return;
   }
   if (command === "verify") {
-    await validateReleaseMetadata(process.cwd(), argument(args, "--tag"), {
+    const projectDirectory = process.cwd();
+    await validateReleaseMetadata(projectDirectory, argument(args, "--tag"), {
       distTag: argument(args, "--dist-tag"),
       prerelease: prereleaseArgument(args),
     });
-    const result = await verifyReleaseArchive(process.cwd(), argument(args, "--archive"), argument(args, "--sha256"));
-    console.log(`Verified release archive ${path.relative(process.cwd(), result.path)} (${result.sha256})`);
+    const archivePath = argument(args, "--archive");
+    const expectedSha256 = argument(args, "--sha256");
+    const result = await verifyReleaseArchive(projectDirectory, archivePath, expectedSha256);
+    console.log(`Verified release archive ${path.relative(projectDirectory, result.path)} (${result.sha256})`);
     return;
   }
   throw new Error(
