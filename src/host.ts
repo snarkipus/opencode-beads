@@ -27,7 +27,10 @@ import {
 } from "./diagnostics";
 import { createContinuityTools, type ContinuityDependencies, type ContinuityResult } from "./continuity";
 
-/** The slice of the OpenCode V2 plugin context this adapter uses. */
+/**
+ * Native interfaces scoped to one plugin location. Optional interfaces let setup
+ * omit unsupported integrations while retaining the session hooks.
+ */
 export type HostContext = Pick<Plugin.Context, "app" | "location" | "options" | "event"> & {
   agent: Pick<Plugin.Context["agent"], "get" | "transform">;
   session: Pick<Plugin.Context["session"], "hook" | "context"> &
@@ -38,6 +41,7 @@ export type HostContext = Pick<Plugin.Context, "app" | "location" | "options" | 
   skill?: Pick<Plugin.Context["skill"], "list" | "transform">;
 };
 
+/** Setup overrides for native I/O, context timing and optional registration. */
 export interface HostDependencies {
   /** Override process-backed Beads calls, mainly for tests. */
   runtime?: Partial<Pick<ContextRuntime, "guard" | "prime">>;
@@ -45,9 +49,13 @@ export interface HostDependencies {
   runPrime?: (directory: string, flags: readonly string[]) => Promise<string>;
   /** Override the bounded `bd` runner used by CLI/workspace compatibility checks. */
   bd?: (directory: string, args: readonly string[]) => Promise<string>;
+  /** Receives best-effort host diagnostics. Exceptions from the sink are ignored. */
   warn?: (message: string) => void;
+  /** Minimum interval between context warnings for the same diagnostic and session. */
   diagnosticIntervalMs?: number;
+  /** Millisecond clock shared by context freshness checks and diagnostic observations. */
   now?: () => number;
+  /** Context controller delay before retrying an unsuccessful refresh. */
   retryMs?: number;
   /** Enable the accepted code-mode registration; public entrypoint supplies true. Tests may omit it. */
   continuityQualified?: boolean;
@@ -75,6 +83,10 @@ const DIRECT_BEADS_TOOLS = new Set([
   "beads_remember",
 ]);
 
+/**
+ * Read the session identity from a native event envelope, if present.
+ * @param event Subscription payload, which may be unrelated to a session.
+ */
 function eventSessionID(event: unknown): string | undefined {
   if (typeof event !== "object" || event === null) return undefined;
   const data = (event as { data?: unknown }).data;
@@ -101,7 +113,6 @@ function compareCommandRegistry(
   if (!effective) return { mismatches: undefined, missing: undefined };
 
   const mismatches = definitions.flatMap((expected) => {
-    // Preserve registry precedence when multiple rows have the same bounded name.
     const entry = effective.find((observed) => observed.name === expected.name);
     if (!entry) return [];
     // A description exactly at the cap could have been clipped to that length.
@@ -121,7 +132,13 @@ function compareCommandRegistry(
   return { mismatches, missing };
 }
 
-/** Wire Beads context into an OpenCode V2 plugin context; returns the plugin cleanup. */
+/**
+ * Admit the host and install location-scoped native integrations. A registration
+ * failure releases earlier registrations before the original error propagates.
+ * @param ctx Native interfaces and options for the plugin location.
+ * @param deps Overrides for probes, reporting and optional integrations.
+ * @returns Idempotent async cleanup, or a no-op for an unsupported host.
+ */
 export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}): Promise<() => Promise<void>> {
   const directory = ctx.location.directory;
   // Legacy autoMigrate values are ignored: native Beads owns store opening and migrations.
@@ -156,10 +173,19 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
     prime:
       deps.runtime?.prime ??
       ((cwd, signal) => (deps.runPrime ? deps.runPrime(cwd, primeFlags) : runBdPrime(cwd, { signal }, primeFlags))),
+    /**
+     * Resolve the mode from the native agent registry. Lookup failure propagates to the controller.
+     * @param agentID Agent selected for the current request.
+     */
     async agentMode(agentID): Promise<AgentMode | undefined> {
       const response = await ctx.agent.get({ agentID });
       return response.data.mode;
     },
+    /**
+     * Rate-limit context warnings by diagnostic and session, even if the warning sink fails.
+     * @param code Context failure or hold reported by the controller.
+     * @param sessionID Session whose context triggered the warning.
+     */
     diagnose(code: ContextDiagnostic, sessionID: string) {
       const key = `${code}:${sessionID}`;
       const previous = diagnosticTimes.get(key);
@@ -208,7 +234,12 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
       ? "unavailable: host tool/permission/session interface missing"
       : "disabled: registration not requested";
 
-  /** Retain distinct unresolved outcomes without a read, success or lifecycle cue erasing them. */
+  /**
+   * Retain distinct persistence gaps for the session lifecycle, with an overflow
+   * marker once the detail budget is exhausted.
+   * @param sessionID Session that observed the unresolved outcome.
+   * @param detail Operation outcome or lifecycle uncertainty to carry forward.
+   */
   function recordGap(sessionID: string, detail: string): void {
     const known = gaps.get(sessionID) ?? new Set<string>();
     if (known.size < 32) known.add(detail);
@@ -219,12 +250,19 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
     gaps.set(sessionID, known);
   }
 
-  /** Render bounded persistence state independently of the next-request recovery cue. */
+  /**
+   * Read retained gaps without consuming them.
+   * @param sessionID Session whose persistence state is being reported.
+   * @returns Joined details, or undefined when no gap is recorded.
+   */
   function gapFor(sessionID: string): string | undefined {
     return [...(gaps.get(sessionID) ?? [])].join("\n") || undefined;
   }
 
-  /** Drop every location-bound reference together before another request can reuse it. */
+  /**
+   * Discard location-bound session state and invalidate pending snapshot reads.
+   * @param sessionID Session whose cached state and observations are no longer reusable.
+   */
   function forgetSession(sessionID: string): void {
     controller.forget(sessionID);
     beadsSessions.delete(sessionID);
@@ -241,7 +279,12 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
 
   let observation: Promise<void> | undefined;
   let cleanupPromise: Promise<void> | undefined;
-  /** Abort immediately; callers can await all scoped registration/observer disposal. */
+  /**
+   * Abort scoped work and clear session state before invoking owned disposers in
+   * reverse registration order. Repeated calls share the same completion promise.
+   * @returns A promise that waits for all disposers and the event observer, and
+   * rejects with an AggregateError if any fail.
+   */
   function cleanup(): Promise<void> {
     if (cleanupPromise) return cleanupPromise;
     abort.abort();
@@ -288,7 +331,10 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
       }),
     );
 
-    // Diagnostics share the host's bounded reporting state; no status service or store reads.
+    /**
+     * Warn once per distinct workflow diagnostic for the retained host state.
+     * @param message Diagnostic text, including the session suffix when applicable.
+     */
     function workflowDiagnostic(message: string): void {
       if (abort.signal.aborted || diagnosticTimes.has(message)) return;
       diagnosticTimes.set(message, now());
@@ -301,6 +347,11 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
 
     const workflowUnavailableNotice =
       "<beads-notice>Saved Beads workflow instructions or diagnostics are unavailable for a compact command. Continue only from visible user input and supplied context; do not invent missing guidance or replay an operation.</beads-notice>";
+    /**
+     * Surface missing workflow instructions or reports once in the current hook input.
+     * @param event Hook payload that owns the transient system notice.
+     * @param unavailable Whether a visible invocation lacks a recoverable snapshot.
+     */
     function reportUnavailableWorkflow(
       event: {
         sessionID: string;
@@ -316,12 +367,25 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
       }
     }
 
+    /**
+     * Share one generation across overlapping reads in the same session lifecycle.
+     * Forgetting the session retires the token, so a later read gets a fresh one.
+     * @param sessionID Session whose location and stored context will be read.
+     */
     function beginWorkflowSnapshotRead(sessionID: string): symbol {
       const generation = workflowSnapshotReads.get(sessionID) ?? Symbol(sessionID);
       workflowSnapshotReads.set(sessionID, generation);
       return generation;
     }
 
+    /**
+     * Expand retained native snapshots into matching transient messages by ID.
+     * A failed history read falls back to detecting visible invocations with missing guidance.
+     * @param event Hook payload receiving expanded messages and any unavailable notice.
+     * @param generation Session token captured before checking location.
+     * @returns Whether the hook may proceed, including after a history lookup failure.
+     * Cancellation or an outdated generation stops further processing.
+     */
     async function restoreWorkflowSnapshots(
       event: { sessionID: string; messages: SessionContext["messages"]; system: Array<{ type: "text"; text: string }> },
       generation: symbol,
@@ -382,6 +446,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
       const definitions = createBeadsCommands(
         { prompt: ctx.session.prompt },
         async (sessionID, text) => {
+          // Commands capture this report at invocation time. Hook replay uses the saved report.
           const selector = text?.trim().toLowerCase();
           let context = "uncertain";
           let locationKnown = false;
@@ -395,7 +460,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
                 forgetSession(sessionID);
                 context = "withheld: session location changed";
               } else {
-                // A cache read failure leaves the confirmed location available for later probes.
+                // Record the confirmed location before reading cached context.
                 locationKnown = true;
                 const lastRequestAgent = requestCapabilities.get(sessionID)?.agent;
                 const audience = lastRequestAgent && BEADS_TASK_AGENTS.has(lastRequestAgent) ? "task-agent" : "primary";
@@ -426,14 +491,14 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
           }
           let local: NonNullable<DiagnosticsSnapshot["local"]> = "withheld";
           if (guard.kind !== "withheld" && !abort.signal.aborted) {
-            // Once admitted, both file observations run in order under the same eligibility check.
+            // Both file observations share one abort check and run in order.
             local = {
               ...(await collectPluginHealth(directory, guard)),
               ...(await collectBeadsHealth(guard)),
             };
           }
 
-          // Hook listing needs a confirmed location even when the store probe fails.
+          // Hook listing depends on the confirmed location, not on a successful store probe.
           const hooks =
             locationKnown && !abort.signal.aborted
               ? await collectHooks(directory, diagnosticBd)
@@ -553,6 +618,13 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
       }
     }
 
+    /**
+     * Fold typed executor outcomes into context freshness and session recovery state.
+     * Retain bounded task or memory references for compaction, including references
+     * from landed but uncommitted writes. Write gaps persist beyond the next request.
+     * @param sessionID Session that invoked the typed operation.
+     * @param result Observed executor outcome, including incomplete or uncertain results.
+     */
     function rememberResult(sessionID: string, result: ContinuityResult): void {
       if (abort.signal.aborted) return;
       const write = ["claim", "note", "update", "close", "create", "remember"].includes(result.operation);
@@ -593,6 +665,11 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
             {
               ...deps.continuity,
               signal: abort.signal,
+              /**
+               * Apply host bookkeeping before notifying the optional observer.
+               * @param sessionID Session supplied by the typed executor.
+               * @param result Outcome as classified by the typed executor.
+               */
               acknowledged(sessionID, result) {
                 rememberResult(sessionID, result);
                 deps.continuity?.acknowledged?.(sessionID, result);
@@ -638,6 +715,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
         }
         if (ctx.session.get && !(await restoreWorkflowSnapshots(event, snapshotGeneration))) return;
         if (abort.signal.aborted) return;
+        // The actual request supplies visibility evidence. Registration alone grants no permission.
         const knownTools = event.tools && typeof event.tools === "object";
         const capabilities: RequestCapabilities = knownTools
           ? {
@@ -696,6 +774,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
             .filter(Boolean)
             .join("\n");
           event.system.push({ type: "text", text: `<beads-recovery>${recovery}</beads-recovery>` });
+          // Consume the delivered cue. Persistence gaps remain available for later requests.
           recoveryCues.delete(event.sessionID);
         }
       }),
@@ -729,6 +808,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
           reportUnavailableWorkflow(event, expandBeadsWorkflowContext(event.messages, []));
         }
         if (abort.signal.aborted) return;
+        // Carry prior evidence into the summary request only for agents that received Beads context.
         if (beadsSessions.get(event.sessionID)?.has(event.agent)) {
           event.system.push({ type: "text", text: BEADS_COMPACTION_GUIDANCE });
           const known = references.get(event.sessionID);
@@ -753,6 +833,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
             !beadsSessions.has(event.sessionID)
           )
             return;
+          // A subagent return can acknowledge a launch before any child report exists.
           if (event.tool === "subagent") {
             controller.invalidate(event.sessionID);
             recoveryCues.set(
@@ -763,6 +844,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
         }),
       );
 
+    // Lifecycle events inform later requests. The awaited hooks own request and summary publication.
     observation = (async () => {
       try {
         for await (const event of ctx.event.subscribe({ signal: abort.signal })) {
