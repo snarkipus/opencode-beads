@@ -130,7 +130,11 @@ export interface SkillLoadDependencies {
   readText?: (path: string) => Promise<string>;
 }
 
-/** Read only the explicit packaged guidance links; no scan, installer or watcher is needed. */
+/**
+ * Load packaged guidance from its explicit links rather than scanning the filesystem.
+ * @param deps Optional path and reader overrides for the packaged assets.
+ * @throws If the skill is unreadable, the required link count differs, or a linked resource is unreadable or empty.
+ */
 export async function loadBeadsSkill(deps: SkillLoadDependencies = {}): Promise<BeadsSkill> {
   const skillPath = deps.skillPath ?? BEADS_SKILL_PATH;
   const readText = deps.readText ?? ((path: string) => readFile(path, "utf8"));
@@ -161,7 +165,12 @@ export async function loadBeadsSkill(deps: SkillLoadDependencies = {}): Promise<
   };
 }
 
-/** Inspect the candidate editor on every rebuild, including earlier changing user transforms. */
+/**
+ * Check for skill collisions on every rebuild and leave a colliding entry untouched.
+ * @param editor Candidate registry for this rebuild, including any earlier transforms.
+ * @param skill Packaged skill to add only if its ID and name are unoccupied.
+ * @param diagnose Sink that reports a collision to the host.
+ */
 export function applyBeadsSkill(editor: SkillEditor, skill: BeadsSkill, diagnose: (message: string) => void): void {
   if (editor.list().some((entry) => String(entry.id) === "oc-beads" || String(entry.name) === "oc-beads")) {
     diagnose("skill-collision oc-beads: existing customization preserved");
@@ -202,7 +211,12 @@ function hasWorkflowInvocation(message: RequestMessage): boolean {
   return command === "diagnostics" || (command !== undefined && Object.hasOwn(WORKFLOWS, command));
 }
 
-/** Expand snapshots from native durable records into transient request copies by typed message ID. */
+/**
+ * Expand durable snapshots by native message ID without modifying the saved history.
+ * @param messages Transient request messages; matching user entries may be replaced with expanded copies.
+ * @param storedMessages Native history supplying captured workflow metadata.
+ * @returns Whether any visible workflow invocation lacked a recoverable snapshot.
+ */
 export function expandBeadsWorkflowContext(
   messages: SessionContext["messages"],
   storedMessages: readonly StoredSessionMessage[],
@@ -231,7 +245,13 @@ export function expandBeadsWorkflowContext(
   return unavailable;
 }
 
-/** Build native prompt commands with compact text and durable static workflow instructions. */
+/**
+ * Build native commands that submit compact visible text and save the instructions or report for replay.
+ * @param session Native prompt interface; delivery is chosen by the host invocation.
+ * @param diagnostics Capture an invocation-time report; the exact help selector bypasses capture.
+ * @param skillPath Packaged skill path used to resolve workflow references.
+ * @param signal Plugin lifetime; unload prevents submission, including after an in-flight capture.
+ */
 export function createBeadsCommands(
   session: Pick<Plugin.Context["session"], "prompt">,
   diagnostics: (sessionID: string, text?: string) => Promise<string>,

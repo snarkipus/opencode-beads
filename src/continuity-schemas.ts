@@ -54,7 +54,7 @@ const createSchema = obj(
   ["title", "type", "priority"],
 );
 
-/** Input schemas in typed tool registration order. */
+/** Catalog input schemas in registration order; the executor still validates raw invocations. */
 export const inputs: Record<Operation, JS> = {
   find: {
     anyOf: [
