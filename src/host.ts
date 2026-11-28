@@ -58,6 +58,9 @@ export interface HostDependencies {
 }
 
 const DEFAULT_DIAGNOSTIC_INTERVAL_MS = 60_000;
+const COMMAND_REGISTRY_LIMIT = 128;
+const COMMAND_NAME_LIMIT = 128;
+const COMMAND_DESCRIPTION_LIMIT = 512;
 const DIRECT_BEADS_TOOLS = new Set([
   "beads_find",
   "beads_get",
@@ -78,6 +81,44 @@ function eventSessionID(event: unknown): string | undefined {
   if (typeof data !== "object" || data === null) return undefined;
   const sessionID = (data as { sessionID?: unknown }).sessionID;
   return typeof sessionID === "string" ? sessionID : undefined;
+}
+
+type ObservedCommand = { name: string; description?: string };
+type CommandComparison = Pick<NonNullable<DiagnosticsSnapshot["commands"]>, "mismatches" | "missing">;
+
+/**
+ * Compare observed rows in package definition order. An incomplete registry can still
+ * show a changed description, but only complete membership can show a missing name.
+ * @param definitions Package commands in registration order.
+ * @param effective Bounded registry rows, or undefined when lookup failed.
+ * @param membershipTruncated Whether the entry or name limit obscures membership.
+ */
+function compareCommandRegistry(
+  definitions: readonly ObservedCommand[],
+  effective: ObservedCommand[] | undefined,
+  membershipTruncated: boolean,
+): CommandComparison {
+  if (!effective) return { mismatches: undefined, missing: undefined };
+
+  const mismatches = definitions.flatMap((expected) => {
+    // Preserve registry precedence when multiple rows have the same bounded name.
+    const entry = effective.find((observed) => observed.name === expected.name);
+    if (!entry) return [];
+    // A description exactly at the cap could have been clipped to that length.
+    const comparable =
+      (entry.description?.length ?? 0) < COMMAND_DESCRIPTION_LIMIT &&
+      (expected.description?.length ?? 0) < COMMAND_DESCRIPTION_LIMIT;
+    if (!comparable || entry.description === expected.description) return [];
+    return [
+      { name: expected.name, expectedDescription: expected.description, effectiveDescription: entry.description },
+    ];
+  });
+  const missing =
+    !membershipTruncated &&
+    definitions
+      .filter((expected) => !effective.some((entry) => entry.name === expected.name))
+      .map((entry) => entry.name);
+  return { mismatches, missing };
 }
 
 /** Wire Beads context into an OpenCode V2 plugin context; returns the plugin cleanup. */
@@ -394,19 +435,25 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
             guard.kind === "ready" && guard.workspace && !abort.signal.aborted
               ? await collectSyncTarget(directory, guard.workspace, diagnosticBd)
               : undefined;
-          let effectiveCommands: Array<{ name: string; description?: string }> | undefined;
+          let effectiveCommands: ObservedCommand[] | undefined;
           let registryTruncated = false;
           let registryMembershipTruncated = false;
           let effectiveSkills: NonNullable<DiagnosticsSnapshot["skill"]>["effective"];
           try {
             const entries = (await ctx.command!.list()).data;
-            registryMembershipTruncated = entries.length > 128 || entries.some(({ name }) => name.length > 128);
+            // Record limits against the source rows before taking the bounded sample.
+            registryMembershipTruncated =
+              entries.length > COMMAND_REGISTRY_LIMIT || entries.some(({ name }) => name.length > COMMAND_NAME_LIMIT);
             registryTruncated =
               registryMembershipTruncated ||
-              entries.some(({ name, description }) => name.length > 128 || (description?.length ?? 0) > 512);
-            effectiveCommands = entries
-              .slice(0, 128)
-              .map(({ name, description }) => ({ name: name.slice(0, 128), description: description?.slice(0, 512) }));
+              entries.some(
+                ({ name, description }) =>
+                  name.length > COMMAND_NAME_LIMIT || (description?.length ?? 0) > COMMAND_DESCRIPTION_LIMIT,
+              );
+            effectiveCommands = entries.slice(0, COMMAND_REGISTRY_LIMIT).map(({ name, description }) => ({
+              name: name.slice(0, COMMAND_NAME_LIMIT),
+              description: description?.slice(0, COMMAND_DESCRIPTION_LIMIT),
+            }));
           } catch {
             /* Absence of lookup evidence is unknown, not an empty registry. */
           }
@@ -431,29 +478,7 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
                 membershipTruncated: registryMembershipTruncated,
                 expectedCount: definitions.length,
                 effective: effectiveCommands ?? "unknown: registry lookup failed",
-                mismatches:
-                  effectiveCommands &&
-                  definitions.flatMap((expected) => {
-                    const effective = effectiveCommands.find((entry) => entry.name === expected.name);
-                    return effective &&
-                      (effective.description?.length ?? 0) < 512 &&
-                      (expected.description?.length ?? 0) < 512 &&
-                      effective.description !== expected.description
-                      ? [
-                          {
-                            name: expected.name,
-                            expectedDescription: expected.description,
-                            effectiveDescription: effective.description,
-                          },
-                        ]
-                      : [];
-                  }),
-                missing:
-                  effectiveCommands &&
-                  !registryMembershipTruncated &&
-                  definitions
-                    .filter((expected) => !effectiveCommands.some((entry) => entry.name === expected.name))
-                    .map((entry) => entry.name),
+                ...compareCommandRegistry(definitions, effectiveCommands, registryMembershipTruncated),
                 ownership:
                   "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
               },
