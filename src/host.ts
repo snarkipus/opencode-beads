@@ -471,50 +471,56 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
           } catch {
             effectiveSkills = "unavailable: registry lookup failed";
           }
+          /**
+           * Prefer observed direct leaves over the indirect execute surface.
+           * @param request The last observed request for this session, if any.
+           */
+          function describeLeafAvailability(request: typeof observedRequest): string {
+            if (request?.capabilities.direct === true) {
+              return "some native direct Beads leaves are visible; each still checks its operation-specific permission";
+            }
+            if (request?.capabilities.typed === "registered-execute-visible") {
+              return "execute is visible; the native catalog and each operation-specific permission determine leaf availability";
+            }
+            return "unknown until native catalog discovery and per-operation permission checks";
+          }
+
           const observedRequest = requestCapabilities.get(sessionID);
-          return renderHealthReport(
-            {
-              plugin: { name: packageManifest.name, version: packageManifest.version },
-              host: hostVersion,
-              admission: SUPPORTED_OPENCODE_RANGE,
-              liveQualification: "not measured by diagnostics; see release acceptance evidence",
-              commands: {
-                registration: commandRegistration,
-                lookup: effectiveCommands ? "available" : "failed",
-                truncated: registryTruncated,
-                membershipTruncated: registryMembershipTruncated,
-                expectedCount: definitions.length,
-                effective: effectiveCommands ?? "unknown: registry lookup failed",
-                ...compareCommandRegistry(definitions, effectiveCommands, registryMembershipTruncated),
-                ownership:
-                  "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
-              },
-              skill: { failure: skillFailure, effective: effectiveSkills, collision: skillCollision },
-              typedContinuity:
-                deps.continuityQualified === true
-                  ? "enabled: qualified registration"
-                  : "disabled: registration not requested",
-              typedRegistration,
-              requestCapability: observedRequest ?? "unknown: no actual request observation",
-              leafAvailability:
-                observedRequest?.capabilities.direct === true
-                  ? "some native direct Beads leaves are visible; each still checks its operation-specific permission"
-                  : observedRequest?.capabilities.typed === "registered-execute-visible"
-                    ? "execute is visible; the native catalog and each operation-specific permission determine leaf availability"
-                    : "unknown until native catalog discovery and per-operation permission checks",
-              local,
-              context,
-              contextObservation,
-              requestInstructions: requestInstructions.get(sessionID) ?? "unobserved",
-              guard,
-              hooks,
-              syncTarget,
-              historyRequested: selector === "remote" || selector === "details remote",
-              persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
-            } satisfies DiagnosticsSnapshot,
-            now(),
-            selector === "details" || selector === "details remote",
-          );
+          const snapshot = {
+            plugin: { name: packageManifest.name, version: packageManifest.version },
+            host: hostVersion,
+            admission: SUPPORTED_OPENCODE_RANGE,
+            liveQualification: "not measured by diagnostics; see release acceptance evidence",
+            commands: {
+              registration: commandRegistration,
+              lookup: effectiveCommands ? "available" : "failed",
+              truncated: registryTruncated,
+              membershipTruncated: registryMembershipTruncated,
+              expectedCount: definitions.length,
+              effective: effectiveCommands ?? "unknown: registry lookup failed",
+              ...compareCommandRegistry(definitions, effectiveCommands, registryMembershipTruncated),
+              ownership:
+                "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
+            },
+            skill: { failure: skillFailure, effective: effectiveSkills, collision: skillCollision },
+            typedContinuity:
+              deps.continuityQualified === true
+                ? "enabled: qualified registration"
+                : "disabled: registration not requested",
+            typedRegistration,
+            requestCapability: observedRequest ?? "unknown: no actual request observation",
+            leafAvailability: describeLeafAvailability(observedRequest),
+            local,
+            context,
+            contextObservation,
+            requestInstructions: requestInstructions.get(sessionID) ?? "unobserved",
+            guard,
+            hooks,
+            syncTarget,
+            historyRequested: selector === "remote" || selector === "details remote",
+            persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
+          } satisfies DiagnosticsSnapshot;
+          return renderHealthReport(snapshot, now(), selector === "details" || selector === "details remote");
         },
         deps.workflowAssets?.skillPath,
         abort.signal,
