@@ -38,7 +38,7 @@ export interface HostDependencies {
   runtime?: Partial<Pick<ContextRuntime, "guard" | "prime">>;
   /** Override the `bd prime` runner (receives `--full`, plus `--stealth` when enabled). */
   runPrime?: (directory: string, flags: readonly string[]) => Promise<string>;
-  /** Override the bounded `bd` runner used by CLI/workspace compatibility checks. */
+  /** Override the bounded `bd` runner for compatibility checks and native diagnostic probes. */
   bd?: (directory: string, args: readonly string[]) => Promise<string>;
   /** Receives best-effort host diagnostics. Exceptions from the sink are ignored. */
   warn?: (message: string) => void;
