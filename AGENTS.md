@@ -38,6 +38,7 @@ Adapted from OpenCode v2.4.2 [AGENTS.md](https://github.com/anomalyco/opencode/b
 ## Project Structure
 - `src/plugin.ts` - OpenCode V2 plugin entry point (default export `{ id, setup }`)
 - `src/host.ts` - Host admission plus wiring for hooks, session events, and agent/command/skill/tool registration
+- `src/host-diagnostics.ts` - Invocation-time report capture: native probes, registry comparison, and snapshot assembly; session and registration state stay in `host.ts`
 - `src/context.ts` - Per-session `bd prime` context cache, actor and capability guidance
 - `src/continuity.ts` - The eleven permissioned typed operations in the `beads` namespace
 - `src/workflows.ts` - The 30 `oc-beads:*` commands and durable workflow snapshots

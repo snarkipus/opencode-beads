@@ -120,6 +120,7 @@ export function createDiagnosticsCapture(
 
   /**
    * Capture one report for replay, keeping probe completion and assembly in the same async flow.
+   * Forget cached host session state if the session moved or its location or cache lookup fails.
    * @param sessionID Session whose location and request evidence the report describes.
    * @param text Optional diagnostics selector supplied with the invocation.
    */
