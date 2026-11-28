@@ -40,7 +40,7 @@ alongside the plugin.
   It starts a loopback host, writes fixture and evidence files under scratch,
   and can send fixture data to the selected model provider. [Native probe instructions](../docs/native-release-probe.md)
 - [`test-native-qualification.py`](test-native-qualification.py) tests the
-  probe's output parsers using fixtures. Run it with
-  `python3 scripts/test-native-qualification.py`.
+  probe's output parsers and uses inert subprocesses to check Linux shutdown.
+  Run it with `python3 scripts/test-native-qualification.py`.
 - [`oxlint-plugin.mjs`](oxlint-plugin.mjs) supplies the chained-type-assertion
   rule loaded by `bun run lint`.

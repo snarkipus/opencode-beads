@@ -3,6 +3,8 @@
 
 import argparse
 import base64
+from contextlib import contextmanager
+import errno
 from hashlib import file_digest
 import json
 import os
@@ -24,6 +26,83 @@ CASES = ("registration", "read", "deny", "stop", "replay", "handoff")
 
 class Blocked(Exception):
     pass
+
+
+class Interrupted(BaseException):
+    """Unwind the active case without classifying an operator signal as a case failure."""
+
+
+class Interruption:
+    """Record the first signal and defer unwinding across launch and cleanup."""
+
+    def __init__(self):
+        self.signum = None
+        self.deferred = True
+
+    def receive(self, signum, _frame):
+        if self.signum is None:
+            self.signum = signum
+            if not self.deferred:
+                raise Interrupted
+
+    @contextmanager
+    def defer(self):
+        previous = self.deferred
+        self.deferred = True
+        try:
+            yield
+        finally:
+            self.deferred = previous
+        if not previous and self.signum is not None:
+            raise Interrupted
+
+
+def group_running(pgid):
+    """Check the owned Linux session for live members of its original group.
+
+    The caller must retain the leader's PID until all group signaling ends.
+    Zombies cannot execute and only their respective parents can reap them.
+    """
+    for path in Path("/proc").iterdir():
+        if not path.name.isdecimal():
+            continue
+        try:
+            # The command name may contain spaces and closing parentheses.
+            state, _, group, session, *_ = (path / "stat").read_bytes().rsplit(b")", 1)[1].split()
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        if int(group) == int(session) == pgid and state not in (b"Z", b"X"):
+            return True
+    return False
+
+
+def wait_group(pgid, seconds):
+    """Allow the owned group to exit, returning its last observed live state."""
+    deadline = time.monotonic() + seconds
+    while group_running(pgid):
+        if time.monotonic() >= deadline:
+            return True
+        time.sleep(.05)
+    return False
+
+
+def stop_group(pgid, errors):
+    """Terminate the pinned group, escalating if the grace-period result is uncertain."""
+    for signum, seconds in ((signal.SIGTERM, 8), (signal.SIGKILL, 4)):
+        try:
+            os.killpg(pgid, signum)
+        except ProcessLookupError:
+            return True
+        except OSError as error:
+            errors.append(f"Could not send {signum.name} to owned process group: {error}")
+        try:
+            running = wait_group(pgid, seconds)
+        except (OSError, ValueError, IndexError) as error:
+            errors.append(f"Process group observation failed: {error}")
+            running = None
+        if running is False:
+            return True
+    return None if running is None else False
 
 
 def require(condition, detail):
@@ -57,6 +136,7 @@ def read_result(text):
 
 
 def verify_diagnostics_snapshot(messages, expected):
+    """Return the saved report instructions after checking the command capture."""
     snapshots = [m for m in messages if m.get("type") == "user" and (
         m.get("text") == "/oc-beads:diagnostics details"
         or "ocBeadsWorkflow" in (m.get("metadata") or {})
@@ -73,7 +153,10 @@ def verify_diagnostics_snapshot(messages, expected):
 
 
 class Probe:
-    def __init__(self, args):
+    """Own the disposable workspace, native server launches and evidence files."""
+
+    def __init__(self, args, interruption):
+        self.interruption = interruption
         self.args = args
         self.root = Path(tempfile.mkdtemp(prefix="beads-native-", dir=args.scratch))
         print(f"Evidence: {self.root}", flush=True)
@@ -104,6 +187,7 @@ class Probe:
                               stderr=subprocess.PIPE, text=True, timeout=20).stdout
 
     def request(self, path, payload=None, record=None):
+        """Capture the HTTP status and body, including native error responses."""
         token = base64.b64encode(f"opencode:{self.key}".encode()).decode()
         request = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}",
             data=None if payload is None else json.dumps(payload).encode(),
@@ -128,6 +212,7 @@ class Probe:
         return body.get("data", body) if isinstance(body, dict) else body
 
     def until(self, read, detail, error=RuntimeError, seconds=None):
+        """Poll for a truthy observation, checking the deadline between reads."""
         deadline = time.monotonic() + (seconds or self.args.timeout)
         while time.monotonic() < deadline:
             result = read()
@@ -137,6 +222,7 @@ class Probe:
         raise error(detail)
 
     def prepare(self):
+        """Verify artifact identity and seed the disposable store before launch."""
         require(digest(self.args.package) == self.args.package_sha256, "Package SHA-256 mismatch")
         with tarfile.open(self.args.package) as archive:
             archive.extractall(self.root / "unpacked", filter="data")
@@ -160,12 +246,13 @@ class Probe:
         self.save("issue", issue)
 
     def start(self, phase, observer=None):
+        """Launch an owned Linux process group and confirm native registration."""
         config = {"plugins": [str(self.package)] + ([str(observer)] if observer else [])}
         (self.work / "opencode.json").write_text(json.dumps(config))
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             self.port = sock.getsockname()[1]
-        with (self.root / f"{phase}-server.log").open("wb") as log:
+        with self.interruption.defer(), (self.root / f"{phase}-server.log").open("wb") as log:
             self.server = subprocess.Popen(
                 [self.args.host, "serve", "--hostname", "127.0.0.1", "--port", str(self.port)],
                 cwd=self.work, env={**self.env, "OPENCODE_PASSWORD": self.key}, start_new_session=True,
@@ -174,7 +261,9 @@ class Probe:
         require(exe == self.args.host, f"Private process executable mismatch: {exe}")
 
         def ready():
-            require(self.server.poll() is None, "Private host exited before readiness")
+            # Keep an exited leader waitable to pin the group ID until shutdown.
+            exited = os.waitid(os.P_PID, self.server.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            require(exited is None, "Private host exited before readiness")
             try:
                 return self.api("/api/info", record=f"{phase}-info")
             except urllib.error.URLError:
@@ -194,22 +283,47 @@ class Probe:
         self.until(registered, f"Expected active plugins: {expected}", seconds=15)
 
     def close(self, label):
+        """Write separate listener and owned process-group observations to the receipt."""
         if self.server is None:
             return
-        pid = self.server.pid
-        if self.server.poll() is None:
-            os.killpg(pid, signal.SIGTERM)
+        with self.interruption.defer():
+            server = self.server
+            pid = server.pid
+            listener_closed = None
+            errors = []
+            group_closed = exit_code = None
             try:
-                self.server.wait(timeout=8)
-            except subprocess.TimeoutExpired:
-                os.killpg(pid, signal.SIGKILL)
-                self.server.wait(timeout=4)
-        with socket.socket() as sock:
-            sock.settimeout(.5)
-            listener_closed = sock.connect_ex(("127.0.0.1", self.port)) != 0
-        self.save(label, {"pid": pid, "port": self.port, "exit": self.server.returncode, "listenerClosed": listener_closed})
-        self.server = None
-        require(listener_closed, "Private listener did not close")
+                # Confirm the leader is still ours to wait for before using its group ID.
+                os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            except OSError as error:
+                errors.append(f"Could not verify ownership of the server leader: {error}")
+            else:
+                group_closed = stop_group(pid, errors)
+                # Reaping can release the numeric group ID. Never signal it again.
+                try:
+                    exit_code = server.wait(timeout=4)
+                except subprocess.TimeoutExpired:
+                    errors.append("Private server leader did not exit")
+            self.server = None
+            try:
+                with socket.socket() as sock:
+                    sock.settimeout(.5)
+                    outcome = sock.connect_ex(("127.0.0.1", self.port))
+                if outcome in (0, errno.ECONNREFUSED):
+                    listener_closed = outcome == errno.ECONNREFUSED
+                else:
+                    errors.append(f"Listener observation inconclusive: {os.strerror(outcome)}")
+            except OSError as error:
+                errors.append(f"Listener observation failed: {error}")
+
+            if group_closed is False:
+                errors.append("Owned process group did not exit")
+            if listener_closed is False:
+                errors.append("Private listener did not close")
+            self.save(label, {"pid": pid, "port": self.port, "exit": exit_code,
+                              "listenerClosed": listener_closed, "processGroupClosed": group_closed,
+                              "errors": errors})
+            require(not errors, "; ".join(errors))
 
     def sid(self, label, effect=None):
         payload = {"title": f"Disposable {label}", "agent": "build", "model": self.model}
@@ -224,6 +338,7 @@ class Probe:
         return self.session(sid, "/message", record=f"{label}-messages")
 
     def wait_model(self, sid, label, since=0):
+        """Capture a settled model turn and distinguish provider blockers from execution failures."""
         def idle():
             session = self.session(sid)
             t = session["time"]
@@ -254,6 +369,7 @@ class Probe:
         return outputs
 
     def owned_bd_processes(self):
+        """Sample matching CLI processes for Stop evidence only."""
         found = []
         for path in Path("/proc").glob("[0-9]*"):
             try:
@@ -267,6 +383,7 @@ class Probe:
         return found
 
     def registration(self):
+        """Check native registration and capture a diagnostics snapshot for replay."""
         cmds = self.api("/api/command", record="commands")
         require(sum(c["name"].startswith("oc-beads:") for c in cmds) == 30, "Expected 30 registered commands")
         require(any(s["id"] == "oc-beads" for s in self.api("/api/skill", record="skills")), "Skill missing")
@@ -307,6 +424,7 @@ class Probe:
         raise RuntimeError("No completed native beads.get call")
 
     def note_case(self, label):
+        """Verify denial or stopped permission handling with independent issue readback."""
         effect = "ask" if label == "stop" else "deny"
         self.model_ready()
         sid, baseline = self.sid(label, effect), self.readback(f"{label}-before")
@@ -359,6 +477,7 @@ class Probe:
                                       "scope": "permission wait, not a running bd process"})
 
     def settle_replay(self, sid, label):
+        """Record the session state and interrupt busy work before reopening or finishing."""
         session = self.session(sid, record=f"{label}-before-settle")
         t = session["time"]
         if t.get("busy", 0) > t.get("idle", 0):
@@ -373,6 +492,7 @@ class Probe:
         require(self.session(sid, "/inbox", record=f"{label}-inbox") == [], f"{label}: inbox is not empty")
 
     def replay(self, sid, snapshot):
+        """Reopen the registered session and observe the restored snapshot on a model request."""
         self.model_ready()
         stored = self.session(sid, "/context", record="replay-before-context")
         expected = verify_diagnostics_snapshot(stored, snapshot)
@@ -460,44 +580,69 @@ def main():
     for key in ("version", "package-sha256", "model", "fixture-actor"):
         parser.add_argument(f"--{key}", required=True)
     parser.add_argument("--cases", choices=CASES, nargs="+", default=CASES)
-    parser.add_argument("--timeout", type=int, default=60, help="per model wait, capped at 120s")
+    parser.add_argument("--timeout", type=int, default=60, help="default polling window in seconds (1–120); an in-flight request may outlast it")
     args = parser.parse_args()
     if not (re.fullmatch(r"\d+\.\d+\.\d+", args.version) and re.fullmatch(r"[0-9a-f]{64}", args.package_sha256)
             and re.fullmatch(r"[^/]+/.+", args.model) and 1 <= args.timeout <= 120):
         parser.error("Expected stable x.y.z, SHA-256, provider/model and timeout 1..120")
-    probe = Probe(args)
+    interruption = Interruption()
+    previous = {sig: signal.signal(sig, interruption.receive) for sig in (signal.SIGINT, signal.SIGTERM)}
+    try:
+        return run_probe(Probe(args, interruption))
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
+
+
+def run_cases(probe, results):
+    """Record each completed case and stop dispatch after a failure."""
+    probe.prepare()
+    probe.start("initial")
+    registration = None
+    for case in probe.args.cases:
+        try:
+            if case == "registration":
+                registration = probe.registration()
+            elif case == "read":
+                probe.read_case()
+            elif case in ("deny", "stop"):
+                probe.note_case(case)
+            elif case == "replay":
+                probe.replay(*(registration or probe.registration()))
+            elif case == "handoff":
+                probe.handoff()
+            results[case] = {"status": "pass"}
+        except Blocked as error:
+            results[case] = {"status": "blocked", "detail": str(error)}
+        except Exception as error:
+            results[case] = {"status": "fail", "detail": str(error)}
+            break
+
+
+def run_probe(probe):
+    """Run selected cases and retain cleanup and verdicts after the first signal."""
+    interruption = probe.interruption
     results = {}
     try:
-        probe.prepare()
-        probe.start("initial")
-        registration = None
-        for case in args.cases:
-            try:
-                if case == "registration":
-                    registration = probe.registration()
-                elif case == "read":
-                    probe.read_case()
-                elif case in ("deny", "stop"):
-                    probe.note_case(case)
-                elif case == "replay":
-                    probe.replay(*(registration or probe.registration()))
-                elif case == "handoff":
-                    probe.handoff()
-                results[case] = {"status": "pass"}
-            except Blocked as error:
-                results[case] = {"status": "blocked", "detail": str(error)}
-            except Exception as error:
-                results[case] = {"status": "fail", "detail": str(error)}
-                break
-    except Exception as error:
-        results["setup"] = {"status": "fail", "detail": str(error)}
-    finally:
         try:
-            probe.close("cleanup")
+            interruption.deferred = False
+            if interruption.signum is not None:
+                raise Interrupted
+            run_cases(probe, results)
         except Exception as error:
-            results["cleanup"] = {"status": "fail", "detail": str(error)}
-        probe.save("results", results)
-        print(json.dumps(results, indent=2))
+            results["setup"] = {"status": "fail", "detail": str(error)}
+        finally:
+            interruption.deferred = True
+    except Interrupted:
+        pass
+    try:
+        probe.close("cleanup")
+    except Exception as error:
+        results["cleanup"] = {"status": "fail", "detail": str(error)}
+    if interruption.signum is not None:
+        results["interruption"] = {"status": "fail", "signal": signal.Signals(interruption.signum).name}
+    probe.save("results", results)
+    print(json.dumps(results, indent=2))
     return 1 if any(r["status"] == "fail" for r in results.values()) else 2 if any(
         r["status"] == "blocked" for r in results.values()) else 0
 
