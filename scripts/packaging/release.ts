@@ -260,7 +260,7 @@ async function main(args: string[]): Promise<void> {
     return;
   }
   throw new Error(
-    "Usage: bun scripts/release.ts prepare --tag <tag> --prerelease <true|false> --output <dir> | verify --archive <tgz> --sha256 <digest> --tag <tag> --dist-tag <next|latest> --prerelease <true|false>",
+    "Usage: bun scripts/packaging/release.ts prepare --tag <tag> --prerelease <true|false> --output <dir> | verify --archive <tgz> --sha256 <digest> --tag <tag> --dist-tag <next|latest> --prerelease <true|false>",
   );
 }
 

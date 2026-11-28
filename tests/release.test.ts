@@ -10,7 +10,7 @@ import {
   releaseChannel,
   validateReleaseMetadata,
   verifyReleaseArchive,
-} from "../scripts/release";
+} from "../scripts/packaging/release";
 
 const projectDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const temporaryDirectories: string[] = [];
@@ -93,7 +93,7 @@ describe("release artifact identity", () => {
       const child = Bun.spawn(
         [
           process.execPath,
-          join(projectDirectory, "scripts/release.ts"),
+          join(projectDirectory, "scripts/packaging/release.ts"),
           "prepare",
           "--tag",
           "v1.2.3",

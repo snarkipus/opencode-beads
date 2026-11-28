@@ -51,7 +51,7 @@
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "test:docs": "bun test tests/docs.test.ts",
-    "test:package": "bun scripts/test-package.ts",
+    "test:package": "bun scripts/packaging/test-package.ts",
     "test:release": "bun test tests/release.test.ts",
     "test:bd-contract": "bun scripts/bd-contract.ts",
     "typecheck": "tsc --noEmit",
