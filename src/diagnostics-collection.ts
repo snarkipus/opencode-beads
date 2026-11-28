@@ -71,6 +71,9 @@ export type SyncTargetObservation =
  * @param directory - Confirmed directory for the native listing.
  * @param workspace - Native workspace evidence used to decide whether a strict-readonly listing is supported.
  * @param bd - Native command runner scoped to diagnostics.
+ * @returns `resolved` if a valid listing contains `origin`; `local-only` only for an empty
+ * listing in a confirmed embedded store. `unknown` means the listing was inconclusive or
+ * skipped; `listingSkipped` is set only when no listing was attempted.
  */
 export async function collectSyncTarget(
   directory: string,
