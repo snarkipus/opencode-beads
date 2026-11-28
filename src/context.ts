@@ -117,9 +117,13 @@ export function createContextController(
     return (await pending) === "subagent" ? undefined : "primary";
   }
 
-  // Cache notices and missing or empty results until the retry deadline.
-  // Cancellation also returns no text, but without setting that deadline.
-  async function load(sessionID: string, audience: ContextAudience, entry: CacheEntry): Promise<string | undefined> {
+  /**
+   * Check workspace compatibility, then load prime output into the selected cache entry.
+   * Returned notices and missing or empty output get a retry deadline; cancellation does not.
+   * @param sessionID Session to attribute diagnostics to.
+   * @param entry Cache entry that owns the load's cancellation signal and status.
+   */
+  async function load(sessionID: string, entry: CacheEntry): Promise<string | undefined> {
     const retryLater = (value: string | undefined) => {
       entry.expiresAt = now() + retryMs;
       return value;
@@ -138,7 +142,9 @@ export function createContextController(
     }
     if (entry.abort.signal.aborted) return undefined;
     if (guard.kind !== "ready") {
-      entry.status = guard.kind === "probe-failed" ? "failed" : guard.kind === "unsupported" ? "withheld" : "missing";
+      if (guard.kind === "probe-failed") entry.status = "failed";
+      else if (guard.kind === "unsupported") entry.status = "withheld";
+      else entry.status = "missing";
       return retryLater(guardNotice(guard));
     }
 
@@ -196,7 +202,7 @@ export function createContextController(
           abort: new AbortController(),
           status: "loading",
         };
-        entry.value = load(sessionID, audience, entry);
+        entry.value = load(sessionID, entry);
         cache.set(key, entry);
       }
 
