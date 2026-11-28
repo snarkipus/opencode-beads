@@ -28,7 +28,14 @@ export interface BeadsWorkspace {
   proxied?: true;
 }
 
-/** Config-only context avoids `where`'s opportunistic embedded-store prefix lookup. */
+/**
+ * Read workspace evidence with `bd context --json`, avoiding `where`'s embedded-store prefix lookup.
+ * An omitted `remote` means unknown; `false` means the reported remote fields were empty.
+ * @param directory Project directory in which to run the probe.
+ * @param runtime Runner for the native CLI call.
+ * @returns Workspace evidence, or `undefined` when the CLI reports no workspace.
+ * @throws If the CLI call fails for another reason or its response cannot be decoded.
+ */
 export async function probeBeadsWorkspace(
   directory: string,
   runtime: GuardRuntime,
@@ -92,7 +99,13 @@ function formatVersion(version: Version): string {
   return version.join(".");
 }
 
-/** Check the CLI minimum and config-only workspace without opening the native store. */
+/**
+ * Check the CLI minimum and config-only workspace without opening the native store.
+ * `uninitialized` means no workspace was found; `probe-failed` means discovery could not be confirmed.
+ * `ready` confirms CLI and workspace compatibility, not database health.
+ * @param directory Project directory whose CLI and workspace are checked.
+ * @param runtime Runner for the version and workspace probes.
+ */
 export async function checkBeadsStore(directory: string, runtime: GuardRuntime): Promise<GuardResult> {
   let installedOutput: string;
   try {
