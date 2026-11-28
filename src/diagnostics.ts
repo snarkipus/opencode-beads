@@ -17,7 +17,7 @@ export {
   DIAGNOSTIC_ENV,
 } from "./diagnostics-collection";
 
-// Workspace status and any available CLI version are assessed independently.
+// The CLI and Workspace rows are scored separately from the same guard observation.
 type GuardObservation = {
   kind: GuardResult["kind"] | "withheld";
   version?: string;
@@ -96,24 +96,75 @@ type Finding = {
 
 type Row = [check: string, status: 0 | 1 | 2 | null, value: string];
 
+type GuardAssessment = {
+  cliRow: Row;
+  workspaceRow: Row;
+  finding?: Finding;
+  action?: string;
+  summary?: string;
+};
+
 /**
- * Render workspace location status for the report.
+ * Assess CLI compatibility and workspace location from the same observation, without inferring store health.
  *
- * @param kind - Captured guard outcome, if any.
+ * @param guard - Captured guard outcome, including absent or partial evidence.
+ * @param observedAt - Timestamp for the guard finding.
  */
-function workspaceRow(kind: GuardObservation["kind"] | undefined): Row {
-  switch (kind) {
-    case "ready":
-      return ["Workspace", 0, "Located"];
-    case "probe-failed":
-      return ["Workspace", 2, "Probe failed"];
-    case "withheld":
-      return ["Workspace", 2, "Withheld"];
-    case "uninitialized":
-      return ["Workspace", 2, "Not initialized"];
-    default:
-      return ["Workspace", null, "not observed"];
+function assessGuard(guard: GuardObservation | undefined, observedAt: string): GuardAssessment {
+  if (guard?.kind === "ready") {
+    return {
+      cliRow: ["bd CLI", guard.version ? 0 : null, guard.version ?? "not observed"],
+      workspaceRow: ["Workspace", 0, "Located"],
+    };
   }
+
+  const assessment: GuardAssessment = {
+    cliRow: ["bd CLI", null, "not observed"],
+    workspaceRow: ["Workspace", null, "not observed"],
+  };
+  if (guard?.kind === "unsupported" || guard?.kind === "unavailable") {
+    assessment.cliRow = ["bd CLI", 2, guard.installed ? `${guard.installed} (needs ≥1.3.1)` : "not found"];
+    assessment.action = "Install or upgrade bd to ≥1.3.1, then start a new session. Check: `bd version`.";
+    assessment.summary = "bd CLI unavailable or below the supported minimum.";
+  }
+  if (guard?.kind === "unsupported") {
+    assessment.finding = {
+      id: "cli-unsupported",
+      module: "beads",
+      class: "incompatible",
+      producer: "bd version",
+      scope: "confirmed session",
+      observedAt,
+      observation: `CLI ${guard.installed ?? "unknown"} is below the supported minimum`,
+      meaning: "Context admission remains unchanged.",
+      action: "Upgrade bd in an authorized workflow; verify the version and context.",
+    };
+    return assessment;
+  }
+
+  const kind = guard?.kind;
+  switch (kind) {
+    case "probe-failed":
+      assessment.workspaceRow = ["Workspace", 2, "Probe failed"];
+      break;
+    case "withheld":
+      assessment.workspaceRow = ["Workspace", 2, "Withheld"];
+      break;
+    case "uninitialized":
+      assessment.workspaceRow = ["Workspace", 2, "Not initialized"];
+      break;
+  }
+  assessment.finding = {
+    id: "workspace-unknown",
+    module: "beads",
+    class: kind === "probe-failed" ? "failed" : "unknown",
+    producer: "bd version/context",
+    scope: "confirmed session",
+    observedAt,
+    observation: `Workspace observation: ${kind ?? "unknown"}`,
+    meaning: "This does not establish store health.",
+  };
+  return assessment;
 }
 
 /**
@@ -527,6 +578,85 @@ function assessSkill(
   };
 }
 
+type ManagedGuidanceAssessment = {
+  row: Row;
+  action?: string;
+  incompleteRoot?: Finding;
+  duplicateRoot?: Finding;
+  duplicateRequest?: Finding;
+};
+
+/**
+ * Assess root-file and last-request managed guidance across their separate scopes.
+ *
+ * @param root - Bounded AGENTS.md observation, if collected.
+ * @param request - Captured last-request counts, if observed.
+ * @param fileScope - Scope of the root-file observation.
+ * @param observedAt - Report timestamp for root-file findings.
+ */
+function assessManagedGuidance(
+  root: PluginHealthObservation["managedInstructions"] | undefined,
+  request: DiagnosticsSnapshot["requestInstructions"],
+  fileScope: string,
+  observedAt: string,
+): ManagedGuidanceAssessment {
+  const check = "AGENTS Configured";
+  const duplicateFull = (root?.full ?? 0) > 1;
+  let row: Row;
+  // Counts can support a duplicate finding even when the row's file state takes precedence.
+  if (root?.state !== "available")
+    row = [check, null, root?.state === "missing" ? "no AGENTS.md" : (root?.state ?? "not observed")];
+  else if (duplicateFull) row = [check, 1, "duplicate bd blocks"];
+  else if ((root.full ?? 0) + (root.minimal ?? 0) + (root.codex ?? 0) > 0) row = [check, 0, "bd block"];
+  else row = [check, null, "no bd block"];
+
+  const assessment: ManagedGuidanceAssessment = { row };
+  const customizationAdvice =
+    "Review local customization before removing redundant guidance, which edits instructions; verify the resulting project and request counts.";
+  if (root?.state === "unreadable" || root?.state === "truncated") {
+    assessment.incompleteRoot = {
+      id: "root-guidance-incomplete",
+      module: "plugin",
+      class: "failed",
+      producer: "root AGENTS.md",
+      scope: fileScope,
+      observedAt,
+      observation: `Root instruction file ${root.state}`,
+      meaning:
+        "The bounded 64 KiB root-file observation is incomplete; last-request instruction counts have a separate scope and do not establish root-file contents.",
+    };
+  }
+  if (duplicateFull) {
+    assessment.action =
+      "Review duplicate full instruction blocks before editing local guidance. Check: root-file counts in diagnostics details.";
+    assessment.duplicateRoot = {
+      id: "duplicate-full",
+      module: "plugin",
+      class: "review-needed",
+      producer: "root AGENTS.md",
+      scope: fileScope,
+      observedAt,
+      observation: "Multiple full managed blocks are present",
+      meaning: "Retained text may be customization or additional guidance, not proof of conflict.",
+      action: customizationAdvice,
+    };
+  }
+  if (request && request !== "unobserved" && (request.full ?? 0) > 1) {
+    assessment.duplicateRequest = {
+      id: "request-full-duplicates",
+      module: "plugin",
+      class: "review-needed",
+      producer: "last request instructions",
+      scope: "last observed request",
+      observedAt: typeof request.at === "number" ? new Date(request.at).toISOString() : "unavailable",
+      observation: "Multiple full managed blocks were observed",
+      meaning: "Retained blocks can contain useful customization or additional guidance.",
+      action: customizationAdvice,
+    };
+  }
+  return assessment;
+}
+
 /**
  * Interpret captured evidence without I/O or Markdown; preserve the order of rows, findings, and actions.
  *
@@ -544,7 +674,6 @@ function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
     meaning: string,
     action?: string,
     scope = "confirmed session",
-    observedAt = time,
   ) =>
     findings.push({
       id,
@@ -552,47 +681,20 @@ function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
       class: classification,
       producer,
       scope,
-      observedAt,
+      observedAt: time,
       observation,
       meaning,
       ...(action ? { action } : {}),
     });
   const { guard, skill, plugin: identity, commands } = snapshot;
-  if (guard?.kind === "unsupported")
-    add(
-      "cli-unsupported",
-      "beads",
-      "incompatible",
-      "bd version",
-      `CLI ${guard.installed ?? "unknown"} is below the supported minimum`,
-      "Context admission remains unchanged.",
-      "Upgrade bd in an authorized workflow; verify the version and context.",
-    );
-  else if (guard?.kind !== "ready")
-    add(
-      "workspace-unknown",
-      "beads",
-      guard?.kind === "probe-failed" ? "failed" : "unknown",
-      "bd version/context",
-      `Workspace observation: ${guard?.kind ?? "unknown"}`,
-      "This does not establish store health.",
-    );
+  const guardAssessment = assessGuard(guard, time);
+  if (guardAssessment.finding) findings.push(guardAssessment.finding);
   const hooks = assessHooks(snapshot.hooks, time);
   findings.push(...hooks.findings);
   const local = snapshot.local === "withheld" ? undefined : snapshot.local;
   const fileScope = `root-file observation: ${local?.scope ?? "confirmed session directory"}`;
-  if (local?.managedInstructions?.state === "unreadable" || local?.managedInstructions?.state === "truncated") {
-    add(
-      "root-guidance-incomplete",
-      "plugin",
-      "failed",
-      "root AGENTS.md",
-      `Root instruction file ${local.managedInstructions.state}`,
-      "The bounded 64 KiB root-file observation is incomplete; last-request instruction counts have a separate scope and do not establish root-file contents.",
-      undefined,
-      fileScope,
-    );
-  }
+  const guidance = assessManagedGuidance(local?.managedInstructions, snapshot.requestInstructions, fileScope, time);
+  if (guidance.incompleteRoot) findings.push(guidance.incompleteRoot);
   if (local?.sharedSkill === "missing") {
     add(
       "shared-skill-missing",
@@ -619,31 +721,9 @@ function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
   const witness = assessWitness(local?.witness, time);
   // Preserve the captured report's evidence order: mismatch precedes duplicate guidance; other witness findings follow it.
   if (witness.finding?.id === "witness-differs") findings.push(witness.finding);
-  if ((local?.managedInstructions?.full ?? 0) > 1)
-    add(
-      "duplicate-full",
-      "plugin",
-      "review-needed",
-      "root AGENTS.md",
-      "Multiple full managed blocks are present",
-      "Retained text may be customization or additional guidance, not proof of conflict.",
-      "Review local customization before removing redundant guidance, which edits instructions; verify the resulting project and request counts.",
-      fileScope,
-    );
+  if (guidance.duplicateRoot) findings.push(guidance.duplicateRoot);
   if (witness.finding && witness.finding.id !== "witness-differs") findings.push(witness.finding);
-  const request = snapshot.requestInstructions === "unobserved" ? undefined : snapshot.requestInstructions;
-  if ((request?.full ?? 0) > 1)
-    add(
-      "request-full-duplicates",
-      "plugin",
-      "review-needed",
-      "last request instructions",
-      "Multiple full managed blocks were observed",
-      "Retained blocks can contain useful customization or additional guidance.",
-      "Review local customization before removing redundant guidance, which edits instructions; verify the resulting project and request counts.",
-      "last observed request",
-      typeof request?.at === "number" ? new Date(request.at).toISOString() : "unavailable",
-    );
+  if (guidance.duplicateRequest) findings.push(guidance.duplicateRequest);
   const skillAssessment = assessSkill(skill, local?.sharedSkill, time);
   findings.push(...skillAssessment.findings);
   const remote = assessRemote(
@@ -677,33 +757,13 @@ function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
   else pluginRows.push(["Typed tools", null, typed.startsWith("disabled") ? "Not requested" : "not observed"]);
   pluginRows.push(context.row);
   if (context.action) actions.push(context.action);
-  const root = local?.managedInstructions;
-  if (root?.state === "available") {
-    const configured = (root.full ?? 0) + (root.minimal ?? 0) + (root.codex ?? 0) > 0;
-    pluginRows.push([
-      "AGENTS Configured",
-      (root.full ?? 0) > 1 ? 1 : configured ? 0 : null,
-      (root.full ?? 0) > 1 ? "duplicate bd blocks" : configured ? "bd block" : "no bd block",
-    ]);
-  } else
-    pluginRows.push([
-      "AGENTS Configured",
-      null,
-      root?.state === "missing" ? "no AGENTS.md" : (root?.state ?? "not observed"),
-    ]);
-  if ((root?.full ?? 0) > 1)
-    actions.push(
-      "Review duplicate full instruction blocks before editing local guidance. Check: root-file counts in diagnostics details.",
-    );
+  pluginRows.push(guidance.row);
+  if (guidance.action) actions.push(guidance.action);
   const gap = snapshot.persistence !== "uncertain: no final-write guarantee" ? snapshot.persistence : undefined;
   if (gap) pluginRows.push(["Write outcomes", 1, gap.length > 180 ? `${gap.slice(0, 177)}...` : gap]);
-  if (guard?.kind === "ready") beadsRows.push(["bd CLI", guard.version ? 0 : null, guard.version ?? "not observed"]);
-  else if (guard?.kind === "unsupported" || guard?.kind === "unavailable") {
-    beadsRows.push(["bd CLI", 2, guard.installed ? `${guard.installed} (needs ≥1.3.1)` : "not found"]);
-    comments.push("bd CLI unavailable or below the supported minimum.");
-    actions.push("Install or upgrade bd to ≥1.3.1, then start a new session. Check: `bd version`.");
-  } else beadsRows.push(["bd CLI", null, "not observed"]);
-  beadsRows.push(workspaceRow(guard?.kind));
+  beadsRows.push(guardAssessment.cliRow, guardAssessment.workspaceRow);
+  if (guardAssessment.summary) comments.push(guardAssessment.summary);
+  if (guardAssessment.action) actions.push(guardAssessment.action);
   beadsRows.push(witness.row);
   beadsRows.push(hooks.row);
   if (hooks.action) {
