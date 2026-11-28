@@ -34,6 +34,48 @@ async function metadataFixture(): Promise<string> {
   return directory;
 }
 
+async function runSmoke(args: string[], env = process.env) {
+  const child = Bun.spawn([process.execPath, "scripts/packaging/test-package.ts", ...args], {
+    cwd: projectDirectory,
+    env,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ]);
+  return { stdout, stderr, code };
+}
+
+describe("rejects malformed smoke options before allocating scratch", () => {
+  const digest = "a".repeat(64);
+  for (const [name, args, error] of [
+    ["archive without digest", ["--archive", "package.tgz"], /provided together/],
+    ["digest without archive", ["--sha256", digest], /provided together/],
+    ["missing archive value", ["--archive"], /argument missing/i],
+    ["empty archive value", ["--archive=", "--sha256", digest], /file path/],
+    ["empty digest", ["--archive", "package.tgz", "--sha256="], /64 hexadecimal digits/],
+    ["non-hex digest", ["--archive", "package.tgz", "--sha256", "z".repeat(64)], /64 hexadecimal digits/],
+    ["short digest", ["--archive", "package.tgz", "--sha256", "a".repeat(63)], /64 hexadecimal digits/],
+    ["duplicate archive", ["--archive", "package.tgz", "--archive", "other.tgz", "--sha256", digest], /at most once/],
+    ["unknown option", ["--archve", "package.tgz"], /unknown option/i],
+    ["positional argument", ["package.tgz"], /unexpected|positional/i],
+  ] as const) {
+    test(name, async () => {
+      const root = await fs.mkdtemp(join(tmpdir(), "opencode-beads-smoke-options-"));
+      temporaryDirectories.push(root);
+      const missing = join(root, "missing");
+      const env = { ...process.env, TMPDIR: missing, TEMP: missing, TMP: missing };
+      const result = await runSmoke([...args], env);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toMatch(error);
+      expect(await fs.readdir(root)).toEqual([]);
+    });
+  }
+});
+
 describe("release artifact identity", () => {
   test("emits an explicit local archive path for npm", () => {
     expect(releaseOutputPath(projectDirectory, join(projectDirectory, "release-artifacts", "package.tgz"))).toBe(
@@ -154,6 +196,14 @@ describe("release artifact identity", () => {
       "Release archive digest changed",
     );
 
+    const smokeScratch = join(root, "smoke-scratch");
+    await fs.mkdir(smokeScratch);
+    const smokeEnv = { ...process.env, TMPDIR: smokeScratch };
+    const rejectedSmoke = await runSmoke(["--archive", changed, "--sha256", prepared.sha256], smokeEnv);
+    expect(rejectedSmoke.code).toBe(1);
+    expect(rejectedSmoke.stderr).toContain("Provided archive checksum differs");
+    expect(await fs.readdir(smokeScratch)).not.toContainEqual(expect.stringMatching(/^opencode-beads-package-/));
+
     const npmRehearsalDirectory = join(root, "npm-pack-rehearsal");
     await fs.mkdir(npmRehearsalDirectory);
     const npmPack = Bun.spawn(["npm", "pack", prepared.path, "--dry-run", "--json", "--ignore-scripts"], {
@@ -220,8 +270,25 @@ describe("release artifact identity", () => {
   });
 
   test("routes every release consumer through the prepared archive output", async () => {
-    const workflow = await fs.readFile(join(projectDirectory, ".github/workflows/release.yml"), "utf8");
-    expect(workflow.match(/steps\.package\.outputs\.archive/g)).toHaveLength(3);
+    const workflow = (await fs.readFile(join(projectDirectory, ".github/workflows/release.yml"), "utf8")).replaceAll(
+      "\r\n",
+      "\n",
+    );
+    expect(workflow.match(/steps\.package\.outputs\.archive/g)).toHaveLength(4);
+    const steps = workflow.split(/^      - name: /m);
+    const prepare = steps.findIndex((step) => step.startsWith("Validate and build release archive\n"));
+    const smoke = steps.findIndex((step) => step.startsWith("Test prepared release archive\n"));
+    expect(prepare).toBeGreaterThan(-1);
+    expect(smoke).toBe(prepare + 1);
+    for (const name of ["Generate artifact attestation", "Upload release assets to GitHub", "Publish to npm"]) {
+      expect(steps.findIndex((step) => step.startsWith(`${name}\n`))).toBeGreaterThan(smoke);
+    }
+    expect(steps[smoke]).toContain("ARCHIVE: ${{ steps.package.outputs.archive }}");
+    expect(steps[smoke]).toContain("ARCHIVE_SHA256: ${{ steps.package.outputs.sha256 }}");
+    expect(steps[smoke]).toContain(
+      'run: bun scripts/packaging/test-package.ts --archive "$ARCHIVE" --sha256 "$ARCHIVE_SHA256"',
+    );
+    expect(workflow.match(/test-package\.ts/g)).toHaveLength(1);
     expect(workflow).toContain("ARCHIVE: ${{ steps.package.outputs.archive }}");
     expect(workflow).toContain('node-version: "24"');
     expect(workflow).toContain('registry-url: "https://registry.npmjs.org"');
