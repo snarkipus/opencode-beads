@@ -17,7 +17,7 @@ export {
   DIAGNOSTIC_ENV,
 } from "./diagnostics-collection";
 
-// Workspace status and any available CLI version are assessed independently.
+// The CLI and Workspace rows are scored separately from the same guard observation.
 type GuardObservation = {
   kind: GuardResult["kind"] | "withheld";
   version?: string;
@@ -96,24 +96,75 @@ type Finding = {
 
 type Row = [check: string, status: 0 | 1 | 2 | null, value: string];
 
+type GuardAssessment = {
+  cliRow: Row;
+  workspaceRow: Row;
+  finding?: Finding;
+  action?: string;
+  summary?: string;
+};
+
 /**
- * Render workspace location status for the report.
+ * Assess CLI compatibility and workspace location from the same observation, without inferring store health.
  *
- * @param kind - Captured guard outcome, if any.
+ * @param guard - Captured guard outcome, including absent or partial evidence.
+ * @param observedAt - Timestamp for the guard finding.
  */
-function workspaceRow(kind: GuardObservation["kind"] | undefined): Row {
-  switch (kind) {
-    case "ready":
-      return ["Workspace", 0, "Located"];
-    case "probe-failed":
-      return ["Workspace", 2, "Probe failed"];
-    case "withheld":
-      return ["Workspace", 2, "Withheld"];
-    case "uninitialized":
-      return ["Workspace", 2, "Not initialized"];
-    default:
-      return ["Workspace", null, "not observed"];
+function assessGuard(guard: GuardObservation | undefined, observedAt: string): GuardAssessment {
+  if (guard?.kind === "ready") {
+    return {
+      cliRow: ["bd CLI", guard.version ? 0 : null, guard.version ?? "not observed"],
+      workspaceRow: ["Workspace", 0, "Located"],
+    };
   }
+
+  const assessment: GuardAssessment = {
+    cliRow: ["bd CLI", null, "not observed"],
+    workspaceRow: ["Workspace", null, "not observed"],
+  };
+  if (guard?.kind === "unsupported" || guard?.kind === "unavailable") {
+    assessment.cliRow = ["bd CLI", 2, guard.installed ? `${guard.installed} (needs ≥1.3.1)` : "not found"];
+    assessment.action = "Install or upgrade bd to ≥1.3.1, then start a new session. Check: `bd version`.";
+    assessment.summary = "bd CLI unavailable or below the supported minimum.";
+  }
+  if (guard?.kind === "unsupported") {
+    assessment.finding = {
+      id: "cli-unsupported",
+      module: "beads",
+      class: "incompatible",
+      producer: "bd version",
+      scope: "confirmed session",
+      observedAt,
+      observation: `CLI ${guard.installed ?? "unknown"} is below the supported minimum`,
+      meaning: "Context admission remains unchanged.",
+      action: "Upgrade bd in an authorized workflow; verify the version and context.",
+    };
+    return assessment;
+  }
+
+  const kind = guard?.kind;
+  switch (kind) {
+    case "probe-failed":
+      assessment.workspaceRow = ["Workspace", 2, "Probe failed"];
+      break;
+    case "withheld":
+      assessment.workspaceRow = ["Workspace", 2, "Withheld"];
+      break;
+    case "uninitialized":
+      assessment.workspaceRow = ["Workspace", 2, "Not initialized"];
+      break;
+  }
+  assessment.finding = {
+    id: "workspace-unknown",
+    module: "beads",
+    class: kind === "probe-failed" ? "failed" : "unknown",
+    producer: "bd version/context",
+    scope: "confirmed session",
+    observedAt,
+    observation: `Workspace observation: ${kind ?? "unknown"}`,
+    meaning: "This does not establish store health.",
+  };
+  return assessment;
 }
 
 /**
@@ -636,25 +687,8 @@ function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
       ...(action ? { action } : {}),
     });
   const { guard, skill, plugin: identity, commands } = snapshot;
-  if (guard?.kind === "unsupported")
-    add(
-      "cli-unsupported",
-      "beads",
-      "incompatible",
-      "bd version",
-      `CLI ${guard.installed ?? "unknown"} is below the supported minimum`,
-      "Context admission remains unchanged.",
-      "Upgrade bd in an authorized workflow; verify the version and context.",
-    );
-  else if (guard?.kind !== "ready")
-    add(
-      "workspace-unknown",
-      "beads",
-      guard?.kind === "probe-failed" ? "failed" : "unknown",
-      "bd version/context",
-      `Workspace observation: ${guard?.kind ?? "unknown"}`,
-      "This does not establish store health.",
-    );
+  const guardAssessment = assessGuard(guard, time);
+  if (guardAssessment.finding) findings.push(guardAssessment.finding);
   const hooks = assessHooks(snapshot.hooks, time);
   findings.push(...hooks.findings);
   const local = snapshot.local === "withheld" ? undefined : snapshot.local;
@@ -727,13 +761,9 @@ function interpretHealthReport(snapshot: DiagnosticsSnapshot, time: string) {
   if (guidance.action) actions.push(guidance.action);
   const gap = snapshot.persistence !== "uncertain: no final-write guarantee" ? snapshot.persistence : undefined;
   if (gap) pluginRows.push(["Write outcomes", 1, gap.length > 180 ? `${gap.slice(0, 177)}...` : gap]);
-  if (guard?.kind === "ready") beadsRows.push(["bd CLI", guard.version ? 0 : null, guard.version ?? "not observed"]);
-  else if (guard?.kind === "unsupported" || guard?.kind === "unavailable") {
-    beadsRows.push(["bd CLI", 2, guard.installed ? `${guard.installed} (needs ≥1.3.1)` : "not found"]);
-    comments.push("bd CLI unavailable or below the supported minimum.");
-    actions.push("Install or upgrade bd to ≥1.3.1, then start a new session. Check: `bd version`.");
-  } else beadsRows.push(["bd CLI", null, "not observed"]);
-  beadsRows.push(workspaceRow(guard?.kind));
+  beadsRows.push(guardAssessment.cliRow, guardAssessment.workspaceRow);
+  if (guardAssessment.summary) comments.push(guardAssessment.summary);
+  if (guardAssessment.action) actions.push(guardAssessment.action);
   beadsRows.push(witness.row);
   beadsRows.push(hooks.row);
   if (hooks.action) {
