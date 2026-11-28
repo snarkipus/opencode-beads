@@ -383,27 +383,28 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
         { prompt: ctx.session.prompt },
         async (sessionID, text) => {
           const selector = text?.trim().toLowerCase();
-          let context: string = "uncertain";
+          let context = "uncertain";
           let locationKnown = false;
           let contextObservation: ReturnType<typeof controller.observationFor>;
           if (ctx.session.get) {
             try {
-              const info = await ctx.session.get({
+              const session = await ctx.session.get({
                 sessionID: sessionID as Parameters<NonNullable<typeof ctx.session.get>>[0]["sessionID"],
               });
-              if (info.location.directory !== directory) {
+              if (session.location.directory !== directory) {
                 forgetSession(sessionID);
                 context = "withheld: session location changed";
               } else {
+                // A cache read failure leaves the confirmed location available for later probes.
                 locationKnown = true;
-                const observedAgent = requestCapabilities.get(sessionID)?.agent;
-                const audience = observedAgent && BEADS_TASK_AGENTS.has(observedAgent) ? "task-agent" : "primary";
-                const cached = controller.statusFor(sessionID, audience);
+                const lastRequestAgent = requestCapabilities.get(sessionID)?.agent;
+                const audience = lastRequestAgent && BEADS_TASK_AGENTS.has(lastRequestAgent) ? "task-agent" : "primary";
+                const cachedStatus = controller.statusFor(sessionID, audience);
                 contextObservation = controller.observationFor(sessionID, audience);
                 context =
-                  cached === "loading"
+                  cachedStatus === "loading"
                     ? "uncertain: context refresh in progress"
-                    : (cached ?? "unobserved: no cached context");
+                    : (cachedStatus ?? "unobserved: no cached context");
               }
             } catch {
               forgetSession(sessionID);
