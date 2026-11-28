@@ -123,36 +123,44 @@ async function runBdAttempt(
   const stdout = new Response(child.stdout).text();
   const stderr = new Response(child.stderr).text();
 
-  let timedOut = false;
-  let aborted = false;
-  let rejectTimeout: (error: unknown) => void = () => {};
-  const timeout = new Promise<never>((_resolve, reject) => {
-    rejectTimeout = reject;
+  let interrupted = false;
+  let rejectInterruption: (error: unknown) => void = () => {};
+  const interruption = new Promise<never>((_resolve, reject) => {
+    rejectInterruption = reject;
   });
-  const cancelTimeout = (options.scheduleTimeout ?? scheduleTimeout)(() => {
-    timedOut = true;
+
+  function interrupt(getReason: () => unknown): void {
+    interrupted = true;
     terminateProcessTree(child);
-    rejectTimeout(new PrimeTimeoutError(timeoutMs, command));
-  }, timeoutMs);
-  const onAbort = () => {
-    aborted = true;
-    terminateProcessTree(child);
-    rejectTimeout(options.signal?.reason ?? new DOMException("Aborted", "AbortError"));
-  };
+    rejectInterruption(getReason());
+  }
+
+  function onTimeout(): void {
+    interrupt(() => new PrimeTimeoutError(timeoutMs, command));
+  }
+
+  function onAbort(): void {
+    interrupt(() => options.signal?.reason ?? new DOMException("Aborted", "AbortError"));
+  }
+
+  const cancelTimeout = (options.scheduleTimeout ?? scheduleTimeout)(onTimeout, timeoutMs);
   options.signal?.addEventListener("abort", onAbort, { once: true });
   if (options.signal?.aborted) onAbort();
 
-  const completion = Promise.all([child.exited, stdout, stderr]).then(([exitCode, output, errorOutput]) => {
+  function readResult(result: [number, string, string]): string {
+    const [exitCode, output, errorOutput] = result;
     if (exitCode !== 0) throw new PrimeProcessError(exitCode, errorOutput, command, output);
     return output;
-  });
+  }
+
+  const completion = Promise.all([child.exited, stdout, stderr]).then(readResult);
 
   try {
-    return await Promise.race([completion, timeout]);
+    return await Promise.race([completion, interruption]);
   } finally {
     cancelTimeout();
     options.signal?.removeEventListener("abort", onAbort);
-    if (timedOut || aborted) {
+    if (interrupted) {
       await drainAfterKill(
         completion.catch(() => undefined),
         drainTimeoutMs,
