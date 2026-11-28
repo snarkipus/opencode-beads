@@ -1,7 +1,6 @@
 import type { Plugin } from "@opencode/plugin";
 import { isSupportedOpenCodeVersion, SUPPORTED_OPENCODE_RANGE } from "./host-admission";
 import type { SessionContext } from "@opencode/plugin/promise/session";
-import packageManifest from "../package.json";
 import {
   applyBeadsSkill,
   createBeadsCommands,
@@ -13,18 +12,10 @@ import { applyBeadsAgents, beadsAgents, BEADS_TASK_AGENTS } from "./agents";
 import { BEADS_COMPACTION_GUIDANCE, UNKNOWN_CAPABILITIES, type RequestCapabilities } from "./guidance";
 import { createContextController, type AgentMode, type ContextDiagnostic, type ContextRuntime } from "./context";
 import { checkBeadsStore, createGuardRuntime } from "./guard";
-import type { GuardResult } from "./guard";
 import { countManagedBlocks, minimizeSystemParts } from "./instructions";
 import { runBd, runBdPrime } from "./prime";
-import {
-  collectBeadsHealth,
-  collectHooks,
-  collectPluginHealth,
-  collectSyncTarget,
-  DIAGNOSTIC_ENV,
-  renderHealthReport,
-  type DiagnosticsSnapshot,
-} from "./diagnostics";
+import type { DiagnosticsSnapshot } from "./diagnostics";
+import { createDiagnosticsCapture } from "./host-diagnostics";
 import { createContinuityTools, type ContinuityDependencies, type ContinuityResult } from "./continuity";
 
 /**
@@ -69,9 +60,6 @@ const WORKFLOW_UNAVAILABLE_NOTICE =
   "<beads-notice>Saved Beads workflow instructions or diagnostics are unavailable for a compact command. Continue only from visible user input and supplied context; do not invent missing guidance or replay an operation.</beads-notice>";
 
 const DEFAULT_DIAGNOSTIC_INTERVAL_MS = 60_000;
-const COMMAND_REGISTRY_LIMIT = 128;
-const COMMAND_NAME_LIMIT = 128;
-const COMMAND_DESCRIPTION_LIMIT = 512;
 const DIRECT_BEADS_TOOLS = new Set([
   "beads_find",
   "beads_get",
@@ -96,43 +84,6 @@ function eventSessionID(event: unknown): string | undefined {
   if (typeof data !== "object" || data === null) return undefined;
   const sessionID = (data as { sessionID?: unknown }).sessionID;
   return typeof sessionID === "string" ? sessionID : undefined;
-}
-
-type ObservedCommand = { name: string; description?: string };
-type CommandComparison = Pick<NonNullable<DiagnosticsSnapshot["commands"]>, "mismatches" | "missing">;
-
-/**
- * Compare observed rows in package definition order. An incomplete registry can still
- * show a changed description, but only complete membership can show a missing name.
- * @param definitions Package commands in registration order.
- * @param effective Bounded registry rows, or undefined when lookup failed.
- * @param membershipTruncated Whether the entry or name limit obscures membership.
- */
-function compareCommandRegistry(
-  definitions: readonly ObservedCommand[],
-  effective: ObservedCommand[] | undefined,
-  membershipTruncated: boolean,
-): CommandComparison {
-  if (!effective) return { mismatches: undefined, missing: undefined };
-
-  const mismatches = definitions.flatMap((expected) => {
-    const entry = effective.find((observed) => observed.name === expected.name);
-    if (!entry) return [];
-    // A description exactly at the cap could have been clipped to that length.
-    const comparable =
-      (entry.description?.length ?? 0) < COMMAND_DESCRIPTION_LIMIT &&
-      (expected.description?.length ?? 0) < COMMAND_DESCRIPTION_LIMIT;
-    if (!comparable || entry.description === expected.description) return [];
-    return [
-      { name: expected.name, expectedDescription: expected.description, effectiveDescription: entry.description },
-    ];
-  });
-  const missing =
-    !membershipTruncated &&
-    definitions
-      .filter((expected) => !effective.some((entry) => entry.name === expected.name))
-      .map((entry) => entry.name);
-  return { mismatches, missing };
 }
 
 /**
@@ -277,9 +228,38 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
     // plugins use the same ordinary ordering; initial lookup is diagnostic only.
     if (ctx.command && ctx.session.prompt) {
       let commandRegistration: NonNullable<DiagnosticsSnapshot["commands"]>["registration"] = "pending";
-      const diagnosticBd =
-        deps.bd ??
-        ((dir: string, args: readonly string[]) => runBd(dir, args, { signal: abort.signal, env: DIAGNOSTIC_ENV }));
+      const captureDiagnostics = createDiagnosticsCapture(
+        ctx,
+        { directory, hostVersion, signal: abort.signal, now, deps, runtime },
+        {
+          get definitions() {
+            return definitions;
+          },
+          get commandRegistration() {
+            return commandRegistration;
+          },
+          get skillFailure() {
+            return skillFailure;
+          },
+          get skillCollision() {
+            return skillCollision;
+          },
+          get typedRegistration() {
+            return typedRegistration;
+          },
+          cachedContext(sessionID) {
+            const lastRequestAgent = requestCapabilities.get(sessionID)?.agent;
+            const audience = lastRequestAgent && BEADS_TASK_AGENTS.has(lastRequestAgent) ? "task-agent" : "primary";
+            const status = controller.statusFor(sessionID, audience);
+            const observation = controller.observationFor(sessionID, audience);
+            return { status, observation };
+          },
+          forgetSession,
+          requestCapability: (sessionID) => requestCapabilities.get(sessionID),
+          requestInstructions: (sessionID) => requestInstructions.get(sessionID),
+          gapFor,
+        },
+      );
       const definitions = createBeadsCommands(
         { prompt: ctx.session.prompt },
         captureDiagnostics,
@@ -311,153 +291,6 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
         commandRegistration = "failed";
         workflowDiagnostic("command-registration-failed: native transform failed");
         throw error;
-      }
-
-      /**
-       * Read current registration and request evidence into a report the workflow saves for hook replay.
-       * @param sessionID Session whose location and request evidence the report describes.
-       * @param text Optional diagnostics selector supplied with the invocation.
-       */
-      async function captureDiagnostics(sessionID: string, text?: string): Promise<string> {
-        const selector = text?.trim().toLowerCase();
-        let context = "uncertain";
-        let locationKnown = false;
-        let contextObservation: ReturnType<typeof controller.observationFor>;
-        if (ctx.session.get) {
-          try {
-            const session = await ctx.session.get({
-              sessionID: sessionID as Parameters<NonNullable<typeof ctx.session.get>>[0]["sessionID"],
-            });
-            if (session.location.directory !== directory) {
-              forgetSession(sessionID);
-              context = "withheld: session location changed";
-            } else {
-              // Record the confirmed location before reading cached context.
-              locationKnown = true;
-              const lastRequestAgent = requestCapabilities.get(sessionID)?.agent;
-              const audience = lastRequestAgent && BEADS_TASK_AGENTS.has(lastRequestAgent) ? "task-agent" : "primary";
-              const cachedStatus = controller.statusFor(sessionID, audience);
-              contextObservation = controller.observationFor(sessionID, audience);
-              context =
-                cachedStatus === "loading"
-                  ? "uncertain: context refresh in progress"
-                  : (cachedStatus ?? "unobserved: no cached context");
-            }
-          } catch {
-            forgetSession(sessionID);
-            context = "uncertain: session lookup failed";
-          }
-        }
-        let guard: GuardResult | { kind: "withheld"; reason: string } = {
-          kind: "withheld",
-          reason: "session location unconfirmed",
-        };
-        if (locationKnown && !abort.signal.aborted) {
-          try {
-            guard = deps.runtime?.guard
-              ? await runtime.guard(directory, abort.signal)
-              : await checkBeadsStore(directory, createGuardRuntime(diagnosticBd));
-          } catch {
-            guard = { kind: "probe-failed" };
-          }
-        }
-        let local: NonNullable<DiagnosticsSnapshot["local"]> = "withheld";
-        if (guard.kind !== "withheld" && !abort.signal.aborted) {
-          // Both file observations share one abort check and run in order.
-          local = {
-            ...(await collectPluginHealth(directory, guard)),
-            ...(await collectBeadsHealth(guard)),
-          };
-        }
-
-        // Hook listing depends on the confirmed location, not on a successful store probe.
-        const hooks =
-          locationKnown && !abort.signal.aborted
-            ? await collectHooks(directory, diagnosticBd)
-            : "withheld: session location unconfirmed";
-        const syncTarget =
-          guard.kind === "ready" && guard.workspace && !abort.signal.aborted
-            ? await collectSyncTarget(directory, guard.workspace, diagnosticBd)
-            : undefined;
-        let effectiveCommands: ObservedCommand[] | undefined;
-        let registryTruncated = false;
-        let registryMembershipTruncated = false;
-        let effectiveSkills: NonNullable<DiagnosticsSnapshot["skill"]>["effective"];
-        try {
-          const entries = (await ctx.command!.list()).data;
-          // Record limits against the source rows before taking the bounded sample.
-          registryMembershipTruncated =
-            entries.length > COMMAND_REGISTRY_LIMIT || entries.some(({ name }) => name.length > COMMAND_NAME_LIMIT);
-          registryTruncated =
-            registryMembershipTruncated ||
-            entries.some(
-              ({ name, description }) =>
-                name.length > COMMAND_NAME_LIMIT || (description?.length ?? 0) > COMMAND_DESCRIPTION_LIMIT,
-            );
-          effectiveCommands = entries.slice(0, COMMAND_REGISTRY_LIMIT).map(({ name, description }) => ({
-            name: name.slice(0, COMMAND_NAME_LIMIT),
-            description: description?.slice(0, COMMAND_DESCRIPTION_LIMIT),
-          }));
-        } catch {
-          /* Absence of lookup evidence is unknown, not an empty registry. */
-        }
-        try {
-          effectiveSkills = ctx.skill
-            ? (await ctx.skill.list()).data.slice(0, 128).map((entry) => String(entry.id).slice(0, 128))
-            : "unavailable";
-        } catch {
-          effectiveSkills = "unavailable: registry lookup failed";
-        }
-        /**
-         * Prefer observed direct leaves over the indirect execute surface.
-         * @param request The last observed request for this session, if any.
-         */
-        function describeLeafAvailability(request: typeof observedRequest): string {
-          if (request?.capabilities.direct === true) {
-            return "some native direct Beads leaves are visible; each still checks its operation-specific permission";
-          }
-          if (request?.capabilities.typed === "registered-execute-visible") {
-            return "execute is visible; the native catalog and each operation-specific permission determine leaf availability";
-          }
-          return "unknown until native catalog discovery and per-operation permission checks";
-        }
-
-        const observedRequest = requestCapabilities.get(sessionID);
-        const snapshot = {
-          plugin: { name: packageManifest.name, version: packageManifest.version },
-          host: hostVersion,
-          admission: SUPPORTED_OPENCODE_RANGE,
-          liveQualification: "not measured by diagnostics; see release acceptance evidence",
-          commands: {
-            registration: commandRegistration,
-            lookup: effectiveCommands ? "available" : "failed",
-            truncated: registryTruncated,
-            membershipTruncated: registryMembershipTruncated,
-            expectedCount: definitions.length,
-            effective: effectiveCommands ?? "unknown: registry lookup failed",
-            ...compareCommandRegistry(definitions, effectiveCommands, registryMembershipTruncated),
-            ownership:
-              "unavailable: public owner identity is not exposed; matching names/descriptions do not prove ownership; identical-description overrides cannot be detected",
-          },
-          skill: { failure: skillFailure, effective: effectiveSkills, collision: skillCollision },
-          typedContinuity:
-            deps.continuityQualified === true
-              ? "enabled: qualified registration"
-              : "disabled: registration not requested",
-          typedRegistration,
-          requestCapability: observedRequest ?? "unknown: no actual request observation",
-          leafAvailability: describeLeafAvailability(observedRequest),
-          local,
-          context,
-          contextObservation,
-          requestInstructions: requestInstructions.get(sessionID) ?? "unobserved",
-          guard,
-          hooks,
-          syncTarget,
-          historyRequested: selector === "remote" || selector === "details remote",
-          persistence: gapFor(sessionID)?.slice(0, 4096) ?? "uncertain: no final-write guarantee",
-        } satisfies DiagnosticsSnapshot;
-        return renderHealthReport(snapshot, now(), selector === "details" || selector === "details remote");
       }
     }
 
