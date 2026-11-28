@@ -18,7 +18,11 @@ const DUPLICATE_BLOCKS: readonly RegExp[] = [
   /<!-- BEGIN BEADS CODEX SETUP\b[^>]*-->([\s\S]*?)<!-- END BEADS CODEX SETUP -->/g,
 ];
 
-/** Return `text` with duplicate bd blocks collapsed into one pointer, and how many were replaced. */
+/**
+ * Replace complete duplicated managed blocks with one pointer and count all replaced blocks.
+ * @param text One outgoing text part; no repository file is edited.
+ * @param suppliedContext Context actually attached to this request; empty context never triggers replacement.
+ */
 export function minimizeBeadsInstructions(text: string, suppliedContext = ""): { text: string; replaced: number } {
   let replaced = 0;
   let pointerPlaced = false;
@@ -37,7 +41,12 @@ export function minimizeBeadsInstructions(text: string, suppliedContext = ""): {
   return { text: result, replaced };
 }
 
-/** Apply {@link minimizeBeadsInstructions} to each text system part in place. */
+/**
+ * Minimize each eligible part in place, keeping one pointer per changed part.
+ * @param parts Transient system parts; non-text parts are left alone.
+ * @param suppliedContext Context actually attached to this request.
+ * @returns Total number of replaced blocks across the parts.
+ */
 export function minimizeSystemParts(parts: Array<{ type: string; text?: string }>, suppliedContext = ""): number {
   let replaced = 0;
   for (const part of parts) {
@@ -51,7 +60,10 @@ export function minimizeSystemParts(parts: Array<{ type: string; text?: string }
   return replaced;
 }
 
-/** Count only complete recognized managed blocks, independently of unmarked prose. */
+/**
+ * Count complete recognized managed blocks, whether or not their bodies duplicate context.
+ * @param text Outgoing instruction text to account for before minimization.
+ */
 export function countManagedBlocks(text: string): { full: number; minimal: number; codex: number } {
   return {
     full: [

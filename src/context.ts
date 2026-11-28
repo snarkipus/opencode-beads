@@ -50,6 +50,12 @@ export interface ContextController {
   forget(sessionID: string): void;
   /** Context state is distinct from an absent text part (including intentional empty prime). */
   statusFor(sessionID: string, audience: ContextAudience): ContextStatus | undefined;
+  /**
+   * Read diagnostic evidence without starting or refreshing a load.
+   * @param sessionID Session whose cached observation is requested.
+   * @param audience Cache audience to inspect.
+   * @returns The entry's recorded evidence, or `undefined` if no entry exists.
+   */
   observationFor(
     sessionID: string,
     audience: ContextAudience,
@@ -70,7 +76,12 @@ type CacheEntry = {
   version?: string;
 };
 
-/** Wrap prime output in the envelope and shared guidance for one audience. */
+/**
+ * Wrap cached prime output with request-specific attribution and guidance.
+ * @param prime Native prime output, kept intact inside the context envelope.
+ * @param audience Guidance audience selected for the request.
+ * @param request Current session, agent and observed tool visibility, if available.
+ */
 export function renderBeadsContext(
   prime: string,
   audience: ContextAudience,
@@ -85,9 +96,11 @@ export function renderBeadsContext(
 /**
  * Supply Beads context through the per-request session context hook.
  *
- * OpenCode V2 attaches system parts to every model request without storing them, so context
- * survives compaction on its own. Guarded prime is cached separately from per-request actor/capability rendering;
- * compaction invalidates it so persistent memories can refresh.
+ * The host can supply fresh transient system parts after compaction; they are not stored in history.
+ * Cache guarded prime separately from per-request attribution and capability rendering.
+ * @param runtime Native probe, prime, and agent-mode adapters.
+ * @param directory Project location shared by this controller's loads.
+ * @param options Retry and idle refresh timing, with an optional clock override.
  */
 export function createContextController(
   runtime: ContextRuntime,
@@ -101,6 +114,12 @@ export function createContextController(
   const modes = new Map<string, Promise<AgentMode | undefined>>();
   let disposed = false;
 
+  /**
+   * Share native mode lookups across sessions. A failed lookup is not cached.
+   * @param sessionID Session to attribute a newly started lookup's failure to.
+   * @param agentID Requesting agent; packaged Beads workers bypass the mode lookup.
+   * @returns No audience for a known regular subagent; unknown modes use primary guidance.
+   */
   async function audienceFor(sessionID: string, agentID: string): Promise<ContextAudience | undefined> {
     if (BEADS_TASK_AGENTS.has(agentID)) return "task-agent";
 

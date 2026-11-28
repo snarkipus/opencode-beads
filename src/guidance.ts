@@ -63,7 +63,10 @@ ${BEADS_EXECUTOR_GUIDANCE}
 
 Return concise results, not raw JSON: include task/scope, actual actor and full session ID, attempts/outcomes/rationale, exact validation and candidate revision, durable references, blockers, unresolved acceptance and next authorized action. Distinguish completion from partial progress, NO_TEXT, failure or cancellation. The caller reconciles acceptance; a step cap or invocation ending does not establish completion. Do not launch additional background or nested automation or restart a stopped parent.`;
 
-/** Shown instead of context when `bd prime` fails, as upstream's Codex hook reports refresh failures. */
+/**
+ * Render a prime failure notice after workspace admission; this does not represent a guard hold.
+ * @param reason Whether prime timed out or failed for another reason.
+ */
 export function primeFailureNotice(reason: "failed" | "timed out"): string {
   return `<beads-notice>
 Beads workflow context could not be loaded: \`bd prime\` ${reason}. Beads may still work; run \`bd prime\` to load the workflow and see the error, and tell the user if it keeps failing.
@@ -85,7 +88,10 @@ export interface RequestCapabilities {
 }
 export const UNKNOWN_CAPABILITIES: RequestCapabilities = { typed: "unknown", execute: null, shell: null, direct: null };
 
-/** Capability statements describe observations, never a permission grant. */
+/**
+ * Describe tool visibility without granting permission or treating missing evidence as denial.
+ * @param capabilities Tool visibility after native request filtering, with `null` for unobserved fields.
+ */
 export function capabilityGuidance(capabilities: RequestCapabilities): string {
   if (capabilities.typed === "registered-execute-visible")
     return 'Beads namespace is registered and execute is visible. Discover current signatures with native search({namespace: "beads"}); compose only operations found in the native catalog. Some or all leaves may be filtered out. Each operation still checks its own permissions; a rejected operation is not success and must not be retried through another surface. Honor explicit Stop/Cancel. Native shell is direct-only; run repository work and validation in direct shell turns. Do not call tools.shell inside execute.';
@@ -98,7 +104,11 @@ export function capabilityGuidance(capabilities: RequestCapabilities): string {
   return "Beads request capability is unknown. Check actual native catalog/tools before choosing typed composition or direct shell; do not infer permission or bypass a hold.";
 }
 
-/** Build the single shared guidance layer for one injected audience. */
+/**
+ * Build shared guidance without including the prime body or actor identity.
+ * @param audience Primary callers receive executor, scope and delegation guidance in addition to the shared text.
+ * @param capabilities Current request visibility; absence is treated as unknown.
+ */
 export function beadsGuidance(
   audience: "primary" | "task-agent",
   capabilities: RequestCapabilities = UNKNOWN_CAPABILITIES,

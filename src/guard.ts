@@ -99,7 +99,10 @@ export async function probeBeadsWorkspace(
   return workspace;
 }
 
-/** Parse the leading `major.minor.patch` triple; pre-release suffixes are ignored. */
+/**
+ * Extract the first numeric `major.minor.patch` triple; this does not validate SemVer or suffixes.
+ * @param text Native version output, which can include a CLI name or build label.
+ */
 export function parseVersion(text: string): Version | undefined {
   const match = text.match(/(\d+)\.(\d+)\.(\d+)/);
   if (!match) return undefined;
@@ -165,7 +168,11 @@ export function createGuardRuntime(bd: GuardRuntime["bd"]): GuardRuntime {
   return { bd };
 }
 
-/** Explain failed compatibility checks without suggesting a bypass or store repair. */
+/**
+ * Explain a failed workspace probe or unsupported CLI without suggesting a bypass or store repair.
+ * @param result Observed compatibility outcome.
+ * @returns No notice for other outcomes, including an uninitialized workspace.
+ */
 export function guardNotice(result: GuardResult): string | undefined {
   switch (result.kind) {
     case "probe-failed":
