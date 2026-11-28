@@ -2,7 +2,7 @@ import type { SessionContext } from "@opencode/plugin/promise/session";
 import type { Info } from "@opencode/plugin/promise/tool";
 import { Message } from "@opencode/ai/effect";
 import type { Plugin } from "@opencode/plugin";
-import { SUPPORTED_OPENCODE_RANGE } from "../src/host-admission";
+import { SUPPORTED_OPENCODE_RANGE } from "../../src/host-admission";
 import { createHash } from "node:crypto";
 import type { CommandDefinition, CommandInvocation } from "@opencode/plugin/promise/command";
 import * as fs from "node:fs/promises";
@@ -21,7 +21,7 @@ function projectedUserMessage(id: string, text: string) {
   return Message.make({ id, role: "user", content: text });
 }
 
-const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-beads-package-"));
 const archiveArgument = process.argv.indexOf("--archive");
 const providedArchive =

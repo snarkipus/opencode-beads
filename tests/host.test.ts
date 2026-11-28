@@ -2120,6 +2120,67 @@ test("registered diagnostics distinguishes missing, held, failed, loading and un
   await cleanup();
 });
 
+test("diagnostics starts lookup synchronously and reads new request evidence after the registry probe", async () => {
+  const f = fakeContext();
+  const c = commandFixture(f);
+  const session = { agent: "build", location: { directory: "/project" } };
+  const lookup = Promise.withResolvers<typeof session>();
+  const registryStarted = Promise.withResolvers<void>();
+  const releaseRegistry = Promise.withResolvers<void>();
+  const effects: string[] = [];
+  const cleanup = await setupBeads(f.ctx, {
+    bd: async () => '{"hooks":[]}',
+    warn: () => {},
+    runtime: {
+      guard: async () => {
+        effects.push("guard");
+        return { kind: "ready" };
+      },
+      prime: async () => "BODY",
+    },
+  });
+  const originalList = f.ctx.command!.list;
+  let firstLookup = true;
+  Object.assign(f.ctx.session, {
+    get() {
+      if (!firstLookup) return Promise.resolve(session);
+      firstLookup = false;
+      effects.push("lookup");
+      return lookup.promise;
+    },
+  });
+  Object.assign(f.ctx.command!, {
+    async list() {
+      registryStarted.resolve();
+      await releaseRegistry.promise;
+      return originalList.call(this);
+    },
+  });
+
+  const pending = c.commands().get("oc-beads:diagnostics")!.execute(c.detailsInvocation);
+  try {
+    expect(effects).toEqual(["lookup"]);
+    lookup.resolve(session);
+    queueMicrotask(() => effects.push("caller microtask"));
+    await Promise.race([registryStarted.promise, pending]);
+    expect(effects).toEqual(["lookup", "guard", "caller microtask"]);
+
+    await f.request("s1", "build");
+    releaseRegistry.resolve();
+    await pending;
+    const metadata = c.prompt.mock.calls.at(-1)![0].metadata as { ocBeadsWorkflow: { instructions: string } };
+    const report = JSON.parse(metadata.ocBeadsWorkflow.instructions.split("\nDetails: ")[1]!.split("\n")[0]!);
+    expect(report.context).toBe("unobserved: no cached context");
+    expect(report.requestCapability.agent).toBe("build");
+    expect(report.requestInstructions).toHaveProperty("at");
+  } finally {
+    lookup.resolve(session);
+    releaseRegistry.resolve();
+    await pending.catch(() => {});
+    await cleanup();
+  }
+});
+
 test("unload aborts an in-flight native diagnostics without submitting a late prompt", async () => {
   const f = fakeContext();
   const c = commandFixture(f);

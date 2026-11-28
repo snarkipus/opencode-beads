@@ -4,7 +4,7 @@ import { guardNotice, type GuardResult } from "./guard";
 import { PrimeTimeoutError } from "./prime";
 import { beadsGuidance, primeFailureNotice, type RequestCapabilities } from "./guidance";
 
-/** Retry window for withheld or failed context, so model steps do not respawn `bd` each time. */
+/** Retry window for unsuccessful loads, including missing context or empty prime output. */
 export const DEFAULT_CONTEXT_RETRY_MS = 30_000;
 
 /**
@@ -35,19 +35,32 @@ export interface ContextControllerOptions {
 }
 
 export interface ContextController {
-  /** System text for one model request, or undefined when nothing should be added. */
+  /**
+   * Reuse pending or cached prime output for this session and audience; render actor
+   * and capability guidance for each request rather than caching it with the output.
+   * @param sessionID Session requesting context, also part of the cache key.
+   * @param agentID Requesting agent used to select the audience and render attribution.
+   * @param capabilities Tool visibility observed for this request, if known.
+   * @returns Context or a notice, or `undefined` when nothing should be added.
+   */
   systemFor(sessionID: string, agentID: string, capabilities?: RequestCapabilities): Promise<string | undefined>;
-  /** Refresh prime on the next request, e.g. after compaction changed the session. */
+  /** Abort and drop this session's context entries and clear the shared agent-mode cache. */
   invalidate(sessionID: string): void;
-  /** Drop all state for a deleted session. */
+  /** Same cache cleanup as {@link invalidate}, used when a session is deleted. */
   forget(sessionID: string): void;
   /** Context state is distinct from an absent text part (including intentional empty prime). */
   statusFor(sessionID: string, audience: ContextAudience): ContextStatus | undefined;
+  /**
+   * Read diagnostic evidence without starting or refreshing a load.
+   * @param sessionID Session whose cached observation is requested.
+   * @param audience Cache audience to inspect.
+   * @returns The entry's recorded evidence, or `undefined` if no entry exists.
+   */
   observationFor(
     sessionID: string,
     audience: ContextAudience,
   ): { status?: ContextStatus; loadedAt?: number; version?: string } | undefined;
-  /** A write can affect every cached session in this location. */
+  /** Abort and drop all context entries, e.g. after a write, without clearing agent-mode lookups. */
   invalidateAll(): void;
   /** Abort owned loads and prevent late context injection after unload. */
   dispose(): void;
@@ -63,7 +76,12 @@ type CacheEntry = {
   version?: string;
 };
 
-/** Wrap prime output in the envelope and shared guidance for one audience. */
+/**
+ * Wrap cached prime output with request-specific attribution and guidance.
+ * @param prime Native prime output, kept intact inside the context envelope.
+ * @param audience Guidance audience selected for the request.
+ * @param request Current session, agent and observed tool visibility, if available.
+ */
 export function renderBeadsContext(
   prime: string,
   audience: ContextAudience,
@@ -78,9 +96,11 @@ export function renderBeadsContext(
 /**
  * Supply Beads context through the per-request session context hook.
  *
- * OpenCode V2 attaches system parts to every model request without storing them, so context
- * survives compaction on its own. Guarded prime is cached separately from per-request actor/capability rendering;
- * compaction invalidates it so persistent memories can refresh.
+ * The host can supply fresh transient system parts after compaction; they are not stored in history.
+ * Cache guarded prime separately from per-request attribution and capability rendering.
+ * @param runtime Native probe, prime, and agent-mode adapters.
+ * @param directory Project location shared by this controller's loads.
+ * @param options Retry and idle refresh timing, with an optional clock override.
  */
 export function createContextController(
   runtime: ContextRuntime,
@@ -94,6 +114,12 @@ export function createContextController(
   const modes = new Map<string, Promise<AgentMode | undefined>>();
   let disposed = false;
 
+  /**
+   * Share native mode lookups across sessions. A failed lookup is not cached.
+   * @param sessionID Session to attribute a newly started lookup's failure to.
+   * @param agentID Requesting agent; packaged Beads workers bypass the mode lookup.
+   * @returns No audience for a known regular subagent; unknown modes use primary guidance.
+   */
   async function audienceFor(sessionID: string, agentID: string): Promise<ContextAudience | undefined> {
     if (BEADS_TASK_AGENTS.has(agentID)) return "task-agent";
 
@@ -110,7 +136,13 @@ export function createContextController(
     return (await pending) === "subagent" ? undefined : "primary";
   }
 
-  async function load(sessionID: string, audience: ContextAudience, entry: CacheEntry): Promise<string | undefined> {
+  /**
+   * Check workspace compatibility, then load prime output into the selected cache entry.
+   * Returned notices and missing or empty output get a retry deadline; cancellation does not.
+   * @param sessionID Session to attribute diagnostics to.
+   * @param entry Cache entry that owns the load's cancellation signal and status.
+   */
+  async function load(sessionID: string, entry: CacheEntry): Promise<string | undefined> {
     const retryLater = (value: string | undefined) => {
       entry.expiresAt = now() + retryMs;
       return value;
@@ -129,7 +161,9 @@ export function createContextController(
     }
     if (entry.abort.signal.aborted) return undefined;
     if (guard.kind !== "ready") {
-      entry.status = guard.kind === "probe-failed" ? "failed" : guard.kind === "unsupported" ? "withheld" : "missing";
+      if (guard.kind === "probe-failed") entry.status = "failed";
+      else if (guard.kind === "unsupported") entry.status = "withheld";
+      else entry.status = "missing";
       return retryLater(guardNotice(guard));
     }
 
@@ -175,24 +209,22 @@ export function createContextController(
       const cached = cache.get(key);
       const fresh = cached && (cached.expiresAt === undefined || cached.expiresAt > current);
       const resumed = cached && idleRefreshMs > 0 && current - cached.lastUsed > idleRefreshMs;
+      let entry: CacheEntry;
       if (cached && fresh && !resumed) {
         cached.lastUsed = current;
-        const output = await cached.value;
-        if (disposed || cached.abort.signal.aborted) return undefined;
-        return cached.status === "ready"
-          ? renderBeadsContext(output!, audience, { sessionID, agent: agentID, capabilities })
-          : output;
+        entry = cached;
+      } else {
+        cached?.abort.abort();
+        entry = {
+          value: Promise.resolve(undefined),
+          lastUsed: current,
+          abort: new AbortController(),
+          status: "loading",
+        };
+        entry.value = load(sessionID, entry);
+        cache.set(key, entry);
       }
 
-      cached?.abort.abort();
-      const entry: CacheEntry = {
-        value: Promise.resolve(undefined),
-        lastUsed: current,
-        abort: new AbortController(),
-        status: "loading",
-      };
-      entry.value = load(sessionID, audience, entry);
-      cache.set(key, entry);
       const output = await entry.value;
       if (disposed || entry.abort.signal.aborted) return undefined;
       return entry.status === "ready"

@@ -482,6 +482,11 @@ function assessWitness(
   }
 }
 
+/**
+ * Roll up assessed rows only; an unassessed section must not appear healthy.
+ * @param rows Report rows whose severity contributes to the heading.
+ * @returns The highest assessed severity, or `null` if none was assessed.
+ */
 function worstStatus(rows: Row[]): Row[1] {
   let worst: Row[1] = null;
   for (const [, status] of rows) {

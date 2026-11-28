@@ -4,13 +4,14 @@ This is a Linux canary, not daily CI or a substitute for the exact published SDK
 
 ```sh
 bun pm pack --destination /absolute/scratch
-sha256sum /absolute/scratch/snarkipus-opencode-beads-2.3.1.tgz
+# Replace these placeholders with the filename printed by the pack command and its checksum.
+sha256sum /absolute/scratch/PACKED_FILENAME.tgz
 python3 scripts/native-qualification.py \
-  --version 2.4.1 --host /absolute/pinned/opencode --bd /absolute/pinned/bd \
-  --package /absolute/scratch/snarkipus-opencode-beads-2.3.1.tgz \
+  --version EXACT_OPENCODE_VERSION --host /absolute/pinned/opencode --bd /absolute/pinned/bd \
+  --package /absolute/scratch/PACKED_FILENAME.tgz \
   --package-sha256 REPLACE_WITH_SHA256 --scratch /absolute/scratch \
   --fixture-actor REPLACE_WITH_ACTUAL_EXECUTOR_ACTOR \
-  --model opencode/tidepool-alpha-free
+  --model PROVIDER/MODEL
 ```
 
 The supplied scratch directory must exist. Each invocation creates its own workspace,
@@ -36,6 +37,5 @@ The printed evidence directory contains `results.json`, API captures, fixture
 readbacks, and the owned cleanup receipt. Retain that directory as review evidence;
 it is not written into the repository.
 
-The [2.4.1 qualification](opencode-241-qualification.md) records the full six-case run
-and its limits. The earlier registration-only run against the original canary archive
-remains the negative control for disagreement between registration and diagnostics.
+The [compatibility evidence](compatibility-evidence.md) links to the recorded
+six-case runs and their limits.

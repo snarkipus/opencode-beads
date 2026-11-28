@@ -5,7 +5,14 @@ export const MINIMUM_BD_VERSION = "1.3.1";
 
 export type Version = readonly [number, number, number];
 
-/** CLI and config-only workspace compatibility; not a store health assessment. */
+/**
+ * CLI and config-only workspace compatibility; not a store health assessment.
+ * - `unavailable`: `bd version` failed or yielded no numeric version triple.
+ * - `unsupported`: the parsed version is below the minimum; workspace was not probed.
+ * - `uninitialized`: the context probe reported no workspace.
+ * - `probe-failed`: the context command or its decoding failed; workspace presence is unknown.
+ * - `ready`: the CLI meets the minimum and workspace evidence is available.
+ */
 export type GuardResult =
   | { kind: "ready"; version?: string; workspace?: BeadsWorkspace }
   | { kind: "uninitialized" }
@@ -14,21 +21,41 @@ export type GuardResult =
   | { kind: "unsupported"; installed: string };
 
 export interface GuardRuntime {
-  /** Run `bd` with arguments in the project directory and return stdout. */
+  /**
+   * Return stdout on success. Preserve `PrimeProcessError` for process exits so
+   * workspace discovery can distinguish a native absence response from failure.
+   * @param directory Project directory used as the command's working directory.
+   * @param args Native CLI arguments, excluding the executable.
+   */
   bd(directory: string, args: readonly string[]): Promise<string>;
 }
 
+/** Config-only evidence reported by the CLI, not a live backend or remote probe. */
 export interface BeadsWorkspace {
+  /** Native Beads directory; not necessarily relative to the invocation directory. */
   path: string;
+  /** Repository root reported by native context, if present. */
   repoRoot?: string;
+  /**
+   * Presence of reported sync settings. `false` means the returned settings were empty;
+   * omission means the probe had no remote evidence. Neither proves the live remote state.
+   */
   remote?: boolean;
   backend?: "dolt" | "other";
   doltMode?: "embedded" | "server" | "proxied-server" | "other";
+  /** An endpoint was reported; its value and reachability are not exposed by this probe. */
   serverEndpoint?: true;
+  /** A proxy directory was reported, without retaining its path. */
   proxied?: true;
 }
 
-/** Config-only context avoids `where`'s opportunistic embedded-store prefix lookup. */
+/**
+ * Read workspace evidence with `bd context --json`, avoiding `where`'s embedded-store prefix lookup.
+ * @param directory Project directory in which to run the probe.
+ * @param runtime Runner for the native CLI call.
+ * @returns Workspace evidence, or `undefined` for an empty `beads_dir` or the recognized versioned absence error.
+ * @throws For other command failures or unrecognized responses. Malformed JSON in an exit-1 response throws a parse error.
+ */
 export async function probeBeadsWorkspace(
   directory: string,
   runtime: GuardRuntime,
@@ -72,14 +99,22 @@ export async function probeBeadsWorkspace(
   return workspace;
 }
 
-/** Parse the leading `major.minor.patch` triple; pre-release suffixes are ignored. */
+/**
+ * Extract the first numeric `major.minor.patch` triple; this does not validate SemVer or suffixes.
+ * @param text Native version output, which can include a CLI name or build label.
+ */
 export function parseVersion(text: string): Version | undefined {
   const match = text.match(/(\d+)\.(\d+)\.(\d+)/);
   if (!match) return undefined;
   return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
-/** Compare two parsed versions; negative when `left` is older. */
+/**
+ * Compare major, minor, then patch, without considering build or prerelease labels.
+ * @param left First parsed version, usually the installed CLI.
+ * @param right Second parsed version, usually the minimum supported CLI.
+ * @returns A negative, zero or positive value for older, equal or newer, respectively.
+ */
 export function compareVersions(left: Version, right: Version): number {
   for (let index = 0; index < 3; index++) {
     const difference = (left[index] ?? 0) - (right[index] ?? 0);
@@ -92,7 +127,12 @@ function formatVersion(version: Version): string {
   return version.join(".");
 }
 
-/** Check the CLI minimum and config-only workspace without opening the native store. */
+/**
+ * Check the CLI minimum and config-only workspace without opening the native store.
+ * @param directory Project directory whose CLI and workspace are checked.
+ * @param runtime Runner for the version and workspace probes.
+ * @returns The compatibility outcome; the workspace probe is skipped if version admission fails.
+ */
 export async function checkBeadsStore(directory: string, runtime: GuardRuntime): Promise<GuardResult> {
   let installedOutput: string;
   try {
@@ -120,12 +160,19 @@ export async function checkBeadsStore(directory: string, runtime: GuardRuntime):
   return { kind: "ready", version: formatVersion(installed), workspace: location };
 }
 
-/** Build config-only compatibility observation from a bounded `bd` runner. */
+/**
+ * Adapt the caller's runner without changing argv, cancellation or process errors.
+ * @param bd Bounded runner for the native version and workspace probes.
+ */
 export function createGuardRuntime(bd: GuardRuntime["bd"]): GuardRuntime {
   return { bd };
 }
 
-/** Explain failed compatibility checks without suggesting a bypass or store repair. */
+/**
+ * Explain a failed workspace probe or unsupported CLI without suggesting a bypass or store repair.
+ * @param result Observed compatibility outcome.
+ * @returns No notice for other outcomes, including an uninitialized workspace.
+ */
 export function guardNotice(result: GuardResult): string | undefined {
   switch (result.kind) {
     case "probe-failed":

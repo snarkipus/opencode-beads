@@ -56,7 +56,10 @@ export interface BeadsAgentOptions {
   steps?: number;
 }
 
-/** Build the task-agent definitions from plugin options. */
+/**
+ * Build the default task agent plus any opted-in model profiles.
+ * @param options Profile selection and a shared step cap; the default agent inherits the host model.
+ */
 export function beadsAgents(options: BeadsAgentOptions = {}): Record<string, BeadsAgentDefinition> {
   const base: BeadsAgentDefinition = {
     description: BEADS_TASK_AGENT_DESCRIPTION,
@@ -75,6 +78,8 @@ type AgentEditor = Parameters<Parameters<Plugin.Context["agent"]["transform"]>[0
 /**
  * Register task agents. `update` creates unknown agents from OpenCode defaults (including the
  * default permission ruleset); user `agents` config entries still override these fields one by one.
+ * @param editor Native editor for the current agent registry rebuild.
+ * @param agents Definitions keyed by the agent IDs to update.
  */
 export function applyBeadsAgents(editor: AgentEditor, agents: Record<string, BeadsAgentDefinition>): void {
   for (const [id, definition] of Object.entries(agents)) {
