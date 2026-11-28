@@ -32,15 +32,18 @@ jobs:
       - name: Test
         run: bun test
 
-      - name: Test packed package
-        run: bun run test:package
-
       - name: Validate and build release archive
         id: package
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
         run: bun scripts/packaging/release.ts prepare --tag "$RELEASE_TAG" --prerelease "$RELEASE_PRERELEASE" --output release-artifacts
+
+      - name: Test prepared release archive
+        env:
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+          ARCHIVE_SHA256: ${{ steps.package.outputs.sha256 }}
+        run: bun scripts/packaging/test-package.ts --archive "$ARCHIVE" --sha256 "$ARCHIVE_SHA256"
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4

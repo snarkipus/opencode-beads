@@ -9,6 +9,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
 
 type StoredSessionMessage = Awaited<ReturnType<Plugin.Context["session"]["context"]>>[number];
 type StoredUserMessage = Extract<StoredSessionMessage, { type: "user" }>;
@@ -22,14 +23,28 @@ function projectedUserMessage(id: string, text: string) {
 }
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-beads-package-"));
-const archiveArgument = process.argv.indexOf("--archive");
-const providedArchive =
-  archiveArgument >= 0 && process.argv[archiveArgument + 1]
-    ? path.resolve(process.argv[archiveArgument + 1] as string)
-    : undefined;
-const checksumArgument = process.argv.indexOf("--sha256");
-const expectedArchiveChecksum = checksumArgument >= 0 ? process.argv[checksumArgument + 1] : undefined;
+const { values, tokens } = parseArgs({
+  options: { archive: { type: "string" }, sha256: { type: "string" } },
+  tokens: true,
+});
+const { archive: archiveOption, sha256: checksumOption } = values;
+if (tokens.length !== Object.keys(values).length) {
+  throw new Error("Pass only --archive and --sha256, at most once each");
+}
+if ((archiveOption === undefined) !== (checksumOption === undefined)) {
+  throw new Error("--archive and --sha256 must be provided together");
+}
+if (
+  archiveOption !== undefined &&
+  (!archiveOption.trim() || archiveOption.startsWith("-") || archiveOption.includes("\0"))
+) {
+  throw new Error("--archive must be a file path");
+}
+if (checksumOption !== undefined && (checksumOption.length !== 64 || !/^[0-9a-f]+$/i.test(checksumOption))) {
+  throw new Error("--sha256 must contain 64 hexadecimal digits");
+}
+const providedArchive = archiveOption === undefined ? undefined : path.resolve(archiveOption);
+const expectedArchiveChecksum = checksumOption?.toLowerCase();
 const sourceManifest = JSON.parse(await fs.readFile(path.join(projectDir, "package.json"), "utf8")) as {
   name: string;
   version: string;
@@ -68,6 +83,7 @@ async function filesBelow(root: string, directory = ""): Promise<string[]> {
   return files.sort();
 }
 
+const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-beads-package-"));
 try {
   let archive: string;
   let archiveName: string;
@@ -191,7 +207,9 @@ try {
     if (!installed.equals(source)) throw new Error(`Packed resource differs: ${relative}`);
   }
   // Missing/unreachable guidance is a diagnostic, not silently advertised capability.
-  const missingResource = path.join(path.dirname(installedSkillPath), links[15]!);
+  const fixtureResource = "resources/WORKTREES.md";
+  if (!links.includes(fixtureResource)) throw new Error(`Packed skill must link ${fixtureResource}`);
+  const missingResource = path.join(path.dirname(installedSkillPath), fixtureResource);
   const savedResource = await fs.readFile(missingResource);
   try {
     await fs.unlink(missingResource);
@@ -201,7 +219,7 @@ try {
     } catch (error) {
       failure = String(error);
     }
-    if (!failure.includes(`resource-unreachable ${links[15]}`))
+    if (!failure.includes(`resource-unreachable ${fixtureResource}`))
       throw new Error("Missing packed guidance was not diagnosed");
   } finally {
     await fs.writeFile(missingResource, savedResource);

@@ -7,14 +7,18 @@ alongside the plugin.
 
 - [`packaging/test-package.ts`](packaging/test-package.ts) runs via
   `bun run test:package` in local checks and CI. It packs the checkout or
-  accepts `--archive <tgz>` with optional `--sha256 <digest>`, installs the
-  archive into a disposable consumer with lifecycle scripts disabled, and
-  verifies the packed plugin. The consumer and any generated archive are removed.
+  accepts `--archive <tgz> --sha256 <digest>` together. In exact-archive mode
+  it checks the SHA-256 before installing the supplied archive into a disposable
+  consumer with lifecycle scripts disabled. Both modes verify the packed plugin
+  and remove their scratch directory. A supplied archive stays in place.
 - [`packaging/release.ts`](packaging/release.ts) prepares and verifies the archive
-  used by the release workflow. Preparation writes a tarball to the supplied
-  directory and can append the archive path, checksum and dist-tag to
-  `GITHUB_OUTPUT`. The workflow owns attestation, GitHub upload and npm
-  publication. Use `bun run test:release` for local release fixtures.
+  used by the release workflow. The `prepare` command creates the output
+  directory if needed, requires it to be empty, and writes one tarball. It
+  appends the archive path, SHA-256 and dist-tag to `GITHUB_OUTPUT` when set.
+  The workflow passes that path and SHA-256 to the smoke check before
+  attestation and GitHub upload. Immediately before npm publication, `verify`
+  rechecks the same archive against the prepared SHA-256 and validates the
+  release tag and channel. Use `bun run test:release` for local release fixtures.
 
 ## Beads compatibility and source review
 
