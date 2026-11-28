@@ -35,7 +35,14 @@ export interface ContextControllerOptions {
 }
 
 export interface ContextController {
-  /** System text for one model request, or undefined when nothing should be added. */
+  /**
+   * Reuse pending or cached prime output for this session and audience; render actor
+   * and capability guidance for each request rather than caching it with the output.
+   * @param sessionID Session requesting context, also part of the cache key.
+   * @param agentID Requesting agent used to select the audience and render attribution.
+   * @param capabilities Tool visibility observed for this request, if known.
+   * @returns Context or a notice, or `undefined` when nothing should be added.
+   */
   systemFor(sessionID: string, agentID: string, capabilities?: RequestCapabilities): Promise<string | undefined>;
   /** Refresh prime on the next request, e.g. after compaction changed the session. */
   invalidate(sessionID: string): void;
