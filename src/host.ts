@@ -423,10 +423,16 @@ export async function setupBeads(ctx: HostContext, deps: HostDependencies = {}):
               guard = { kind: "probe-failed" };
             }
           }
-          const local =
-            guard.kind !== "withheld" && !abort.signal.aborted
-              ? { ...(await collectPluginHealth(directory, guard)), ...(await collectBeadsHealth(guard)) }
-              : "withheld";
+          let local: NonNullable<DiagnosticsSnapshot["local"]> = "withheld";
+          if (guard.kind !== "withheld" && !abort.signal.aborted) {
+            // Once admitted, both file observations run in order under the same eligibility check.
+            local = {
+              ...(await collectPluginHealth(directory, guard)),
+              ...(await collectBeadsHealth(guard)),
+            };
+          }
+
+          // Hook listing needs a confirmed location even when the store probe fails.
           const hooks =
             locationKnown && !abort.signal.aborted
               ? await collectHooks(directory, diagnosticBd)
